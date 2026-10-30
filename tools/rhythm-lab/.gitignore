@@ -1,0 +1,5 @@
+# 本地生成结果不提交（真实歌曲分析 JSON、报告、谱面）
+output/
+__pycache__/
+*.pyc
+.pytest_cache/
