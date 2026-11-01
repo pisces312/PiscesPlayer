@@ -66,6 +66,7 @@ internal fun BoxScope.UnifiedPlayerMiniAndFullLayers(
     onShowQueueClicked: () -> Unit,
     onAskAiClick: () -> Unit,
     onAskAiTranslateLyrics: () -> Unit,
+    onOpenRhythmGame: () -> Unit,
     onSongTitleClick: () -> Unit,
     onQueueDragStart: () -> Unit,
     onQueueDrag: (Float) -> Unit,
@@ -228,6 +229,7 @@ internal fun BoxScope.UnifiedPlayerMiniAndFullLayers(
                         onShowQueueClicked = onShowQueueClicked,
                         onAskAiClick = onAskAiClick,
                         onAskAiTranslateLyrics = onAskAiTranslateLyrics,
+                        onOpenRhythmGame = onOpenRhythmGame,
                         onSongTitleClick = onSongTitleClick,
                         onQueueDragStart = onQueueDragStart,
                         onQueueDrag = onQueueDrag,
@@ -327,6 +329,7 @@ internal fun UnifiedPlayerPrewarmLayer(
                     onAskAiClick = onAskAiClick,
                     // Prewarm renders at alpha 0: nothing here is user-reachable.
                     onAskAiTranslateLyrics = {},
+                    onOpenRhythmGame = {},
                     onSongTitleClick = onSongTitleClick,
                     onQueueDragStart = onQueueDragStart,
                     onQueueDrag = onQueueDrag,

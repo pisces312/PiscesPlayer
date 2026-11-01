@@ -102,6 +102,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.Bookmark
 import androidx.compose.material.icons.rounded.Cloud
+import androidx.compose.material.icons.rounded.SportsEsports
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.lostf1sh.pixelplayeross.presentation.viewmodel.AudioBookmarksViewModel
 import androidx.compose.material3.Slider
@@ -220,6 +221,7 @@ fun FullPlayerContent(
     onShowQueueClicked: () -> Unit,
     onAskAiClick: () -> Unit,
     onAskAiTranslateLyrics: () -> Unit,
+    onOpenRhythmGame: () -> Unit,
     onSongTitleClick: () -> Unit,
     onQueueDragStart: () -> Unit,
     onQueueDrag: (Float) -> Unit,
@@ -594,6 +596,7 @@ fun FullPlayerContent(
             chipColor = playerOnAccentColor.copy(alpha = 0.8f),
             chipContentColor = playerAccentColor,
             onQueueClick = onShowQueueClicked,
+            onRhythmGameClick = onOpenRhythmGame,
             onTitleClick = onSongTitleClick,
             onArtistClick = onSongMetadataArtistClick,
             isPlayingProvider = isPlayingProvider
@@ -618,6 +621,7 @@ fun FullPlayerContent(
             chipColor = playerOnAccentColor.copy(alpha = 0.8f),
             chipContentColor = playerAccentColor,
             onQueueClick = onShowQueueClicked,
+            onRhythmGameClick = onOpenRhythmGame,
             onTitleClick = onSongTitleClick,
             onArtistClick = onSongMetadataArtistClick,
             isPlayingProvider = isPlayingProvider
@@ -1236,6 +1240,7 @@ private fun FullPlayerSongMetadataSection(
     chipColor: Color,
     chipContentColor: Color,
     onQueueClick: () -> Unit,
+    onRhythmGameClick: () -> Unit,
     onTitleClick: () -> Unit,
     onArtistClick: () -> Unit,
     isPlayingProvider: () -> Boolean = { true }
@@ -1282,6 +1287,7 @@ private fun FullPlayerSongMetadataSection(
             chipContentColor = chipContentColor,
             showQueueButton = isLandscape,
             onClickQueue = onQueueClick,
+            onClickRhythmGame = onRhythmGameClick,
             onClickTitle = onTitleClick,
             onClickArtist = onArtistClick,
             isPlayingProvider = isPlayingProvider
@@ -1384,6 +1390,7 @@ private fun SongMetadataDisplaySection(
     showQueueButton: Boolean,
     onClickQueue: () -> Unit,
     onClickArtist: () -> Unit,
+    onClickRhythmGame: () -> Unit,
     modifier: Modifier = Modifier,
     isPlayingProvider: () -> Boolean = { true }
 ) {
@@ -1488,6 +1495,22 @@ private fun SongMetadataDisplaySection(
                         tint = chipContentColor
                     )
                 }
+                // Sits between the two pill halves, so it keeps a plain rounded rectangle and the
+                // cluster still reads as one segmented pill.
+                Box(
+                    modifier = Modifier
+                        .size(height = 42.dp, width = 50.dp)
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(chipColor)
+                        .clickable { onClickRhythmGame() },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.SportsEsports,
+                        contentDescription = stringResource(R.string.song_info_rhythm_game),
+                        tint = chipContentColor
+                    )
+                }
                 Box(
                     modifier = Modifier
                         .size(height = 42.dp, width = 50.dp)
@@ -1511,19 +1534,38 @@ private fun SongMetadataDisplaySection(
                 }
             }
         } else {
-            FilledIconButton(
-                modifier = Modifier
-                    .size(width = 48.dp, height = 48.dp),
-                colors = IconButtonDefaults.filledIconButtonColors(
-                    containerColor = chipColor,
-                    contentColor = chipContentColor
-                ),
-                onClick = onClickLyrics,
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(
-                    painter = painterResource(R.drawable.rounded_lyrics_24),
-                    contentDescription = stringResource(R.string.presentation_batch_g_player_cd_lyrics)
-                )
+                FilledIconButton(
+                    modifier = Modifier
+                        .size(width = 48.dp, height = 48.dp),
+                    colors = IconButtonDefaults.filledIconButtonColors(
+                        containerColor = chipColor,
+                        contentColor = chipContentColor
+                    ),
+                    onClick = onClickLyrics,
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.rounded_lyrics_24),
+                        contentDescription = stringResource(R.string.presentation_batch_g_player_cd_lyrics)
+                    )
+                }
+                FilledIconButton(
+                    modifier = Modifier
+                        .size(width = 48.dp, height = 48.dp),
+                    colors = IconButtonDefaults.filledIconButtonColors(
+                        containerColor = chipColor,
+                        contentColor = chipContentColor
+                    ),
+                    onClick = onClickRhythmGame,
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.SportsEsports,
+                        contentDescription = stringResource(R.string.song_info_rhythm_game)
+                    )
+                }
             }
         }
     }
@@ -2222,6 +2264,12 @@ private fun MetadataPlaceholder(
                 ) {}
                 Surface(
                     modifier = Modifier.size(height = 42.dp, width = 50.dp),
+                    shape = RoundedCornerShape(6.dp),
+                    color = onColor,
+                    tonalElevation = 0.dp
+                ) {}
+                Surface(
+                    modifier = Modifier.size(height = 42.dp, width = 50.dp),
                     shape = RoundedCornerShape(
                         topStart = 6.dp,
                         topEnd = 50.dp,
@@ -2233,11 +2281,18 @@ private fun MetadataPlaceholder(
                 ) {}
             }
         } else {
-            PlaceholderBox(
-                modifier = Modifier.size(width = 48.dp, height = 48.dp),
-                cornerRadius = 24.dp,
-                color = onColor
-            )
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                PlaceholderBox(
+                    modifier = Modifier.size(width = 48.dp, height = 48.dp),
+                    cornerRadius = 24.dp,
+                    color = onColor
+                )
+                PlaceholderBox(
+                    modifier = Modifier.size(width = 48.dp, height = 48.dp),
+                    cornerRadius = 24.dp,
+                    color = onColor
+                )
+            }
         }
     }
 }

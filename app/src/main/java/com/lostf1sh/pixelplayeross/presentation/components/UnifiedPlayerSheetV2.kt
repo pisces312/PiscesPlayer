@@ -686,6 +686,21 @@ fun UnifiedPlayerSheetV2(
                                 aiQaPreset = AiSongQaPreset.TRANSLATE_TITLE_AND_LYRICS
                                 showAiQaSheet = true
                             },
+                            onOpenRhythmGame = {
+                                val songId = infrequentPlayerState.currentSong?.id
+                                if (songId != null) {
+                                    scope.launch {
+                                        // Snap rather than animate: the setup screen is drawn
+                                        // underneath this overlay, so an animated collapse would
+                                        // show the player sitting on top of it for a few frames.
+                                        sheetMotionController.snapCollapsed(sheetCollapsedTargetY)
+                                        playerViewModel.collapsePlayerSheet()
+                                        navController.navigateSafely(
+                                            Screen.RhythmSetup.createRoute(songId)
+                                        )
+                                    }
+                                }
+                            },
                             onSongTitleClick = {
                                 sheetModalOverlayController.updateSelectedSongForInfo(
                                     infrequentPlayerState.currentSong,
