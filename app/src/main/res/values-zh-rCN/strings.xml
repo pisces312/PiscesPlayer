@@ -314,6 +314,75 @@
     <string name="metadata_match_back">返回</string>
     <string name="metadata_match_done">完成</string>
 
+    <!-- Rhythm game -->
+    <string name="song_info_rhythm_game">节奏游戏</string>
+    <string name="rhythm_setup_title">节奏游戏</string>
+    <string name="rhythm_import_osu">导入 .osu 谱面</string>
+    <string name="rhythm_import_failed">导入失败：%1$s</string>
+    <string name="rhythm_empty_hint">为这首歌导入 osu!mania 4K 单点谱面后即可游玩。暂不支持长按谱面和其他键数。</string>
+    <string name="rhythm_chart_stats">%1$d 个音符 · 每秒 %2$s 个</string>
+    <string name="rhythm_best_score">最高分：%1$d</string>
+    <string name="rhythm_play_chart">开始</string>
+    <string name="rhythm_delete_chart_icon">删除已导入谱面</string>
+    <string name="rhythm_delete_chart_title">删除谱面</string>
+    <string name="rhythm_delete_chart_message">删除已导入的谱面 %1$s 及其最高分？不会影响原始 .osu 文件。</string>
+    <string name="rhythm_delete_chart_confirm">删除</string>
+    <string name="rhythm_delete_chart_cancel">取消</string>
+    <string name="rhythm_song_loading">正在加载歌曲…</string>
+    <string name="rhythm_loading">正在准备游戏…</string>
+    <string name="rhythm_load_failed">加载失败：%1$s</string>
+    <string name="rhythm_chart_missing">导入的谱面已不存在，请重新导入。</string>
+    <string name="rhythm_song_missing">歌曲已不在曲库中。</string>
+    <string name="rhythm_cloud_not_supported">云歌曲需先下载后才能游玩节奏游戏。</string>
+    <string name="rhythm_accuracy">%1$s%%</string>
+    <string name="rhythm_pause">暂停</string>
+    <string name="rhythm_restart">重开</string>
+    <string name="rhythm_exit">退出</string>
+    <string name="rhythm_paused_title">已暂停</string>
+    <string name="rhythm_resume">继续</string>
+    <string name="rhythm_result_title">结算 · %1$s</string>
+    <string name="rhythm_result_summary">分数 %1$d · 准确率 %2$s%%</string>
+    <string name="rhythm_result_combo">最大连击 %1$d · 音符 %2$d</string>
+    <string name="rhythm_result_judgements">Perfect %1$d · Great %2$d · Good %3$d · Miss %4$d</string>
+    <string name="rhythm_result_timing">平均误差 %1$s ms · 偏早 %2$d · 偏晚 %3$d</string>
+    <string name="rhythm_retry">再来一次</string>
+    <string name="rhythm_source_dsp">DSP</string>
+    <string name="rhythm_source_osu">osu</string>
+    <string name="rhythm_generate_chart">自动生成谱面</string>
+    <string name="rhythm_generate_title">自动生成谱面</string>
+    <string name="rhythm_generate_running">正在分析音频…</string>
+    <string name="rhythm_generate_cancel">取消</string>
+    <string name="rhythm_generate_start">开始生成</string>
+    <string name="rhythm_generate_difficulty">难度</string>
+    <string name="rhythm_generate_difficulty_easy">简单</string>
+    <string name="rhythm_generate_difficulty_normal">标准</string>
+    <string name="rhythm_generate_difficulty_hard">困难</string>
+    <string name="rhythm_generate_hint_easy">每拍 1 个音符，密度最低、最稳。</string>
+    <string name="rhythm_generate_hint_normal">每半拍 1 个音符。</string>
+    <string name="rhythm_generate_hint_hard">每 1/4 拍 1 个音符，最快，准确度也最低。</string>
+    <string name="rhythm_generate_loudness">弱音过滤</string>
+    <string name="rhythm_generate_loudness_off">关闭</string>
+    <string name="rhythm_generate_loudness_medium">中</string>
+    <string name="rhythm_generate_loudness_strong">强</string>
+    <string name="rhythm_generate_density">密度上限</string>
+    <string name="rhythm_generate_density_off">关闭</string>
+    <string name="rhythm_generate_density_8">每秒 8</string>
+    <string name="rhythm_generate_density_5">每秒 5</string>
+    <string name="rhythm_generate_advanced">高级选项</string>
+    <string name="rhythm_generate_advanced_hide">收起高级选项</string>
+    <string name="rhythm_generate_bpm">BPM（留空 = 自动）</string>
+    <string name="rhythm_generate_bpm_placeholder">自动</string>
+    <string name="rhythm_generate_bpm_invalid">请输入 60 到 200 之间的 BPM。</string>
+    <string name="rhythm_generate_offset">整体偏移</string>
+    <string name="rhythm_generate_offset_value">%1$d 毫秒</string>
+    <string name="rhythm_generate_cancelled">已取消生成</string>
+    <string name="rhythm_generate_failed">生成失败：%1$s</string>
+    <string name="rhythm_generate_song_too_long">暂不支持超过 %1$d 分钟的歌曲。</string>
+    <string name="rhythm_generated_title">谱面已生成</string>
+    <string name="rhythm_generated_message">%1$d 个音符 · 每秒 %2$s 个 · %3$s BPM</string>
+    <string name="rhythm_generated_play_now">立即游玩</string>
+    <string name="rhythm_generated_later">稍后</string>
+
     <!-- Song deletion protection -->
     <string name="song_deletion_protection_blocked">保护模式已开启，删除已被阻止。</string>
 </resources>

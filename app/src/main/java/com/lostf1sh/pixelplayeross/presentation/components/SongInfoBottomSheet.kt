@@ -111,6 +111,7 @@ fun SongInfoBottomSheet(
     onPlaySong: () -> Unit,
     onAddToQueue: () -> Unit,
     onAddNextToQueue: () -> Unit,
+    onNavigateToRhythmGame: (() -> Unit)? = null,
     onAddToPlayList: () -> Unit,
     onDeleteFromDevice: (activity: Activity, song: Song, onResult: (Boolean) -> Unit) -> Unit,
     onNavigateToAlbum: () -> Unit,
@@ -524,6 +525,25 @@ fun SongInfoBottomSheet(
                                                     songInfoViewModel.setSongRating(song.id, stars)
                                                 }
                                             )
+                                        }
+
+                                        if (onNavigateToRhythmGame != null) {
+                                            item {
+                                                FilledTonalButton(
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .heightIn(min = 66.dp),
+                                                    shape = CircleShape,
+                                                    onClick = onNavigateToRhythmGame
+                                                ) {
+                                                    Icon(
+                                                        Icons.Rounded.PlayArrow,
+                                                        contentDescription = stringResource(R.string.song_info_rhythm_game)
+                                                    )
+                                                    Spacer(Modifier.width(10.dp))
+                                                    Text(stringResource(R.string.song_info_rhythm_game))
+                                                }
+                                            }
                                         }
                                         item {
                                             Row(

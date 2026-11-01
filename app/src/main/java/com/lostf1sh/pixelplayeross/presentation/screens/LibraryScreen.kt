@@ -1687,6 +1687,10 @@ fun LibraryScreen(
                     showSongInfoBottomSheet = false
                     playerViewModel.sendToast(context.getString(R.string.toast_playing_next))
                 },
+                onNavigateToRhythmGame = {
+                    navController.navigateSafely(Screen.RhythmSetup.createRoute(currentSong.id))
+                    showSongInfoBottomSheet = false
+                },
                 onAddToPlayList = {
                     playlistSheetSongs = persistentListOf(currentSong)
                     showPlaylistBottomSheet = true

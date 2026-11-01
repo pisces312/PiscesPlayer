@@ -677,6 +677,8 @@ class MainActivity : ComponentActivity() {
                 Screen.WordDelimiterConfig.route,
                 Screen.AudioBookmarks.route,
                 Screen.AudioBookmarkFolder.route,
+                Screen.RhythmSetup.route,
+                Screen.RhythmGame.route,
                 Screen.Updates.route
             )
         }
@@ -937,7 +939,9 @@ class MainActivity : ComponentActivity() {
                                 .map { it.currentSong?.id != null }
                                 .distinctUntilChanged()
                         }.collectAsStateWithLifecycle(initialValue = false)
-                        val routesWithHiddenMiniPlayer = remember { setOf(Screen.NavBarCrRad.route) }
+                        val routesWithHiddenMiniPlayer = remember {
+                            setOf(Screen.NavBarCrRad.route, Screen.RhythmGame.route)
+                        }
                         val shouldHideMiniPlayer by remember(currentRoute) {
                             derivedStateOf { currentRoute in routesWithHiddenMiniPlayer }
                         }

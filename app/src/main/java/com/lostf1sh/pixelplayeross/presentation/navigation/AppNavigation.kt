@@ -74,6 +74,8 @@ import com.lostf1sh.pixelplayeross.presentation.viewmodel.StatsViewModel
 import com.lostf1sh.pixelplayeross.presentation.viewmodel.PlaylistViewModel
 import kotlinx.coroutines.flow.first
 import com.lostf1sh.pixelplayeross.presentation.components.ScreenWrapper
+import com.lostf1sh.pixelplayeross.presentation.rhythm.RhythmGameScreen
+import com.lostf1sh.pixelplayeross.presentation.rhythm.RhythmSetupScreen
 
 @OptIn(UnstableApi::class)
 @SuppressLint("UnrememberedGetBackStackEntry")
@@ -790,6 +792,41 @@ fun AppNavigation(
                         onBack = { navController.popBackStack() }
                     )
                 }
+            }
+            composable(
+                Screen.RhythmSetup.route,
+                arguments = listOf(navArgument("songId") { type = NavType.StringType }),
+                enterTransition = { enterTransition() },
+                exitTransition = { exitTransition() },
+                popEnterTransition = { popEnterTransition() },
+                popExitTransition = { popExitTransition() },
+            ) { backStackEntry ->
+                ScreenWrapper(navController = navController, playerViewModel = playerViewModel) {
+                    RhythmSetupScreen(
+                        songId = backStackEntry.arguments?.getString("songId").orEmpty(),
+                        navController = navController,
+                        playerViewModel = playerViewModel,
+                        onNavigationIconClick = { navController.popBackStack() },
+                    )
+                }
+            }
+            composable(
+                Screen.RhythmGame.route,
+                arguments = listOf(
+                    navArgument("songId") { type = NavType.StringType },
+                    navArgument("chartId") { type = NavType.StringType },
+                ),
+                enterTransition = { enterTransition() },
+                exitTransition = { exitTransition() },
+                popEnterTransition = { popEnterTransition() },
+                popExitTransition = { popExitTransition() },
+            ) { backStackEntry ->
+                RhythmGameScreen(
+                    songId = backStackEntry.arguments?.getString("songId").orEmpty(),
+                    chartId = backStackEntry.arguments?.getString("chartId").orEmpty(),
+                    playerViewModel = playerViewModel,
+                    onExit = { navController.popBackStack() },
+                )
             }
             composable(
                 Screen.AudioBookmarks.route,
