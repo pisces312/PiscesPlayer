@@ -334,7 +334,14 @@
     <string name="rhythm_song_missing">The song is no longer in the library.</string>
     <string name="rhythm_cloud_not_supported">Cloud tracks must be downloaded before playing the rhythm game.</string>
     <string name="rhythm_accuracy">%1$s%%</string>
+    <string name="rhythm_combo">%1$d COMBO</string>
+    <string name="rhythm_feedback_timing">%1$s ms · %2$s</string>
+    <string name="rhythm_timing_early">EARLY</string>
+    <string name="rhythm_timing_late">LATE</string>
+    <string name="rhythm_timing_on_time">ON TIME</string>
     <string name="rhythm_pause">Pause</string>
+    <string name="rhythm_pause_hint">Audio and chart clock are frozen</string>
+    <string name="rhythm_offset_label">Device offset %1$d ms</string>
     <string name="rhythm_restart">Restart</string>
     <string name="rhythm_exit">Exit</string>
     <string name="rhythm_paused_title">Paused</string>

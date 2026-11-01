@@ -296,10 +296,59 @@ PixelPlayerOSS 为 GPL-3.0-or-later。此次仅参考同一作者本地 RhythmCh
 ### 12.2 已知限制
 
 - Hold 直接整谱拒收（明确报错），不做单点转换；`.prc`、`.osz` 未接入。
-- 未实现 DSP 快速生成，选谱页只有“导入 .osu”一条来源。
+- ~~未实现 DSP 快速生成~~：已实现，见 `docs/rhythm-chart-ladder-plan.md`（母谱 + 派生难度）。
 - 整曲 PCM 一次性解码进内存（5 分钟立体声约 40MB），长曲或低内存机型需改为流式解码。
-- 未申请音频焦点、未接入逐输出设备偏移校准；`offsetMs` 目前恒为 0。
+- 未申请音频焦点；`offsetMs` 已改为**逐谱面**侧车设置（`settings/<chartId>.json`）并可在暂停面板里 ±10 ms 现场校准，但仍是手动值，没有自动校准。
 - 谱面仓库在 Compose 内直接构造（`remember`），未走 Hilt 注入；功能等价，但与项目 `hiltViewModel()` 惯例不一致。
 - 仅 `LibraryScreen`、`SearchScreen` 暴露入口，其他列表页未接。
 - 真机核心链路已验收（导入/游玩/判定/结算/互斥/暂停/返回/后台/退出，见 §9.2）；多指、蓝牙与有线输出、长时漂移未覆盖，`assembleRelease` 未跑。
 - 实测存在约 −57ms 的系统性提前误差，且没有偏移校准入口。
+
+## 13. 游戏界面重做（2026-11-01：自 RhythmChartLab 迁移）
+
+第一阶段只做了「能玩」的极简画布（纯色轨道 + 矩形音符 + 三个文字按钮）。本节记录把
+`D:\3rd-party-projects\RhythmChartLab\android-app` 的游玩界面整体迁入后的形态。
+来源均为**同一作者**的本地原型，GPL-3.0-or-later 自持，不涉及第三方。
+
+### 13.1 文件对照
+
+| 源（RhythmChartLab） | 目标（本项目） | 变化 |
+|---|---|---|
+| `game/PlayfieldGeometry.kt` | `presentation/rhythm/RhythmPlayfieldGeometry.kt` | 判定线 80%；线以下整条轨道可点；音符落点改为 `hitLineY / approachMs`（原实现是 `(judgeY-40)/approachMs`，approachMs 到时到不了顶） |
+| `game/LaneTouchTracker.kt` | `RhythmLaneTouchTracker.kt` | 原样迁移（pointerId → 车道锁定） |
+| `game/GameFeedback.kt` | `RhythmGameFeedback.kt` | 判定文字/连击/命中环；文案改为 `R.string` |
+| `game/GamePlayfield.kt` | `RhythmPlayfield.kt` | 删掉 Hold 分支（本项目谱面无尾点） |
+| `game/GameScreen.kt`（HUD / Pause / Result） | `RhythmGameScreen.kt` | 保留本项目生命周期，替换 HUD 与两个覆盖层 |
+
+### 13.2 视觉与交互
+
+- **四色键区**：判定线以下整条轨道是青/品红/绿/橙渐变（`LANE_KEYS`），按下时该轨在
+  70 ms 内提亮、150 ms 回落；
+- **音符**：圆角 + 顶部 28% 高光；进入 ±Good 窗口（140 ms）变亮青色 `NOTE_ACTIVE`；
+- **命中反馈**：判定线上扩散环（210 ms），屏幕中央 PERFECT/GREAT/GOOD/MISS 大字
+  （440 ms，先放大后回落）+ `±ms · 偏早/偏晚`，连击常驻在判定区上方；
+- **HUD**：千分位分数 + 难度名 + 准确率 + 暂停按钮 + 2 dp 进度条；
+- **暂停面板**：继续 / 设备偏移 ±10 ms / 重新开始 / 退出。偏移**实时**改
+  `clock.offsetMs` 并写回 `settings/<chartId>.json`（不重开本局）；
+- **结算面板**：分数大字、准确率、最大连击与音符数、四判定分布、平均误差与早晚分布。
+
+### 13.3 有意不迁
+
+- **Hold（长条）判定**：`RhythmNote` 只有单点时间，DSP 生成与 osu 导入都只有 tap；
+  迁入尾判等于为不存在的谱面付双倍渲染与判定复杂度。
+- **autoplay / 难度热切换**：本项目一个谱面文件即一个难度，切难度 = 换谱面。
+- **源 App 的主题与曲库页**：本项目有自己的 MaterialTheme、导航与选谱页。
+
+### 13.4 与和弦谱面的关系
+
+上一轮加入的双键/三键让「同一毫秒多个音符」成为常态。旧画布只处理 down、按下标 x 直接
+算车道，两指落同一轨会重复判定；迁移后由 `RhythmLaneTouchTracker` 保证：
+一指一判定、同轨多指不重复、抬手只释放自己那根手指。
+
+### 13.5 测试与未验证项
+
+- 纯 JVM 单测：`RhythmPlayfieldGeometryTest`（5 例，线上下命中/车道边界/退化尺寸/落点）、
+  `RhythmLaneTouchTrackerTest`（5 例，重复 down/四指并按/同轨两指释放/clear/越界车道）。
+- 全量：**1040 tests / 0 failures**；`:app:lintDebug` 仍是既有 4 个基线 error（与本特性无关）；
+  `:app:assembleRelease` 已签名产出（38,072,252 字节）。
+- **界面未目视验收**：本机 AVD 为 x86_64 + ARM 翻译，进游戏能跑但帧率不可用，真机截图待补。

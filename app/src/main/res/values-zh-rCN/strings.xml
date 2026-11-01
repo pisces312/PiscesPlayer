@@ -335,7 +335,14 @@
     <string name="rhythm_song_missing">歌曲已不在曲库中。</string>
     <string name="rhythm_cloud_not_supported">云歌曲需先下载后才能游玩节奏游戏。</string>
     <string name="rhythm_accuracy">%1$s%%</string>
+    <string name="rhythm_combo">%1$d 连击</string>
+    <string name="rhythm_feedback_timing">%1$s ms · %2$s</string>
+    <string name="rhythm_timing_early">偏早</string>
+    <string name="rhythm_timing_late">偏晚</string>
+    <string name="rhythm_timing_on_time">正好</string>
     <string name="rhythm_pause">暂停</string>
+    <string name="rhythm_pause_hint">音频与谱面时钟已冻结</string>
+    <string name="rhythm_offset_label">设备偏移 %1$d ms</string>
     <string name="rhythm_restart">重开</string>
     <string name="rhythm_exit">退出</string>
     <string name="rhythm_paused_title">已暂停</string>

@@ -1,7 +1,7 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-or-later
  * Original work, adapted in 2026 from the author's local RhythmChartLab prototype
- * (four-lane canvas, multi-touch, injected audio clock).
+ * (four-lane gameplay screen: HUD, judgement feedback, pause and result overlays).
  */
 package com.lostf1sh.pixelplayeross.presentation.rhythm
 
@@ -9,18 +9,22 @@ import android.app.Activity
 import android.content.pm.ActivityInfo
 import android.net.Uri
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -31,17 +35,16 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
@@ -50,27 +53,32 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.lostf1sh.pixelplayeross.R
 import com.lostf1sh.pixelplayeross.data.offline.CloudOfflineRepository
 import com.lostf1sh.pixelplayeross.data.rhythm.RhythmAudioClock
+import com.lostf1sh.pixelplayeross.data.rhythm.RhythmChartSettings
 import com.lostf1sh.pixelplayeross.data.rhythm.RhythmPcmDecoder
 import com.lostf1sh.pixelplayeross.data.rhythm.RhythmRepository
 import java.io.File
+import java.util.Locale
+import kotlin.math.roundToInt
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-private const val RHYTHM_LANE_COUNT = 4
-
-private val LaneBackground = Color(0xFF20202C)
-private val NoteColor = Color(0xFF78C8FF)
-private val NoteActiveColor = Color(0xFFFFDC78)
-private val JudgeLineColor = Color.White
-private val GameTextColor = Color(0xFFE6E6E6)
-private val GameBackground = Color(0xFF121218)
+private val GAME_BACKGROUND = Color(0xFF0D0F17)
+private val HUD_TEXT = Color(0xFFE9EDF7)
+private val HUD_SECONDARY = Color(0xFF9DA6BA)
+private val HUD_ACCENT = Color(0xFF78C8FF)
+private val CARD_BACKGROUND = Color(0xFF1B202C)
+private val DANGER_TEXT = Color(0xFFFF8A9B)
 
 /**
  * Four-lane gameplay screen. The shared player is paused on entry and resumed on
  * dispose only if it was playing; gameplay uses its own AudioTrack clock.
+ *
+ * Judgements are produced by [RhythmPlaySession] (pure logic, injected clock) and rendered by
+ * [RhythmPlayfield]; this file only wires them together and owns the run lifecycle.
  */
 @Composable
 fun RhythmGameScreen(
@@ -82,9 +90,11 @@ fun RhythmGameScreen(
     val context = LocalContext.current
     // Application context: the repository outlives the Activity scope.
     val repository = remember { RhythmRepository(context.applicationContext) }
+    val scope = rememberCoroutineScope()
 
     var session by remember { mutableStateOf<RhythmPlaySession?>(null) }
     var audioClock by remember { mutableStateOf<RhythmAudioClock?>(null) }
+    var chartSettings by remember { mutableStateOf(RhythmChartSettings.DEFAULT) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var result by remember { mutableStateOf<RhythmSessionResult?>(null) }
     var paused by remember { mutableStateOf(false) }
@@ -93,9 +103,44 @@ fun RhythmGameScreen(
     var runId by remember { mutableIntStateOf(0) }
     var shouldResumePlayer by remember { mutableStateOf(false) }
 
+    // Judgement feedback is one-shot: an event is shown, then aged out by the frame loop.
+    var judgementFeedback by remember { mutableStateOf<RhythmTimedJudgement?>(null) }
+    var hitEffects by remember { mutableStateOf<List<RhythmHitEffect>>(emptyList()) }
+    var feedbackId by remember { mutableLongStateOf(0L) }
+    var effectNowNanos by remember { mutableLongStateOf(System.nanoTime()) }
+    val touchTracker = remember(session, runId) { RhythmLaneTouchTracker() }
+
     val cloudUnavailableMessage = stringResource(R.string.rhythm_cloud_not_supported)
     val chartMissingMessage = stringResource(R.string.rhythm_chart_missing)
     val songMissingMessage = stringResource(R.string.rhythm_song_missing)
+
+    fun presentJudgement(event: RhythmJudgementEvent?) {
+        if (event == null || event.judgement == RhythmJudgement.EMPTY) return
+        val nowNanos = System.nanoTime()
+        feedbackId += 1
+        judgementFeedback = RhythmTimedJudgement(feedbackId, event, nowNanos)
+        if (event.judgement != RhythmJudgement.MISS) {
+            hitEffects = hitEffects + RhythmHitEffect(feedbackId, event.lane, event.judgement, nowNanos)
+        }
+    }
+
+    /** Offset tweak from the pause screen: applied live and persisted to the chart sidecar. */
+    fun adjustDelay(deltaMs: Int) {
+        val currentSession = session ?: return
+        val next = (currentSession.clock.offsetMs + deltaMs)
+            .coerceIn(
+                RhythmChartSettings.MIN_DELAY_MS.toDouble(),
+                RhythmChartSettings.MAX_DELAY_MS.toDouble(),
+            )
+        currentSession.clock.offsetMs = next
+        val updated = chartSettings.copy(
+            delayMs = next.roundToInt(),
+            updatedAtMs = System.currentTimeMillis(),
+        )
+        chartSettings = updated
+        scope.launch { repository.saveSettings(chartId, updated) }
+        frameTick += 1
+    }
 
     // Pause normal playback for the whole gameplay screen, resume it on leave.
     LaunchedEffect(Unit) {
@@ -129,13 +174,14 @@ fun RhythmGameScreen(
                 val pcm = RhythmPcmDecoder.decode(context, playbackUri)
                 // Per-chart playback tweaks: latency compensation on the clock, fall time on the
                 // session. Both must be read before the clock starts so the first note is right.
-                val chartSettings = repository.loadSettings(chartId)
-                val clock = RhythmAudioClock(pcm, offsetMs = chartSettings.delayMs.toDouble())
+                val settings = repository.loadSettings(chartId)
+                chartSettings = settings
+                val clock = RhythmAudioClock(pcm, offsetMs = settings.delayMs.toDouble())
                 audioClock = clock
                 session = RhythmPlaySession(
                     chart = chart,
                     clock = clock,
-                    approachMs = chartSettings.approachMs.toDouble(),
+                    approachMs = settings.approachMs.toDouble(),
                 )
             } catch (e: Exception) {
                 errorMessage = e.message ?: e.javaClass.simpleName
@@ -164,6 +210,7 @@ fun RhythmGameScreen(
             if (event == Lifecycle.Event.ON_PAUSE) {
                 session?.pause()
                 paused = true
+                touchTracker.clear()
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -173,11 +220,15 @@ fun RhythmGameScreen(
     BackHandler(enabled = result == null && session != null) {
         session?.pause()
         paused = true
+        touchTracker.clear()
     }
 
     // Game loop: countdown, then frame-driven advance. runId restarts the loop.
     LaunchedEffect(session, runId) {
         val currentSession = session ?: return@LaunchedEffect
+        judgementFeedback = null
+        hitEffects = emptyList()
+        touchTracker.clear()
         currentSession.clock.stop()
         countdown = 3
         repeat(3) {
@@ -189,9 +240,21 @@ fun RhythmGameScreen(
         if (paused) currentSession.pause()
         while (isActive) {
             withFrameNanos { }
+            val animationNow = System.nanoTime()
+            effectNowNanos = animationNow
+            judgementFeedback?.let {
+                if (animationNow - it.startedAtNanos > RHYTHM_JUDGEMENT_FEEDBACK_MS * 1_000_000L) {
+                    judgementFeedback = null
+                }
+            }
+            if (hitEffects.isNotEmpty()) {
+                hitEffects = hitEffects.filter {
+                    animationNow - it.startedAtNanos <= RHYTHM_HIT_EFFECT_MS * 1_000_000L
+                }
+            }
             if (!paused) {
                 val now = currentSession.clock.nowMs()
-                currentSession.tick(now)
+                currentSession.tick(now).forEach(::presentJudgement)
                 frameTick += 1
                 if (currentSession.isFinished(now)) {
                     val sessionResult = currentSession.settle()
@@ -205,241 +268,242 @@ fun RhythmGameScreen(
         }
     }
 
+    fun exitGame() {
+        session?.clock?.stop()
+        audioClock?.release()
+        onExit()
+    }
+
     val currentSession = session
-    when {
-        errorMessage != null -> RhythmMessageScreen(
-            message = stringResource(R.string.rhythm_load_failed, errorMessage ?: ""),
-            onExit = onExit,
-        )
-        currentSession == null -> RhythmMessageScreen(
-            message = stringResource(R.string.rhythm_loading),
-            onExit = onExit,
-        )
-        else -> {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(GameBackground),
-            ) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(GAME_BACKGROUND)
+            .safeDrawingPadding(),
+    ) {
+        when {
+            errorMessage != null -> RhythmMessageScreen(
+                message = stringResource(R.string.rhythm_load_failed, errorMessage ?: ""),
+                onExit = ::exitGame,
+            )
+
+            currentSession == null -> RhythmMessageScreen(
+                message = stringResource(R.string.rhythm_loading),
+                onExit = ::exitGame,
+            )
+
+            else -> Column(modifier = Modifier.fillMaxSize()) {
                 RhythmHud(
                     session = currentSession,
+                    paused = paused,
                     frameTick = frameTick,
                     onTogglePause = {
-                        if (paused) currentSession.resume() else currentSession.pause()
-                        paused = !paused
-                    },
-                    onRestart = {
-                        result = null
-                        paused = false
-                        runId += 1
-                    },
-                    onExit = {
-                        currentSession.clock.stop()
-                        audioClock?.release()
-                        onExit()
-                    },
-                )
-                RhythmGameCanvas(
-                    session = currentSession,
-                    frameTick = frameTick,
-                    onLaneDown = { lane ->
-                        if (!paused && result == null && countdown == 0) {
-                            currentSession.keyDown(lane, currentSession.clock.nowMs())
-                            frameTick += 1
+                        if (paused) {
+                            currentSession.resume()
+                        } else {
+                            currentSession.pause()
                         }
+                        paused = !paused
+                        touchTracker.clear()
                     },
-                    modifier = Modifier.fillMaxSize(),
                 )
-            }
-
-            if (countdown > 0 && result == null) {
-                RhythmCenterOverlay {
-                    Text(
-                        text = countdown.toString(),
-                        color = GameTextColor,
-                        fontSize = 56.sp,
+                Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
+                    RhythmPlayfield(
+                        session = currentSession,
+                        frameTick = frameTick,
+                        touchTracker = touchTracker,
+                        hitEffects = hitEffects,
+                        effectNowNanos = effectNowNanos,
+                        inputEnabled = !paused && result == null && countdown == 0,
+                        onLaneDown = { lane ->
+                            if (!paused && result == null && countdown == 0) {
+                                presentJudgement(
+                                    currentSession.keyDown(lane, currentSession.clock.nowMs()),
+                                )
+                                frameTick += 1
+                            }
+                        },
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                    RhythmFeedbackOverlay(
+                        combo = currentSession.engine.combo,
+                        feedback = judgementFeedback,
+                        nowNanos = effectNowNanos,
+                        modifier = Modifier.fillMaxSize(),
                     )
                 }
             }
+        }
 
-            if (paused && result == null) {
-                RhythmPauseOverlay(
-                    onResume = {
-                        currentSession.resume()
-                        paused = false
-                    },
-                    onRestart = {
-                        paused = false
-                        result = null
-                        runId += 1
-                    },
-                    onExit = onExit,
+        if (currentSession != null && countdown > 0 && result == null && !paused) {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text = countdown.toString(),
+                    color = HUD_TEXT,
+                    fontSize = 64.sp,
+                    fontWeight = FontWeight.ExtraBold,
                 )
             }
         }
-    }
 
-    result?.let { sessionResult ->
-        RhythmResultOverlay(
-            result = sessionResult,
-            onRetry = {
-                result = null
-                paused = false
-                runId += 1
-            },
-            onExit = onExit,
-        )
+        if (currentSession != null && paused && result == null) {
+            RhythmPauseOverlay(
+                offsetMs = currentSession.clock.offsetMs,
+                onResume = {
+                    currentSession.resume()
+                    paused = false
+                    touchTracker.clear()
+                },
+                onOffset = ::adjustDelay,
+                onRestart = {
+                    result = null
+                    paused = false
+                    runId += 1
+                },
+                onExit = ::exitGame,
+            )
+        }
+
+        result?.let { sessionResult ->
+            RhythmResultOverlay(
+                result = sessionResult,
+                onRetry = {
+                    result = null
+                    paused = false
+                    runId += 1
+                },
+                onExit = ::exitGame,
+            )
+        }
     }
 }
 
+/** Score, difficulty, accuracy and a thin progress bar. No transport controls: pausing is it. */
 @Composable
 private fun RhythmHud(
     session: RhythmPlaySession,
+    paused: Boolean,
     frameTick: Long,
     onTogglePause: () -> Unit,
-    onRestart: () -> Unit,
-    onExit: () -> Unit,
 ) {
     @Suppress("UNUSED_EXPRESSION") frameTick
-    Column(modifier = Modifier.fillMaxWidth()) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(
-                text = "${session.engine.score}  x${session.engine.combo}",
-                color = GameTextColor,
-                fontSize = 15.sp,
-            )
+    val engine = session.engine
+    val progress = if (session.clock.durationMs > 0.0) {
+        (session.clock.nowMs() / session.clock.durationMs).toFloat().coerceIn(0f, 1f)
+    } else {
+        0f
+    }
+    Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 4.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = String.format(Locale.US, "%,d", engine.score),
+                    color = HUD_TEXT,
+                    fontSize = 21.sp,
+                    fontWeight = FontWeight.Bold,
+                )
+                Text(
+                    text = session.chart.difficultyName.uppercase(),
+                    color = HUD_SECONDARY,
+                    fontSize = 11.sp,
+                    letterSpacing = 1.2.sp,
+                )
+            }
             Text(
                 text = stringResource(
                     R.string.rhythm_accuracy,
-                    String.format(java.util.Locale.US, "%.2f", session.engine.accuracy * 100),
+                    String.format(Locale.US, "%.2f", engine.accuracy * 100),
                 ),
-                color = GameTextColor,
-                fontSize = 15.sp,
+                color = HUD_TEXT,
+                fontSize = 17.sp,
+                fontWeight = FontWeight.SemiBold,
             )
+            TextButton(onClick = onTogglePause) {
+                Text(
+                    text = stringResource(
+                        if (paused) R.string.rhythm_resume else R.string.rhythm_pause,
+                    ),
+                    color = HUD_ACCENT,
+                )
+            }
         }
-        Row(
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 8.dp),
+                .height(2.dp)
+                .background(Color(0xFF303748)),
         ) {
-            TextButton(onClick = onTogglePause) {
-                Text(stringResource(R.string.rhythm_pause), color = GameTextColor)
-            }
-            TextButton(onClick = onRestart) {
-                Text(stringResource(R.string.rhythm_restart), color = GameTextColor)
-            }
-            TextButton(onClick = onExit) {
-                Text(stringResource(R.string.rhythm_exit), color = GameTextColor)
-            }
-        }
-    }
-}
-
-@Composable
-private fun RhythmGameCanvas(
-    session: RhythmPlaySession,
-    frameTick: Long,
-    onLaneDown: (Int) -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Canvas(
-        modifier = modifier.pointerInput(session) {
-            val laneWidthPx = size.width.toFloat() / RHYTHM_LANE_COUNT
-            awaitPointerEventScope {
-                while (true) {
-                    val event = awaitPointerEvent()
-                    event.changes.forEach { change ->
-                        if (change.pressed && !change.previousPressed) {
-                            val lane = (change.position.x / laneWidthPx).toInt()
-                                .coerceIn(0, RHYTHM_LANE_COUNT - 1)
-                            onLaneDown(lane)
-                        }
-                    }
-                }
-            }
-        },
-    ) {
-        @Suppress("UNUSED_EXPRESSION") frameTick
-        val now = session.clock.nowMs()
-        val laneWidth = size.width / RHYTHM_LANE_COUNT
-        val judgeY = size.height * 0.82f
-        val pxPerMs = (judgeY - 40f) / session.approachMs.toFloat()
-        val goodWindow = session.config.goodMs
-
-        for (lane in 0 until RHYTHM_LANE_COUNT) {
-            drawRect(
-                color = LaneBackground,
-                topLeft = Offset(lane * laneWidth, 0f),
-                size = Size(laneWidth, size.height),
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth(progress)
+                    .fillMaxHeight()
+                    .background(HUD_ACCENT),
             )
         }
-        for (note in session.chart.notes) {
-            if (!session.engine.isNotePending(note.id)) continue
-            val delta = (note.timeMs - now).toFloat()
-            if (delta < -goodWindow || delta > session.approachMs) continue
-            val y = judgeY - delta * pxPerMs
-            val color = if (kotlin.math.abs(delta) <= goodWindow) NoteActiveColor else NoteColor
-            drawRect(
-                color = color,
-                topLeft = Offset(note.lane * laneWidth + 10f, y - 11f),
-                size = Size(laneWidth - 20f, 22f),
-            )
-        }
-        drawRect(
-            color = JudgeLineColor,
-            topLeft = Offset(0f, judgeY - 2f),
-            size = Size(size.width, 4f),
-        )
     }
 }
 
-@Composable
-private fun RhythmCenterOverlay(content: @Composable () -> Unit) {
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color(0x88121218)),
-        contentAlignment = Alignment.Center,
-    ) {
-        content()
-    }
-}
-
+/**
+ * Pause screen. The device offset is adjustable here on purpose: it is the one setting a player
+ * notices mid-song, and stopping to open the chart settings sheet would lose the run.
+ */
 @Composable
 private fun RhythmPauseOverlay(
+    offsetMs: Double,
     onResume: () -> Unit,
+    onOffset: (Int) -> Unit,
     onRestart: () -> Unit,
     onExit: () -> Unit,
 ) {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xCC121218)),
+            .background(Color(0xE60D0F17)),
         contentAlignment = Alignment.Center,
     ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+        Surface(
+            modifier = Modifier.fillMaxWidth().padding(28.dp),
+            shape = RoundedCornerShape(20.dp),
+            color = CARD_BACKGROUND,
         ) {
-            Text(
-                text = stringResource(R.string.rhythm_paused_title),
-                color = GameTextColor,
-                fontSize = 22.sp,
-            )
-            Button(onClick = onResume) {
-                Text(stringResource(R.string.rhythm_resume))
-            }
-            OutlinedButton(onClick = onRestart) {
-                Text(stringResource(R.string.rhythm_restart))
-            }
-            OutlinedButton(onClick = onExit) {
-                Text(stringResource(R.string.rhythm_exit))
+            Column(
+                modifier = Modifier.padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(14.dp),
+            ) {
+                Text(
+                    text = stringResource(R.string.rhythm_paused_title),
+                    color = HUD_TEXT,
+                    fontSize = 28.sp,
+                    fontWeight = FontWeight.Bold,
+                )
+                Text(
+                    text = stringResource(R.string.rhythm_pause_hint),
+                    color = HUD_SECONDARY,
+                    fontSize = 13.sp,
+                )
+                Button(onClick = onResume, modifier = Modifier.fillMaxWidth()) {
+                    Text(stringResource(R.string.rhythm_resume))
+                }
+                Text(
+                    text = stringResource(R.string.rhythm_offset_label, offsetMs.roundToInt()),
+                    color = HUD_TEXT,
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    OutlinedButton(onClick = { onOffset(-10) }) { Text("-10 ms") }
+                    OutlinedButton(onClick = { onOffset(10) }) { Text("+10 ms") }
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    TextButton(onClick = onRestart) {
+                        Text(stringResource(R.string.rhythm_restart), color = HUD_TEXT)
+                    }
+                    TextButton(onClick = onExit) {
+                        Text(stringResource(R.string.rhythm_exit), color = DANGER_TEXT)
+                    }
+                }
             }
         }
     }
@@ -454,57 +518,71 @@ private fun RhythmResultOverlay(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xCC121218)),
+            .background(Color(0xF20D0F17)),
         contentAlignment = Alignment.Center,
     ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+        Surface(
+            modifier = Modifier.fillMaxWidth().padding(24.dp),
+            shape = RoundedCornerShape(20.dp),
+            color = CARD_BACKGROUND,
         ) {
-            Text(
-                text = stringResource(R.string.rhythm_result_title, result.difficultyName),
-                color = GameTextColor,
-                fontSize = 22.sp,
-            )
-            Text(
-                text = stringResource(
-                    R.string.rhythm_result_summary,
-                    result.score,
-                    String.format(java.util.Locale.US, "%.2f", result.accuracy * 100),
-                ),
-                color = GameTextColor,
-            )
-            Text(
-                text = stringResource(R.string.rhythm_result_combo, result.maxCombo, result.noteCount),
-                color = GameTextColor,
-            )
-            Text(
-                text = stringResource(
-                    R.string.rhythm_result_judgements,
-                    result.counts[RhythmJudgement.PERFECT] ?: 0,
-                    result.counts[RhythmJudgement.GREAT] ?: 0,
-                    result.counts[RhythmJudgement.GOOD] ?: 0,
-                    result.counts[RhythmJudgement.MISS] ?: 0,
-                ),
-                color = GameTextColor,
-                fontSize = 13.sp,
-            )
-            Text(
-                text = stringResource(
-                    R.string.rhythm_result_timing,
-                    String.format(java.util.Locale.US, "%.1f", result.meanErrorMs),
-                    result.earlyCount,
-                    result.lateCount,
-                ),
-                color = GameTextColor,
-                fontSize = 13.sp,
-            )
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                Button(onClick = onRetry) {
-                    Text(stringResource(R.string.rhythm_retry))
-                }
-                OutlinedButton(onClick = onExit) {
-                    Text(stringResource(R.string.rhythm_exit))
+            Column(
+                modifier = Modifier.padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(9.dp),
+            ) {
+                Text(
+                    text = stringResource(R.string.rhythm_result_title, result.difficultyName),
+                    color = HUD_ACCENT,
+                    fontSize = 22.sp,
+                    fontWeight = FontWeight.Bold,
+                )
+                Text(
+                    text = String.format(Locale.US, "%,d", result.score),
+                    color = HUD_TEXT,
+                    fontSize = 34.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                )
+                Text(
+                    text = stringResource(
+                        R.string.rhythm_accuracy,
+                        String.format(Locale.US, "%.2f", result.accuracy * 100),
+                    ),
+                    color = HUD_TEXT,
+                    fontSize = 20.sp,
+                )
+                Text(
+                    text = stringResource(R.string.rhythm_result_combo, result.maxCombo, result.noteCount),
+                    color = HUD_SECONDARY,
+                )
+                Text(
+                    text = stringResource(
+                        R.string.rhythm_result_judgements,
+                        result.counts[RhythmJudgement.PERFECT] ?: 0,
+                        result.counts[RhythmJudgement.GREAT] ?: 0,
+                        result.counts[RhythmJudgement.GOOD] ?: 0,
+                        result.counts[RhythmJudgement.MISS] ?: 0,
+                    ),
+                    color = HUD_TEXT,
+                    fontSize = 13.sp,
+                )
+                Text(
+                    text = stringResource(
+                        R.string.rhythm_result_timing,
+                        String.format(Locale.US, "%.1f", result.meanErrorMs),
+                        result.earlyCount,
+                        result.lateCount,
+                    ),
+                    color = HUD_SECONDARY,
+                    fontSize = 13.sp,
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Button(onClick = onRetry) {
+                        Text(stringResource(R.string.rhythm_retry))
+                    }
+                    OutlinedButton(onClick = onExit) {
+                        Text(stringResource(R.string.rhythm_exit))
+                    }
                 }
             }
         }
@@ -514,16 +592,14 @@ private fun RhythmResultOverlay(
 @Composable
 private fun RhythmMessageScreen(message: String, onExit: () -> Unit) {
     Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(GameBackground),
+        modifier = Modifier.fillMaxSize().background(GAME_BACKGROUND),
         contentAlignment = Alignment.Center,
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Text(message, color = GameTextColor, style = MaterialTheme.typography.bodyMedium)
+            Text(message, color = HUD_TEXT, style = MaterialTheme.typography.bodyMedium)
             Button(onClick = onExit) {
                 Text(stringResource(R.string.rhythm_exit))
             }
