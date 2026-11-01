@@ -7,9 +7,23 @@ package com.lostf1sh.pixelplayeross.data.rhythm
 
 import kotlinx.serialization.Serializable
 
-/** A single 4K tap note. `timeMs` is absolute song time in milliseconds. */
+/**
+ * A single 4K tap note. `timeMs` is absolute song time in milliseconds.
+ *
+ * [strength] and [band] are only populated by the DSP pipeline: the master chart keeps them so
+ * a difficulty can be derived later without decoding audio again (the derivation needs to know
+ * which onset wins a quantization cell, and which frequency band to re-map to a lane).
+ */
 @Serializable
-data class RhythmNote(val id: Int, val timeMs: Int, val lane: Int) {
+data class RhythmNote(
+    val id: Int,
+    val timeMs: Int,
+    val lane: Int,
+    /** Peak strength in 0..1-ish; 0 when unknown (osu imports). */
+    val strength: Float = 0f,
+    /** Dominant frequency band 0..7; -1 when unknown (osu imports). */
+    val band: Int = -1,
+) {
     init {
         require(timeMs >= 0) { "note timeMs must be >= 0" }
         require(lane in 0..3) { "note lane must be 0..3" }
@@ -49,6 +63,9 @@ data class RhythmChart(
         const val SOURCE_OSU = "osu"
         const val SOURCE_DSP = "dsp"
         const val SOURCE_PRC = "prc"
+
+        /** [RhythmChartMeta.difficultyKey] of the per-song master chart. */
+        const val DIFFICULTY_RAW = "raw"
     }
 }
 
@@ -64,6 +81,19 @@ data class RhythmChartMeta(
     val durationMs: Int,
     val importedAtMs: Long,
     var bestScore: Int = 0,
+    /**
+     * `"raw"` for the single master chart, a [DspDifficulty] name in lower case for derived
+     * charts, null for osu imports and for charts stored before the ladder existed.
+     */
+    val difficultyKey: String? = null,
+    /** Derived charts point at the master they came from; the master itself has no parent. */
+    val parentChartId: String? = null,
+    /**
+     * [importedAtMs] of the master at derivation time. When it no longer matches the current
+     * master's timestamp the chart was derived from an older analysis (different beat grid),
+     * which the list surfaces as a "master updated" hint.
+     */
+    val masterGeneratedAtMs: Long? = null,
 )
 
 @Serializable

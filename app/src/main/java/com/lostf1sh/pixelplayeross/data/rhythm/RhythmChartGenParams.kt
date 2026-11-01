@@ -5,6 +5,8 @@
  */
 package com.lostf1sh.pixelplayeross.data.rhythm
 
+import kotlin.math.min
+
 /**
  * Difficulty ladder for the DSP generator. The quantization grid is the difficulty:
  * a coarser grid can only place one note per cell, so it directly caps the note density.
@@ -35,31 +37,72 @@ enum class DspDifficulty(val gridDiv: Int, val label: String) {
  * [LOW_OUTSIDE] maps low frequencies to the outer lanes. The measurement that motivates it:
  * bass-led onsets are the ones the model picks least often (55.7%), so putting them on the
  * outer lanes keeps the busy centre lanes for content that actually reads as rhythm.
+ *
+ * Also used at derivation time, which is why the mapping lives here: the master chart stores
+ * the dominant band per note, so re-laning a derived difficulty costs one table lookup.
  */
-enum class LaneStrategy { BAND_ORDER, LOW_OUTSIDE }
+enum class LaneStrategy {
+    BAND_ORDER,
+    LOW_OUTSIDE,
+    ;
+
+    /** Lane for [band] (0..7). Unknown bands fall back to the leftmost lane. */
+    fun laneFor(band: Int): Int = when (this) {
+        BAND_ORDER -> min(LANE_COUNT - 1, band.coerceAtLeast(0) * LANE_COUNT / BAND_COUNT)
+        LOW_OUTSIDE -> LOW_OUTSIDE_LANES[band.coerceIn(0, BAND_COUNT - 1)]
+    }
+
+    companion object {
+        const val LANE_COUNT = 4
+        private const val BAND_COUNT = 8
+
+        /** Low frequency to the outside lanes; index = band. */
+        private val LOW_OUTSIDE_LANES = intArrayOf(0, 0, 3, 3, 2, 2, 1, 1)
+    }
+}
 
 /**
- * Everything the generator lets the user tune. Defaults are the *simplest* path on purpose:
- * every optional constraint measured worse than plain grid quantization, so they ship off.
+ * Two adjacent notes must not share a lane: a repeated lane reads as a single long note.
+ * Shared by the generator and the deriver so `derive(master)` reproduces `generate()` exactly.
  */
-data class RhythmChartGenParams(
-    val difficulty: DspDifficulty = DspDifficulty.EASY,
-    val laneStrategy: LaneStrategy = LaneStrategy.BAND_ORDER,
+internal fun avoidRepeatedLane(lane: Int, lastLane: Int, band: Int): Int =
+    if (lane == lastLane) {
+        (lane + 1 + band.coerceAtLeast(0) % 2) % LaneStrategy.LANE_COUNT
+    } else {
+        lane
+    }
+
+/**
+ * Everything the *analysis* half of the pipeline needs. Difficulty is absent on purpose: the
+ * master chart is produced once per song, and every difficulty is derived from it later.
+ */
+data class RhythmAnalysisParams(
     /**
      * Drop onsets whose local RMS (40 ms window) sits below this percentile of the whole
-     * song. `null` = off. Measured: enabling it lowers match quality, so it is only a
-     * user-facing escape hatch for very noisy material.
+     * song. `null` = off. Needs the PCM, so it can only be applied while building the master.
      */
     val minRmsPercentile: Int? = null,
     /**
-     * Cap notes inside any 1 s window. `null` = off. This is a playability guard, not a
-     * quality filter: at 5 NPS the recall against a reference chart drops to 35.8%.
+     * Cap notes inside any 1 s window. `null` = off. Also master-level: a difficulty already
+     * caps density through its grid.
      */
     val maxLocalNps: Double? = null,
     /** Skip automatic BPM detection (the octave ambiguity is unsolvable for some songs). */
     val bpmOverride: Double? = null,
-    /** Shifts every note in time; user calibration knob, not an analysis parameter. */
+    /** Shifts the beat grid phase; a generation-time alignment knob, not a playback setting. */
     val extraOffsetMs: Int = 0,
+)
+
+/**
+ * Everything the generator lets the user tune, for the one-difficulty convenience path.
+ *
+ * The analysis knobs live in [analysis] because they only apply while the master chart is
+ * built; a difficulty derived from an existing master cannot re-run them (they need the PCM).
+ */
+data class RhythmChartGenParams(
+    val difficulty: DspDifficulty = DspDifficulty.EASY,
+    val laneStrategy: LaneStrategy = LaneStrategy.BAND_ORDER,
+    val analysis: RhythmAnalysisParams = RhythmAnalysisParams(),
 )
 
 /** Analysis facts worth showing after a run (and worth logging when quality looks off). */

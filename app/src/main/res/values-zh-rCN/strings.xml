@@ -383,6 +383,40 @@
     <string name="rhythm_generated_play_now">立即游玩</string>
     <string name="rhythm_generated_later">稍后</string>
 
+    <string name="rhythm_generate_master_title">生成母谱</string>
+    <string name="rhythm_master_section">母谱</string>
+    <string name="rhythm_master_name">原始</string>
+    <string name="rhythm_master_missing_title">还没有母谱</string>
+    <string name="rhythm_master_missing_hint">先分析一次这首歌，找出全部拍点。所有难度都从这份结果派生，只有这一步需要等待音频。</string>
+    <string name="rhythm_master_generate">生成母谱</string>
+    <string name="rhythm_master_regenerate">重新生成</string>
+    <string name="rhythm_master_generated_at">生成于 %1$s</string>
+    <string name="rhythm_master_bpm">BPM %1$s</string>
+    <string name="rhythm_master_overwrite_title">覆盖当前母谱？</string>
+    <string name="rhythm_master_overwrite_message">当前母谱及其最高分将被替换。已派生的谱面仍可游玩，但会标记为派生自旧母谱。</string>
+    <string name="rhythm_master_overwrite_confirm">覆盖</string>
+    <string name="rhythm_derived_section">派生谱面</string>
+    <string name="rhythm_other_section">其他谱面</string>
+    <string name="rhythm_derive_action">派生谱面</string>
+    <string name="rhythm_derive_title">派生谱面</string>
+    <string name="rhythm_derive_master_line">母谱：%1$d 个音符 · BPM %2$s</string>
+    <string name="rhythm_derive_estimate">预计 %1$d 个音符</string>
+    <string name="rhythm_derive_lane">车道布局</string>
+    <string name="rhythm_derive_lane_band_order">与 PC 一致</string>
+    <string name="rhythm_derive_lane_low_outside">低频走外侧</string>
+    <string name="rhythm_derive_lane_hint">低频走外侧把贝斯放到最外侧两条，中间两条留给主旋律。</string>
+    <string name="rhythm_derive_start">派生</string>
+    <string name="rhythm_derive_none_selected">至少选一个难度。</string>
+    <string name="rhythm_derive_done">已派生 %1$d 个谱面</string>
+    <string name="rhythm_chart_stale_master">母谱已更新</string>
+    <string name="rhythm_settings_title">谱面设置 · %1$s</string>
+    <string name="rhythm_settings_delay">延迟补偿</string>
+    <string name="rhythm_settings_delay_hint">听证听到的拍比看到晚，就往正调。</string>
+    <string name="rhythm_settings_approach">下落时间</string>
+    <string name="rhythm_settings_reset">归零</string>
+    <string name="rhythm_settings_auto_saved">改动即时保存。</string>
+    <string name="rhythm_settings_open">谱面设置</string>
+
     <!-- Song deletion protection -->
     <string name="song_deletion_protection_blocked">保护模式已开启，删除已被阻止。</string>
 </resources>

@@ -1,7 +1,7 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-or-later
  * Original work in 2026 for PixelPlayerOSS
- * (docs/rhythm-dsp-chart-generation-plan.md §6.2).
+ * (docs/rhythm-chart-ladder-plan.md §9.2).
  */
 package com.lostf1sh.pixelplayeross.presentation.rhythm
 
@@ -40,8 +40,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.lostf1sh.pixelplayeross.R
-import com.lostf1sh.pixelplayeross.data.rhythm.DspDifficulty
-import com.lostf1sh.pixelplayeross.data.rhythm.RhythmChartGenParams
+import com.lostf1sh.pixelplayeross.data.rhythm.RhythmAnalysisParams
 
 private val LOUDNESS_CHOICES = listOf<Pair<Int?, Int>>(
     null to R.string.rhythm_generate_loudness_off,
@@ -56,27 +55,25 @@ private val DENSITY_CHOICES = listOf<Pair<Double?, Int>>(
 )
 
 /**
- * Parameter sheet for the local DSP generator.
+ * Parameter sheet for the master chart.
  *
- * Defaults are the measured-best configuration: Easy grid, no loudness filter, no density
- * cap. The two filters are exposed because some material needs them, not because they
- * improve typical charts — every optional constraint measured worse than plain quantization.
- *
- * Lane strategy is not exposed: it stays [com.lostf1sh.pixelplayeross.data.rhythm.LaneStrategy.BAND_ORDER]
- * so the output keeps matching the PC reference until the alternative has been played.
+ * Only analysis knobs live here: difficulty is not a generation parameter any more, it is a way
+ * to thin out the master afterwards (see `RhythmDeriveSheet`). Defaults stay the measured-best
+ * configuration — no loudness filter, no density cap; the two filters are an escape hatch for
+ * noisy material, not an improvement (both measured worse than plain quantization).
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun RhythmGenerateSheet(
     songTitle: String,
+    overwriting: Boolean,
     generating: Boolean,
     progress: Float,
     error: String?,
     onDismiss: () -> Unit,
-    onStart: (RhythmChartGenParams) -> Unit,
+    onStart: (RhythmAnalysisParams) -> Unit,
     onCancel: () -> Unit,
 ) {
-    var difficulty by remember { mutableStateOf(DspDifficulty.EASY) }
     var loudness by remember { mutableStateOf<Int?>(null) }
     var density by remember { mutableStateOf<Double?>(null) }
     var advancedOpen by remember { mutableStateOf(false) }
@@ -96,7 +93,7 @@ internal fun RhythmGenerateSheet(
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Text(
-                text = stringResource(R.string.rhythm_generate_title),
+                text = stringResource(R.string.rhythm_generate_master_title),
                 style = MaterialTheme.typography.titleLarge,
             )
             Text(
@@ -110,9 +107,15 @@ internal fun RhythmGenerateSheet(
             if (generating) {
                 GenerationProgress(progress = progress, onCancel = onCancel)
             } else {
+                if (overwriting) {
+                    Text(
+                        text = stringResource(R.string.rhythm_master_overwrite_message),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
+
                 GenerationParams(
-                    difficulty = difficulty,
-                    onDifficultyChange = { difficulty = it },
                     loudness = loudness,
                     onLoudnessChange = { loudness = it },
                     density = density,
@@ -148,8 +151,7 @@ internal fun RhythmGenerateSheet(
                     Button(
                         onClick = {
                             onStart(
-                                RhythmChartGenParams(
-                                    difficulty = difficulty,
+                                RhythmAnalysisParams(
                                     minRmsPercentile = loudness,
                                     maxLocalNps = density,
                                     bpmOverride = bpmValue,
@@ -160,7 +162,15 @@ internal fun RhythmGenerateSheet(
                         enabled = !bpmInvalid,
                         modifier = Modifier.weight(1f),
                     ) {
-                        Text(stringResource(R.string.rhythm_generate_start))
+                        Text(
+                            stringResource(
+                                if (overwriting) {
+                                    R.string.rhythm_master_overwrite_confirm
+                                } else {
+                                    R.string.rhythm_generate_start
+                                },
+                            ),
+                        )
                     }
                 }
             }
@@ -198,8 +208,6 @@ private fun GenerationProgress(progress: Float, onCancel: () -> Unit) {
 
 @Composable
 private fun GenerationParams(
-    difficulty: DspDifficulty,
-    onDifficultyChange: (DspDifficulty) -> Unit,
     loudness: Int?,
     onLoudnessChange: (Int?) -> Unit,
     density: Double?,
@@ -212,22 +220,6 @@ private fun GenerationParams(
     offsetMs: Float,
     onOffsetChange: (Float) -> Unit,
 ) {
-    SectionLabel(stringResource(R.string.rhythm_generate_difficulty))
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        DspDifficulty.entries.forEach { option ->
-            FilterChip(
-                selected = difficulty == option,
-                onClick = { onDifficultyChange(option) },
-                label = { Text(option.localizedLabel()) },
-            )
-        }
-    }
-    Text(
-        text = difficulty.hint(),
-        style = MaterialTheme.typography.bodySmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-    )
-
     SectionLabel(stringResource(R.string.rhythm_generate_loudness))
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         LOUDNESS_CHOICES.forEach { (value, label) ->
@@ -315,21 +307,3 @@ private fun SectionLabel(text: String) {
         color = MaterialTheme.colorScheme.primary,
     )
 }
-
-@Composable
-private fun DspDifficulty.localizedLabel(): String = stringResource(
-    when (this) {
-        DspDifficulty.EASY -> R.string.rhythm_generate_difficulty_easy
-        DspDifficulty.NORMAL -> R.string.rhythm_generate_difficulty_normal
-        DspDifficulty.HARD -> R.string.rhythm_generate_difficulty_hard
-    },
-)
-
-@Composable
-private fun DspDifficulty.hint(): String = stringResource(
-    when (this) {
-        DspDifficulty.EASY -> R.string.rhythm_generate_hint_easy
-        DspDifficulty.NORMAL -> R.string.rhythm_generate_hint_normal
-        DspDifficulty.HARD -> R.string.rhythm_generate_hint_hard
-    },
-)

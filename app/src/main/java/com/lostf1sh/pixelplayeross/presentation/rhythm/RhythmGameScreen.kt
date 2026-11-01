@@ -127,9 +127,16 @@ fun RhythmGameScreen(
                 val playbackUri = song.contentUriString.takeIf { it.isNotBlank() }?.let(Uri::parse)
                     ?: Uri.fromFile(File(song.path))
                 val pcm = RhythmPcmDecoder.decode(context, playbackUri)
-                val clock = RhythmAudioClock(pcm)
+                // Per-chart playback tweaks: latency compensation on the clock, fall time on the
+                // session. Both must be read before the clock starts so the first note is right.
+                val chartSettings = repository.loadSettings(chartId)
+                val clock = RhythmAudioClock(pcm, offsetMs = chartSettings.delayMs.toDouble())
                 audioClock = clock
-                session = RhythmPlaySession(chart = chart, clock = clock)
+                session = RhythmPlaySession(
+                    chart = chart,
+                    clock = clock,
+                    approachMs = chartSettings.approachMs.toDouble(),
+                )
             } catch (e: Exception) {
                 errorMessage = e.message ?: e.javaClass.simpleName
             }

@@ -1,7 +1,7 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-or-later
  * Original work, adapted in 2026 from the author's local RhythmChartLab prototype
- * (docs/rhythm-dsp-chart-generation-plan.md §4).
+ * (docs/rhythm-dsp-chart-generation-plan.md §4, docs/rhythm-chart-ladder-plan.md §4.1).
  */
 package com.lostf1sh.pixelplayeross.data.rhythm
 
@@ -21,15 +21,50 @@ import kotlin.math.sqrt
 class RhythmGenerationException(message: String) : Exception(message)
 
 /**
+ * Result of the expensive half of the pipeline: everything the difficulty-independent stages
+ * produced, plus the tempo and phase needed to render any grid from it.
+ *
+ * Onsets are already filtered by the optional loudness / density constraints, so a render stage
+ * does no further filtering and the master chart is literally this list turned into notes.
+ */
+internal class DspAnalysis(
+    val onsetTimesMs: DoubleArray,
+    val onsetStrength: FloatArray,
+    /** Dominant frequency band per onset, 0..7. */
+    val onsetBands: IntArray,
+    val beatMs: Double,
+    val beatOffsetMs: Double,
+    val durationMs: Int,
+    val detectedBpm: Double,
+    val usedBpm: Double,
+    val octaveCorrection: Double,
+    /** Peaks found by the detector, before the optional constraints dropped any. */
+    val peakCount: Int,
+    private val startedAtMs: Long,
+) {
+    fun diagnostics(noteCount: Int): DspDiagnostics = DspDiagnostics(
+        detectedBpm = detectedBpm,
+        usedBpm = usedBpm,
+        octaveCorrection = octaveCorrection,
+        beatOffsetMs = beatOffsetMs,
+        onsetCount = peakCount,
+        noteCount = noteCount,
+        analysisMs = System.currentTimeMillis() - startedAtMs,
+    )
+}
+
+/**
  * Local DSP chart generator: one mono PCM buffer in, one 4-lane `RhythmChart` out.
  *
  * Pure Kotlin on purpose — no Android types, no third-party DSP library — so the whole
  * pipeline is JVM-testable and stays comparable with the reference Python implementation
  * (`RhythmChartLab/rhythm-lab/fourier/fourier_chartgen.py`).
  *
- * Recipe: STFT 2048/512 -> 8 log bands -> running-max whitening -> half-wave rectified
- * spectral flux -> median+1.5·MAD peak picking -> autocorrelation BPM (+octave check) ->
- * comb beat phase -> 1/div grid snapping, one note per cell -> lane assignment.
+ * The work is split in two halves because only the last two stages depend on the difficulty:
+ * [analyze] runs STFT, band whitening, spectral flux, peak picking and tempo estimation once;
+ * [renderMaster] and [render] turn that analysis into notes. That split is what lets one
+ * per-song master chart feed every difficulty via [RhythmChartDeriver] without decoding audio
+ * again.
  *
  * The default path deliberately applies **no** loudness or NPS constraint: measurements on
  * the reference song showed grid quantization alone reaches F1 93.0 against a modern chart's
@@ -37,7 +72,7 @@ class RhythmGenerationException(message: String) : Exception(message)
  */
 internal object RhythmChartGenerator {
 
-    const val LANE_COUNT = 4
+    const val LANE_COUNT = LaneStrategy.LANE_COUNT
 
     private const val N_FFT = 2048
     private const val HOP = 512
@@ -58,17 +93,16 @@ internal object RhythmChartGenerator {
 
     private const val RMS_WINDOW_MS = 40.0
 
-    /** Low frequency to the outside lanes; see [LaneStrategy.LOW_OUTSIDE]. */
-    private val LOW_OUTSIDE_LANES = intArrayOf(0, 0, 3, 3, 2, 2, 1, 1)
+    // --- stages 1-7: difficulty independent -------------------------------------------------
 
-    fun generate(
+    fun analyze(
         pcmMono: FloatArray,
         sampleRate: Int,
         durationMs: Int,
-        params: RhythmChartGenParams = RhythmChartGenParams(),
+        params: RhythmAnalysisParams = RhythmAnalysisParams(),
         onProgress: (Float) -> Unit = {},
         isCancelled: () -> Boolean = { false },
-    ): GeneratedChart {
+    ): DspAnalysis {
         val startedAt = System.currentTimeMillis()
         require(sampleRate > 0) { "sampleRate must be positive" }
         if (pcmMono.size < N_FFT) {
@@ -189,6 +223,23 @@ internal object RhythmChartGenerator {
             )
         }
 
+        // Dominant band per onset, resolved once here so the render stage can drop the band
+        // matrix. Identical to reading band[frame * N_BANDS + i] at render time.
+        val onsetBands = IntArray(onsetCount)
+        for (index in 0 until onsetCount) {
+            val frame = onsetFrames[index]
+            var dominantBand = 0
+            var bandPeak = Float.NEGATIVE_INFINITY
+            for (candidate in 0 until N_BANDS) {
+                val value = band[frame * N_BANDS + candidate]
+                if (value > bandPeak) {
+                    bandPeak = value
+                    dominantBand = candidate
+                }
+            }
+            onsetBands[index] = dominantBand
+        }
+
         // --- 5. tempo: autocorrelation + octave arbitration ---
         val detectedBpm = estimateBpm(novn, fps, frameCount)
         val octaveCorrection: Double
@@ -256,54 +307,139 @@ internal object RhythmChartGenerator {
             }
         }
 
-        // --- 8. grid snapping, one note per cell, keep the strongest candidate ---
-        val grid = beatMs / params.difficulty.gridDiv
-        val cellTimes = HashMap<Long, Double>(onsetCount * 2)
-        val cellFrames = HashMap<Long, Int>(onsetCount * 2)
-        val cellStrength = HashMap<Long, Float>(onsetCount * 2)
+        val keptCount = keep.count { it }
+        if (keptCount == 0) {
+            throw RhythmGenerationException(
+                "No playable notes were produced; try another song or set the BPM manually",
+            )
+        }
+        val keptTimes = DoubleArray(keptCount)
+        val keptStrength = FloatArray(keptCount)
+        val keptBands = IntArray(keptCount)
+        var cursor = 0
         for (index in 0 until onsetCount) {
             if (!keep[index]) continue
-            val time = frameToMs(onsetFrames[index], sampleRate)
-            val snapped = beatOffsetMs + Math.round((time - beatOffsetMs) / grid) * grid
+            keptTimes[cursor] = frameToMs(onsetFrames[index], sampleRate)
+            keptStrength[cursor] = onsetStrength[index]
+            keptBands[cursor] = onsetBands[index]
+            cursor++
+        }
+        onProgress(0.97f)
+
+        return DspAnalysis(
+            onsetTimesMs = keptTimes,
+            onsetStrength = keptStrength,
+            onsetBands = keptBands,
+            beatMs = beatMs,
+            beatOffsetMs = beatOffsetMs,
+            durationMs = totalMs,
+            detectedBpm = detectedBpm,
+            usedBpm = usedBpm,
+            octaveCorrection = octaveCorrection,
+            peakCount = onsetCount,
+            startedAtMs = startedAt,
+        )
+    }
+
+    // --- stage 8-9: the only difficulty-dependent half --------------------------------------
+
+    /** Every detected onset as its own note: the densest chart this audio can produce. */
+    fun renderMaster(
+        analysis: DspAnalysis,
+        laneStrategy: LaneStrategy = LaneStrategy.BAND_ORDER,
+    ): RhythmChart {
+        val notes = ArrayList<RhythmNote>(analysis.onsetTimesMs.size)
+        var lastLane = -1
+        for (index in analysis.onsetTimesMs.indices) {
+            val timeMs = Math.round(analysis.onsetTimesMs[index]).toInt()
+            if (timeMs < 0 || timeMs > analysis.durationMs) continue
+            val band = analysis.onsetBands[index]
+            val lane = avoidRepeatedLane(laneStrategy.laneFor(band), lastLane, band)
+            notes += RhythmNote(
+                id = notes.size,
+                timeMs = timeMs,
+                lane = lane,
+                strength = analysis.onsetStrength[index],
+                band = band,
+            )
+            lastLane = lane
+        }
+        if (notes.isEmpty()) {
+            throw RhythmGenerationException(
+                "No playable notes were produced; try another song or set the BPM manually",
+            )
+        }
+        return RhythmChart(
+            source = RhythmChart.SOURCE_DSP,
+            difficultyName = "DSP Raw",
+            timing = listOf(
+                RhythmTimingPoint(Math.round(analysis.beatOffsetMs).toInt(), analysis.beatMs),
+            ),
+            notes = notes,
+            durationMs = analysis.durationMs,
+        )
+    }
+
+    /** Grid-snapped difficulty: one note per cell, keep the strongest candidate. */
+    fun render(
+        analysis: DspAnalysis,
+        difficulty: DspDifficulty,
+        laneStrategy: LaneStrategy = LaneStrategy.BAND_ORDER,
+    ): RhythmChart {
+        val grid = analysis.beatMs / difficulty.gridDiv
+        // The chart only stores an integer beat offset, and a derived difficulty can only see
+        // that integer. Using the raw fractional offset here would shift cell times by up to
+        // 0.5 ms and could round a note onto the neighbouring millisecond, so both paths use
+        // the value that actually lands in the chart.
+        val offset = Math.round(analysis.beatOffsetMs).toDouble()
+        val cellTimes = HashMap<Long, Double>(analysis.onsetTimesMs.size * 2)
+        val cellIndex = HashMap<Long, Int>(analysis.onsetTimesMs.size * 2)
+        val cellStrength = HashMap<Long, Float>(analysis.onsetTimesMs.size * 2)
+
+        for (index in analysis.onsetTimesMs.indices) {
+            // Round to whole milliseconds before snapping. The master chart stores integer
+            // times, and a difficulty derived from it must land in the same cells; without
+            // this, an onset within 0.5 ms of a cell boundary can flip cells between the two
+            // paths and change which note wins.
+            val time = Math.round(analysis.onsetTimesMs[index]).toDouble()
+            // Drop out-of-range onsets *before* grouping, exactly like the master does.
+            // Filtering after "strongest wins a cell" would let a note past the end of the
+            // song win a cell that a valid note also occupies, and then discard the whole cell.
+            val onsetMs = Math.round(time).toInt()
+            if (onsetMs < 0 || onsetMs > analysis.durationMs) continue
+            val snapped = offset + Math.round((time - offset) / grid) * grid
             val quantized = if (abs(time - snapped) <= grid * 0.5) snapped else time
             val key = Math.round(quantized * 10.0)
             val previous = cellStrength[key]
-            if (previous == null || onsetStrength[index] > previous) {
+            if (previous == null || analysis.onsetStrength[index] > previous) {
                 cellTimes[key] = quantized
-                cellFrames[key] = onsetFrames[index]
-                cellStrength[key] = onsetStrength[index]
+                cellIndex[key] = index
+                cellStrength[key] = analysis.onsetStrength[index]
             }
         }
 
-        // --- 9. lanes + note list ---
         val keys = cellTimes.keys.sorted()
         val notes = ArrayList<RhythmNote>(keys.size)
         var lastLane = -1
         for (key in keys) {
-            val frame = cellFrames.getValue(key)
-            var dominantBand = 0
-            var bandPeak = Float.NEGATIVE_INFINITY
-            for (index in 0 until N_BANDS) {
-                val value = band[frame * N_BANDS + index]
-                if (value > bandPeak) {
-                    bandPeak = value
-                    dominantBand = index
-                }
-            }
-            var lane = when (params.laneStrategy) {
-                LaneStrategy.BAND_ORDER -> min(LANE_COUNT - 1, dominantBand * LANE_COUNT / N_BANDS)
-                LaneStrategy.LOW_OUTSIDE -> LOW_OUTSIDE_LANES[dominantBand]
-            }
-            if (lane == lastLane) lane = (lane + 1 + (dominantBand % 2)) % LANE_COUNT
+            val index = cellIndex.getValue(key)
+            val band = analysis.onsetBands[index]
+            var lane = avoidRepeatedLane(laneStrategy.laneFor(band), lastLane, band)
 
             val timeMs = Math.round(cellTimes.getValue(key)).toInt()
-            if (timeMs < 0 || timeMs > totalMs) continue
+            if (timeMs < 0 || timeMs > analysis.durationMs) continue
 
             val previous = notes.lastOrNull()
             if (previous != null && previous.timeMs == timeMs && previous.lane == lane) {
                 lane = (lane + 1) % LANE_COUNT
             }
-            notes += RhythmNote(notes.size, timeMs, lane)
+            notes += RhythmNote(
+                id = notes.size,
+                timeMs = timeMs,
+                lane = lane,
+                strength = analysis.onsetStrength[index],
+                band = band,
+            )
             lastLane = lane
         }
 
@@ -313,27 +449,31 @@ internal object RhythmChartGenerator {
             )
         }
 
-        onProgress(1f)
-        val chart = RhythmChart(
+        return RhythmChart(
             source = RhythmChart.SOURCE_DSP,
-            difficultyName = "DSP ${params.difficulty.label}",
-            timing = listOf(RhythmTimingPoint(Math.round(beatOffsetMs).toInt(), beatMs)),
+            difficultyName = "DSP ${difficulty.label}",
+            timing = listOf(RhythmTimingPoint(Math.round(analysis.beatOffsetMs).toInt(), analysis.beatMs)),
             notes = notes,
-            durationMs = totalMs,
-        )
-        return GeneratedChart(
-            chart = chart,
-            diagnostics = DspDiagnostics(
-                detectedBpm = detectedBpm,
-                usedBpm = usedBpm,
-                octaveCorrection = octaveCorrection,
-                beatOffsetMs = beatOffsetMs,
-                onsetCount = onsetCount,
-                noteCount = notes.size,
-                analysisMs = System.currentTimeMillis() - startedAt,
-            ),
+            durationMs = analysis.durationMs,
         )
     }
+
+    /** Single-difficulty convenience entry point; equivalent to analyze + render. */
+    fun generate(
+        pcmMono: FloatArray,
+        sampleRate: Int,
+        durationMs: Int,
+        params: RhythmChartGenParams = RhythmChartGenParams(),
+        onProgress: (Float) -> Unit = {},
+        isCancelled: () -> Boolean = { false },
+    ): GeneratedChart {
+        val analysis = analyze(pcmMono, sampleRate, durationMs, params.analysis, onProgress, isCancelled)
+        val chart = render(analysis, params.difficulty, params.laneStrategy)
+        onProgress(1f)
+        return GeneratedChart(chart = chart, diagnostics = analysis.diagnostics(chart.noteCount()))
+    }
+
+    // --- helpers ---------------------------------------------------------------------------
 
     /**
      * Log-spaced band edges expressed as FFT bin indices (not Hz) so the bands match the

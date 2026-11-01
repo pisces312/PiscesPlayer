@@ -1,7 +1,7 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-or-later
  * Original work in 2026, storage layer designed for PixelPlayerOSS
- * (docs/rhythm-game-integration-plan.md §4.2).
+ * (docs/rhythm-chart-ladder-plan.md §6, §9).
  */
 package com.lostf1sh.pixelplayeross.data.rhythm
 
@@ -15,9 +15,10 @@ import kotlin.math.roundToInt
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
-/** A generated chart and the facts behind it, for the "generated" confirmation card. */
-data class DspGenerationResult(
+/** The freshly written master chart plus what the analysis found, for the result dialog. */
+data class MasterGenerationResult(
     val meta: RhythmChartMeta,
+    val chart: RhythmChart,
     val diagnostics: DspDiagnostics,
 )
 
@@ -25,6 +26,10 @@ data class DspGenerationResult(
  * Rhythm chart library stored in `filesDir/rhythm`. No Room schema change is
  * involved; chart content is hashed, so importing the same `.osu` twice is
  * idempotent and only updates the song binding.
+ *
+ * Charts come in two tiers: one master per song (every detected onset, overwritten on
+ * regeneration) and any number of derived difficulties. Deriving is a pure function over the
+ * stored master, so switching lane layout or adding another Hard version costs no decoding.
  */
 @Singleton
 class RhythmRepository @Inject constructor(
@@ -60,22 +65,37 @@ class RhythmRepository @Inject constructor(
         store().recordScore(chartId, score)
     }
 
+    suspend fun loadSettings(chartId: String): RhythmChartSettings = withContext(Dispatchers.IO) {
+        store().readSettings(chartId)
+    }
+
+    suspend fun saveSettings(
+        chartId: String,
+        settings: RhythmChartSettings,
+    ): RhythmChartSettings = withContext(Dispatchers.IO) {
+        store().writeSettings(chartId, settings)
+    }
+
+    /** Settings for a list of charts, loaded in one IO hop for the list screen. */
+    suspend fun settingsFor(chartIds: List<String>): Map<String, RhythmChartSettings> =
+        withContext(Dispatchers.IO) {
+            val library = store()
+            chartIds.associateWith { library.readSettings(it) }
+        }
+
     /**
-     * Decode the song, run the local DSP analysis, and store the result bound to [songId].
+     * Decode the song, analyse it, and store the result as this song's one master chart.
      *
-     * [displayName] ends up as the chart's difficulty name — callers add a timestamp so that
-     * repeated generations stay distinguishable in the list (several charts per song are kept).
-     *
-     * Decoding uses a whole-song PCM buffer (the same one gameplay uses); [mono] is kept for
-     * analysis and the interleaved buffer is dropped before the STFT starts.
+     * Replaces any previous master. Gameplay stays untouched: the master is a normal chart, it
+     * simply happens to contain every onset the detector found.
      */
-    suspend fun generateDsp(
+    suspend fun generateMaster(
         songId: String,
         uri: Uri,
-        params: RhythmChartGenParams,
-        displayName: String,
+        params: RhythmAnalysisParams,
+        laneStrategy: LaneStrategy = LaneStrategy.BAND_ORDER,
         onProgress: (Float) -> Unit = {},
-    ): DspGenerationResult = withContext(Dispatchers.Default) {
+    ): MasterGenerationResult = withContext(Dispatchers.Default) {
         val decoded = withContext(Dispatchers.IO) {
             val pcm = RhythmPcmDecoder.decode(context, uri)
             val durationMs = pcm.durationMs.roundToInt()
@@ -87,16 +107,77 @@ class RhythmRepository @Inject constructor(
             DecodedAudio(pcm.toMonoFloat(), pcm.sampleRate, durationMs)
         }
 
-        val generated = RhythmChartGenerator.generate(
+        val analysis = RhythmChartGenerator.analyze(
             pcmMono = decoded.mono,
             sampleRate = decoded.sampleRate,
             durationMs = decoded.durationMs,
             params = params,
             onProgress = onProgress,
         )
-        val chart = generated.chart.copy(difficultyName = displayName)
-        val meta = withContext(Dispatchers.IO) { store().importChart(songId, chart) }
-        DspGenerationResult(meta = meta, diagnostics = generated.diagnostics)
+        val chart = RhythmChartGenerator.renderMaster(analysis, laneStrategy)
+        onProgress(1f)
+
+        val meta = withContext(Dispatchers.IO) { store().saveMaster(songId, chart) }
+        MasterGenerationResult(
+            meta = meta,
+            chart = chart,
+            diagnostics = analysis.diagnostics(chart.noteCount()),
+        )
+    }
+
+    /**
+     * Derive the requested difficulties from the stored master and keep every derivation.
+     *
+     * Pure note shuffling: no audio is decoded. [displayNames] carries the localized, timestamped
+     * difficulty name; it is part of the chart body, which is what gives each derivation its own
+     * content hash and therefore its own entry.
+     */
+    suspend fun deriveCharts(
+        songId: String,
+        master: RhythmChart,
+        masterMeta: RhythmChartMeta,
+        difficulties: List<DspDifficulty>,
+        laneStrategy: LaneStrategy,
+        displayNames: Map<DspDifficulty, String>,
+    ): List<RhythmChartMeta> {
+        if (difficulties.isEmpty()) return emptyList()
+        val charts = withContext(Dispatchers.Default) {
+            difficulties.map { difficulty ->
+                RhythmChartDeriver.derive(master, difficulty, laneStrategy).copy(
+                    difficultyName = displayNames[difficulty] ?: difficulty.label,
+                )
+            }
+        }
+        return withContext(Dispatchers.IO) {
+            val library = store()
+            val now = System.currentTimeMillis()
+            charts.mapIndexed { index, chart ->
+                library.importChart(
+                    songId = songId,
+                    chart = chart,
+                    // Stagger by a millisecond so a batch keeps a stable display order without
+                    // relying on the filesystem clock.
+                    nowMs = now + index,
+                    difficultyKey = difficultyKeyOf(difficulties[index]),
+                    parentChartId = masterMeta.chartId,
+                    masterGeneratedAtMs = masterMeta.importedAtMs,
+                )
+            }
+        }
+    }
+
+    /**
+     * Preview note counts for the derive sheet. Same code path as [deriveCharts], so the number
+     * shown before pressing the button is the number that lands on disk.
+     */
+    suspend fun previewDerivedCounts(
+        master: RhythmChart,
+        difficulties: List<DspDifficulty>,
+        laneStrategy: LaneStrategy,
+    ): Map<DspDifficulty, Int> = withContext(Dispatchers.Default) {
+        difficulties.associateWith {
+            RhythmChartDeriver.derive(master, it, laneStrategy).noteCount()
+        }
     }
 
     private class DecodedAudio(
@@ -108,5 +189,7 @@ class RhythmRepository @Inject constructor(
     companion object {
         /** Above this the one-shot PCM buffer becomes a real OOM risk on low-end devices. */
         const val MAX_ANALYSIS_DURATION_MS = 12 * 60 * 1000L
+
+        fun difficultyKeyOf(difficulty: DspDifficulty): String = difficulty.name.lowercase()
     }
 }

@@ -5,6 +5,8 @@
 > 已确认决策：默认 Easy 档 · 车道先与 Python 一致（`BAND_ORDER`）· 多次生成保留多份（时间戳命名）·
 > 音频上限 12 分钟 · 生成完成弹框询问是否立即游玩 · 生成参数在界面上可调
 > 实现记录见 §15，实测数据见 §9.2
+> **后续演进**：单档生成已升级为「唯一母谱 + 无限派生」，见 `docs/rhythm-chart-ladder-plan.md`
+> （同日晚完成，全量单测 1022/1022）。本文保留为算法与夹具的原始依据，§15 的数字是 v1 时点的快照。
 > 依据：`docs/rhythm-game-integration-plan.md`（现有谱面接口）、
 > `RhythmChartLab/docs/fourier-vs-model-comparison-2026-11-01.md`（PC 实测）、
 > `RhythmChartLab/rhythm-lab/fourier/fourier_chartgen.py`（参考实现，360 行）
