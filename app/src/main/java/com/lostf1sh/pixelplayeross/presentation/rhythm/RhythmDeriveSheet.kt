@@ -26,6 +26,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -36,6 +37,10 @@ import androidx.compose.ui.unit.dp
 import com.lostf1sh.pixelplayeross.R
 import com.lostf1sh.pixelplayeross.data.rhythm.DspDifficulty
 import com.lostf1sh.pixelplayeross.data.rhythm.LaneStrategy
+import com.lostf1sh.pixelplayeross.data.rhythm.RhythmChartDeriver
+
+/** Two notes per cell by default: audible variety without turning every beat into a chord. */
+private const val DEFAULT_CHORD = 2
 
 /**
  * Derive difficulties from the stored master chart.
@@ -49,17 +54,18 @@ internal fun RhythmDeriveSheet(
     masterNoteCount: Int,
     masterBpm: String,
     deriving: Boolean,
-    onComputeEstimates: suspend (LaneStrategy) -> Map<DspDifficulty, Int>,
+    onComputeEstimates: suspend (LaneStrategy, Int) -> Map<DspDifficulty, Int>,
     onDismiss: () -> Unit,
-    onDerive: (List<DspDifficulty>, LaneStrategy) -> Unit,
+    onDerive: (List<DspDifficulty>, LaneStrategy, Int) -> Unit,
 ) {
     var selected by remember { mutableStateOf(DspDifficulty.entries.toSet()) }
     var strategy by remember { mutableStateOf(LaneStrategy.BAND_ORDER) }
+    var maxChord by remember { mutableIntStateOf(DEFAULT_CHORD) }
     var estimates by remember { mutableStateOf<Map<DspDifficulty, Int>?>(null) }
 
-    LaunchedEffect(strategy) {
+    LaunchedEffect(strategy, maxChord) {
         estimates = null
-        estimates = onComputeEstimates(strategy)
+        estimates = onComputeEstimates(strategy, maxChord)
     }
 
     ModalBottomSheet(onDismissRequest = { if (!deriving) onDismiss() }) {
@@ -135,6 +141,26 @@ internal fun RhythmDeriveSheet(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
 
+            Text(
+                text = stringResource(R.string.rhythm_derive_chord),
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.primary,
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                for (size in 1..RhythmChartDeriver.MAX_CHORD_NOTES) {
+                    FilterChip(
+                        selected = maxChord == size,
+                        onClick = { maxChord = size },
+                        label = { Text(stringResource(chordLabel(size))) },
+                    )
+                }
+            }
+            Text(
+                text = stringResource(R.string.rhythm_derive_chord_hint),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -146,7 +172,7 @@ internal fun RhythmDeriveSheet(
                     Text(stringResource(R.string.rhythm_generate_cancel))
                 }
                 Button(
-                    onClick = { onDerive(selected.sorted(), strategy) },
+                    onClick = { onDerive(selected.sorted(), strategy, maxChord) },
                     enabled = selected.isNotEmpty() && !deriving,
                     modifier = Modifier.weight(1f),
                 ) {
@@ -194,3 +220,9 @@ private fun DspDifficulty.localizedName(): String = stringResource(
         DspDifficulty.HARD -> R.string.rhythm_generate_difficulty_hard
     },
 )
+
+private fun chordLabel(notesPerCell: Int): Int = when (notesPerCell) {
+    1 -> R.string.rhythm_derive_chord_single
+    2 -> R.string.rhythm_derive_chord_double
+    else -> R.string.rhythm_derive_chord_triple
+}

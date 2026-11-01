@@ -404,6 +404,11 @@
     <string name="rhythm_derive_lane_band_order">Same as PC</string>
     <string name="rhythm_derive_lane_low_outside">Bass outside</string>
     <string name="rhythm_derive_lane_hint">Bass outside puts low frequencies on the outer lanes and keeps the middle lanes for melody.</string>
+    <string name="rhythm_derive_chord">Notes per beat slot</string>
+    <string name="rhythm_derive_chord_single">Single</string>
+    <string name="rhythm_derive_chord_double">Double</string>
+    <string name="rhythm_derive_chord_triple">Triple</string>
+    <string name="rhythm_derive_chord_hint">Extra notes come from the other onsets detected at the same beat, placed in different lanes. Raise it if the chart feels too plain, lower it if your fingers cannot keep up.</string>
     <string name="rhythm_derive_start">Derive</string>
     <string name="rhythm_derive_none_selected">Pick at least one difficulty.</string>
     <string name="rhythm_derive_done">%1$d charts derived</string>

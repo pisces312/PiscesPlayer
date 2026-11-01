@@ -405,6 +405,11 @@
     <string name="rhythm_derive_lane_band_order">与 PC 一致</string>
     <string name="rhythm_derive_lane_low_outside">低频走外侧</string>
     <string name="rhythm_derive_lane_hint">低频走外侧把贝斯放到最外侧两条，中间两条留给主旋律。</string>
+    <string name="rhythm_derive_chord">每拍同时音符</string>
+    <string name="rhythm_derive_chord_single">单键</string>
+    <string name="rhythm_derive_chord_double">双键</string>
+    <string name="rhythm_derive_chord_triple">三键</string>
+    <string name="rhythm_derive_chord_hint">多出来的音符取自同一拍上检出的其它onset，放进不同车道。觉得太单调就调高，跟不上就调低。</string>
     <string name="rhythm_derive_start">派生</string>
     <string name="rhythm_derive_none_selected">至少选一个难度。</string>
     <string name="rhythm_derive_done">已派生 %1$d 个谱面</string>

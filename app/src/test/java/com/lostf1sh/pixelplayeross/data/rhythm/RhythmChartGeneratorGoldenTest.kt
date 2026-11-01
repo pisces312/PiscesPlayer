@@ -221,6 +221,54 @@ class RhythmChartGeneratorGoldenTest {
     }
 
     @Test
+    fun chordsExpandOnDetectedOnsetsWithoutBreakingTheLadder() {
+        // The detector runs on one summed onset function, so nothing here produces a chord on
+        // its own; these numbers show what the cell-level expansion recovers on real onsets.
+        for (stem in listOf("dsp-beats-120bpm", "dsp-dense-120bpm")) {
+            val fixture = load(stem)
+            val analysis = analysisOf(fixture)
+            val master = RhythmChartGenerator.renderMaster(analysis, LaneStrategy.BAND_ORDER)
+
+            for (difficulty in DspDifficulty.entries) {
+                val single = RhythmChartGenerator.render(
+                    analysis, difficulty, LaneStrategy.BAND_ORDER, maxChord = 1,
+                )
+                val triple = RhythmChartGenerator.render(
+                    analysis, difficulty, LaneStrategy.BAND_ORDER, maxChord = 3,
+                )
+                println(
+                    "CHORD $stem ${difficulty.name}: " +
+                        "single=${single.noteCount()} triple=${triple.noteCount()} " +
+                        "master=${master.noteCount()}",
+                )
+
+                assertTrue(
+                    "$stem ${difficulty.name}: $ ${triple.noteCount()} < ${single.noteCount()}",
+                    triple.noteCount() >= single.noteCount(),
+                )
+                assertTrue(
+                    "$stem ${difficulty.name}: chords exceeded the master",
+                    triple.noteCount() <= master.noteCount(),
+                )
+
+                // Deriving the same chart must land on exactly the same notes.
+                val derived = RhythmChartDeriver.derive(
+                    master, difficulty, LaneStrategy.BAND_ORDER, maxChord = 3,
+                )
+                assertEquals(
+                    "$stem ${difficulty.name}: declared size",
+                    triple.noteCount(),
+                    derived.noteCount(),
+                )
+                triple.notes.zip(derived.notes).forEach { (direct, thin) ->
+                    assertEquals("$stem ${difficulty.name}: time", direct.timeMs, thin.timeMs)
+                    assertEquals("$stem ${difficulty.name}: lane", direct.lane, thin.lane)
+                }
+            }
+        }
+    }
+
+    @Test
     fun fixtureIsAtLeastTwentySecondsOfAudio() {
         for (stem in listOf("dsp-beats-120bpm", "dsp-dense-120bpm")) {
             val (audio, sampleRate) = RhythmTestAudio.readMonoWav16(resource("$stem.wav"))

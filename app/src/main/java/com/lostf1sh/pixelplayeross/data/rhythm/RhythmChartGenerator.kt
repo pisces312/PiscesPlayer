@@ -380,11 +380,19 @@ internal object RhythmChartGenerator {
         )
     }
 
-    /** Grid-snapped difficulty: one note per cell, keep the strongest candidate. */
+    /**
+     * Grid-snapped difficulty: one note per cell, keep the strongest candidate.
+     *
+     * [maxChord] lets a cell carry up to that many notes in distinct lanes. The detector runs on
+     * one summed onset function, so instruments that hit together become a single peak; the
+     * second and third note come from the other onsets sharing the cell. Must stay identical to
+     * [RhythmChartDeriver.derive] — the golden test asserts both paths agree note for note.
+     */
     fun render(
         analysis: DspAnalysis,
         difficulty: DspDifficulty,
         laneStrategy: LaneStrategy = LaneStrategy.BAND_ORDER,
+        maxChord: Int = 1,
     ): RhythmChart {
         val grid = analysis.beatMs / difficulty.gridDiv
         // The chart only stores an integer beat offset, and a derived difficulty can only see
@@ -392,9 +400,9 @@ internal object RhythmChartGenerator {
         // 0.5 ms and could round a note onto the neighbouring millisecond, so both paths use
         // the value that actually lands in the chart.
         val offset = Math.round(analysis.beatOffsetMs).toDouble()
+        val chord = maxChord.coerceIn(1, RhythmChartDeriver.MAX_CHORD_NOTES)
         val cellTimes = HashMap<Long, Double>(analysis.onsetTimesMs.size * 2)
-        val cellIndex = HashMap<Long, Int>(analysis.onsetTimesMs.size * 2)
-        val cellStrength = HashMap<Long, Float>(analysis.onsetTimesMs.size * 2)
+        val cellOnsets = HashMap<Long, MutableList<Int>>(analysis.onsetTimesMs.size * 2)
 
         for (index in analysis.onsetTimesMs.indices) {
             // Round to whole milliseconds before snapping. The master chart stores integer
@@ -410,24 +418,28 @@ internal object RhythmChartGenerator {
             val snapped = offset + Math.round((time - offset) / grid) * grid
             val quantized = if (abs(time - snapped) <= grid * 0.5) snapped else time
             val key = Math.round(quantized * 10.0)
-            val previous = cellStrength[key]
-            if (previous == null || analysis.onsetStrength[index] > previous) {
-                cellTimes[key] = quantized
-                cellIndex[key] = index
-                cellStrength[key] = analysis.onsetStrength[index]
-            }
+            cellTimes[key] = quantized
+            cellOnsets.getOrPut(key) { ArrayList(2) } += index
         }
 
         val keys = cellTimes.keys.sorted()
         val notes = ArrayList<RhythmNote>(keys.size)
         var lastLane = -1
         for (key in keys) {
-            val index = cellIndex.getValue(key)
-            val band = analysis.onsetBands[index]
-            var lane = avoidRepeatedLane(laneStrategy.laneFor(band), lastLane, band)
-
             val timeMs = Math.round(cellTimes.getValue(key)).toInt()
             if (timeMs < 0 || timeMs > analysis.durationMs) continue
+
+            // Strongest first, ties to the earlier onset — same order the deriver uses.
+            val candidates = cellOnsets.getValue(key).sortedWith(
+                compareByDescending<Int> { analysis.onsetStrength[it] }.thenBy { it }
+            )
+            val primary = candidates.first()
+            val primaryBand = analysis.onsetBands[primary]
+            var lane = avoidRepeatedLane(
+                laneStrategy.laneFor(primaryBand),
+                lastLane,
+                primaryBand,
+            )
 
             val previous = notes.lastOrNull()
             if (previous != null && previous.timeMs == timeMs && previous.lane == lane) {
@@ -437,10 +449,42 @@ internal object RhythmChartGenerator {
                 id = notes.size,
                 timeMs = timeMs,
                 lane = lane,
-                strength = analysis.onsetStrength[index],
-                band = band,
+                strength = analysis.onsetStrength[primary],
+                band = primaryBand,
             )
             lastLane = lane
+
+            if (chord == 1 || candidates.size == 1) continue
+            val used = HashSet<Int>(chord)
+            used += lane
+            val extras = ArrayList<Int>(chord - 1)
+            for (index in 1 until candidates.size) {
+                if (extras.size >= chord - 1) break
+                val candidate = candidates[index]
+                if (analysis.onsetStrength[candidate] <
+                    analysis.onsetStrength[primary] * RhythmChartDeriver.CHORD_MIN_STRENGTH_RATIO
+                ) {
+                    break
+                }
+                // Same window the deriver uses; see RhythmChartDeriver.CHORD_WINDOW_MS.
+                val gap = abs(
+                    Math.round(analysis.onsetTimesMs[candidate]) -
+                        Math.round(analysis.onsetTimesMs[primary])
+                )
+                if (gap > RhythmChartDeriver.CHORD_WINDOW_MS) continue
+                if (!used.add(laneStrategy.laneFor(analysis.onsetBands[candidate]))) continue
+                extras += candidate
+            }
+            extras.sortBy { laneStrategy.laneFor(analysis.onsetBands[it]) }
+            for (extra in extras) {
+                notes += RhythmNote(
+                    id = notes.size,
+                    timeMs = timeMs,
+                    lane = laneStrategy.laneFor(analysis.onsetBands[extra]),
+                    strength = analysis.onsetStrength[extra],
+                    band = analysis.onsetBands[extra],
+                )
+            }
         }
 
         if (notes.isEmpty()) {

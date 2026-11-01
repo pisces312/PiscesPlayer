@@ -212,24 +212,143 @@ class RhythmChartDeriverTest {
         )
         val master = RhythmChartGenerator.renderMaster(analysis, LaneStrategy.BAND_ORDER)
 
-        for (difficulty in DspDifficulty.entries) {
-            val direct = RhythmChartGenerator.render(analysis, difficulty, LaneStrategy.BAND_ORDER)
-            val derived = RhythmChartDeriver.derive(master, difficulty, LaneStrategy.BAND_ORDER)
-
-            assertEquals(
-                "${difficulty.name}: note count ${derived.noteCount()} vs ${direct.noteCount()}",
-                direct.noteCount(),
-                derived.noteCount(),
-            )
-            for (index in direct.notes.indices) {
-                val expected = direct.notes[index]
-                val actual = derived.notes[index]
-                assertTrue(
-                    "${difficulty.name} #$index: ${actual.timeMs} vs ${expected.timeMs}",
-                    abs(actual.timeMs - expected.timeMs) <= 1,
+        for (maxChord in 1..RhythmChartDeriver.MAX_CHORD_NOTES) {
+            for (difficulty in DspDifficulty.entries) {
+                val direct = RhythmChartGenerator.render(
+                    analysis,
+                    difficulty,
+                    LaneStrategy.BAND_ORDER,
+                    maxChord,
                 )
-                assertEquals("${difficulty.name} #$index lane", expected.lane, actual.lane)
+                val derived = RhythmChartDeriver.derive(
+                    master,
+                    difficulty,
+                    LaneStrategy.BAND_ORDER,
+                    maxChord,
+                )
+
+                assertEquals(
+                    "${difficulty.name}/$maxChord: note count ${derived.noteCount()} vs ${direct.noteCount()}",
+                    direct.noteCount(),
+                    derived.noteCount(),
+                )
+                for (index in direct.notes.indices) {
+                    val expected = direct.notes[index]
+                    val actual = derived.notes[index]
+                    assertTrue(
+                        "${difficulty.name}/$maxChord #$index: ${actual.timeMs} vs ${expected.timeMs}",
+                        abs(actual.timeMs - expected.timeMs) <= 1,
+                    )
+                    assertEquals("${difficulty.name}/$maxChord #$index lane", expected.lane, actual.lane)
+                }
             }
+        }
+    }
+
+    // --- chords -----------------------------------------------------------------------------
+
+    @Test
+    fun aCellCanHoldAChord() {
+        // Three onsets inside one beat cell and within the chord window (70 ms) of each other,
+        // on three separated bands, so three lanes.
+        val chart = master(
+            times = listOf(offsetMs, offsetMs + 30, offsetMs + 60),
+            strengths = listOf(0.9f, 0.5f, 0.3f),
+            bands = listOf(0, 2, 4),
+        )
+
+        val derived = RhythmChartDeriver.derive(chart, DspDifficulty.EASY, maxChord = 3)
+
+        assertEquals(3, derived.noteCount())
+        assertTrue("chord notes drifted off the cell", derived.notes.all { it.timeMs == offsetMs })
+        assertEquals(listOf(0, 1, 2), derived.notes.map { it.lane })
+    }
+
+    @Test
+    fun chordStopsAtTheRequestedSize() {
+        val chart = master(
+            times = listOf(offsetMs, offsetMs + 30, offsetMs + 60),
+            strengths = listOf(0.9f, 0.5f, 0.3f),
+            bands = listOf(0, 2, 4),
+        )
+
+        // Strongest two win: band 0 -> lane 0, band 2 -> lane 1.
+        val derived = RhythmChartDeriver.derive(chart, DspDifficulty.EASY, maxChord = 2)
+        assertEquals(2, derived.noteCount())
+        assertEquals(listOf(0, 1), derived.notes.map { it.lane })
+    }
+
+    @Test
+    fun chordsAreOffByDefault() {
+        val chart = master(
+            times = listOf(offsetMs, offsetMs + 30, offsetMs + 60),
+            strengths = listOf(0.9f, 0.5f, 0.3f),
+            bands = listOf(0, 2, 4),
+        )
+        assertEquals(1, RhythmChartDeriver.derive(chart, DspDifficulty.EASY).noteCount())
+    }
+
+    @Test
+    fun chordNotesNeverShareALane() {
+        // All three onsets live in the same band, so all three map to the same lane and only the
+        // strongest can survive: two notes on one lane at the same instant is not a chord.
+        val chart = master(
+            times = listOf(offsetMs, offsetMs + 30, offsetMs + 60),
+            strengths = listOf(0.9f, 0.8f, 0.7f),
+            bands = listOf(2, 2, 2),
+        )
+
+        val derived = RhythmChartDeriver.derive(chart, DspDifficulty.EASY, maxChord = 3)
+        assertEquals(1, derived.noteCount())
+    }
+
+    @Test
+    fun weakOnsetsDoNotBecomeChordNotes() {
+        // 0.1 is below the noise floor relative to 1.0, so the quiet blip stays dropped.
+        val chart = master(
+            times = listOf(offsetMs, offsetMs + 40),
+            strengths = listOf(1f, 0.1f),
+            bands = listOf(0, 4),
+        )
+        assertEquals(
+            1,
+            RhythmChartDeriver.derive(chart, DspDifficulty.EASY, maxChord = 3).noteCount(),
+        )
+    }
+
+    @Test
+    fun chordsNeverMakeAChartLongerThanTheMaster() {
+        // Chord notes can only recover onsets the grid would otherwise drop; they never invent
+        // one. This is what keeps the ladder ordered once chords are switched on.
+        val chart = master(
+            times = (0 until 32).map { offsetMs + it * 31 },
+            bands = (0 until 32).map { it % 8 },
+        )
+
+        for (maxChord in 1..RhythmChartDeriver.MAX_CHORD_NOTES) {
+            for (difficulty in DspDifficulty.entries) {
+                val derived = RhythmChartDeriver.derive(chart, difficulty, maxChord = maxChord)
+                assertTrue(
+                    "${difficulty.name}/$maxChord produced ${derived.noteCount()} > master ${chart.noteCount()}",
+                    derived.noteCount() <= chart.noteCount(),
+                )
+            }
+        }
+    }
+
+    @Test
+    fun ladderStaysOrderedWithChords() {
+        val chart = master(
+            times = (0 until 32).map { offsetMs + it * 31 },
+            bands = (0 until 32).map { it % 8 },
+        )
+
+        for (maxChord in 1..RhythmChartDeriver.MAX_CHORD_NOTES) {
+            val counts = DspDifficulty.entries.map {
+                RhythmChartDeriver.derive(chart, it, maxChord = maxChord).noteCount()
+            }
+            // DspDifficulty is declared easiest first.
+            assertTrue("$maxChord: $counts", counts.zipWithNext().all { (a, b) -> a <= b })
         }
     }
 }

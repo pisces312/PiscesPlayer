@@ -139,11 +139,12 @@ class RhythmRepository @Inject constructor(
         difficulties: List<DspDifficulty>,
         laneStrategy: LaneStrategy,
         displayNames: Map<DspDifficulty, String>,
+        maxChord: Int = 1,
     ): List<RhythmChartMeta> {
         if (difficulties.isEmpty()) return emptyList()
         val charts = withContext(Dispatchers.Default) {
             difficulties.map { difficulty ->
-                RhythmChartDeriver.derive(master, difficulty, laneStrategy).copy(
+                RhythmChartDeriver.derive(master, difficulty, laneStrategy, maxChord).copy(
                     difficultyName = displayNames[difficulty] ?: difficulty.label,
                 )
             }
@@ -174,9 +175,10 @@ class RhythmRepository @Inject constructor(
         master: RhythmChart,
         difficulties: List<DspDifficulty>,
         laneStrategy: LaneStrategy,
+        maxChord: Int = 1,
     ): Map<DspDifficulty, Int> = withContext(Dispatchers.Default) {
         difficulties.associateWith {
-            RhythmChartDeriver.derive(master, it, laneStrategy).noteCount()
+            RhythmChartDeriver.derive(master, it, laneStrategy, maxChord).noteCount()
         }
     }
 

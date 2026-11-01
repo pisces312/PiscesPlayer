@@ -12,9 +12,12 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -69,6 +72,8 @@ import com.lostf1sh.pixelplayeross.data.rhythm.RhythmChart
 import com.lostf1sh.pixelplayeross.data.rhythm.RhythmChartMeta
 import com.lostf1sh.pixelplayeross.data.rhythm.RhythmChartSettings
 import com.lostf1sh.pixelplayeross.data.rhythm.RhythmRepository
+import com.lostf1sh.pixelplayeross.presentation.components.MiniPlayerBottomSpacer
+import com.lostf1sh.pixelplayeross.presentation.components.MiniPlayerHeight
 import com.lostf1sh.pixelplayeross.presentation.navigation.Screen
 import com.lostf1sh.pixelplayeross.presentation.navigation.navigateSafely
 import com.lostf1sh.pixelplayeross.presentation.viewmodel.PlayerViewModel
@@ -214,7 +219,7 @@ fun RhythmSetupScreen(
         }
     }
 
-    fun derive(difficulties: List<DspDifficulty>, strategy: LaneStrategy) {
+    fun derive(difficulties: List<DspDifficulty>, strategy: LaneStrategy, maxChord: Int) {
         val master = snapshot.masterChart ?: return
         val masterMeta = snapshot.master ?: return
         val labels = difficultyLabels
@@ -230,6 +235,7 @@ fun RhythmSetupScreen(
                     difficulties = difficulties,
                     laneStrategy = strategy,
                     displayNames = names,
+                    maxChord = maxChord,
                 )
                 showDeriveSheet = false
                 reload()
@@ -313,7 +319,18 @@ fun RhythmSetupScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding),
-            contentPadding = PaddingValues(16.dp),
+            // The collapsed player floats above this screen: the mini player is only hidden on
+            // the RhythmGame route, not here. Without the bottom allowance the last derived chart
+            // sits underneath it and cannot be tapped or read.
+            contentPadding = PaddingValues(
+                start = 16.dp,
+                end = 16.dp,
+                top = 16.dp,
+                bottom = MiniPlayerHeight +
+                    MiniPlayerBottomSpacer +
+                    WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() +
+                    16.dp,
+            ),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             item {
@@ -510,15 +527,18 @@ fun RhythmSetupScreen(
                     60_000.0 / masterChart.timing.first().beatMs,
                 ),
                 deriving = deriving,
-                onComputeEstimates = { strategy ->
+                onComputeEstimates = { strategy, maxChord ->
                     repository.previewDerivedCounts(
                         master = masterChart,
                         difficulties = DspDifficulty.entries,
                         laneStrategy = strategy,
+                        maxChord = maxChord,
                     )
                 },
                 onDismiss = { if (!deriving) showDeriveSheet = false },
-                onDerive = { difficulties, strategy -> derive(difficulties, strategy) },
+                onDerive = { difficulties, strategy, maxChord ->
+                    derive(difficulties, strategy, maxChord)
+                },
             )
         }
     }
