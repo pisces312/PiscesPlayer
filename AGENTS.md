@@ -90,7 +90,9 @@ PixelPlayerOSS — Android 音乐播放器（100% Kotlin，Jetpack Compose + Mat
     会覆盖并清掉同目录的 arm64 产物；
   - **别把"翻译慢"误判成"不支持"**：首帧与冷启动明显慢于真机，`am start` 后请
     `sleep` 若干秒再截图；若 logcat 里出现 `arm64` 翻译层加载或首帧延迟，那是性能问题，
-    不是安装失败。**结论：模拟器 = 可做视觉验收**（截图核对布局），只是不要用它量性能。
+    不是安装失败。
+  - **但界面改动的目视验收由用户自己真机做**（2026-11-01 定）：模拟器只用于"跑起来看一眼
+    有没有崩"，不要花时间在 AVD 上抠布局 / 逐页截图；构建出 release APK 交给用户即可。
   - 真机/模拟器验证统一用 `.\gradlew.bat :app:assembleRelease`（debug 与 release 的 applicationId 不同，可共存）。
 - **instrumented 测试**：`.\gradlew.bat :app:connectedDebugAndroidTest`，跑在 `debug` 变体上
   （`testBuildType` 保持默认；正因 debug 不 minify，这套测试才跑得起来）。
