@@ -1934,6 +1934,39 @@ interface MusicDao {
         artistId: String?
     )
 
+    /**
+     * Writes the fields that [updateSongMetadata] cannot carry: album artist, year/release date,
+     * canonical MusicBrainz ids and an optional database-only cover URL. Null ids keep the
+     * previously stored value.
+     */
+    @Query(
+        """
+        UPDATE songs
+        SET album_artist = CASE WHEN :updateAlbumArtist = 1 THEN :albumArtist ELSE album_artist END,
+            year = CASE WHEN :updateYear = 1 THEN :year ELSE year END,
+            release_date = CASE WHEN :updateReleaseDate = 1 THEN :releaseDate ELSE release_date END,
+            mb_recording_id = COALESCE(:recordingId, mb_recording_id),
+            mb_release_id = COALESCE(:releaseId, mb_release_id),
+            mb_artist_id = COALESCE(:artistId, mb_artist_id),
+            album_art_uri_string = CASE WHEN :updateAlbumArt = 1 THEN :albumArtUri ELSE album_art_uri_string END
+        WHERE id = :songId
+        """
+    )
+    suspend fun updateSongOnlineExtras(
+        songId: Long,
+        albumArtist: String?,
+        updateAlbumArtist: Boolean,
+        year: Int,
+        updateYear: Boolean,
+        releaseDate: String?,
+        updateReleaseDate: Boolean,
+        recordingId: String?,
+        releaseId: String?,
+        artistId: String?,
+        albumArtUri: String?,
+        updateAlbumArt: Boolean
+    )
+
     // Lyrics writes go through LyricsDao only.
 
     @Query("SELECT " + SONG_LIST_PROJECTION + " FROM songs")

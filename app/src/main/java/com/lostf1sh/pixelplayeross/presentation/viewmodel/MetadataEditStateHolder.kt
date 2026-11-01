@@ -2,13 +2,20 @@ package com.lostf1sh.pixelplayeross.presentation.viewmodel
 
 import android.content.Context
 import android.net.Uri
+import com.lostf1sh.pixelplayeross.data.database.MusicDao
 import com.lostf1sh.pixelplayeross.data.media.CoverArtUpdate
 import com.lostf1sh.pixelplayeross.data.media.CustomMetadataChanges
+import com.lostf1sh.pixelplayeross.data.media.CustomMetadataFieldUpdate
 import com.lostf1sh.pixelplayeross.data.media.ImageCacheManager
 import com.lostf1sh.pixelplayeross.data.media.MetadataEditError
 import com.lostf1sh.pixelplayeross.data.media.SongMetadataEditor
+import com.lostf1sh.pixelplayeross.data.metadata.MetadataApplyTarget
+import com.lostf1sh.pixelplayeross.data.metadata.MetadataCandidate
+import com.lostf1sh.pixelplayeross.data.metadata.MetadataFieldSelection
+import com.lostf1sh.pixelplayeross.data.metadata.MetadataMergePolicy
 import com.lostf1sh.pixelplayeross.data.model.Lyrics
 import com.lostf1sh.pixelplayeross.data.model.Song
+import com.lostf1sh.pixelplayeross.data.offline.CloudOfflineRepository
 import com.lostf1sh.pixelplayeross.data.repository.MusicRepository
 import com.lostf1sh.pixelplayeross.utils.FileDeletionUtils
 import com.lostf1sh.pixelplayeross.utils.LyricsUtils
@@ -22,6 +29,7 @@ import javax.inject.Inject
 class MetadataEditStateHolder @Inject constructor(
     private val songMetadataEditor: SongMetadataEditor,
     private val musicRepository: MusicRepository,
+    private val musicDao: MusicDao,
     private val imageCacheManager: ImageCacheManager,
     private val themeStateHolder: ThemeStateHolder,
     @ApplicationContext private val context: Context
@@ -91,8 +99,9 @@ class MetadataEditStateHolder @Inject constructor(
             coverArtUpdate
         }
 
-        val trimmedLyrics = newLyrics?.trim() ?: ""
-        val normalizedLyrics = trimmedLyrics.takeIf { it.isNotBlank() }
+        // null means "leave lyrics untouched"; an empty string is an explicit clear.
+        val trimmedLyrics: String? = newLyrics?.trim()
+        val normalizedLyrics = trimmedLyrics?.takeIf { it.isNotBlank() }
         val parsedLyrics = normalizedLyrics?.let { LyricsUtils.parseLyrics(it) }
         val resolvedSongId = resolveSongIdForMetadataEdit(song)
 
@@ -181,6 +190,171 @@ class MetadataEditStateHolder @Inject constructor(
                 error = result.error,
                 errorMessage = result.errorMessage
             )
+        }
+    }
+
+    suspend fun applyOnlineMetadata(
+        song: Song,
+        candidate: MetadataCandidate,
+        selection: MetadataFieldSelection,
+        coverArt: CoverArtUpdate?,
+        target: MetadataApplyTarget
+    ): MetadataEditResult = withContext(Dispatchers.IO) {
+        if (!selection.hasAny && coverArt == null) {
+            return@withContext MetadataEditResult(
+                success = false,
+                error = MetadataEditError.INVALID_INPUT,
+                errorMessage = "No metadata fields were selected."
+            )
+        }
+
+        val resolvedSongId = resolveSongIdForMetadataEdit(song)
+        if (resolvedSongId == null) {
+            return@withContext MetadataEditResult(
+                success = false,
+                error = MetadataEditError.INVALID_INPUT,
+                errorMessage = "This song source does not support metadata editing."
+            )
+        }
+
+        val isCloudSong = CloudOfflineRepository.isCloudSong(song)
+        if (target == MetadataApplyTarget.FILE_AND_DATABASE && isCloudSong) {
+            return@withContext MetadataEditResult(
+                success = false,
+                error = MetadataEditError.INVALID_INPUT,
+                errorMessage = "Cloud tracks can only update the library database."
+            )
+        }
+
+        val newTitle = if (selection.title) candidate.title else song.title
+        val newArtist = if (selection.artist) candidate.artist else song.artist
+        val newAlbum = if (selection.album) candidate.album else song.album
+        val newAlbumArtist = if (selection.albumArtist) {
+            candidate.albumArtist ?: song.albumArtist.orEmpty()
+        } else {
+            song.albumArtist.orEmpty()
+        }
+        val newGenre = if (selection.genre) candidate.genre ?: song.genre else song.genre
+        val newTrackNumber = if (selection.trackNumber) {
+            candidate.trackNumber ?: song.trackNumber
+        } else {
+            song.trackNumber
+        }
+        val newDiscNumber = if (selection.discNumber) candidate.discNumber else song.discNumber
+        val releaseDate = if (selection.releaseDate) {
+            MetadataMergePolicy.resolvedReleaseDate(candidate)
+        } else {
+            null
+        }
+
+        when (target) {
+            MetadataApplyTarget.FILE_AND_DATABASE -> {
+                val customFields = buildList {
+                    releaseDate?.let { add(CustomMetadataFieldUpdate("DATE", it)) }
+                }
+                val fileResult = saveMetadata(
+                    song = song,
+                    newTitle = newTitle,
+                    newArtist = newArtist,
+                    newAlbum = newAlbum,
+                    newAlbumArtist = newAlbumArtist,
+                    newComposer = null,
+                    newGenre = newGenre,
+                    newLyrics = null,
+                    newTrackNumber = newTrackNumber,
+                    newDiscNumber = newDiscNumber,
+                    coverArtUpdate = coverArt,
+                    customMetadataChanges = CustomMetadataChanges(fields = customFields)
+                )
+                if (!fileResult.success) return@withContext fileResult
+
+                musicDao.updateSongOnlineExtras(
+                    songId = resolvedSongId,
+                    albumArtist = candidate.albumArtist,
+                    updateAlbumArtist = selection.albumArtist,
+                    year = candidate.year,
+                    updateYear = selection.releaseDate,
+                    releaseDate = releaseDate,
+                    updateReleaseDate = selection.releaseDate,
+                    recordingId = candidate.recordingId,
+                    releaseId = candidate.releaseId,
+                    artistId = candidate.artistId,
+                    albumArtUri = null,
+                    updateAlbumArt = false
+                )
+
+                fileResult.copy(
+                    updatedSong = (fileResult.updatedSong ?: song).copy(
+                        albumArtist = if (selection.albumArtist) {
+                            candidate.albumArtist ?: song.albumArtist
+                        } else {
+                            song.albumArtist
+                        },
+                        year = if (selection.releaseDate) candidate.year else song.year,
+                        releaseDate = if (selection.releaseDate) releaseDate else song.releaseDate,
+                        trackNumber = newTrackNumber,
+                        discNumber = newDiscNumber
+                    )
+                )
+            }
+
+            MetadataApplyTarget.DATABASE_ONLY -> {
+                songMetadataEditor.updateDatabaseMetadata(
+                    songId = resolvedSongId,
+                    title = newTitle,
+                    artist = newArtist,
+                    album = newAlbum,
+                    genre = newGenre,
+                    trackNumber = newTrackNumber,
+                    discNumber = newDiscNumber
+                )
+
+                val databaseCoverUrl = if (selection.coverArt && isCloudSong) {
+                    candidate.coverArtUrl
+                } else {
+                    null
+                }
+                musicDao.updateSongOnlineExtras(
+                    songId = resolvedSongId,
+                    albumArtist = candidate.albumArtist,
+                    updateAlbumArtist = selection.albumArtist,
+                    year = candidate.year,
+                    updateYear = selection.releaseDate,
+                    releaseDate = releaseDate,
+                    updateReleaseDate = selection.releaseDate,
+                    recordingId = candidate.recordingId,
+                    releaseId = candidate.releaseId,
+                    artistId = candidate.artistId,
+                    albumArtUri = databaseCoverUrl,
+                    updateAlbumArt = databaseCoverUrl != null
+                )
+
+                if (databaseCoverUrl != null) {
+                    imageCacheManager.invalidateCoverArtCaches(databaseCoverUrl)
+                    themeStateHolder.forceRegenerateColorScheme(databaseCoverUrl)
+                }
+
+                MetadataEditResult(
+                    success = true,
+                    updatedSong = song.copy(
+                        title = newTitle,
+                        artist = newArtist,
+                        album = newAlbum,
+                        albumArtist = if (selection.albumArtist) {
+                            candidate.albumArtist ?: song.albumArtist
+                        } else {
+                            song.albumArtist
+                        },
+                        genre = newGenre,
+                        trackNumber = newTrackNumber,
+                        discNumber = newDiscNumber,
+                        year = if (selection.releaseDate) candidate.year else song.year,
+                        releaseDate = if (selection.releaseDate) releaseDate else song.releaseDate,
+                        albumArtUriString = databaseCoverUrl ?: song.albumArtUriString
+                    ),
+                    updatedAlbumArtUri = databaseCoverUrl ?: song.albumArtUriString
+                )
+            }
         }
     }
 

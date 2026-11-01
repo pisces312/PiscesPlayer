@@ -1,39 +1,79 @@
 package com.lostf1sh.pixelplayeross.data.musicbrainz
 
-import com.lostf1sh.pixelplayeross.data.database.MusicDao
-import com.lostf1sh.pixelplayeross.data.model.Song
+import com.lostf1sh.pixelplayeross.data.metadata.MetadataCandidate
+import com.lostf1sh.pixelplayeross.data.metadata.MetadataQuery
+import com.lostf1sh.pixelplayeross.data.metadata.MetadataQueryBuilder
+import com.lostf1sh.pixelplayeross.data.metadata.MetadataSearchAttempt
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
+data class MetadataSearchResult(
+    val candidates: List<MetadataCandidate>,
+    val matchedAttempt: MetadataSearchAttempt?
+)
+
 @Singleton
 class MusicBrainzRepository @Inject constructor(
-    private val api: MusicBrainzApiService,
-    private val musicDao: MusicDao
+    private val api: MusicBrainzApiService
 ) {
-    suspend fun search(song: Song): List<MusicBrainzMatch> = withContext(Dispatchers.IO) {
-        api.searchRecording(
-            title = song.title,
-            artist = song.displayArtist,
-            album = song.album,
-            durationMs = song.duration.takeIf { it > 0L }
-        )
+    /**
+     * Tries the album-qualified query first and relaxes it step by step. An empty result moves
+     * to the next attempt; a network failure is reported immediately because a different query
+     * cannot fix an unreachable server.
+     */
+    suspend fun searchCandidates(
+        query: MetadataQuery,
+        durationMs: Long?
+    ): MetadataSearchResult = withContext(Dispatchers.IO) {
+        val attempts = MetadataQueryBuilder.searchAttempts(query)
+        for (attempt in attempts) {
+            val matches = api.searchRecording(
+                title = attempt.title,
+                artist = attempt.artist,
+                album = attempt.album,
+                durationMs = durationMs
+            )
+            if (matches.isNotEmpty()) {
+                return@withContext MetadataSearchResult(
+                    candidates = matches.map(MusicBrainzMatch::toCandidate),
+                    matchedAttempt = attempt
+                )
+            }
+        }
+        MetadataSearchResult(candidates = emptyList(), matchedAttempt = attempts.lastOrNull())
     }
 
-    suspend fun apply(song: Song, match: MusicBrainzMatch) = withContext(Dispatchers.IO) {
-        val songId = song.id.toLongOrNull()
-            ?: musicDao.getSongIdByContentUri(song.contentUriString)
-            ?: error("Song is not present in the unified library")
-        musicDao.applyMusicBrainzMatch(
-            songId = songId,
-            title = match.title,
-            artist = match.artist,
-            album = match.album,
-            year = match.year,
-            recordingId = match.recordingId,
-            releaseId = match.releaseId,
-            artistId = match.artistId
-        )
+    suspend fun loadDetails(
+        candidate: MetadataCandidate,
+        durationMs: Long?
+    ): MetadataCandidate = withContext(Dispatchers.IO) {
+        val releaseId = candidate.releaseId ?: return@withContext candidate
+        val json = api.lookupRelease(releaseId) ?: return@withContext candidate
+        val release = MusicBrainzReleaseParser.parse(json) ?: return@withContext candidate
+        MusicBrainzReleaseParser.enrich(candidate, release, durationMs)
     }
 }
+
+private fun MusicBrainzMatch.toCandidate(): MetadataCandidate = MetadataCandidate(
+    recordingId = recordingId,
+    releaseId = releaseId,
+    releaseGroupId = releaseGroupId,
+    artistId = artistId,
+    title = title,
+    artist = artist,
+    album = album,
+    albumArtist = albumArtist,
+    year = year,
+    releaseDate = releaseDate,
+    trackNumber = null,
+    discNumber = null,
+    genre = null,
+    durationMs = durationMs,
+    score = score,
+    disambiguation = disambiguation,
+    releaseStatus = releaseStatus,
+    releaseType = releaseType,
+    coverArtUrl = releaseId?.let { CoverArtArchiveService.releaseCoverUrl(it) }
+)

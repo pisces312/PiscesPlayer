@@ -18,8 +18,8 @@ import com.lostf1sh.pixelplayeross.data.database.MusicDao
 import com.lostf1sh.pixelplayeross.data.database.toArtist
 import com.lostf1sh.pixelplayeross.data.model.Artist
 import com.lostf1sh.pixelplayeross.data.model.Song
-import com.lostf1sh.pixelplayeross.data.musicbrainz.MusicBrainzMatch
-import com.lostf1sh.pixelplayeross.data.musicbrainz.MusicBrainzRepository
+import com.lostf1sh.pixelplayeross.data.metadata.MetadataApplyTarget
+import com.lostf1sh.pixelplayeross.data.metadata.MetadataCandidate
 import com.lostf1sh.pixelplayeross.data.offline.CloudOfflineRepository
 import com.lostf1sh.pixelplayeross.data.offline.OfflineDownload
 import com.lostf1sh.pixelplayeross.data.repository.MusicRepository
@@ -48,9 +48,9 @@ import kotlinx.collections.immutable.toImmutableList
 class SongInfoBottomSheetViewModel @Inject constructor(
     private val musicDao: MusicDao,
     private val cloudOfflineRepository: CloudOfflineRepository,
-    private val musicBrainzRepository: MusicBrainzRepository,
     private val favoritesDao: FavoritesDao,
     private val musicRepository: MusicRepository,
+    private val metadataMatchStateHolder: MetadataMatchStateHolder,
     @ApplicationContext private val appContext: Context,
 ) : ViewModel() {
 
@@ -72,13 +72,7 @@ class SongInfoBottomSheetViewModel @Inject constructor(
         data class Error(val message: String) : ToneActionResult
     }
 
-    sealed interface MusicBrainzUiState {
-        data object Idle : MusicBrainzUiState
-        data object Loading : MusicBrainzUiState
-        data class Results(val matches: List<MusicBrainzMatch>) : MusicBrainzUiState
-        data class Error(val message: String) : MusicBrainzUiState
-        data object Applied : MusicBrainzUiState
-    }
+    val metadataMatchState = metadataMatchStateHolder.state
 
     /** 返回数据库中保存的 0–5 评分，无评分时返回 null。 */
     suspend fun getSongRating(songId: Long): Int? = withContext(Dispatchers.IO) {
@@ -96,18 +90,16 @@ class SongInfoBottomSheetViewModel @Inject constructor(
     private val _audioMeta = MutableStateFlow<AudioMeta?>(null)
     private val _resolvedArtists = MutableStateFlow<ImmutableList<Artist>>(persistentListOf())
     private val _offlineDownload = MutableStateFlow<OfflineDownload?>(null)
-    private val _musicBrainzState = MutableStateFlow<MusicBrainzUiState>(MusicBrainzUiState.Idle)
     private var offlineObservationJob: Job? = null
     val resolvedArtists: StateFlow<ImmutableList<Artist>> = _resolvedArtists.asStateFlow()
 
     val audioMeta: StateFlow<AudioMeta?> = _audioMeta.asStateFlow()
     val offlineDownload: StateFlow<OfflineDownload?> = _offlineDownload.asStateFlow()
-    val musicBrainzState: StateFlow<MusicBrainzUiState> = _musicBrainzState.asStateFlow()
 
     fun bindSong(song: Song) {
         offlineObservationJob?.cancel()
         _offlineDownload.value = null
-        _musicBrainzState.value = MusicBrainzUiState.Idle
+        metadataMatchStateHolder.dismiss()
         if (!CloudOfflineRepository.isCloudSong(song)) return
         offlineObservationJob = viewModelScope.launch {
             cloudOfflineRepository.observe(song).collect { download ->
@@ -131,42 +123,47 @@ class SongInfoBottomSheetViewModel @Inject constructor(
         viewModelScope.launch { cloudOfflineRepository.enqueue(song) }
     }
 
-    fun searchMusicBrainz(song: Song) {
-        if (_musicBrainzState.value is MusicBrainzUiState.Loading) return
-        viewModelScope.launch {
-            _musicBrainzState.value = MusicBrainzUiState.Loading
-            _musicBrainzState.value = runCatching { musicBrainzRepository.search(song) }
-                .fold(
-                    onSuccess = { MusicBrainzUiState.Results(it) },
-                    onFailure = {
-                        MusicBrainzUiState.Error(
-                            it.localizedMessage
-                                ?: appContext.getString(R.string.musicbrainz_search_failed_fallback)
-                        )
-                    }
-                )
-        }
+    fun startMetadataMatch(song: Song) {
+        metadataMatchStateHolder.open(song, viewModelScope)
     }
 
-    fun applyMusicBrainzMatch(song: Song, match: MusicBrainzMatch) {
-        viewModelScope.launch {
-            _musicBrainzState.value = MusicBrainzUiState.Loading
-            _musicBrainzState.value = runCatching {
-                musicBrainzRepository.apply(song, match)
-            }.fold(
-                onSuccess = { MusicBrainzUiState.Applied },
-                onFailure = {
-                    MusicBrainzUiState.Error(
-                        it.localizedMessage
-                            ?: appContext.getString(R.string.musicbrainz_save_failed_fallback)
-                    )
-                }
-            )
-        }
+    fun updateMetadataQuery(title: String, artist: String, album: String) {
+        metadataMatchStateHolder.updateQuery(title, artist, album)
     }
 
-    fun dismissMusicBrainz() {
-        _musicBrainzState.value = MusicBrainzUiState.Idle
+    fun useMetadataFileTags() = metadataMatchStateHolder.useFileTags()
+
+    fun useMetadataFileName() = metadataMatchStateHolder.useFileName()
+
+    fun searchMetadata() = metadataMatchStateHolder.search()
+
+    fun selectMetadataCandidate(candidate: MetadataCandidate) {
+        metadataMatchStateHolder.selectCandidate(candidate)
+    }
+
+    fun backToMetadataResults() = metadataMatchStateHolder.backToResults()
+
+    fun setMetadataField(field: MetadataField, selected: Boolean) {
+        metadataMatchStateHolder.setFieldSelected(field, selected)
+    }
+
+    fun setMetadataFillBlankOnly(enabled: Boolean) {
+        metadataMatchStateHolder.setFillBlankOnly(enabled)
+    }
+
+    fun setMetadataApplyTarget(target: MetadataApplyTarget) {
+        metadataMatchStateHolder.setApplyTarget(target)
+    }
+
+    fun applyMetadata() = metadataMatchStateHolder.apply()
+
+    fun dismissMetadataMatch() = metadataMatchStateHolder.dismiss()
+
+    fun dismissMetadataError() = metadataMatchStateHolder.dismissError()
+
+    override fun onCleared() {
+        metadataMatchStateHolder.close()
+        super.onCleared()
     }
 
     fun loadArtistsForSong(song: Song) {

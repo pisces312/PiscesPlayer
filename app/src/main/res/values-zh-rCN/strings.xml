@@ -266,16 +266,53 @@
     <string name="cloud_playlist_download">下载播放列表</string>
     <string name="cloud_remove_download">移除下载</string>
 
-    <!-- MusicBrainz enrichment -->
-    <string name="musicbrainz_lookup">在 MusicBrainz 中查找</string>
-    <string name="musicbrainz_lookup_failed">MusicBrainz 查询失败</string>
-    <string name="musicbrainz_searching">正在搜索录音匹配…</string>
-    <string name="musicbrainz_no_results">未找到合适的录音。</string>
-    <string name="musicbrainz_choose_match">选择 MusicBrainz 匹配项</string>
-    <string name="musicbrainz_match_score">匹配置信度：%1$d%%</string>
-    <string name="musicbrainz_applied">已保存 MusicBrainz 标识，并补全了缺失的年份与占位名称。</string>
-    <string name="musicbrainz_search_failed_fallback">MusicBrainz 搜索失败</string>
-    <string name="musicbrainz_save_failed_fallback">无法保存 MusicBrainz 元数据</string>
+    <!-- 在线元数据匹配（MusicBrainz + Cover Art Archive） -->
+    <string name="metadata_match_title">在线元数据</string>
+    <string name="metadata_match_subtitle">数据源：MusicBrainz + Cover Art Archive</string>
+    <string name="metadata_match_query_hint">标签不完整时可直接修改搜索条件。</string>
+    <string name="metadata_match_use_file_tags">使用文件标签</string>
+    <string name="metadata_match_use_file_name">使用文件名</string>
+    <string name="metadata_match_query_expression">查询：%1$s</string>
+    <string name="metadata_match_search">搜索</string>
+    <string name="metadata_match_searching">正在搜索 MusicBrainz…</string>
+    <string name="metadata_match_results_heading">搜索结果（%1$d）</string>
+    <string name="metadata_match_no_results">未找到录音，试试修改标题或艺术家。</string>
+    <string name="metadata_match_title_only_note">完整条件无结果，已改为仅标题搜索。</string>
+    <string name="metadata_match_result_score">MusicBrainz · %1$d%%</string>
+    <string name="metadata_match_review_title">检查匹配结果</string>
+    <string name="metadata_match_loading_details">正在加载发行信息…</string>
+    <string name="metadata_match_details_failed">发行详情加载失败，仅显示搜索结果。</string>
+    <string name="metadata_match_fields_heading">要应用的字段</string>
+    <string name="metadata_match_fill_blank_only">仅填充空白字段</string>
+    <string name="metadata_match_fill_blank_hint">手动编辑过的字段不会被覆盖。</string>
+    <string name="metadata_match_manual_badge">已手动编辑</string>
+    <string name="metadata_match_current_value">当前：%1$s</string>
+    <string name="metadata_match_new_value">新值：%1$s</string>
+    <string name="metadata_match_empty_value">—</string>
+    <string name="metadata_match_cover_present">有</string>
+    <string name="metadata_match_cover_missing">无</string>
+    <string name="metadata_match_cover_available">Cover Art Archive（500px）</string>
+    <string name="metadata_match_cover_file_only_hint">仅在写入文件时可用。</string>
+    <string name="metadata_match_apply_target">更新方式</string>
+    <string name="metadata_match_target_file_and_db">文件和资料库</string>
+    <string name="metadata_match_target_db_only">仅资料库</string>
+    <string name="metadata_match_target_db_only_hint">不会修改文件标签。</string>
+    <string name="metadata_match_target_file_unavailable">音频文件不可写，只能更新资料库。</string>
+    <string name="metadata_match_target_cloud_hint">云曲目只能更新资料库。</string>
+    <string name="metadata_match_selected_count">已选：%1$d</string>
+    <string name="metadata_match_apply">应用所选字段</string>
+    <string name="metadata_match_applying">正在写入…</string>
+    <string name="metadata_match_applied_title">元数据已更新</string>
+    <string name="metadata_match_applied_count">已更新字段：%1$d</string>
+    <string name="metadata_match_applied_cover">封面也已更新。</string>
+    <string name="metadata_match_cover_unavailable">封面下载失败，其他字段已应用。</string>
+    <string name="metadata_match_no_fields">请至少选择一个要应用的字段。</string>
+    <string name="metadata_match_search_failed">搜索失败，请检查网络后重试。</string>
+    <string name="metadata_match_apply_failed">元数据写入失败。</string>
+    <string name="metadata_match_dismiss_error">忽略</string>
+    <string name="metadata_match_close">关闭</string>
+    <string name="metadata_match_back">返回</string>
+    <string name="metadata_match_done">完成</string>
 
     <!-- Song deletion protection -->
     <string name="song_deletion_protection_blocked">保护模式已开启，删除已被阻止。</string>

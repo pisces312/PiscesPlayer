@@ -145,6 +145,19 @@ class SongMetadataEditor(
         )
     }
 
+    /** Database-only metadata write used when the audio file must stay untouched. */
+    suspend fun updateDatabaseMetadata(
+        songId: Long,
+        title: String,
+        artist: String,
+        album: String,
+        genre: String?,
+        trackNumber: Int,
+        discNumber: Int?
+    ) = withContext(Dispatchers.IO) {
+        updateSongArtistMetadata(songId, title, artist, album, genre, trackNumber, discNumber)
+    }
+
     private suspend fun updateSongArtistMetadata(
         songId: Long,
         title: String,
@@ -257,7 +270,8 @@ class SongMetadataEditor(
         }
 
         try {
-            val trimmedLyrics = newLyrics?.trim() ?: ""
+            // null means "leave the file's lyrics untouched"; "" removes them.
+            val trimmedLyrics = newLyrics?.trim()
             val trimmedGenre = newGenre?.trim()
             val normalizedGenre = trimmedGenre?.takeIf { it.isNotBlank() }
             val replayGainTrackUpdate = parseReplayGainUpdate(
