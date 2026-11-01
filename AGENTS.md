@@ -82,10 +82,16 @@ PixelPlayerOSS — Android 音乐播放器（100% Kotlin，Jetpack Compose + Mat
   app APK 里的类与成员，而被 minify 的 app 恰好把这些改写或删掉（Kotlin facade、`RoomDatabase.close()`、
   app 自己不调用的 DAO 方法），逐个 keep 是无底洞 —— 详见下方「instrumented 测试」。
 - **ABI 只构建 `arm64-v8a`**（`pixelplayer.enableAbiSplits` 默认 true）；关掉该 property 时文件名中的 abi 段为 `universal`。
-- **模拟器可直接运行 `arm64-v8a` 产物（已实测确认，2026-09-14）**：本机 AVD 安装默认构建的
-  `pixelplayeross-arm64-v8a-*.apk` 即可运行，**不要**为了"让模拟器装得上"去构建 universal ——
-  `-Ppixelplayer.enableAbiSplits=false` 会覆盖并清掉同目录的 arm64 产物。
-  真机/模拟器验证统一用 `.\gradlew.bat :app:assembleRelease`（debug 与 release 的 applicationId 不同，可共存）。
+- **模拟器可直接安装运行 `arm64-v8a` 产物（已实测确认 2026-09-14，2026-11-01 再次确认）**：
+  本机 AVD `pixel6` 是 **x86_64** 系统镜像（`system-images\android-34\google_apis\x86_64`），
+  但 API 30+ 的 Google x86_64 镜像自带 **ARM 二进制翻译**，`adb install` 默认构建的
+  `pixelplayeross-arm64-v8a-*.apk` 直接就能跑。
+  - **不要**为了"让模拟器装得上"去构建 universal —— `-Ppixelplayer.enableAbiSplits=false`
+    会覆盖并清掉同目录的 arm64 产物；
+  - **别把"翻译慢"误判成"不支持"**：首帧与冷启动明显慢于真机，`am start` 后请
+    `sleep` 若干秒再截图；若 logcat 里出现 `arm64` 翻译层加载或首帧延迟，那是性能问题，
+    不是安装失败。**结论：模拟器 = 可做视觉验收**（截图核对布局），只是不要用它量性能。
+  - 真机/模拟器验证统一用 `.\gradlew.bat :app:assembleRelease`（debug 与 release 的 applicationId 不同，可共存）。
 - **instrumented 测试**：`.\gradlew.bat :app:connectedDebugAndroidTest`，跑在 `debug` 变体上
   （`testBuildType` 保持默认；正因 debug 不 minify，这套测试才跑得起来）。
   只跑某几个类：追加 `-Pandroid.testInstrumentationRunnerArguments.class=全限定类名,逗号分隔`。
