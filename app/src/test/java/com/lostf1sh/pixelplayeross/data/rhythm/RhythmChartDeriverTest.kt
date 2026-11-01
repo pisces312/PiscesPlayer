@@ -1,0 +1,235 @@
+package com.lostf1sh.pixelplayeross.data.rhythm
+
+import kotlin.math.abs
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotEquals
+import org.junit.Assert.assertTrue
+import org.junit.Test
+
+/**
+ * The deriver is what makes one master chart feed every difficulty, so these tests pin the two
+ * properties that matter: a difficulty is a strict thinning of the master, and thinning it the
+ * same way the generator would has to give the same notes.
+ */
+class RhythmChartDeriverTest {
+
+    private val beatMs = 500.0 // 120 BPM
+    private val offsetMs = 20
+
+    private fun master(
+        times: List<Int>,
+        strengths: List<Float> = times.map { 1f },
+        bands: List<Int> = times.map { 0 },
+        durationMs: Int = 20_000,
+    ): RhythmChart = RhythmChart(
+        source = RhythmChart.SOURCE_DSP,
+        difficultyName = "DSP Raw",
+        timing = listOf(RhythmTimingPoint(offsetMs, beatMs)),
+        notes = times.mapIndexed { index, time ->
+            RhythmNote(index, time, bands[index].coerceIn(0, 3), strengths[index], bands[index])
+        },
+        durationMs = durationMs,
+    )
+
+    @Test
+    fun easyKeepsOneNotePerBeat() {
+        // Four onsets well inside one beat cell (grid = 500 ms at 120 BPM).
+        val times = listOf(offsetMs, offsetMs + 50, offsetMs + 100, offsetMs + 150)
+        val derived = RhythmChartDeriver.derive(master(times), DspDifficulty.EASY)
+        assertEquals(1, derived.noteCount())
+        assertEquals(offsetMs, derived.notes.first().timeMs)
+    }
+
+    @Test
+    fun keepsTheStrongestOnsetInEachCell() {
+        val times = listOf(offsetMs, offsetMs + 60, offsetMs + 120)
+        val strengths = listOf(0.2f, 0.9f, 0.4f)
+        val derived = RhythmChartDeriver.derive(master(times, strengths), DspDifficulty.EASY)
+
+        // A difficulty is quantized, so the survivor is re-emitted at the cell time — what it
+        // keeps from the master is the strength, which is how we tell which onset won.
+        assertEquals(1, derived.noteCount())
+        assertEquals(offsetMs, derived.notes.single().timeMs)
+        assertEquals(0.9f, derived.notes.single().strength, 0f)
+    }
+
+    @Test
+    fun tiesKeepTheEarlierOnset() {
+        // Equal strength: the tie-break keeps the first onset, which we can observe through the
+        // lane derived from its band (band 0 -> lane 0, band 3 -> lane 1).
+        val times = listOf(offsetMs, offsetMs + 60)
+        val derived = RhythmChartDeriver.derive(
+            master(times, listOf(0.5f, 0.5f), bands = listOf(0, 3)),
+            DspDifficulty.EASY,
+        )
+        assertEquals(1, derived.noteCount())
+        assertEquals(0, derived.notes.single().lane)
+    }
+
+    @Test
+    fun difficultiesAreNestedAndMonotonic() {
+        // 16th-note grid over four beats: 16 onsets.
+        val times = (0 until 16).map { offsetMs + it * (beatMs / 4).toInt() }
+        val chart = master(times)
+
+        val easy = RhythmChartDeriver.derive(chart, DspDifficulty.EASY)
+        val normal = RhythmChartDeriver.derive(chart, DspDifficulty.NORMAL)
+        val hard = RhythmChartDeriver.derive(chart, DspDifficulty.HARD)
+
+        assertTrue("${easy.noteCount()} !<= ${normal.noteCount()}", easy.noteCount() <= normal.noteCount())
+        assertTrue("${normal.noteCount()} !<= ${hard.noteCount()}", normal.noteCount() <= hard.noteCount())
+        assertTrue(hard.noteCount() <= chart.noteCount())
+
+        // Every derived note must come from some master onset in its cell (|Δt| <= half a grid
+        // step, and the coarsest step is Easy = one beat), because derived notes are re-emitted
+        // at the quantized cell time rather than at the raw onset time.
+        val masterTimes = chart.notes.map { it.timeMs }
+        val halfEasyCell = beatMs / 2
+        for (note in hard.notes + normal.notes + easy.notes) {
+            assertTrue(
+                "derived ${note.timeMs} has no master onset nearby",
+                masterTimes.any { abs(it - note.timeMs) <= halfEasyCell },
+            )
+        }
+    }
+
+    @Test
+    fun everyDerivedNoteSitsOnTheGrid() {
+        val times = (0 until 32).map { offsetMs + it * 31 }
+        val chart = master(times)
+        for (difficulty in DspDifficulty.entries) {
+            val grid = beatMs / difficulty.gridDiv
+            for (note in RhythmChartDeriver.derive(chart, difficulty).notes) {
+                val nearest = offsetMs + Math.round((note.timeMs - offsetMs) / grid) * grid
+                assertTrue(
+                    "${difficulty.name}: ${note.timeMs} off grid ($nearest)",
+                    abs(note.timeMs - nearest) <= 1.0,
+                )
+            }
+        }
+    }
+
+    @Test
+    fun oneCellNeverHoldsTwoNotes() {
+        val times = (0 until 32).map { offsetMs + it * 31 }
+        val chart = master(times)
+        for (difficulty in DspDifficulty.entries) {
+            val derived = RhythmChartDeriver.derive(chart, difficulty)
+            val grid = beatMs / difficulty.gridDiv
+            val cells = derived.notes.map { Math.round((it.timeMs - offsetMs) / grid) }
+            assertEquals(
+                "${difficulty.name} produced duplicate cells",
+                cells.size,
+                cells.distinct().size,
+            )
+        }
+    }
+
+    @Test
+    fun adjacentNotesNeverShareALane() {
+        // Both onsets sit on the same band, so they map to the same lane. Without re-running
+        // the de-duplication on the thinned sequence, the derived chart would show two notes
+        // on lane 1 in a row — which reads on screen as one long note.
+        val times = listOf(offsetMs, offsetMs + beatMs.toInt())
+        val chart = master(times, bands = listOf(2, 2))
+        val derived = RhythmChartDeriver.derive(chart, DspDifficulty.EASY)
+
+        assertEquals(2, derived.noteCount())
+        assertNotEquals(
+            "consecutive lanes repeat in the derived chart",
+            derived.notes[0].lane,
+            derived.notes[1].lane,
+        )
+    }
+
+    @Test
+    fun laneStrategyChangesLanesWithoutChangingNotes() {
+        val times = (0 until 16).map { offsetMs + it * 125 }
+        val chart = master(times, bands = (0 until 16).map { it % 8 })
+        val bandOrder = RhythmChartDeriver.derive(chart, DspDifficulty.NORMAL, LaneStrategy.BAND_ORDER)
+        val lowOutside = RhythmChartDeriver.derive(chart, DspDifficulty.NORMAL, LaneStrategy.LOW_OUTSIDE)
+
+        assertEquals(bandOrder.notes.map { it.timeMs }, lowOutside.notes.map { it.timeMs })
+        assertNotEquals(
+            bandOrder.notes.map { it.lane },
+            lowOutside.notes.map { it.lane },
+        )
+    }
+
+    @Test
+    fun chartsWithoutBandDataKeepTheirLane() {
+        val note = RhythmNote(0, offsetMs, 3, strength = 0f, band = -1)
+        val chart = RhythmChart(
+            source = RhythmChart.SOURCE_DSP,
+            difficultyName = "DSP Raw",
+            timing = listOf(RhythmTimingPoint(offsetMs, beatMs)),
+            notes = listOf(note),
+            durationMs = 1000,
+        )
+        val derived = RhythmChartDeriver.derive(chart, DspDifficulty.EASY)
+        assertEquals(3, derived.notes.single().lane)
+    }
+
+    @Test
+    fun singleNoteMasterStillDerives() {
+        val chart = master(listOf(1234))
+        for (difficulty in DspDifficulty.entries) {
+            assertEquals(1, RhythmChartDeriver.derive(chart, difficulty).noteCount())
+        }
+    }
+
+    @Test
+    fun derivationIsDeterministic() {
+        val times = (0 until 16).map { offsetMs + it * 125 }
+        val chart = master(times, bands = (0 until 16).map { it % 8 })
+        assertEquals(
+            RhythmChartDeriver.derive(chart, DspDifficulty.HARD),
+            RhythmChartDeriver.derive(chart, DspDifficulty.HARD),
+        )
+    }
+
+    @Test
+    fun derivedChartKeepsSourceAndTimingOfMaster() {
+        val chart = master((0 until 8).map { offsetMs + it * 250 })
+        val derived = RhythmChartDeriver.derive(chart, DspDifficulty.NORMAL)
+        assertEquals(chart.source, derived.source)
+        assertEquals(chart.timing, derived.timing)
+        assertEquals(chart.durationMs, derived.durationMs)
+        assertEquals(DspDifficulty.NORMAL.label, derived.difficultyName)
+    }
+
+    @Test
+    fun derivingFromTheMasterMatchesTheDirectRender() {
+        // The real equivalence claim: thinning the master must reproduce what the generator
+        // produces when it snaps the same onsets directly. Only rounding to whole milliseconds
+        // separates the two paths, hence the 1 ms tolerance.
+        val audio = RhythmTestAudio.drumLoop(20.0, 44100)
+        val analysis = RhythmChartGenerator.analyze(
+            pcmMono = audio,
+            sampleRate = 44100,
+            durationMs = 20_000,
+            params = RhythmAnalysisParams(),
+        )
+        val master = RhythmChartGenerator.renderMaster(analysis, LaneStrategy.BAND_ORDER)
+
+        for (difficulty in DspDifficulty.entries) {
+            val direct = RhythmChartGenerator.render(analysis, difficulty, LaneStrategy.BAND_ORDER)
+            val derived = RhythmChartDeriver.derive(master, difficulty, LaneStrategy.BAND_ORDER)
+
+            assertEquals(
+                "${difficulty.name}: note count ${derived.noteCount()} vs ${direct.noteCount()}",
+                direct.noteCount(),
+                derived.noteCount(),
+            )
+            for (index in direct.notes.indices) {
+                val expected = direct.notes[index]
+                val actual = derived.notes[index]
+                assertTrue(
+                    "${difficulty.name} #$index: ${actual.timeMs} vs ${expected.timeMs}",
+                    abs(actual.timeMs - expected.timeMs) <= 1,
+                )
+                assertEquals("${difficulty.name} #$index lane", expected.lane, actual.lane)
+            }
+        }
+    }
+}

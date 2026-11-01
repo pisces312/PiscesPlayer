@@ -182,4 +182,186 @@ class RhythmLibraryStoreTest {
         assertEquals("Normal", stillThere.difficultyName)
         assertNotNull(store.readChart(imported.chartId))
     }
+
+    // --- master chart -----------------------------------------------------------------------
+
+    @Test
+    fun masterIsUniqueAndOverwrittenOnRegeneration() {
+        val store = RhythmLibraryStore(root())
+        val dense = dspChart("DSP Raw", times = listOf(100, 200, 300, 400))
+        val sparse = dspChart("DSP Raw", times = listOf(100, 300))
+
+        val first = store.saveMaster("song-a", dense, nowMs = 100)
+        val second = store.saveMaster("song-a", sparse, nowMs = 200)
+
+        assertEquals(first.chartId, second.chartId)
+        val charts = store.chartsForSong("song-a")
+        assertEquals(1, charts.size)
+        assertEquals(RhythmChart.DIFFICULTY_RAW, charts.single().difficultyKey)
+        assertEquals(2, charts.single().noteCount)
+        assertEquals(200, charts.single().importedAtMs)
+        // The body really was replaced, not appended next to the old one.
+        assertEquals(2, store.readChart(first.chartId)?.noteCount())
+        assertEquals(1, File(temp.root, "rhythm/charts").listFiles().orEmpty().size)
+    }
+
+    @Test
+    fun regeneratingMasterDropsTheStaleBestScore() {
+        val store = RhythmLibraryStore(root())
+        val first = store.saveMaster("song-a", dspChart("DSP Raw"), nowMs = 100)
+        store.recordScore(first.chartId, 900_000)
+
+        val second = store.saveMaster("song-a", dspChart("DSP Raw"), nowMs = 200)
+
+        assertEquals(0, second.bestScore)
+        assertEquals(0, store.chartsForSong("song-a").single().bestScore)
+    }
+
+    @Test
+    fun differentSongsGetDifferentMasterIds() {
+        val store = RhythmLibraryStore(root())
+        val a = store.saveMaster("song-a", dspChart("DSP Raw"), nowMs = 100)
+        val b = store.saveMaster("song-b", dspChart("DSP Raw"), nowMs = 100)
+
+        assertTrue("master ids collide", a.chartId != b.chartId)
+        assertEquals(1, store.chartsForSong("song-a").size)
+        assertEquals(1, store.chartsForSong("song-b").size)
+    }
+
+    @Test
+    fun derivedChartsAreUnlimitedAndReferenceTheMaster() {
+        val store = RhythmLibraryStore(root())
+        val master = store.saveMaster("song-a", dspChart("DSP Raw"), nowMs = 100)
+
+        val easy = store.importChart(
+            songId = "song-a",
+            chart = dspChart("Easy · 11-01 20:15:32"),
+            nowMs = 200,
+            difficultyKey = "easy",
+            parentChartId = master.chartId,
+            masterGeneratedAtMs = master.importedAtMs,
+        )
+        val easyAgain = store.importChart(
+            songId = "song-a",
+            chart = dspChart("Easy · 11-01 20:15:33"),
+            nowMs = 300,
+            difficultyKey = "easy",
+            parentChartId = master.chartId,
+            masterGeneratedAtMs = master.importedAtMs,
+        )
+
+        assertTrue(easy.chartId != easyAgain.chartId)
+        val derived = store.chartsForSong("song-a").filter { it.difficultyKey == "easy" }
+        assertEquals(2, derived.size)
+        assertTrue(derived.all { it.parentChartId == master.chartId })
+        assertTrue(derived.all { it.masterGeneratedAtMs == 100L })
+    }
+
+    @Test
+    fun derivedChartsCanOutliveTheMaster() {
+        val store = RhythmLibraryStore(root())
+        val master = store.saveMaster("song-a", dspChart("DSP Raw"), nowMs = 100)
+        store.importChart(
+            songId = "song-a",
+            chart = dspChart("Easy · 11-01 20:15:32"),
+            nowMs = 200,
+            difficultyKey = "easy",
+            parentChartId = master.chartId,
+            masterGeneratedAtMs = master.importedAtMs,
+        )
+
+        assertTrue(store.delete("song-a", master.chartId))
+
+        val remained = store.chartsForSong("song-a")
+        assertEquals(1, remained.size)
+        assertEquals("easy", remained.single().difficultyKey)
+        assertNotNull(store.readChart(remained.single().chartId))
+    }
+
+    // --- per-chart settings -----------------------------------------------------------------
+
+    @Test
+    fun settingsFallBackToDefaultsWhenMissing() {
+        val store = RhythmLibraryStore(root())
+        assertEquals(RhythmChartSettings.DEFAULT, store.readSettings("missing-chart"))
+    }
+
+    @Test
+    fun settingsRoundTripAndClampOutOfRangeValues() {
+        val store = RhythmLibraryStore(root())
+
+        val stored = store.writeSettings(
+            "chart-a",
+            RhythmChartSettings(delayMs = 9_999, approachMs = 10),
+            nowMs = 42,
+        )
+
+        assertEquals(RhythmChartSettings.MAX_DELAY_MS, stored.delayMs)
+        assertEquals(RhythmChartSettings.MIN_APPROACH_MS, stored.approachMs)
+        assertEquals(42, stored.updatedAtMs)
+        assertEquals(stored, store.readSettings("chart-a"))
+    }
+
+    @Test
+    fun corruptSettingsDoNotBreakChartLoading() {
+        val root = root()
+        val store = RhythmLibraryStore(root)
+        val chart = store.importText("song-a", osu(), nowMs = 100)
+        File(root, "settings").mkdirs()
+        File(root, "settings/${chart.chartId}.json").writeText("{ broken")
+
+        assertEquals(RhythmChartSettings.DEFAULT, store.readSettings(chart.chartId))
+        assertNotNull(store.readChart(chart.chartId))
+    }
+
+    @Test
+    fun deletingAChartRemovesItsSettings() {
+        val root = root()
+        val store = RhythmLibraryStore(root)
+        val chart = store.importText("song-a", osu(), nowMs = 100)
+        store.writeSettings(chart.chartId, RhythmChartSettings(delayMs = 25), nowMs = 200)
+        val settingsFile = File(root, "settings/${chart.chartId}.json")
+        assertTrue(settingsFile.isFile)
+
+        assertTrue(store.delete("song-a", chart.chartId))
+
+        assertFalse(settingsFile.isFile)
+    }
+
+    @Test
+    fun oldIndexWithoutLadderFieldsStillParses() {
+        val root = root()
+        // Shape written by the previous version: no difficultyKey/parent/masterGeneratedAt.
+        File(root, "library.json").writeText(
+            """
+            {
+              "schemaVersion": 1,
+              "songs": {
+                "song-a": [
+                  {
+                    "chartId": "abc123",
+                    "songId": "song-a",
+                    "source": "dsp",
+                    "difficultyName": "DSP Easy · 10-31 22:04",
+                    "noteCount": 3,
+                    "averageNps": 1.5,
+                    "durationMs": 2000,
+                    "importedAtMs": 100,
+                    "bestScore": 55
+                  }
+                ]
+              }
+            }
+            """.trimIndent(),
+        )
+        val store = RhythmLibraryStore(root)
+
+        val meta = store.chartsForSong("song-a").single()
+
+        assertEquals("abc123", meta.chartId)
+        assertEquals(55, meta.bestScore)
+        assertNull(meta.difficultyKey)
+        assertNull(meta.parentChartId)
+        assertNull(meta.masterGeneratedAtMs)
+    }
 }

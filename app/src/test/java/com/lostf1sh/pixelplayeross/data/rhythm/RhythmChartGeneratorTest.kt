@@ -104,7 +104,7 @@ class RhythmChartGeneratorTest {
 
     @Test
     fun manualBpmOverrideSkipsDetection() {
-        val result = generate(RhythmChartGenParams(bpmOverride = 97.5))
+        val result = generate(RhythmChartGenParams(analysis = RhythmAnalysisParams(bpmOverride = 97.5)))
         assertEquals(97.5, result.diagnostics.usedBpm, 0.0)
         assertEquals(1.0, result.diagnostics.octaveCorrection, 0.0)
         assertEquals(60_000.0 / 97.5, result.chart.timing.single().beatMs, 1e-6)
@@ -114,7 +114,10 @@ class RhythmChartGeneratorTest {
     fun extraOffsetShiftsEveryNote() {
         val plain = generate(RhythmChartGenParams(difficulty = DspDifficulty.EASY)).chart
         val shifted = generate(
-            RhythmChartGenParams(difficulty = DspDifficulty.EASY, extraOffsetMs = 40),
+            RhythmChartGenParams(
+                difficulty = DspDifficulty.EASY,
+                analysis = RhythmAnalysisParams(extraOffsetMs = 40),
+            ),
         ).chart
         assertEquals(plain.noteCount(), shifted.noteCount())
         val delta = shifted.notes.first().timeMs - plain.notes.first().timeMs
@@ -128,6 +131,62 @@ class RhythmChartGeneratorTest {
                 RhythmChartGenParams(difficulty = DspDifficulty.NORMAL, laneStrategy = strategy),
             ).chart
             assertTrue(chart.notes.all { it.lane in 0..3 })
+        }
+    }
+
+    @Test
+    fun masterHoldsEveryDetectedOnset() {
+        val audio = RhythmTestAudio.drumLoop(durationSeconds, sampleRate)
+        val analysis = RhythmChartGenerator.analyze(
+            pcmMono = audio,
+            sampleRate = sampleRate,
+            durationMs = (durationSeconds * 1000).toInt(),
+            params = RhythmAnalysisParams(),
+        )
+        val master = RhythmChartGenerator.renderMaster(analysis)
+
+        assertEquals(analysis.onsetTimesMs.size, master.noteCount())
+        assertTrue("master is empty", master.noteCount() > 0)
+        assertTrue("strength missing", master.notes.all { it.strength > 0f })
+        assertTrue("band missing", master.notes.all { it.band in 0..7 })
+        assertEquals(1, master.timing.size)
+        // Notes are stored as whole milliseconds, so two onsets must not collapse.
+        assertEquals(master.noteCount(), master.notes.map { it.timeMs }.distinct().size)
+    }
+
+    @Test
+    fun masterIsAtLeastAsDenseAsAnyDifficulty() {
+        val audio = RhythmTestAudio.drumLoop(durationSeconds, sampleRate)
+        val analysis = RhythmChartGenerator.analyze(
+            pcmMono = audio,
+            sampleRate = sampleRate,
+            durationMs = (durationSeconds * 1000).toInt(),
+            params = RhythmAnalysisParams(),
+        )
+        val master = RhythmChartGenerator.renderMaster(analysis)
+        for (difficulty in DspDifficulty.entries) {
+            val chart = RhythmChartGenerator.render(analysis, difficulty)
+            assertTrue(
+                "${difficulty.name} ${chart.noteCount()} > master ${master.noteCount()}",
+                chart.noteCount() <= master.noteCount(),
+            )
+        }
+    }
+
+    @Test
+    fun masterKeepsTheSameBeatGridAsEveryDifficulty() {
+        val audio = RhythmTestAudio.drumLoop(durationSeconds, sampleRate)
+        val analysis = RhythmChartGenerator.analyze(
+            pcmMono = audio,
+            sampleRate = sampleRate,
+            durationMs = (durationSeconds * 1000).toInt(),
+            params = RhythmAnalysisParams(),
+        )
+        val masterTiming = RhythmChartGenerator.renderMaster(analysis).timing.single()
+        for (difficulty in DspDifficulty.entries) {
+            // Sharing one analysis is the whole point of the ladder: a difficulty derived from
+            // the master must not drift against it.
+            assertEquals(masterTiming, RhythmChartGenerator.render(analysis, difficulty).timing.single())
         }
     }
 
