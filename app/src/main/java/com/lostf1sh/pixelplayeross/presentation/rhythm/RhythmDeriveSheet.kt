@@ -18,7 +18,9 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
@@ -48,7 +50,7 @@ private const val DEFAULT_CHORD = 2
  * Everything here is instant because deriving is a pure function over notes: the note counts are
  * computed live, before the user commits, so "about N notes" is not a guess.
  */
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 internal fun RhythmDeriveSheet(
     masterNoteCount: Int,
@@ -160,6 +162,16 @@ internal fun RhythmDeriveSheet(
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+
+            // Deriving has no per-note progress to report, so the bar is indeterminate: it says
+            // "working" rather than inventing a percentage.
+            if (deriving) {
+                LinearWavyProgressIndicator(
+                    modifier = Modifier.fillMaxWidth(),
+                    color = MaterialTheme.colorScheme.primary,
+                    trackColor = MaterialTheme.colorScheme.primaryContainer,
+                )
+            }
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
