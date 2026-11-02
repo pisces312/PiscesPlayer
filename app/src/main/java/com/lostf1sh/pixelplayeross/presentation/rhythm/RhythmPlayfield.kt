@@ -49,6 +49,7 @@ private val LANE_KEYS = listOf(
 @Composable
 internal fun RhythmPlayfield(
     session: RhythmPlaySession,
+    songMs: Double,
     frameTick: Long,
     touchTracker: RhythmLaneTouchTracker,
     hitEffects: List<RhythmHitEffect>,
@@ -105,7 +106,10 @@ internal fun RhythmPlayfield(
         val geometry = RhythmPlayfieldGeometry(size.width, size.height)
         val laneWidth = geometry.laneWidthPx
         val keyHeight = size.height - geometry.hitLineY
-        val now = session.clock.nowMs()
+        // Song time is sampled once per frame by the game loop and passed in, so notes are
+        // drawn at exactly the instant the engine judged — re-reading the clock here would
+        // sample a second, slightly different time in the same frame.
+        val now = songMs
         val goodWindow = session.config.goodMs
 
         drawRect(FIELD_BACKGROUND)

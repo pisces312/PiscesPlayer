@@ -163,15 +163,49 @@ filesDir/rhythm/
 ```text
 MediaExtractor / MediaCodec
   -> PCM16
-  -> AudioTrack MODE_STREAM
-  -> AudioTimestamp.framePosition + nanoTime
-  -> 单调时钟插值
+  -> AudioTrack MODE_STREAM（play() 前先灌满缓冲，避免起步欠载）
+  -> AudioTimestamp.framePosition + nanoTime（首选，含延迟补偿）
+     └ 无 timestamp 时退回 playbackHeadPosition（每台设备都有，欠载即停走）
+  -> 单调时钟外推 + 每帧朝设备位置指数漂移恢复（半衰期 80ms，见 §6.1.1）
   -> SongClock.nowMs()
 ```
 
 `AudioTimestamp.nanoTime` 使用 `System.nanoTime()` 基准；`SystemClock.elapsedRealtimeNanos()` 是另一基准，二者不能直接混用。输出帧时钟同时驱动渲染、漏接结算和输入判定。
 
+**时钟修正 = osu!lazer 的 `InterpolatingFramedClock` 语义（指数漂移恢复，见 §6.1.1）**：两次设备采样之间按 `sampleRate` 墙钟外推；每来一个新采样，朝设备位置**按指数比例平滑恢复**（不是硬 snap，也不是带硬上限的限幅修正）。timestamp 与 head 相差一个输出延迟，故 timestamp 新鲜（200ms 内）时忽略 head，避免两个源来回跳；timestamp 路径本身是精确的 `(framePosition, nanoTime)` 对，直接锚定外推即平滑。
+
+**每帧只采样一次时间**：游戏循环采到 `nowMs()` 后传给 `RhythmPlayfield` 渲染，Canvas 不再自行读时钟——否则同一帧内渲染用的时间和 tick 判定用的时间会不一致，表现为开场所有音符整体抖一下。对应 osu! 的 `FrameStabilityContainer`（一帧只 `ProcessFrame` 一次，所有消费者读同一个冻结值）。
+
 MVP 整曲解码约占用 40MB/5 分钟立体声 44.1kHz。流式解码和内存上限属于后续性能里程碑，不能在文档中宣称已经解决。
+
+### 6.1.1 参照 osu!lazer 的计时机制（本地 `/d/3rd-party-projects/osu`，ppy/osu）
+
+音符下落与歌曲失步的修复以 osu!lazer 为准，链路证据：
+
+| osu! 机制 | 位置 | 我们的对应 |
+|---|---|---|
+| 音频位置为唯一真值，每帧读一次 | `osu.Game/Beatmaps/FramedBeatmapClock.cs:74-81`（`InterpolatingFramedClock { DriftRecoveryHalfLife = 80 }`） | `RhythmAudioClock.readFrame()` 每帧读 timestamp / head |
+| 平滑指数漂移恢复（非 snap、非限幅） | osu.Framework `InterpolatingFramedClock`（NuGet，不在仓库） | `RhythmFrameEstimator.offerHeadPosition()` 的恢复公式 |
+| 一帧时间冻结、所有消费者读同一值 | `osu.Game/Rulesets/UI/FrameStabilityContainer.cs`、`FramedBeatmapClock.ProcessFrame()` 对外 noop | 游戏循环单一 `songMs` 传给 `RhythmPlayfield`（Phase A） |
+| 音符 Y = `(hitTime − now)/timeRange × scrollLength` | `osu.Game/Rulesets/UI/Scrolling/Algorithms/ConstantScrollAlgorithm.cs:21-22` | `RhythmPlayfieldGeometry.noteCenterY()`（一致） |
+
+**恢复公式**（osu.Framework `InterpolatingFramedClock.ProcessFrame` + `Interpolation.DampContinuously`，已联网核对源码）：每帧先按墙钟 delta 推进本地估计，再
+```
+drift = sourceTime − interpolatedTime
+if |drift| ≤ AllowableErrorMilliseconds(=1000/60*2≈33.33ms) × Rate:
+    interpolatedTime += drift × (1 − 0.5^(frameDeltaMs / DriftRecoveryHalfLife))   // 平滑指数恢复
+else:
+    interpolatedTime = sourceTime                                                  // 超阈值直接 snap
+```
+- `DriftRecoveryHalfLife`：osu.Framework 默认 50ms，**osu!game 覆盖为 80ms**（`FramedBeatmapClock.cs:80`）。半衰期 80ms → 误差每 80ms 消一半：小误差温柔收敛（无台阶抖动），大误差快速收敛（无累积失步）。
+- `AllowableErrorMilliseconds` 默认 **33.33ms**（两帧 60fps），osu!game 未覆盖。这是 snap 阈值——很紧，超过就放弃插值直接用源值。
+- 首帧状态机：`IsInterpolating=false` 时直接跟随源（snap），源产生新值后**下一帧**才开始插值（osu! 注释：时钟启动后首帧可能因上一帧 seek 而极不准）。
+
+**为 Android 偏离 osu! 的一处（必须）**：osu! 有单调护栏 `currentTime = max(lastTime, currentTime)`（仅显式倒放 seek 才允许回退），前提是桌面 BASS 不欠载、源永不落后。Android 的 AudioTrack 会 underrun——`playbackHeadPosition` 会落后于墙钟外推，此时**必须允许向后修正**才能消除失步，否则护栏把时钟永久卡在超前位置。故本移植采用 damp + snap(33.33ms / 80ms) 但**去掉硬单调护栏**；向后的小误差同样走平滑 damp，只有超过 33.33ms 才 snap。
+
+**源选择（保持不变）**：AudioTimestamp 是精确的 `(framePosition, nanoTime)` 对、含延迟补偿，直接锚定外推即连续平滑，无需 damp；仅当 timestamp 陈旧（>200ms）时才退回 head，并对 head 应用上述 osu! 恢复。避免两个相差输出延迟的源来回跳。
+
+> 已核对：`osu.Framework/Timing/InterpolatingFramedClock.cs`、`osu.Framework/Utils/Interpolation.cs`（`Damp`/`DampContinuously`）、`osu.Game/Beatmaps/FramedBeatmapClock.cs:74-81`。
 
 ### 6.2 与 PixelPlayer 互斥
 
@@ -196,7 +230,7 @@ MVP 整曲解码约占用 40MB/5 分钟立体声 44.1kHz。流式解码和内存
   （Perfect 32、Great 32、Good 16）。
 - 准确率只看命中值：`命中值之和 / (320 × 已判定音符数)`，与奖励条无关。
 - 空按不计 Miss、不打断连击，仅记录调试事件。
-- 开局引子 2 秒（`RhythmChart.LEAD_IN_MS`）：母谱保存全部音符；派生谱在**存储时**就去掉 2 秒前的音符，
+- 开局引子 1 秒（`RhythmChart.LEAD_IN_MS`）：母谱保存全部音符；派生谱在**存储时**就去掉 1 秒前的音符，
   界面上显示的预估音符数同样按去除后计算；母谱与 osu 导入仍在开局时过滤（`withoutLeadIn`）。
 
 ## 8. DSP 快速生成后续方案
@@ -234,9 +268,9 @@ MVP 整曲解码约占用 40MB/5 分钟立体声 44.1kHz。流式解码和内存
 | `OsuManiaParserTest` | 4K tap、chord、车道边界（x=256→lane2、x=511→lane3）、同轨同刻去重、继承 timing 过滤、CRLF 与未知段；拒绝非 mania、非 4K、Hold、空谱面 |
 | `RhythmLibraryStoreTest` | 重复导入幂等且保留最高分、同一谱面绑两首歌共享内容文件、最高分只升不降、删除清理与再删返回 false、损坏索引可恢复、解析失败不落盘 |
 | `RhythmJudgementEngineTest` | 判定窗口边界、osu ScoreV1 折算（命中值 + 奖励条、Miss 清空奖励条）、空按不计 Miss 不断连击、一次输入只消费一个音符、`finish()` 补 Miss |
-| `RhythmChartLeadInTest` | 去掉 2 秒前音符、整谱都在引子内时保留原谱 |
+| `RhythmChartLeadInTest` | 去掉 1 秒前音符、整谱都在引子内时保留原谱 |
 | `RhythmPlaySessionTest` | 注入手动时钟结算、`restart()` 重置引擎、按歌曲时长收尾 |
-| `RhythmFrameEstimatorTest` | 锚点插值、MONOTONIC→BOOTTIME 换算、未知时间基准丢弃、500ms 跳变保护、暂停冻结与恢复不回退、帧数钳制 |
+| `RhythmFrameEstimatorTest` | 锚点插值、MONOTONIC→BOOTTIME 换算、未知时间基准丢弃、500ms 跳变保护、playbackHead 全量对齐（含起步释放、timestamp 新鲜时忽略、陈旧后接管）、暂停冻结与恢复不回退、帧数钳制 |
 | `RhythmPcmAudioTest` | 多声道降混立体声保持帧数与时长、单/立体声不变 |
 
 实测结果（2026-11-01）：`:app:testDebugUnitTest` 全量 968 个测试通过；`:app:assembleDebug` 成功。

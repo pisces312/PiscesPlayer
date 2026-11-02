@@ -16,12 +16,14 @@ import android.util.Log
 
 /**
  * AudioTrack output clock: audible song time is derived from audio output frames
- * (playback head / AudioTimestamp), not from a UI progress poll.
+ * (AudioTimestamp, falling back to the playback head), not from a UI progress poll.
  *
- * Real timestamps arrive at limited precision, so the clock interpolates with a
- * monotonic clock between reports and discards jumps larger than 500ms. MODE_STATIC
- * cannot hold full-song PCM on common devices, so MODE_STREAM feeds PCM from a
- * dedicated writer thread while play control shares [streamLock].
+ * Real timestamps arrive at limited precision and are missing entirely on some devices, so
+ * the clock interpolates with a monotonic clock between reports and is continuously nudged
+ * back onto the output position — following the audio rather than drifting away from it.
+ * MODE_STATIC cannot hold full-song PCM on common devices, so MODE_STREAM feeds PCM from a
+ * dedicated writer thread while play control shares [streamLock]. The buffer is primed
+ * before `play()` so the first audible frame is not delayed by a startup underrun.
  */
 class RhythmAudioClock(
     private val audio: RhythmPcmAudio,
@@ -58,10 +60,28 @@ class RhythmAudioClock(
             track.flush()
             track.stop()
             writeOffsetBytes = 0
+            // Prime before play(): starting on an empty buffer underruns immediately, so the
+            // first audible frame lands tens of ms after the clock anchor and every note jumps.
+            primeBuffer()
             estimator.start(SystemClock.elapsedRealtimeNanos())
             streamPlaying = true
             track.play()
             streamLock.notifyAll()
+        }
+    }
+
+    /** Fill the track buffer while stopped so `play()` starts on real data, not silence. */
+    private fun primeBuffer() {
+        while (writeOffsetBytes < audio.bytes.size) {
+            val count = minOf(WRITE_CHUNK_BYTES, audio.bytes.size - writeOffsetBytes)
+            val result = track.write(
+                audio.bytes,
+                writeOffsetBytes,
+                count,
+                AudioTrack.WRITE_NON_BLOCKING,
+            )
+            if (result <= 0) break // buffer full (or not accepting more): enough runway
+            writeOffsetBytes += result
         }
     }
 
@@ -130,6 +150,14 @@ class RhythmAudioClock(
                 bootNs = bootNs,
             )
         }
+        // Always sample the playback head too: it is the one position every device reports and
+        // it stops advancing on an underrun, so it is what keeps the clock locked to the audio
+        // instead of drifting further behind it every second. The estimator ignores it while a
+        // precise AudioTimestamp is still fresh.
+        estimator.offerHeadPosition(
+            frame = (track.playbackHeadPosition.toLong() and HEAD_MASK).toDouble(),
+            bootNs = bootNs,
+        )
         return estimator.currentFrame(bootNs)
     }
 
@@ -193,5 +221,8 @@ class RhythmAudioClock(
         private const val TAG = "RhythmAudioClock"
         private const val STREAM_BUFFER_MIN_BYTES = 64 * 1024
         private const val WRITE_CHUNK_BYTES = 64 * 1024
+
+        /** `playbackHeadPosition` is an unsigned 32-bit frame count. */
+        private const val HEAD_MASK = 0xFFFFFFFFL
     }
 }

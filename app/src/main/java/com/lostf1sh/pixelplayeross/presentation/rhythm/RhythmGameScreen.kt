@@ -31,6 +31,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableDoubleStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -100,6 +101,9 @@ fun RhythmGameScreen(
     var paused by remember { mutableStateOf(false) }
     var countdown by remember { mutableIntStateOf(3) }
     var frameTick by remember { mutableLongStateOf(0L) }
+    // Song time sampled once per frame by the loop; the playfield renders from this so notes,
+    // judgement and feedback all agree on a single instant instead of each re-reading the clock.
+    var songMs by remember { mutableDoubleStateOf(0.0) }
     var runId by remember { mutableIntStateOf(0) }
     var shouldResumePlayer by remember { mutableStateOf(false) }
 
@@ -238,6 +242,7 @@ fun RhythmGameScreen(
         currentSession.restart()
         // A pause pressed during the countdown must keep the audio silent.
         if (paused) currentSession.pause()
+        songMs = currentSession.clock.nowMs()
         while (isActive) {
             withFrameNanos { }
             val animationNow = System.nanoTime()
@@ -254,6 +259,7 @@ fun RhythmGameScreen(
             }
             if (!paused) {
                 val now = currentSession.clock.nowMs()
+                songMs = now
                 currentSession.tick(now).forEach(::presentJudgement)
                 frameTick += 1
                 if (currentSession.isFinished(now)) {
@@ -310,6 +316,7 @@ fun RhythmGameScreen(
                 Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
                     RhythmPlayfield(
                         session = currentSession,
+                        songMs = songMs,
                         frameTick = frameTick,
                         touchTracker = touchTracker,
                         hitEffects = hitEffects,
