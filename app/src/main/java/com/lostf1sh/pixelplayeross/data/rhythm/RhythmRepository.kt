@@ -144,9 +144,11 @@ class RhythmRepository @Inject constructor(
         if (difficulties.isEmpty()) return emptyList()
         val charts = withContext(Dispatchers.Default) {
             difficulties.map { difficulty ->
-                RhythmChartDeriver.derive(master, difficulty, laneStrategy, maxChord).copy(
-                    difficultyName = displayNames[difficulty] ?: difficulty.label,
-                )
+                RhythmChartDeriver.derive(master, difficulty, laneStrategy, maxChord)
+                    // Derived charts are stored playable: the first lead-in stays only in the
+                    // master, so a difficulty starts exactly where the run has runway.
+                    .withoutLeadIn()
+                    .copy(difficultyName = displayNames[difficulty] ?: difficulty.label)
             }
         }
         return withContext(Dispatchers.IO) {
@@ -178,7 +180,9 @@ class RhythmRepository @Inject constructor(
         maxChord: Int = 1,
     ): Map<DspDifficulty, Int> = withContext(Dispatchers.Default) {
         difficulties.associateWith {
-            RhythmChartDeriver.derive(master, it, laneStrategy, maxChord).noteCount()
+            RhythmChartDeriver.derive(master, it, laneStrategy, maxChord)
+                .withoutLeadIn()
+                .noteCount()
         }
     }
 

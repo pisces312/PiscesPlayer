@@ -7,22 +7,37 @@ package com.lostf1sh.pixelplayeross.presentation.rhythm
 
 import com.lostf1sh.pixelplayeross.data.rhythm.RhythmNote
 
-enum class RhythmJudgement {
-    PERFECT, GREAT, GOOD, MISS, EMPTY;
+/**
+ * Judgements, and their osu!mania ScoreV1 values: hit value, bonus value and bonus-meter delta.
+ *
+ * ScoreV1 is the mania ladder's long-standing standard, so a score means the same thing it
+ * means on any osu!mania chart: half of it comes from hit values, half from a 100-point bonus
+ * meter that grows on perfects and collapses on a miss. Our four windows map onto its top
+ * three judgements; there is no OK/MEH tier because our windows are wider than osu's.
+ */
+enum class RhythmJudgement(
+    val hitValue: Int,
+    val bonusValue: Int,
+    val bonusDelta: Double,
+) {
+    PERFECT(320, 32, 2.0),
+    GREAT(300, 32, 1.0),
+    GOOD(200, 16, -8.0),
+    MISS(0, 0, 0.0),
+    EMPTY(0, 0, 0.0);
 
     companion object {
         val SCORING = listOf(PERFECT, GREAT, GOOD, MISS)
     }
 }
 
-private val JUDGEMENT_WEIGHTS = mapOf(
-    RhythmJudgement.PERFECT to 1.0,
-    RhythmJudgement.GREAT to 0.7,
-    RhythmJudgement.GOOD to 0.4,
-    RhythmJudgement.MISS to 0.0,
-)
-
 const val RHYTHM_FULL_SCORE = 1_000_000
+
+/** osu!mania hit values top out at 320, i.e. a MAX. */
+private const val HIT_VALUE_MAX = 320.0
+
+/** The bonus meter runs 0..100 and starts full. */
+private const val BONUS_METER_MAX = 100.0
 
 /** Windows are identical for every difficulty: only density changes. */
 data class RhythmJudgementConfig(
@@ -71,7 +86,9 @@ class RhythmJudgementEngine(
         private set
     var maxCombo: Int = 0
         private set
-    private var weighted = 0.0
+    private var hitValueSum = 0L
+    private var bonusMeter = BONUS_METER_MAX
+    private var bonusSum = 0.0
     private val errors = mutableListOf<Double>()
 
     val totalNotes: Int = notes.size
@@ -79,13 +96,24 @@ class RhythmJudgementEngine(
 
     fun isNotePending(noteId: Int): Boolean = noteId in pendingIds
 
+    /**
+     * osu!mania ScoreV1: `1_000_000 × (0.5 × hitValue / 320 + 0.5 × bonus) / totalNotes`, where
+     * `bonus` sums `bonusValue × sqrt(bonusMeter) / 320` over the judged notes.
+     */
     val score: Int
-        get() = if (totalNotes == 0) 0 else Math.round(RHYTHM_FULL_SCORE * weighted / totalNotes).toInt()
+        get() {
+            if (totalNotes == 0) return 0
+            val halfSlice = RHYTHM_FULL_SCORE / 2.0 / totalNotes
+            val base = halfSlice * hitValueSum / HIT_VALUE_MAX
+            val bonus = halfSlice * bonusSum
+            return Math.round(base + bonus).toInt()
+        }
 
+    /** Hit-value accuracy, independent of the bonus meter. */
     val accuracy: Double
         get() {
             val judged = RhythmJudgement.SCORING.sumOf { counts[it] ?: 0 }
-            return if (judged == 0) 1.0 else weighted / judged
+            return if (judged == 0) 1.0 else hitValueSum / (HIT_VALUE_MAX * judged)
         }
 
     fun errorsMs(): List<Double> = errors.toList()
@@ -174,13 +202,23 @@ class RhythmJudgementEngine(
         errorMs: Double?,
     ): RhythmJudgementEvent {
         counts[judgement] = (counts[judgement] ?: 0) + 1
+        if (judgement != RhythmJudgement.EMPTY) {
+            // ScoreV1 moves the meter before scoring the note; a miss empties it, so the next
+            // hit earns bonus from zero instead of from whatever streak survived.
+            bonusMeter = if (judgement == RhythmJudgement.MISS) {
+                0.0
+            } else {
+                (bonusMeter + judgement.bonusDelta).coerceIn(0.0, BONUS_METER_MAX)
+            }
+            hitValueSum += judgement.hitValue
+            bonusSum += judgement.bonusValue * kotlin.math.sqrt(bonusMeter) / HIT_VALUE_MAX
+        }
         when (judgement) {
             RhythmJudgement.MISS -> combo = 0
             RhythmJudgement.EMPTY -> Unit
             else -> {
                 combo += 1
                 maxCombo = maxOf(maxCombo, combo)
-                weighted += JUDGEMENT_WEIGHTS.getValue(judgement)
                 if (errorMs != null) errors += errorMs
             }
         }

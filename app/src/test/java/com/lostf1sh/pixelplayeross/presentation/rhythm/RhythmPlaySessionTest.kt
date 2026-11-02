@@ -20,7 +20,11 @@ class RhythmPlaySessionTest {
         durationMs = 5000,
     )
 
-    private fun session() = RhythmPlaySession(chart(), RhythmManualSongClock(durationMs = 5000.0))
+    private fun session() = RhythmPlaySession(
+        chart(),
+        RhythmManualSongClock(durationMs = 5000.0),
+        leadInMs = 0.0,
+    )
 
     @Test
     fun settleAggregatesJudgementsFromTheClock() {
@@ -44,7 +48,7 @@ class RhythmPlaySessionTest {
     fun restartResetsEngineForTheSameChart() {
         val session = session()
         session.clock.start()
-        session.keyDown(lane = 1, songTimeMs = 2000.0)
+        session.keyDown(lane = 0, songTimeMs = 1000.0)
         assertEquals(500_000, session.engine.score)
 
         session.restart()
@@ -58,12 +62,22 @@ class RhythmPlaySessionTest {
     @Test
     fun finishFollowsClockDuration() {
         val clock = RhythmManualSongClock(durationMs = 5000.0)
-        val session = RhythmPlaySession(chart(), clock)
+        val session = RhythmPlaySession(chart(), clock, leadInMs = 0.0)
         session.clock.start()
         assertFalse(session.isFinished(session.clock.nowMs()))
 
         clock.setTime(5000.0)
 
         assertTrue(session.isFinished(session.clock.nowMs()))
+    }
+
+    @Test
+    fun dropsNotesBeforeTheLeadIn() {
+        val session = RhythmPlaySession(chart(), RhythmManualSongClock(durationMs = 5000.0))
+
+        assertEquals(listOf(1), session.chart.notes.map { it.id })
+        assertEquals(1, session.engine.totalNotes)
+        assertFalse(session.engine.isNotePending(0))
+        assertTrue(session.engine.isNotePending(1))
     }
 }

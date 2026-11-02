@@ -189,8 +189,15 @@ MVP 整曲解码约占用 40MB/5 分钟立体声 44.1kHz。流式解码和内存
 - 超出 Good 窗口仍未命中：Miss。
 - 每次触摸最多消费一个音符，每个音符最多被消费一次。
 - 输入时间取触摸事件发生时刻对应的歌曲时间，而不是 Compose 回调执行时刻。
-- 满分 1,000,000，权重 Perfect=1.0、Great=0.7、Good=0.4、Miss=0。
+- 计分遵循 osu!mania ScoreV1（1,000,000 为满分）：
+  `分数 = 1,000,000 × (0.5 × 命中值/320 + 0.5 × 奖励合计) / 音符数`。命中值 Perfect=320、Great=300、
+  Good=200、Miss=0；奖励条初始 100，按 osu 规则先结算本次变化再计分
+  （Perfect +2、Great +1、Good −8、Miss 清空），单个音符贡献 `奖励值 × sqrt(奖励条)/320`
+  （Perfect 32、Great 32、Good 16）。
+- 准确率只看命中值：`命中值之和 / (320 × 已判定音符数)`，与奖励条无关。
 - 空按不计 Miss、不打断连击，仅记录调试事件。
+- 开局引子 2 秒（`RhythmChart.LEAD_IN_MS`）：母谱保存全部音符；派生谱在**存储时**就去掉 2 秒前的音符，
+  界面上显示的预估音符数同样按去除后计算；母谱与 osu 导入仍在开局时过滤（`withoutLeadIn`）。
 
 ## 8. DSP 快速生成后续方案
 
@@ -226,7 +233,8 @@ MVP 整曲解码约占用 40MB/5 分钟立体声 44.1kHz。流式解码和内存
 |---|---|
 | `OsuManiaParserTest` | 4K tap、chord、车道边界（x=256→lane2、x=511→lane3）、同轨同刻去重、继承 timing 过滤、CRLF 与未知段；拒绝非 mania、非 4K、Hold、空谱面 |
 | `RhythmLibraryStoreTest` | 重复导入幂等且保留最高分、同一谱面绑两首歌共享内容文件、最高分只升不降、删除清理与再删返回 false、损坏索引可恢复、解析失败不落盘 |
-| `RhythmJudgementEngineTest` | 判定窗口边界、权重折算分数、空按不计 Miss 不断连击、一次输入只消费一个音符、`finish()` 补 Miss |
+| `RhythmJudgementEngineTest` | 判定窗口边界、osu ScoreV1 折算（命中值 + 奖励条、Miss 清空奖励条）、空按不计 Miss 不断连击、一次输入只消费一个音符、`finish()` 补 Miss |
+| `RhythmChartLeadInTest` | 去掉 2 秒前音符、整谱都在引子内时保留原谱 |
 | `RhythmPlaySessionTest` | 注入手动时钟结算、`restart()` 重置引擎、按歌曲时长收尾 |
 | `RhythmFrameEstimatorTest` | 锚点插值、MONOTONIC→BOOTTIME 换算、未知时间基准丢弃、500ms 跳变保护、暂停冻结与恢复不回退、帧数钳制 |
 | `RhythmPcmAudioTest` | 多声道降混立体声保持帧数与时长、单/立体声不变 |

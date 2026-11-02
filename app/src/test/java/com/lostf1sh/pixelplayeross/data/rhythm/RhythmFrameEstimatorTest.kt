@@ -17,6 +17,51 @@ class RhythmFrameEstimatorTest {
     }
 
     @Test
+    fun holdsTheStartUntilTheOutputReportsFrames() {
+        val estimator = RhythmFrameEstimator(sampleRate = 1000, totalFrames = 10_000)
+        estimator.start(nowBootNs = 0)
+
+        // play() returned, but no frame has reached the output yet.
+        assertEquals(0.0, estimator.currentFrame(80_000_000L), 0.0)
+
+        val accepted = estimator.offerTimestamp(
+            frame = 0.0,
+            timestampNs = 90_000_000L,
+            monoNs = 90_000_000L,
+            bootNs = 90_000_000L,
+        )
+
+        assertTrue(accepted)
+        assertEquals(0.0, estimator.currentFrame(90_000_000L), 0.0)
+        assertEquals(50.0, estimator.currentFrame(140_000_000L), 0.0)
+    }
+
+    @Test
+    fun rejectsTimestampFromBeforeTheRunStarted() {
+        val estimator = RhythmFrameEstimator(sampleRate = 1000, totalFrames = 10_000)
+        estimator.start(nowBootNs = 5_000_000_000L)
+
+        // Leftover sample from the previous stream: frame 0 was reached 100ms before the start.
+        val accepted = estimator.offerTimestamp(
+            frame = 0.0,
+            timestampNs = 4_900_000_000L,
+            monoNs = 5_050_000_000L,
+            bootNs = 5_050_000_000L,
+        )
+
+        assertFalse(accepted)
+    }
+
+    @Test
+    fun startsOnItsOwnWhenNoTimestampArrives() {
+        val estimator = RhythmFrameEstimator(sampleRate = 1000, totalFrames = 10_000)
+        estimator.start(nowBootNs = 0)
+
+        assertEquals(0.0, estimator.currentFrame(300_000_000L), 0.0)
+        assertEquals(450.0, estimator.currentFrame(450_000_000L), 0.0)
+    }
+
+    @Test
     fun acceptsMonotonicTimestampAndConvertsToBootTime() {
         val estimator = RhythmFrameEstimator(sampleRate = 1000, totalFrames = 10_000)
         // Device has been up ~99s, so the two time bases are far apart: taking

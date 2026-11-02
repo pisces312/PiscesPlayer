@@ -15,6 +15,10 @@ import kotlin.math.abs
  * or `SystemClock.elapsedRealtimeNanos()` (BOOTTIME). Mixing the two domains turns
  * accumulated deep sleep into playback progress and freezes gameplay. Timestamps
  * are therefore normalized to the BOOTTIME domain; unknown time bases are dropped.
+ *
+ * Starting playback holds the clock at the start frame until the output reports its first
+ * frame: `play()` returns before sound is emitted, so running on interpolation right away
+ * makes the first output timestamp pull the clock backwards — one visible jump of every note.
  */
 class RhythmFrameEstimator(
     private val sampleRate: Int,
@@ -26,12 +30,25 @@ class RhythmFrameEstimator(
 
         /** A timestamp within 10s of a sampled clock is considered the same time base. */
         const val TIMEBASE_TOLERANCE_NS = 10_000_000_000L
+
+        /**
+         * How long the start frame is held while waiting for the first output timestamp.
+         * Audio output begins some tens of ms after `play()`; advancing before that and then
+         * snapping back on the first timestamp is visible as a one-time jump of every note.
+         * Bounded so a device that never reports playback-head timestamps still starts.
+         */
+        const val STARTUP_GRACE_NS = 400_000_000L
+
+        /** Clock-sampling slack when rejecting timestamps older than the play/resume anchor. */
+        private const val START_TOLERANCE_NS = 2_000_000L
     }
 
     private var playing = false
     private var anchorFrame = 0.0
     private var anchorBootNs = 0L
     private var floorFrame = 0.0
+    private var startedBootNs = 0L
+    private var awaitingOutput = false
 
     val isPlaying: Boolean get() = playing
     val frozenFrame: Double get() = anchorFrame
@@ -41,10 +58,13 @@ class RhythmFrameEstimator(
         anchorFrame = 0.0
         anchorBootNs = nowBootNs
         floorFrame = 0.0
+        startedBootNs = nowBootNs
+        awaitingOutput = true
     }
 
     fun pauseAt(frame: Double) {
         playing = false
+        awaitingOutput = false
         anchorFrame = frame.coerceIn(0.0, totalFrames.toDouble())
     }
 
@@ -54,6 +74,8 @@ class RhythmFrameEstimator(
         anchorFrame = resumed
         anchorBootNs = nowBootNs
         floorFrame = resumed
+        startedBootNs = nowBootNs
+        awaitingOutput = false
     }
 
     /**
@@ -73,16 +95,36 @@ class RhythmFrameEstimator(
             abs(timestampNs - bootNs) <= TIMEBASE_TOLERANCE_NS -> timestampNs
             else -> return false
         }
+        // A sample older than the play/resume anchor can only be a leftover from the previous
+        // stream position; anchoring on it would run the clock backwards.
+        if (bootAnchorNs + START_TOLERANCE_NS < startedBootNs) return false
         val jumpToleranceFrames = sampleRate * (JUMP_TOLERANCE_NS / 1_000_000_000.0)
-        if (abs(frame - currentFrame(bootNs)) > jumpToleranceFrames) return false
+        if (abs(frame - interpolatedFrame(bootNs)) > jumpToleranceFrames) return false
         anchorFrame = frame
         anchorBootNs = bootAnchorNs
+        awaitingOutput = false
         return true
     }
 
-    /** Current playback frame: anchor + BOOTTIME interpolation, clamped to [floor, total]. */
+    /**
+     * Current playback frame: anchor + BOOTTIME interpolation, clamped to [floor, total].
+     *
+     * Held at the anchor until the first output timestamp confirms audio is really playing;
+     * once [STARTUP_GRACE_NS] passes without one, interpolation starts from the anchor anyway.
+     */
     fun currentFrame(nowBootNs: Long): Double {
         if (!playing) return anchorFrame.coerceAtMost(totalFrames.toDouble())
+        if (awaitingOutput) {
+            if (nowBootNs - startedBootNs < STARTUP_GRACE_NS) {
+                return anchorFrame.coerceAtMost(totalFrames.toDouble())
+            }
+            awaitingOutput = false
+        }
+        return interpolatedFrame(nowBootNs)
+    }
+
+    /** Raw anchor + time prediction, regardless of the start-up hold. */
+    private fun interpolatedFrame(nowBootNs: Long): Double {
         val elapsedNs = nowBootNs - anchorBootNs
         val position = anchorFrame + elapsedNs * sampleRate / 1_000_000_000.0
         return position.coerceAtLeast(floorFrame).coerceAtMost(totalFrames.toDouble())

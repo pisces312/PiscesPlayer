@@ -52,6 +52,20 @@ data class RhythmChart(
 
     fun noteCount(): Int = notes.size
 
+    /**
+     * Drop every note charted before the first [leadInMs] of the song.
+     *
+     * A run starts with that much runway, so a note inside it can not be reacted to. Derived
+     * charts are stored already trimmed; the master and osu imports are trimmed at play time.
+     * A chart living entirely inside the lead-in keeps its notes instead of becoming unplayable.
+     */
+    fun withoutLeadIn(leadInMs: Double = LEAD_IN_MS): RhythmChart {
+        if (leadInMs <= 0.0) return this
+        val kept = notes.filter { it.timeMs >= leadInMs }
+        if (kept.isEmpty() || kept.size == notes.size) return this
+        return copy(notes = kept)
+    }
+
     /** Average notes per second over the chart span. */
     fun averageNps(): Double {
         val span = if (durationMs > 0) durationMs else (notes.last().timeMs + 1)
@@ -63,6 +77,9 @@ data class RhythmChart(
         const val SOURCE_OSU = "osu"
         const val SOURCE_DSP = "dsp"
         const val SOURCE_PRC = "prc"
+
+        /** Runway before the first playable note; derived charts are stored without anything earlier. */
+        const val LEAD_IN_MS = 2000.0
 
         /** [RhythmChartMeta.difficultyKey] of the per-song master chart. */
         const val DIFFICULTY_RAW = "raw"
