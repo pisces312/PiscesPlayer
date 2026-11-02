@@ -73,7 +73,16 @@ class RhythmPlaySessionTest {
 
     @Test
     fun dropsNotesBeforeTheLeadIn() {
-        val session = RhythmPlaySession(chart(), RhythmManualSongClock(durationMs = 5000.0))
+        val early = RhythmChart(
+            source = RhythmChart.SOURCE_OSU,
+            difficultyName = "Test",
+            notes = listOf(
+                RhythmNote(0, 500, 0),
+                RhythmNote(1, 2000, 1),
+            ),
+            durationMs = 5000,
+        )
+        val session = RhythmPlaySession(early, RhythmManualSongClock(durationMs = 5000.0))
 
         assertEquals(listOf(1), session.chart.notes.map { it.id })
         assertEquals(1, session.engine.totalNotes)

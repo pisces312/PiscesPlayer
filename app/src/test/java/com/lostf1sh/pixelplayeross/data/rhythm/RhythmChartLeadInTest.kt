@@ -15,21 +15,21 @@ class RhythmChartLeadInTest {
 
     @Test
     fun dropsNotesBeforeTheLeadIn() {
-        val trimmed = chart(500, 1999, 2000, 2500).withoutLeadIn()
+        val trimmed = chart(500, 999, 1000, 1500).withoutLeadIn()
 
-        assertEquals(listOf(2000, 2500), trimmed.notes.map { it.timeMs })
+        assertEquals(listOf(1000, 1500), trimmed.notes.map { it.timeMs })
     }
 
     @Test
     fun keepsAChartThatLivesEntirelyInsideTheLeadIn() {
-        val original = chart(500, 1500)
+        val original = chart(500, 900)
 
         assertSame(original, original.withoutLeadIn())
     }
 
     @Test
     fun keepsTheChartWhenNothingIsEarly() {
-        val original = chart(2000, 2500)
+        val original = chart(1000, 1500)
 
         assertSame(original, original.withoutLeadIn())
     }

@@ -79,7 +79,7 @@ data class RhythmChart(
         const val SOURCE_PRC = "prc"
 
         /** Runway before the first playable note; derived charts are stored without anything earlier. */
-        const val LEAD_IN_MS = 2000.0
+        const val LEAD_IN_MS = 1000.0
 
         /** [RhythmChartMeta.difficultyKey] of the per-song master chart. */
         const val DIFFICULTY_RAW = "raw"
