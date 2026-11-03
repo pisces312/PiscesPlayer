@@ -44,6 +44,7 @@ import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Schedule
 import androidx.compose.material.icons.rounded.Share
+import androidx.compose.material.icons.rounded.SportsEsports
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Menu
@@ -537,7 +538,7 @@ fun SongInfoBottomSheet(
                                                     onClick = onNavigateToRhythmGame
                                                 ) {
                                                     Icon(
-                                                        Icons.Rounded.PlayArrow,
+                                                        Icons.Rounded.SportsEsports,
                                                         contentDescription = stringResource(R.string.song_info_rhythm_game)
                                                     )
                                                     Spacer(Modifier.width(10.dp))
