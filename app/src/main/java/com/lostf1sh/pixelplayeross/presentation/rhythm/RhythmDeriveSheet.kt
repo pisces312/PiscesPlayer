@@ -184,7 +184,9 @@ internal fun RhythmDeriveSheet(
                     Text(stringResource(R.string.rhythm_generate_cancel))
                 }
                 Button(
-                    onClick = { onDerive(selected.sorted(), strategy, maxChord) },
+                    // The derived list shows the newest chart first, so derive from hardest
+                    // to easiest: the easiest chart then lands at the top.
+                    onClick = { onDerive(selected.sortedDescending(), strategy, maxChord) },
                     enabled = selected.isNotEmpty() && !deriving,
                     modifier = Modifier.weight(1f),
                 ) {
