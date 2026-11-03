@@ -6,8 +6,10 @@
 package com.lostf1sh.pixelplayeross.presentation.rhythm
 
 import android.app.Activity
+import android.content.Intent
 import android.content.pm.ActivityInfo
 import android.net.Uri
+import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -48,6 +50,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.FileProvider
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -55,10 +58,16 @@ import com.lostf1sh.pixelplayeross.R
 import com.lostf1sh.pixelplayeross.data.offline.CloudOfflineRepository
 import com.lostf1sh.pixelplayeross.data.rhythm.RhythmAudioClock
 import com.lostf1sh.pixelplayeross.data.rhythm.RhythmChartSettings
+import com.lostf1sh.pixelplayeross.data.rhythm.RhythmDriftKind
+import com.lostf1sh.pixelplayeross.data.rhythm.RhythmDriftRecorder
+import com.lostf1sh.pixelplayeross.data.rhythm.RhythmDriftReport
 import com.lostf1sh.pixelplayeross.data.rhythm.RhythmPcmDecoder
 import com.lostf1sh.pixelplayeross.data.rhythm.RhythmRepository
 import java.io.File
+import java.text.SimpleDateFormat
+import java.util.Date
 import java.util.Locale
+import kotlin.math.abs
 import kotlin.math.roundToInt
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -113,6 +122,10 @@ fun RhythmGameScreen(
     var feedbackId by remember { mutableLongStateOf(0L) }
     var effectNowNanos by remember { mutableLongStateOf(System.nanoTime()) }
     val touchTracker = remember(session, runId) { RhythmLaneTouchTracker() }
+    // Per-run clock diagnostics: the loop feeds it one sample per frame, the result screen shows
+    // the auto-classified drift, and both pause and result screens can export the raw trace.
+    val driftRecorder = remember(session, runId) { RhythmDriftRecorder() }
+    var driftReport by remember { mutableStateOf<RhythmDriftReport?>(null) }
 
     val cloudUnavailableMessage = stringResource(R.string.rhythm_cloud_not_supported)
     val chartMissingMessage = stringResource(R.string.rhythm_chart_missing)
@@ -233,6 +246,7 @@ fun RhythmGameScreen(
         judgementFeedback = null
         hitEffects = emptyList()
         touchTracker.clear()
+        driftReport = null
         currentSession.clock.stop()
         countdown = 3
         repeat(3) {
@@ -242,6 +256,7 @@ fun RhythmGameScreen(
         currentSession.restart()
         // A pause pressed during the countdown must keep the audio silent.
         if (paused) currentSession.pause()
+        driftRecorder.start(System.nanoTime())
         songMs = currentSession.clock.nowMs()
         while (isActive) {
             withFrameNanos { }
@@ -260,11 +275,13 @@ fun RhythmGameScreen(
             if (!paused) {
                 val now = currentSession.clock.nowMs()
                 songMs = now
+                audioClock?.let { driftRecorder.recordFrame(it.diagnosticsSample(), animationNow) }
                 currentSession.tick(now).forEach(::presentJudgement)
                 frameTick += 1
                 if (currentSession.isFinished(now)) {
                     val sessionResult = currentSession.settle()
                     result = sessionResult
+                    driftReport = driftRecorder.analyze(currentSession.chart.notes)
                     withContext(Dispatchers.IO) {
                         repository.recordScore(chartId, sessionResult.score)
                     }
@@ -278,6 +295,46 @@ fun RhythmGameScreen(
         session?.clock?.stop()
         audioClock?.release()
         onExit()
+    }
+
+    /** Write this run's clock trace + classification to cache and open the share sheet. */
+    fun exportDiagnostics() {
+        val currentSession = session ?: return
+        val notes = currentSession.chart.notes
+        if (driftReport == null) driftReport = driftRecorder.analyze(notes)
+        val meta = buildString {
+            appendLine("capturedAt=" + SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(Date()))
+            appendLine("songId=$songId")
+            appendLine("chartId=$chartId")
+            appendLine("difficulty=${currentSession.chart.difficultyName}")
+            appendLine("durationMs=${currentSession.clock.durationMs}")
+            appendLine("offsetMs=${currentSession.clock.offsetMs}")
+            appendLine("approachMs=${currentSession.approachMs}")
+        }
+        scope.launch {
+            val file = withContext(Dispatchers.IO) {
+                runCatching {
+                    val dir = File(context.cacheDir, "rhythm_diagnostics").apply { mkdirs() }
+                    File(dir, "rhythm-drift-${System.currentTimeMillis()}.txt")
+                        .apply { writeText(driftRecorder.exportText(meta, notes)) }
+                }.getOrNull()
+            }
+            if (file == null) {
+                Toast.makeText(context, R.string.rhythm_diagnostics_export_failed, Toast.LENGTH_SHORT).show()
+                return@launch
+            }
+            val uri = FileProvider.getUriForFile(context, "${context.packageName}.provider", file)
+            val send = Intent(Intent.ACTION_SEND).apply {
+                type = "text/plain"
+                putExtra(Intent.EXTRA_STREAM, uri)
+                putExtra(Intent.EXTRA_SUBJECT, "Rhythm clock diagnostics")
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+            context.startActivity(
+                Intent.createChooser(send, null)
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION),
+            )
+        }
     }
 
     val currentSession = session
@@ -371,18 +428,21 @@ fun RhythmGameScreen(
                     runId += 1
                 },
                 onExit = ::exitGame,
+                onExportDiagnostics = ::exportDiagnostics,
             )
         }
 
         result?.let { sessionResult ->
             RhythmResultOverlay(
                 result = sessionResult,
+                driftReport = driftReport,
                 onRetry = {
                     result = null
                     paused = false
                     runId += 1
                 },
                 onExit = ::exitGame,
+                onExportDiagnostics = ::exportDiagnostics,
             )
         }
     }
@@ -464,6 +524,7 @@ private fun RhythmPauseOverlay(
     onOffset: (Int) -> Unit,
     onRestart: () -> Unit,
     onExit: () -> Unit,
+    onExportDiagnostics: () -> Unit,
 ) {
     Box(
         modifier = Modifier
@@ -503,6 +564,9 @@ private fun RhythmPauseOverlay(
                     OutlinedButton(onClick = { onOffset(-10) }) { Text("-10 ms") }
                     OutlinedButton(onClick = { onOffset(10) }) { Text("+10 ms") }
                 }
+                TextButton(onClick = onExportDiagnostics) {
+                    Text(stringResource(R.string.rhythm_export_diagnostics), color = HUD_SECONDARY)
+                }
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     TextButton(onClick = onRestart) {
                         Text(stringResource(R.string.rhythm_restart), color = HUD_TEXT)
@@ -517,10 +581,24 @@ private fun RhythmPauseOverlay(
 }
 
 @Composable
+private fun driftSummary(report: RhythmDriftReport): String = when (report.kind) {
+    RhythmDriftKind.STABLE -> stringResource(R.string.rhythm_drift_stable)
+    RhythmDriftKind.PROGRESSIVE_OVER_RUN ->
+        stringResource(R.string.rhythm_drift_over, abs(report.endResidualMs), abs(report.driftPpm))
+    RhythmDriftKind.PROGRESSIVE_UNDER_RUN ->
+        stringResource(R.string.rhythm_drift_under, abs(report.endResidualMs), abs(report.driftPpm))
+    RhythmDriftKind.STEP -> stringResource(R.string.rhythm_drift_step, report.largestStepMs)
+    RhythmDriftKind.SAWTOOTH -> stringResource(R.string.rhythm_drift_sawtooth, report.maxAbsResidualMs)
+    RhythmDriftKind.INSUFFICIENT_DATA -> stringResource(R.string.rhythm_drift_insufficient)
+}
+
+@Composable
 private fun RhythmResultOverlay(
     result: RhythmSessionResult,
+    driftReport: RhythmDriftReport?,
     onRetry: () -> Unit,
     onExit: () -> Unit,
+    onExportDiagnostics: () -> Unit,
 ) {
     Box(
         modifier = Modifier
@@ -583,6 +661,13 @@ private fun RhythmResultOverlay(
                     color = HUD_SECONDARY,
                     fontSize = 13.sp,
                 )
+                driftReport?.let { report ->
+                    Text(
+                        text = driftSummary(report),
+                        color = if (report.kind == RhythmDriftKind.STABLE) HUD_SECONDARY else DANGER_TEXT,
+                        fontSize = 13.sp,
+                    )
+                }
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     Button(onClick = onRetry) {
                         Text(stringResource(R.string.rhythm_retry))
@@ -590,6 +675,9 @@ private fun RhythmResultOverlay(
                     OutlinedButton(onClick = onExit) {
                         Text(stringResource(R.string.rhythm_exit))
                     }
+                }
+                TextButton(onClick = onExportDiagnostics) {
+                    Text(stringResource(R.string.rhythm_export_diagnostics), color = HUD_SECONDARY)
                 }
             }
         }

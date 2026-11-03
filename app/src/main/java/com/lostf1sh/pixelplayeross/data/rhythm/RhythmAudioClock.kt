@@ -51,6 +51,7 @@ class RhythmAudioClock(
     override val durationMs: Double get() = audio.durationMs
     override val isPlaying: Boolean get() = estimator.isPlaying
     private val timestamp = AudioTimestamp()
+    @Volatile private var lastSample = RhythmClockSample(0.0, 0.0, Double.NaN, ClockSource.WALL)
 
     override fun start() {
         synchronized(streamLock) {
@@ -142,24 +143,53 @@ class RhythmAudioClock(
 
     private fun readFrame(): Double {
         val bootNs = SystemClock.elapsedRealtimeNanos()
-        if (track.getTimestamp(timestamp) && timestamp.nanoTime > 0) {
-            estimator.offerTimestamp(
-                frame = timestamp.framePosition.toDouble(),
-                timestampNs = timestamp.nanoTime,
-                monoNs = System.nanoTime(),
-                bootNs = bootNs,
+        // After release() the AudioTrack native pointer is gone; getTimestamp()/
+        // getPlaybackHeadPosition() then throw IllegalStateException. The game loop can still
+        // read one more frame on the Choreographer callback after exitGame() released the track,
+        // so bail onto the pure estimator (no device access) instead of crashing.
+        if (released) return estimator.currentFrame(bootNs)
+        // Hold streamLock across the device reads so they are mutually exclusive with
+        // track.release() in release(); re-check released inside, since it may have flipped
+        // between the guard above and acquiring the lock. Reentrant: pause() calls readFrame()
+        // while already holding this lock.
+        synchronized(streamLock) {
+            if (released) return estimator.currentFrame(bootNs)
+            var timestampMs = Double.NaN
+            var source = ClockSource.WALL
+            if (track.getTimestamp(timestamp) && timestamp.nanoTime > 0) {
+                timestampMs = timestamp.framePosition.toDouble() / audio.sampleRate * 1000.0
+                val accepted = estimator.offerTimestamp(
+                    frame = timestamp.framePosition.toDouble(),
+                    timestampNs = timestamp.nanoTime,
+                    monoNs = System.nanoTime(),
+                    bootNs = bootNs,
+                )
+                if (accepted) source = ClockSource.TIMESTAMP
+            }
+            // Always sample the playback head too: it is the one position every device reports
+            // and it stops advancing on an underrun, so it is what keeps the clock locked to the
+            // audio instead of drifting further behind it every second. The estimator ignores it
+            // while a precise AudioTimestamp is still fresh.
+            val headFrame = (track.playbackHeadPosition.toLong() and HEAD_MASK).toDouble()
+            val headMoved = estimator.offerHeadPosition(headFrame, bootNs)
+            if (source == ClockSource.WALL && headMoved) source = ClockSource.HEAD
+            val frame = estimator.currentFrame(bootNs)
+            lastSample = RhythmClockSample(
+                songMs = frame / audio.sampleRate * 1000.0 + offsetMs,
+                headMs = headFrame / audio.sampleRate * 1000.0,
+                timestampMs = timestampMs,
+                source = source,
             )
+            return frame
         }
-        // Always sample the playback head too: it is the one position every device reports and
-        // it stops advancing on an underrun, so it is what keeps the clock locked to the audio
-        // instead of drifting further behind it every second. The estimator ignores it while a
-        // precise AudioTimestamp is still fresh.
-        estimator.offerHeadPosition(
-            frame = (track.playbackHeadPosition.toLong() and HEAD_MASK).toDouble(),
-            bootNs = bootNs,
-        )
-        return estimator.currentFrame(bootNs)
     }
+
+    /**
+     * The raw clock reading captured by the most recent [nowMs]: what the game clock reported
+     * against what the output device actually rendered. Diagnostics only; does not touch the
+     * device again, so calling it per frame is free.
+     */
+    fun diagnosticsSample(): RhythmClockSample = lastSample
 
     private fun writerLoop() {
         while (true) {

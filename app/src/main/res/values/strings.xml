@@ -352,6 +352,14 @@
     <string name="rhythm_result_judgements">Perfect %1$d · Great %2$d · Good %3$d · Miss %4$d</string>
     <string name="rhythm_result_timing">Mean error %1$s ms · Early %2$d · Late %3$d</string>
     <string name="rhythm_retry">Retry</string>
+    <string name="rhythm_export_diagnostics">Export diagnostics</string>
+    <string name="rhythm_diagnostics_export_failed">Could not export diagnostics</string>
+    <string name="rhythm_drift_stable">Clock: stable, no meaningful drift</string>
+    <string name="rhythm_drift_over">Clock: drifting ahead — %1$.0f ms by the end (%2$.0f ppm)</string>
+    <string name="rhythm_drift_under">Clock: drifting behind — %1$.0f ms by the end (%2$.0f ppm)</string>
+    <string name="rhythm_drift_step">Clock: one %1$.0f ms jump (likely an underrun)</string>
+    <string name="rhythm_drift_sawtooth">Clock: jittering ±%1$.0f ms, no net drift</string>
+    <string name="rhythm_drift_insufficient">Clock: not enough data to classify</string>
     <string name="rhythm_source_dsp">DSP</string>
     <string name="rhythm_source_osu">osu</string>
     <string name="rhythm_generate_chart">Generate chart</string>

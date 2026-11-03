@@ -353,6 +353,14 @@
     <string name="rhythm_result_judgements">Perfect %1$d · Great %2$d · Good %3$d · Miss %4$d</string>
     <string name="rhythm_result_timing">平均误差 %1$s ms · 偏早 %2$d · 偏晚 %3$d</string>
     <string name="rhythm_retry">再来一次</string>
+    <string name="rhythm_export_diagnostics">导出诊断日志</string>
+    <string name="rhythm_diagnostics_export_failed">诊断日志导出失败</string>
+    <string name="rhythm_drift_stable">时钟：稳定，无明显漂移</string>
+    <string name="rhythm_drift_over">时钟：渐进超前——结束时偏差 %1$.0f ms（%2$.0f ppm）</string>
+    <string name="rhythm_drift_under">时钟：渐进滞后——结束时偏差 %1$.0f ms（%2$.0f ppm）</string>
+    <string name="rhythm_drift_step">时钟：出现一次 %1$.0f ms 跳变（疑似欠载）</string>
+    <string name="rhythm_drift_sawtooth">时钟：抖动 ±%1$.0f ms，无净漂移</string>
+    <string name="rhythm_drift_insufficient">时钟：数据不足，无法判定</string>
     <string name="rhythm_source_dsp">DSP</string>
     <string name="rhythm_source_osu">osu</string>
     <string name="rhythm_generate_chart">自动生成谱面</string>
