@@ -28,7 +28,8 @@ import numpy as np
 from scipy.io import wavfile
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-OUT_DIR = os.path.join(HERE, "app", "src", "test", "resources", "rhythm")
+REPO_ROOT = os.path.abspath(os.path.join(HERE, "..", ".."))
+OUT_DIR = os.path.join(REPO_ROOT, "app", "src", "test", "resources", "rhythm")
 
 DEFAULT_CHARTGEN = r"D:/3rd-party-projects/RhythmChartLab/rhythm-lab/fourier/fourier_chartgen.py"
 

@@ -1,0 +1,25 @@
+{
+  "description": "PC regression baseline for GRID-mode chart alignment. The song path is local to this machine; every tool skips or asks for a different song when it is missing.",
+  "songPath": "E:/迎着风向前冲-姜月初.mp3",
+  "decodedWav": "build/rhythm-lab/baseline.wav",
+  "sampleRate": 44100,
+  "expectedDurationMs": 172875,
+  "expectedBpm": 170.3,
+  "referenceBeatTempoRange": [160.0, 182.0],
+  "targetMaxErrorMs": 20.0,
+  "reference": {
+    "model": "beat_this final0 (MIT), sub-frame peaks",
+    "beatsFile": "reference/beat_this_final0_fine.txt",
+    "musicBeatBpm": 85.3
+  },
+  "tracker": {
+    "bandCount": 64,
+    "whitenWindow": 32,
+    "dpTightness": 600.0,
+    "refineRadius": 2,
+    "tailRmsFraction": 0.25,
+    "anchorEveryBeats": 1,
+    "fitHalfWindowBeats": 10,
+    "fitResidualMs": 45.0
+  }
+}

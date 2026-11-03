@@ -47,3 +47,5 @@ markdown.xml
 graphify-out/
 .workbuddy/
 .tmp-test/
+__pycache__/
+tools/rhythm-lab/.venv/
