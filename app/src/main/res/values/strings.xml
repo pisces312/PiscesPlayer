@@ -327,6 +327,11 @@
     <string name="rhythm_delete_chart_message">Delete the imported chart %1$s and its best score? The original .osu file is not affected.</string>
     <string name="rhythm_delete_chart_confirm">Delete</string>
     <string name="rhythm_delete_chart_cancel">Cancel</string>
+    <string name="rhythm_delete_derived_all">Delete derived charts (%1$d)</string>
+    <string name="rhythm_delete_derived_title">Delete all derived charts?</string>
+    <string name="rhythm_delete_derived_message">Delete %1$d derived charts and their best scores? The master chart and imported charts are not affected.</string>
+    <string name="rhythm_delete_derived_confirm">Delete all</string>
+    <string name="rhythm_delete_derived_done">Deleted %1$d derived charts</string>
     <string name="rhythm_song_loading">Loading song…</string>
     <string name="rhythm_loading">Preparing gameplay…</string>
     <string name="rhythm_load_failed">Load failed: %1$s</string>

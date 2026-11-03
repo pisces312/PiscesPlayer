@@ -328,6 +328,11 @@
     <string name="rhythm_delete_chart_message">删除已导入的谱面 %1$s 及其最高分？不会影响原始 .osu 文件。</string>
     <string name="rhythm_delete_chart_confirm">删除</string>
     <string name="rhythm_delete_chart_cancel">取消</string>
+    <string name="rhythm_delete_derived_all">删除派生谱（%1$d）</string>
+    <string name="rhythm_delete_derived_title">删除全部派生谱？</string>
+    <string name="rhythm_delete_derived_message">将删除 %1$d 个派生谱面及其最高分。母谱与导入谱面不受影响。</string>
+    <string name="rhythm_delete_derived_confirm">全部删除</string>
+    <string name="rhythm_delete_derived_done">已删除 %1$d 个派生谱</string>
     <string name="rhythm_song_loading">正在加载歌曲…</string>
     <string name="rhythm_loading">正在准备游戏…</string>
     <string name="rhythm_load_failed">加载失败：%1$s</string>

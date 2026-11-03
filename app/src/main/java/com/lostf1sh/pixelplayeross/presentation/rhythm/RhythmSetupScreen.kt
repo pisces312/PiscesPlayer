@@ -27,11 +27,13 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.DeleteSweep
 import androidx.compose.material.icons.outlined.MusicNote
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.UploadFile
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -143,6 +145,7 @@ fun RhythmSetupScreen(
     var importing by remember { mutableStateOf(false) }
     var importError by remember { mutableStateOf<String?>(null) }
     var pendingDelete by remember { mutableStateOf<RhythmChartMeta?>(null) }
+    var pendingDeleteDerived by remember { mutableStateOf(false) }
     var settingsTarget by remember { mutableStateOf<RhythmChartMeta?>(null) }
 
     var showGenerateSheet by remember { mutableStateOf(false) }
@@ -403,6 +406,7 @@ fun RhythmSetupScreen(
                         bpmText = masterBpmText,
                         delayMs = snapshot.settings[masterMeta.chartId]?.delayMs ?: 0,
                         deriving = deriving,
+                        derivedCount = snapshot.derived.size,
                         onPlay = {
                             navController.navigateSafely(
                                 Screen.RhythmGame.createRoute(songId, masterMeta.chartId),
@@ -416,6 +420,7 @@ fun RhythmSetupScreen(
                         },
                         onSettings = { settingsTarget = masterMeta },
                         onDelete = { pendingDelete = masterMeta },
+                        onDeleteDerived = { pendingDeleteDerived = true },
                     )
                 }
             }
@@ -506,6 +511,44 @@ fun RhythmSetupScreen(
             },
             dismissButton = {
                 TextButton(onClick = { pendingDelete = null }) {
+                    Text(stringResource(R.string.rhythm_delete_chart_cancel))
+                }
+            },
+        )
+    }
+
+    if (pendingDeleteDerived) {
+        // Snapshot at composition time: the message shows the exact count that will be deleted.
+        val derived = snapshot.derived
+        AlertDialog(
+            onDismissRequest = { pendingDeleteDerived = false },
+            title = { Text(stringResource(R.string.rhythm_delete_derived_title)) },
+            text = {
+                Text(stringResource(R.string.rhythm_delete_derived_message, derived.size))
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        scope.launch {
+                            withContext(Dispatchers.IO) {
+                                derived.forEach { repository.deleteChart(songId, it.chartId) }
+                            }
+                            refresh()
+                            pendingDeleteDerived = false
+                            playerViewModel.sendToast(
+                                context.getString(R.string.rhythm_delete_derived_done, derived.size),
+                            )
+                        }
+                    },
+                    colors = ButtonDefaults.textButtonColors(
+                        contentColor = MaterialTheme.colorScheme.error,
+                    ),
+                ) {
+                    Text(stringResource(R.string.rhythm_delete_derived_confirm))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingDeleteDerived = false }) {
                     Text(stringResource(R.string.rhythm_delete_chart_cancel))
                 }
             },
@@ -671,11 +714,13 @@ private fun MasterCard(
     bpmText: String,
     delayMs: Int,
     deriving: Boolean,
+    derivedCount: Int,
     onPlay: () -> Unit,
     onDerive: () -> Unit,
     onRegenerate: () -> Unit,
     onSettings: () -> Unit,
     onDelete: () -> Unit,
+    onDeleteDerived: () -> Unit,
 ) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(
@@ -762,8 +807,34 @@ private fun MasterCard(
                 ) {
                     Text(stringResource(R.string.rhythm_derive_action))
                 }
+            }
+
+            // Maintenance row: infrequent chart-keeping actions kept out of the primary row.
+            // Delete-all is only offered while there are derived charts to delete.
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
                 TextButton(onClick = onRegenerate) {
                     Text(stringResource(R.string.rhythm_master_regenerate))
+                }
+                if (derivedCount > 0) {
+                    TextButton(
+                        onClick = onDeleteDerived,
+                        enabled = !deriving,
+                        colors = ButtonDefaults.textButtonColors(
+                            contentColor = MaterialTheme.colorScheme.error,
+                        ),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.DeleteSweep,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp),
+                        )
+                        Spacer(Modifier.width(6.dp))
+                        Text(stringResource(R.string.rhythm_delete_derived_all, derivedCount))
+                    }
                 }
             }
         }
