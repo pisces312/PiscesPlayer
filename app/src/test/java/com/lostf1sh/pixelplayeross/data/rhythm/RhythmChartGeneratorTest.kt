@@ -29,6 +29,19 @@ class RhythmChartGeneratorTest {
     }
 
     @Test
+    fun usedTempoMatchesTheLoopPeriod() {
+        // A minute of audio makes a period error visible: 0.3% is already 100 ms of phase slip
+        // by the end, so the phase-coherence refinement must land well inside 0.05 BPM.
+        val bpm = 120.0
+        val result = RhythmChartGenerator.generate(
+            pcmMono = RhythmTestAudio.drumLoop(60.0, sampleRate, bpm),
+            sampleRate = sampleRate,
+            durationMs = 60_000,
+        )
+        assertEquals(bpm, result.diagnostics.usedBpm, 0.05)
+    }
+
+    @Test
     fun handlesFortyEightKilohertzDevices() {
         // Real devices decode at 48 kHz far more often than 44.1 kHz; every stage is
         // sample-rate driven (hop duration, lag range, frame-to-ms), so exercise it.

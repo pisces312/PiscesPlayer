@@ -15,6 +15,7 @@ import kotlin.math.ln
 import kotlin.math.log2
 import kotlin.math.max
 import kotlin.math.min
+import kotlin.math.sin
 import kotlin.math.sqrt
 
 /** Raised when the audio cannot produce a playable chart. Message is user-facing. */
@@ -252,7 +253,11 @@ internal object RhythmChartGenerator {
                 throw RhythmGenerationException("Unable to detect the tempo; set the BPM manually")
             }
             octaveCorrection = chooseOctave(novn, frameCount, detectedBpm, fps)
-            usedBpm = detectedBpm * octaveCorrection
+            // The autocorrelation peak is broad: its parabolic fit is only good to ~0.3%, and
+            // 0.3% slips a whole beat over ~100s, so the grid drifts in and out of sync with
+            // the music ("sometimes right, sometimes fast"). The beat-frequency phase
+            // integrates over the whole song, so refine the period against it.
+            usedBpm = refineTempo(novn, frameCount, fps, detectedBpm * octaveCorrection)
         }
         onProgress(0.93f)
 
@@ -612,6 +617,69 @@ internal object RhythmChartGenerator {
         val periodFrames = (safeBest + delta) / multiple
         if (periodFrames <= 0.0) return Double.NaN
         return 60.0 * fps / periodFrames
+    }
+
+    /**
+     * Phase-coherence refinement of the autocorrelation period.
+     *
+     * [estimateBpm]'s peak is a few frames wide, so its parabolic fit lands within ~0.3% of the
+     * true period. That is small per beat but not per song: 0.3% is a whole beat of slip every
+     * ~100 s, so the chart drifts in and out of sync with the music instead of staying locked.
+     * The magnitude of the whole-song complex demodulation at the beat frequency has a much
+     * sharper maximum (width ~1/T, a fraction of a BPM over a multi-minute song), so scanning
+     * ±1% around the coarse estimate and interpolating the peak pins the period far tighter.
+     */
+    private fun refineTempo(
+        novn: FloatArray,
+        frameCount: Int,
+        fps: Double,
+        coarseBpm: Double,
+    ): Double {
+        if (!coarseBpm.isFinite() || coarseBpm <= 0.0 || frameCount < 16) return coarseBpm
+        val window = DoubleArray(frameCount) { index ->
+            val hann = 0.5 - 0.5 * cos(2.0 * PI * index / (frameCount - 1))
+            hann * novn[index]
+        }
+        val searchFraction = 0.01
+        val halfSteps = 40
+        val stepBpm = coarseBpm * searchFraction / halfSteps
+        var bestBpm = coarseBpm
+        var bestMagnitude = Double.NEGATIVE_INFINITY
+        for (index in -halfSteps..halfSteps) {
+            val bpm = coarseBpm * (1.0 + searchFraction * index / halfSteps)
+            val magnitude = demodulateMagnitude(window, fps, bpm)
+            if (magnitude > bestMagnitude) {
+                bestMagnitude = magnitude
+                bestBpm = bpm
+            }
+        }
+        val y0 = demodulateMagnitude(window, fps, bestBpm - stepBpm)
+        val y1 = demodulateMagnitude(window, fps, bestBpm)
+        val y2 = demodulateMagnitude(window, fps, bestBpm + stepBpm)
+        val denominator = y0 - 2 * y1 + y2
+        if (abs(denominator) < 1e-12) return bestBpm
+        val delta = (0.5 * (y0 - y2) / denominator).coerceIn(-1.0, 1.0)
+        return bestBpm + delta * stepBpm
+    }
+
+    /** |Σ weighted[frame] · exp(-i·ω·frame/fps)| for a candidate beat frequency. */
+    private fun demodulateMagnitude(weighted: DoubleArray, fps: Double, bpm: Double): Double {
+        val omega = 2.0 * PI * (bpm / 60.0) / fps
+        val cosStep = cos(omega)
+        val sinStep = sin(omega)
+        var cosValue = 1.0
+        var sinValue = 0.0
+        var re = 0.0
+        var im = 0.0
+        for (index in weighted.indices) {
+            val value = weighted[index]
+            re += value * cosValue
+            im -= value * sinValue
+            val nextCos = cosValue * cosStep - sinValue * sinStep
+            sinValue = cosValue * sinStep + sinValue * cosStep
+            cosValue = nextCos
+        }
+        return re * re + im * im
     }
 
     /**
