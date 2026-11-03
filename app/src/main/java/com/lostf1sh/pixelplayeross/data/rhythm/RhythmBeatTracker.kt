@@ -34,6 +34,10 @@ internal object RhythmBeatTracker {
     private const val FIT_RESIDUAL_MS = 45.0
     private const val FIT_ITERATIONS = 4
 
+    /** Intro lock-in: how many consecutive intervals must match the whole-song tempo. */
+    private const val LOCK_IN_INTERVALS = 8
+    private const val LOCK_IN_TOLERANCE = 0.03
+
     /** How far the fitted median beat may sit from the requested rate before it is rejected. */
     private const val MAX_RATE_DEVIATION = 0.05
 
@@ -227,49 +231,100 @@ internal object RhythmBeatTracker {
      * misplaced beat from bending the grid. Each anchor's `beatMs` is half the fitted slope
      * (chart beat = half a music beat).
      */
-    private fun piecewiseTiming(
+    internal fun piecewiseTiming(
         beatTimesMs: DoubleArray,
         durationMs: Int,
     ): List<RhythmTimingPoint> {
         if (beatTimesMs.size < 2) return emptyList()
+        // Intro fix: the first tracked beats can lock onto a wrong rate when the intro's
+        // evidence is too thin. Beats before the lock-in point are rebuilt from the lock-in
+        // anchor at the whole-song median period instead of trusting their own fits. The
+        // whole-song rate beat the lock-in fit's local rate in
+        // tools/rhythm-lab/experiments/intro_fix.py, and a clean intro finds lock = 0 and is
+        // untouched.
+        val lock = lockInIndex(beatTimesMs)
+        val introPeriod = medianPeriod(beatTimesMs)
+        val introOrigin = if (lock >= 1) fitAt(beatTimesMs, lock)?.intercept else null
         val timing = ArrayList<RhythmTimingPoint>(beatTimesMs.size)
         var lastAnchorMs = Double.NEGATIVE_INFINITY
         for (anchor in beatTimesMs.indices) {
-            val low = max(0, anchor - FIT_HALF_WINDOW)
-            val high = min(beatTimesMs.size, anchor + FIT_HALF_WINDOW + 1)
-            val count = high - low
-            val x = DoubleArray(count) { (low + it - anchor).toDouble() }
-            val y = DoubleArray(count) { beatTimesMs[low + it] }
-            val weights = DoubleArray(count) {
-                val shaped = (1.0 - abs(x[it]) / (FIT_HALF_WINDOW + 1.0)).coerceIn(1e-3, 1.0)
-                shaped * shaped * shaped
+            val anchorMs: Double
+            val beatMs: Double
+            if (introOrigin != null && anchor < lock) {
+                anchorMs = introOrigin + (anchor - lock) * introPeriod
+                beatMs = introPeriod / 2.0
+            } else {
+                val fit = fitAt(beatTimesMs, anchor) ?: continue
+                if (!fit.slope.isFinite() || fit.slope <= 0.0) continue
+                anchorMs = fit.intercept
+                beatMs = fit.slope / 2.0
             }
-
-            var keep = BooleanArray(count) { true }
-            for (iteration in 0 until FIT_ITERATIONS) {
-                if (keep.count { it } < 2) break
-                val fit = weightedLineFit(x, y, weights, keep) ?: break
-                val residual = DoubleArray(count) { abs(y[it] - (fit.slope * x[it] + fit.intercept)) }
-                val keptResiduals = DoubleArray(keep.count { it })
-                var cursor = 0
-                for (index in 0 until count) {
-                    if (keep[index]) keptResiduals[cursor++] = residual[index]
-                }
-                Arrays.sort(keptResiduals)
-                val cutoff = max(FIT_RESIDUAL_MS, 3.0 * median(keptResiduals))
-                keep = BooleanArray(count) { residual[it] < cutoff }
-            }
-            if (keep.count { it } < 2) keep = BooleanArray(count) { true }
-            val fit = weightedLineFit(x, y, weights, keep) ?: continue
-            if (!fit.slope.isFinite() || fit.slope <= 0.0) continue
-
-            val anchorMs = fit.intercept
             if (anchorMs <= 0.0 || anchorMs >= durationMs) continue
             if (anchorMs <= lastAnchorMs + 1.0) continue
             lastAnchorMs = anchorMs
-            timing += RhythmTimingPoint(Math.round(anchorMs).toInt(), fit.slope / 2.0)
+            timing += RhythmTimingPoint(Math.round(anchorMs).toInt(), beatMs)
         }
         return timing
+    }
+
+    /**
+     * First beat whose next [LOCK_IN_INTERVALS] intervals all match the whole-song median
+     * period within [LOCK_IN_TOLERANCE]; 0 means the intro already tracks the song's tempo.
+     * The whole-song median is robust to a corrupted intro of a few beats.
+     */
+    private fun lockInIndex(beatTimesMs: DoubleArray): Int {
+        if (beatTimesMs.size < LOCK_IN_INTERVALS + 1) return 0
+        val intervals = DoubleArray(beatTimesMs.size - 1) { beatTimesMs[it + 1] - beatTimesMs[it] }
+        val period = medianPeriod(beatTimesMs)
+        if (period <= 0.0) return 0
+        for (index in 0..intervals.size - LOCK_IN_INTERVALS) {
+            var run = true
+            for (offset in 0 until LOCK_IN_INTERVALS) {
+                if (abs(intervals[index + offset] - period) > LOCK_IN_TOLERANCE * period) {
+                    run = false
+                    break
+                }
+            }
+            if (run) return index
+        }
+        return 0
+    }
+
+    private fun medianPeriod(beatTimesMs: DoubleArray): Double {
+        if (beatTimesMs.size < 2) return 0.0
+        val intervals = DoubleArray(beatTimesMs.size - 1) { beatTimesMs[it + 1] - beatTimesMs[it] }
+        Arrays.sort(intervals)
+        return median(intervals)
+    }
+
+    /** The per-anchor fit: windowing, tricube weights and residual trimming at one anchor. */
+    private fun fitAt(beatTimesMs: DoubleArray, anchor: Int): LineFit? {
+        val low = max(0, anchor - FIT_HALF_WINDOW)
+        val high = min(beatTimesMs.size, anchor + FIT_HALF_WINDOW + 1)
+        val count = high - low
+        val x = DoubleArray(count) { (low + it - anchor).toDouble() }
+        val y = DoubleArray(count) { beatTimesMs[low + it] }
+        val weights = DoubleArray(count) {
+            val shaped = (1.0 - abs(x[it]) / (FIT_HALF_WINDOW + 1.0)).coerceIn(1e-3, 1.0)
+            shaped * shaped * shaped
+        }
+
+        var keep = BooleanArray(count) { true }
+        for (iteration in 0 until FIT_ITERATIONS) {
+            if (keep.count { it } < 2) break
+            val fit = weightedLineFit(x, y, weights, keep) ?: break
+            val residual = DoubleArray(count) { abs(y[it] - (fit.slope * x[it] + fit.intercept)) }
+            val keptResiduals = DoubleArray(keep.count { it })
+            var cursor = 0
+            for (index in 0 until count) {
+                if (keep[index]) keptResiduals[cursor++] = residual[index]
+            }
+            Arrays.sort(keptResiduals)
+            val cutoff = max(FIT_RESIDUAL_MS, 3.0 * median(keptResiduals))
+            keep = BooleanArray(count) { residual[it] < cutoff }
+        }
+        if (keep.count { it } < 2) keep = BooleanArray(count) { true }
+        return weightedLineFit(x, y, weights, keep)
     }
 
     private class LineFit(val slope: Double, val intercept: Double)

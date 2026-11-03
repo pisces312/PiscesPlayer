@@ -24,6 +24,8 @@ DEFAULT_TAIL_RMS_FRACTION = 0.25
 DEFAULT_ANCHOR_EVERY = 1
 DEFAULT_FIT_HALF_WINDOW = 10
 DEFAULT_FIT_RESIDUAL_MS = 45.0
+LOCK_IN_INTERVALS = 8
+LOCK_IN_TOLERANCE = 0.03
 
 
 @dataclass(frozen=True)
@@ -83,41 +85,98 @@ def trim_silent_tail(
     return beat_times[:keep]
 
 
+def weighted_line_fit(
+    beat_times: np.ndarray,
+    anchor: int,
+    half_window: int = DEFAULT_FIT_HALF_WINDOW,
+    residual_ms: float = DEFAULT_FIT_RESIDUAL_MS,
+) -> tuple[float, float]:
+    """Tricube-weighted, residually trimmed `time = slope * index + intercept` at one anchor.
+
+    The exact fit used per timing point; also reused to extrapolate the intro (see
+    `robust_piecewise_timing(intro_fix=True)`).
+    """
+    indices = np.arange(beat_times.size)
+    low = max(0, anchor - half_window)
+    high = min(beat_times.size, anchor + half_window + 1)
+    x = indices[low:high]
+    y = beat_times[low:high]
+    weights = np.clip(1.0 - np.abs(x - anchor) / (half_window + 1.0), 1e-3, None) ** 3
+    keep = np.ones(x.size, dtype=bool)
+    for _ in range(4):
+        if int(keep.sum()) < 2:
+            break
+        slope, intercept = np.polyfit(x[keep], y[keep], 1, w=weights[keep])
+        residual = np.abs(y - (slope * x + intercept))
+        cutoff = max(residual_ms, 3.0 * float(np.median(residual[keep])))
+        keep = residual < cutoff
+    if int(keep.sum()) < 2:
+        keep[:] = True
+    slope, intercept = np.polyfit(x[keep], y[keep], 1, w=weights[keep])
+    return float(slope), float(intercept)
+
+
+def lock_in_index(
+    beat_times_ms: np.ndarray,
+    window: int = LOCK_IN_INTERVALS,
+    tol: float = LOCK_IN_TOLERANCE,
+) -> int:
+    """First beat whose next `window` intervals all match the whole-song median period.
+
+    0 means the intro already tracks the song's tempo (nothing to fix). The whole-song
+    median is the user's "use the whole song" prior: a corrupted intro of a few beats out
+    of hundreds shifts it by well under a percent.
+    """
+    beat_times = np.asarray(beat_times_ms, dtype=np.float64)
+    intervals = np.diff(beat_times)
+    if intervals.size < window:
+        return 0
+    global_period = float(np.median(intervals))
+    if global_period <= 0.0:
+        return 0
+    for index in range(0, intervals.size - window + 1):
+        run = intervals[index:index + window]
+        if np.all(np.abs(run - global_period) <= tol * global_period):
+            return index
+    return 0
+
+
 def robust_piecewise_timing(
     beat_times_ms: np.ndarray,
     duration_ms: float,
     anchor_every: int = DEFAULT_ANCHOR_EVERY,
     half_window: int = DEFAULT_FIT_HALF_WINDOW,
     residual_ms: float = DEFAULT_FIT_RESIDUAL_MS,
+    intro_fix: bool = False,
 ) -> list[tuple[float, float]]:
     """One timing point every `anchor_every` beats, from a trimmed local-linear fit.
 
     The fit is in beat-index space: `time = slope * index + intercept`. Tricube weights
     centred on the anchor keep a distant beat from dragging the local tempo, and trimming
     residual outliers keeps a single misplaced beat from bending the grid.
+
+    With `intro_fix`, anchors before the lock-in point are extrapolated from the lock-in
+    point at the whole-song median period instead of fitting the (corrupted) intro beats.
+    The whole-song rate beat the lock-in fit's local rate in `experiments/intro_fix.py`
+    (div2 max 114.8 vs 141.5 ms); the anchor at lock-in comes from the normal fit, so the
+    extrapolation is continuous with the trusted part.
     """
     beat_times = np.asarray(beat_times_ms, dtype=np.float64)
     if beat_times.size < 2:
         raise ValueError("need at least two tracked beats")
-    indices = np.arange(beat_times.size)
+    lock = lock_in_index(beat_times) if intro_fix else 0
+    intro_period = float(np.median(np.diff(beat_times)))
+    intro_origin = None
+    if lock >= 1:
+        slope, intercept = weighted_line_fit(beat_times, lock, half_window, residual_ms)
+        intro_origin = slope * lock + intercept
     timing: list[tuple[float, float]] = []
     for anchor in range(0, beat_times.size, anchor_every):
-        low = max(0, anchor - half_window)
-        high = min(beat_times.size, anchor + half_window + 1)
-        x = indices[low:high]
-        y = beat_times[low:high]
-        weights = np.clip(1.0 - np.abs(x - anchor) / (half_window + 1.0), 1e-3, None) ** 3
-        keep = np.ones(x.size, dtype=bool)
-        for _ in range(4):
-            if int(keep.sum()) < 2:
-                break
-            slope, intercept = np.polyfit(x[keep], y[keep], 1, w=weights[keep])
-            residual = np.abs(y - (slope * x + intercept))
-            cutoff = max(residual_ms, 3.0 * float(np.median(residual[keep])))
-            keep = residual < cutoff
-        if int(keep.sum()) < 2:
-            keep[:] = True
-        slope, intercept = np.polyfit(x[keep], y[keep], 1, w=weights[keep])
+        if intro_origin is not None and anchor < lock:
+            anchor_ms = intro_origin + (anchor - lock) * intro_period
+            slope, intercept = intro_period, anchor_ms - intro_period * anchor
+        else:
+            slope, intercept = weighted_line_fit(beat_times, anchor, half_window, residual_ms)
         if not np.isfinite(slope) or slope <= 0.0:
             continue
         anchor_ms = float(slope * anchor + intercept)

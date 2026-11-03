@@ -91,4 +91,25 @@ class RhythmBeatTrackerTest {
             assertEquals(point.beatMs, shifted.timing[index].beatMs, 0.0)
         }
     }
+
+    @Test
+    fun introBeforeLockInIsRebuiltAtTheSongTempo() {
+        // First five beats tracked at a corrupted 940 ms rate, the rest at 1000 ms. The
+        // anchors before the lock-in point must be rebuilt on the whole-song period instead
+        // of following the corrupted beats.
+        val beats = DoubleArray(20) { if (it < 5) it * 940.0 else 4 * 940.0 + (it - 4) * 1000.0 }
+        val timing = RhythmBeatTracker.piecewiseTiming(beats, durationMs = 30_000)
+
+        assertTrue("anchors ${timing.size}", timing.size >= 15)
+        for (index in 0 until timing.size - 1) {
+            val spacing = timing[index + 1].timeMs - timing[index].timeMs
+            // Near the lock-in seam the fitted anchor carries its own fit noise (~20 ms),
+            // but no spacing may follow the corrupted 940 ms rate.
+            assertTrue("spacing at anchor $index is $spacing", abs(spacing - 1000) <= 30)
+        }
+        // The pure extrapolation prefix is exact up to rounding.
+        val prefix = timing[1].timeMs - timing[0].timeMs
+        assertEquals(1000.0, prefix.toDouble(), 2.0)
+        assertEquals(500.0, timing.first().beatMs, 5.0)
+    }
 }
