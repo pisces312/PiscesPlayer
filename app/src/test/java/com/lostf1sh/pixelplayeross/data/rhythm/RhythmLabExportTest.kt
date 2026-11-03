@@ -6,6 +6,7 @@ package com.lostf1sh.pixelplayeross.data.rhythm
 
 import java.io.File
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import org.junit.Assume.assumeTrue
@@ -13,16 +14,18 @@ import org.junit.Test
 
 /**
  * PC-lab harness, not a CI test: it runs the real pipeline over the lab's baseline WAV and
- * exports every chart variant so `tools/rhythm-lab/run_lab.py` can measure them against an
- * independent beat reference.
+ * every validation WAV, and exports each song's chart variants so `tools/rhythm-lab/run_lab.py`
+ * can measure them against an independent beat reference.
  *
- * The test is skipped unless the baseline WAV exists; `run_lab.py decode` produces it.
- * Output: `app/build/rhythm-lab/out/`.
+ * The baseline export is skipped unless the baseline WAV exists; `run_lab.py decode` produces
+ * it, and `run_lab.py validate` does the same for the entries of `tools/rhythm-lab/validation.json`.
+ * Output: `app/build/rhythm-lab/out/`, validation songs under `out/<id>/`.
  */
 class RhythmLabExportTest {
 
     private val repoRoot = File("..").canonicalFile
     private val baselineFile = File(repoRoot, "tools/rhythm-lab/baseline.json")
+    private val validationFile = File(repoRoot, "tools/rhythm-lab/validation.json")
     private val prettyJson = Json { prettyPrint = true }
 
     @Test
@@ -35,7 +38,21 @@ class RhythmLabExportTest {
             wav.isFile,
         )
 
-        val outDir = File("build/rhythm-lab/out").apply { mkdirs() }
+        exportSong(File("build/rhythm-lab/out").apply { mkdirs() }, wav)
+
+        if (!validationFile.isFile) return
+        val songs = Json.parseToJsonElement(validationFile.readText())
+            .jsonObject.getValue("songs").jsonArray
+        for (entry in songs) {
+            val song = entry.jsonObject
+            val songWav = File(repoRoot, song.getValue("decodedWav").jsonPrimitive.content)
+            if (!songWav.isFile) continue
+            val id = song.getValue("id").jsonPrimitive.content
+            exportSong(File("build/rhythm-lab/out/$id").apply { mkdirs() }, songWav)
+        }
+    }
+
+    private fun exportSong(outDir: File, wav: File) {
         val (pcm, sampleRate) = RhythmTestAudio.readMonoWav16(wav)
         val durationMs = (pcm.size.toLong() * 1000L / sampleRate).toInt()
         val analysis = RhythmChartGenerator.analyze(

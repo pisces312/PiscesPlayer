@@ -23,6 +23,7 @@ Reference beats come from **Beat This!** (`final0`, MIT) with sub-frame paraboli
 |---|---|
 | `run_lab.py` | entry point for every command |
 | `baseline.json` | song, target, reference pointer, tracker parameters |
+| `validation.json` | extra songs for cross-song validation of the same parameters |
 | `rhythm_lab/` | shared pipeline: novelty, DP tracker, piecewise timing, metrics |
 | `compute_reference.py` | regenerates the Beat This! reference (venv only) |
 | `reference/` | committed reference beat lists (fine beats + downbeats) |
@@ -53,8 +54,13 @@ python tools/rhythm-lab/run_lab.py export      # Kotlin pipeline -> app/build/rh
 python tools/rhythm-lab/run_lab.py analyze     # exported charts vs the reference
 python tools/rhythm-lab/run_lab.py evaluate    # tracker proposal vs the reference
 python tools/rhythm-lab/run_lab.py propose     # legacy 8-band phase sweep (not the recipe)
+python tools/rhythm-lab/run_lab.py validate    # whole loop for the validation.json songs
 python tools/rhythm-lab/run_lab.py all         # decode + reference + export + analyze + evaluate
 ```
+
+`decode` / `reference` / `analyze` / `evaluate` take `--song <id>` to work on one entry of
+`validation.json` instead of the baseline song. `validate` runs the whole loop for every
+listed song with the baseline's tracker parameters and prints a pass/fail summary.
 
 `analyze` evaluates the charts the app currently produces (`master`, `grid_global_*`,
 `grid_refined_*`). `evaluate` runs the candidate tracker end to end and writes
@@ -117,7 +123,10 @@ format does): max 18.95 / 18.95 / 19.56 ms.
 ## Risks before porting to Kotlin
 
 - The passing region is sharp in DP tightness: 400 gives max ~42 ms, 600–1000 gives
-  ≤19.6 ms. This was tuned on one song; validate on several before shipping.
+  ≤19.6 ms. Cross-song validation with these exact parameters (5 songs, `validate`) shows
+  medians of 5–12 ms everywhere but strict ≤20 ms maxima only on the baseline; the
+  failures are intro lock-in, half-beat phase slips in percussion-poor sections, and
+  reference artifacts — see `docs/2026-11-03-pc-lab-alignment-under-20ms.md`.
 - Beat This! runs at 50 fps, so even sub-frame interpolation leaves roughly 10–20 ms of
   reference noise. A p95 of ~11.7 ms and a max of ~19.6 ms are close to that floor; chasing
   smaller numbers on this reference is not meaningful.

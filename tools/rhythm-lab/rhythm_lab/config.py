@@ -10,6 +10,7 @@ PACKAGE_DIR = Path(__file__).resolve().parent
 LAB_DIR = PACKAGE_DIR.parent
 REPO_ROOT = LAB_DIR.parent.parent
 BASELINE_PATH = LAB_DIR / "baseline.json"
+VALIDATION_PATH = LAB_DIR / "validation.json"
 CHART_OUT_DIR = REPO_ROOT / "app" / "build" / "rhythm-lab" / "out"
 DEFAULT_REFERENCE_BEATS = LAB_DIR / "reference" / "beat_this_final0_fine.txt"
 
@@ -51,3 +52,44 @@ class Baseline:
                 fit_residual_ms=float(tracker.get("fitResidualMs", TrackerConfig.fit_residual_ms)),
             ),
         )
+
+
+@dataclass(frozen=True)
+class SongSpec:
+    """One validation song: everything the lab tools need is derived from its id."""
+
+    song_id: str
+    song_path: Path
+    decoded_wav: Path
+    reference_beats: Path
+    chart_out_dir: Path
+
+    @property
+    def reference_downbeats(self) -> Path:
+        return self.reference_beats.with_name(self.reference_beats.stem + "_down.txt")
+
+
+def load_validation_songs() -> list[SongSpec]:
+    if not VALIDATION_PATH.is_file():
+        return []
+    data = json.loads(VALIDATION_PATH.read_text(encoding="utf-8"))
+    songs = []
+    for entry in data.get("songs", []):
+        song_id = str(entry["id"])
+        songs.append(
+            SongSpec(
+                song_id=song_id,
+                song_path=Path(entry["songPath"]),
+                decoded_wav=REPO_ROOT / entry["decodedWav"],
+                reference_beats=LAB_DIR / "reference" / f"{song_id}_beat_this_fine.txt",
+                chart_out_dir=CHART_OUT_DIR / song_id,
+            )
+        )
+    return songs
+
+
+def find_validation_song(song_id: str) -> SongSpec:
+    for spec in load_validation_songs():
+        if spec.song_id == song_id:
+            return spec
+    raise SystemExit(f"unknown song id {song_id!r}; add it to tools/rhythm-lab/validation.json")

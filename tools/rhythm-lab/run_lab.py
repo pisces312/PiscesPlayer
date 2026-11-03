@@ -8,9 +8,11 @@ Usage (run from the repository root):
     python tools/rhythm-lab/run_lab.py analyze     # exported charts vs reference
     python tools/rhythm-lab/run_lab.py evaluate    # tracker proposal vs reference
     python tools/rhythm-lab/run_lab.py propose     # legacy phase-fix sweep
+    python tools/rhythm-lab/run_lab.py validate    # the whole loop for validation.json songs
     python tools/rhythm-lab/run_lab.py all         # decode, reference, export, analyze, evaluate
 
-Nothing here is part of the app build.
+decode/reference/analyze/evaluate take --song <id> to work on one entry of validation.json
+instead of the baseline song. Nothing here is part of the app build.
 """
 
 import argparse
@@ -22,7 +24,15 @@ from pathlib import Path
 import numpy as np
 
 from rhythm_lab import audio, beats, chart, metrics, novelty, propose, reference, tracker
-from rhythm_lab.config import CHART_OUT_DIR, LAB_DIR, REPO_ROOT, Baseline
+from rhythm_lab.config import (
+    CHART_OUT_DIR,
+    LAB_DIR,
+    REPO_ROOT,
+    Baseline,
+    SongSpec,
+    find_validation_song,
+    load_validation_songs,
+)
 
 OUT_DIR = CHART_OUT_DIR
 DIFFICULTIES = {"EASY": 1, "NORMAL": 2, "HARD": 4}
@@ -30,14 +40,20 @@ CHART_DIVS = (1, 2, 4)
 EVAL_START_MS = 2000.0
 
 
-def _novelty_cache_path(band_count: int) -> Path:
-    return OUT_DIR / f"novelty_{band_count}.npz"
+def _novelty_cache_path(cache_dir: Path, band_count: int) -> Path:
+    return cache_dir / f"novelty_{band_count}.npz"
 
 
-def load_novelty(baseline: Baseline, band_count: int | None = None) -> novelty.Novelty:
+def load_novelty(
+    baseline: Baseline,
+    band_count: int | None = None,
+    wav: Path | None = None,
+    cache_dir: Path = OUT_DIR,
+) -> novelty.Novelty:
     band_count = baseline.tracker.band_count if band_count is None else band_count
-    cache = _novelty_cache_path(band_count)
-    if cache.is_file() and cache.stat().st_mtime >= baseline.decoded_wav.stat().st_mtime:
+    wav = baseline.decoded_wav if wav is None else wav
+    cache = _novelty_cache_path(cache_dir, band_count)
+    if cache.is_file() and cache.stat().st_mtime >= wav.stat().st_mtime:
         data = np.load(cache)
         return novelty.Novelty(
             values=data["values"],
@@ -47,7 +63,7 @@ def load_novelty(baseline: Baseline, band_count: int | None = None) -> novelty.N
             frame_offset_ms=float(data["frame_offset_ms"]),
             flux_bands=data["flux_bands"] if "flux_bands" in data else None,
         )
-    pcm, sample_rate = audio.read_wav(baseline.decoded_wav)
+    pcm, sample_rate = audio.read_wav(wav)
     result = novelty.compute(
         pcm,
         sample_rate,
@@ -142,25 +158,43 @@ def _evaluate_chart_file(
 
 def cmd_decode(args) -> None:
     baseline = Baseline.load()
-    audio.decode(baseline.song_path, baseline.decoded_wav, baseline.sample_rate)
-    for cache in OUT_DIR.glob("novelty_*.npz"):
+    if args.song:
+        spec = find_validation_song(args.song)
+        audio.decode(spec.song_path, spec.decoded_wav, baseline.sample_rate)
+        caches = spec.chart_out_dir.glob("novelty_*.npz")
+    else:
+        audio.decode(baseline.song_path, baseline.decoded_wav, baseline.sample_rate)
+        caches = OUT_DIR.glob("novelty_*.npz")
+    for cache in caches:
         cache.unlink()
 
 
-def cmd_reference(args) -> None:
-    baseline = Baseline.load()
-    if baseline.reference_beats.is_file() and not args.force:
-        beats_ms = reference.load_beats(baseline.reference_beats)
-        print(f"reference cached: {baseline.reference_beats}")
-        print(json.dumps(beats.period_stats(beats_ms), ensure_ascii=False))
-        return
+def run_compute_reference(song_id: str | None, force: bool = False) -> None:
     python = LAB_DIR / ".venv" / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
     if not python.is_file():
         raise SystemExit(
             f"missing {python}; create the lab venv (see tools/rhythm-lab/README.md) "
             "or point `reference.beatsFile` at an existing file"
         )
-    subprocess.run([str(python), str(LAB_DIR / "compute_reference.py"), "--force"], check=True)
+    command = [str(python), str(LAB_DIR / "compute_reference.py")]
+    if force:
+        command.append("--force")
+    if song_id:
+        command += ["--song", song_id]
+    subprocess.run(command, check=True)
+
+
+def cmd_reference(args) -> None:
+    baseline = Baseline.load()
+    beats_file = (
+        find_validation_song(args.song).reference_beats if args.song else baseline.reference_beats
+    )
+    if beats_file.is_file() and not args.force:
+        beats_ms = reference.load_beats(beats_file)
+        print(f"reference cached: {beats_file}")
+        print(json.dumps(beats.period_stats(beats_ms), ensure_ascii=False))
+        return
+    run_compute_reference(args.song, force=args.force)
 
 
 def cmd_export(args) -> None:
@@ -177,14 +211,17 @@ def cmd_export(args) -> None:
     subprocess.run(command, cwd=REPO_ROOT, check=True)
 
 
-def cmd_analyze(args) -> None:
-    baseline = Baseline.load()
-    reference_beats = _reference_beats(baseline)
-    if not (OUT_DIR / "master.json").is_file():
-        raise SystemExit(f"missing {OUT_DIR / 'master.json'}; run `run_lab.py export` first")
-
+def analyze_song(
+    label: str,
+    chart_dir: Path,
+    reference_beats: np.ndarray,
+    target_ms: float,
+) -> dict[int, dict]:
+    """Score one song's exported charts against its reference; returns the master scores."""
+    if not (chart_dir / "master.json").is_file():
+        raise SystemExit(f"missing {chart_dir / 'master.json'}; run `run_lab.py export` first")
     print(f"reference: {json.dumps(beats.period_stats(reference_beats), ensure_ascii=False)}")
-    master = chart.load_chart(OUT_DIR / "master.json")
+    master = chart.load_chart(chart_dir / "master.json")
     master_timing = chart.timing_points(master)
     print(f"master   : {len(master_timing)} timing point(s), first={master_timing[0]}")
     print("\nchart grids vs Beat This! reference")
@@ -192,45 +229,68 @@ def cmd_analyze(args) -> None:
         "reference": beats.period_stats(reference_beats),
         "charts": {},
     }
-    _print_scores(
-        "master (current)",
-        evaluate_timing(master_timing, reference_beats, baseline.target_max_error_ms)[0],
-        baseline.target_max_error_ms,
-    )
+    master_scores = evaluate_timing(master_timing, reference_beats, target_ms)[0]
+    _print_scores(f"{label}/master", master_scores, target_ms)
     for prefix in ("grid_global", "grid_refined", "onset"):
         for difficulty, grid_div in DIFFICULTIES.items():
-            path = OUT_DIR / f"{prefix}_{difficulty}.json"
+            path = chart_dir / f"{prefix}_{difficulty}.json"
             if not path.is_file():
                 continue
-            label = f"{prefix}_{difficulty}"
+            name = f"{prefix}_{difficulty}"
             if prefix == "onset":
-                print(f"{label:<28} onset timestamps, no grid to evaluate")
+                print(f"{label}/{name:<28} onset timestamps, no grid to evaluate")
                 continue
-            scores = _evaluate_chart_file(
-                path, master_timing, reference_beats, baseline.target_max_error_ms
-            )
-            _print_scores(label, scores, baseline.target_max_error_ms)
-            report["charts"][label] = {str(key): value for key, value in scores.items()}
+            scores = _evaluate_chart_file(path, master_timing, reference_beats, target_ms)
+            _print_scores(f"{label}/{name}", scores, target_ms)
+            report["charts"][name] = {str(key): value for key, value in scores.items()}
 
-    report_path = OUT_DIR / "report.json"
+    report_path = chart_dir / "report.json"
     report_path.write_text(json.dumps(report, ensure_ascii=False, indent=1), encoding="utf-8")
     print(f"\nreport: {report_path}")
+    return master_scores
 
 
-def cmd_evaluate(args) -> None:
+def cmd_analyze(args) -> None:
     baseline = Baseline.load()
-    reference_beats = _reference_beats(baseline)
-    if not baseline.decoded_wav.is_file():
-        raise SystemExit(f"missing {baseline.decoded_wav}; run `run_lab.py decode` first")
-    pcm, sample_rate = audio.read_wav(baseline.decoded_wav)
-    nov = load_novelty(baseline)
+    if args.song:
+        spec = find_validation_song(args.song)
+        analyze_song(
+            spec.song_id,
+            spec.chart_out_dir,
+            reference.load_beats(spec.reference_beats),
+            baseline.target_max_error_ms,
+        )
+        return
+    analyze_song("baseline", OUT_DIR, _reference_beats(baseline), baseline.target_max_error_ms)
+
+
+def load_used_bpm(chart_dir: Path) -> float:
+    path = chart_dir / "analysis.json"
+    if not path.is_file():
+        raise SystemExit(f"missing {path}; run `run_lab.py export` first")
+    return float(json.loads(path.read_text(encoding="utf-8"))["usedBpm"])
+
+
+def evaluate_song(
+    label: str,
+    wav: Path,
+    out_dir: Path,
+    reference_beats: np.ndarray,
+    expected_bpm: float,
+    target_ms: float,
+    baseline: Baseline,
+) -> dict[int, dict]:
+    if not wav.is_file():
+        raise SystemExit(f"missing {wav}; run `run_lab.py decode` first")
+    pcm, sample_rate = audio.read_wav(wav)
+    nov = load_novelty(baseline, wav=wav, cache_dir=out_dir)
     duration_ms = _duration_ms(nov)
 
     estimate = tracker.estimate_timing(
         nov,
         pcm,
         sample_rate,
-        baseline.expected_bpm,
+        expected_bpm,
         duration_ms,
         baseline.tracker,
     )
@@ -242,15 +302,15 @@ def cmd_evaluate(args) -> None:
     print("\ntracked beats vs reference beats")
     print(
         metrics.format_summary(
-            "beats",
-            metrics.summarize(beat_errors, baseline.target_max_error_ms),
-            baseline.target_max_error_ms,
+            f"{label}/beats",
+            metrics.summarize(beat_errors, target_ms),
+            target_ms,
         )
     )
 
     print("\ntracker timing vs reference grid")
-    scores, span = evaluate_timing(estimate.timing, reference_beats, baseline.target_max_error_ms)
-    _print_scores("tracker timing", scores, baseline.target_max_error_ms)
+    scores, span = evaluate_timing(estimate.timing, reference_beats, target_ms)
+    _print_scores(f"{label}/tracker", scores, target_ms)
     print(
         f"evaluation span: {span['start_ms']:.0f}..{span['stop_ms']:.0f} ms, "
         f"chart beat = 1/{span['reference_div_ratio']} reference beat"
@@ -266,9 +326,89 @@ def cmd_evaluate(args) -> None:
         "scores": {str(key): value for key, value in scores.items()},
         "timing": timing,
     }
-    proposal_path = OUT_DIR / "proposed_timing.json"
+    proposal_path = out_dir / "proposed_timing.json"
     proposal_path.write_text(json.dumps(proposal, ensure_ascii=False, indent=1), encoding="utf-8")
     print(f"\nproposal: {proposal_path}")
+    return scores
+
+
+def cmd_evaluate(args) -> None:
+    baseline = Baseline.load()
+    if args.song:
+        spec = find_validation_song(args.song)
+        evaluate_song(
+            spec.song_id,
+            spec.decoded_wav,
+            spec.chart_out_dir,
+            reference.load_beats(spec.reference_beats),
+            load_used_bpm(spec.chart_out_dir),
+            baseline.target_max_error_ms,
+            baseline,
+        )
+        return
+    evaluate_song(
+        "baseline",
+        baseline.decoded_wav,
+        OUT_DIR,
+        _reference_beats(baseline),
+        baseline.expected_bpm,
+        baseline.target_max_error_ms,
+        baseline,
+    )
+
+
+def cmd_validate(args) -> None:
+    """The whole loop for validation.json: decode, reference, export, analyze, evaluate."""
+    baseline = Baseline.load()
+    all_songs = load_validation_songs()
+    specs = [spec for spec in all_songs if spec.song_path.is_file()]
+    for spec in all_songs:
+        if not spec.song_path.is_file():
+            print(f"skip {spec.song_id}: missing {spec.song_path}")
+    if not specs:
+        raise SystemExit("no validation songs found; edit tools/rhythm-lab/validation.json")
+
+    for spec in specs:
+        if args.force or not spec.decoded_wav.is_file():
+            print(f"decode {spec.song_id}")
+            audio.decode(spec.song_path, spec.decoded_wav, baseline.sample_rate)
+    for spec in specs:
+        if args.force or not spec.reference_beats.is_file():
+            print(f"reference {spec.song_id} (Beat This!, lab venv)")
+            run_compute_reference(spec.song_id, force=args.force)
+    cmd_export(args)
+
+    target = baseline.target_max_error_ms
+    summary: dict[str, dict[int, dict]] = {}
+    for spec in specs:
+        if not (spec.chart_out_dir / "master.json").is_file():
+            print(f"{spec.song_id}: no export output, skipped")
+            continue
+        ref = reference.load_beats(spec.reference_beats)
+        print()
+        summary[spec.song_id] = analyze_song(spec.song_id, spec.chart_out_dir, ref, target)
+        evaluate_song(
+            spec.song_id,
+            spec.decoded_wav,
+            spec.chart_out_dir,
+            ref,
+            load_used_bpm(spec.chart_out_dir),
+            target,
+            baseline,
+        )
+    if not summary:
+        raise SystemExit("nothing evaluated")
+
+    print(f"\nvalidation summary: master timing vs reference (max abs ms / % within {target:.0f} ms)")
+    for song_id, scores in summary.items():
+        cells = [
+            f"div{div}: {scores[div]['max_abs_ms']:.1f} / {scores[div]['within_target_pct']:.0f}%"
+            for div in CHART_DIVS
+        ]
+        print(f"  {song_id:<16} " + "   ".join(cells))
+    worst = max(scores[div]["max_abs_ms"] for scores in summary.values() for div in CHART_DIVS)
+    verdict = "PASS" if worst <= target else "FAIL"
+    print(f"worst max across songs/divisions: {worst:.1f} ms -> {verdict}")
 
 
 def cmd_propose(args) -> None:
@@ -379,9 +519,14 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "command",
-        choices=["decode", "reference", "export", "analyze", "evaluate", "propose", "all"],
+        choices=["decode", "reference", "export", "analyze", "evaluate", "propose", "validate", "all"],
     )
-    parser.add_argument("--force", action="store_true", help="reference only: recompute the cache")
+    parser.add_argument("--force", action="store_true", help="recompute caches even if present")
+    parser.add_argument(
+        "--song",
+        default=None,
+        help="validation song id from validation.json (decode/reference/analyze/evaluate)",
+    )
     args = parser.parse_args()
 
     if args.command in ("decode", "all"):
@@ -394,6 +539,8 @@ def main() -> None:
         cmd_analyze(args)
     if args.command in ("evaluate", "all"):
         cmd_evaluate(args)
+    if args.command == "validate":
+        cmd_validate(args)
     if args.command == "propose":
         cmd_propose(args)
 

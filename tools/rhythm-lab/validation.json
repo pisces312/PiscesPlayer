@@ -1,0 +1,30 @@
+{
+  "description": "Cross-song validation set for the tracker parameters in baseline.json. Local paths; every tool skips entries whose song file is missing. Reference beats are cached under reference/ as <id>_beat_this_fine.txt.",
+  "songs": [
+    {
+      "id": "suiyue",
+      "songPath": "E:/backup/就让岁月开成一朵花_琴晴广场舞.mp3",
+      "decodedWav": "build/rhythm-lab/suiyue.wav"
+    },
+    {
+      "id": "youshengzhilian",
+      "songPath": "E:/backup/有生之恋_河南~千纸鹤~.mp3",
+      "decodedWav": "build/rhythm-lab/youshengzhilian.wav"
+    },
+    {
+      "id": "yangguang",
+      "songPath": "E:/backup/清歌漫谷_阳光灿烂.mp3",
+      "decodedWav": "build/rhythm-lab/yangguang.wav"
+    },
+    {
+      "id": "yupan-live",
+      "songPath": "E:/downloads/玉盘Live.-妞妞合唱团.mp3",
+      "decodedWav": "build/rhythm-lab/yupan-live.wav"
+    },
+    {
+      "id": "yuluosheng",
+      "songPath": "E:/nili/雨落哗声-安安_豆包.mp3",
+      "decodedWav": "build/rhythm-lab/yuluosheng.wav"
+    }
+  ]
+}
