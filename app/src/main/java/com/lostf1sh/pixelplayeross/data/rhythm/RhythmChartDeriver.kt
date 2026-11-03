@@ -196,13 +196,32 @@ internal object RhythmChartDeriver {
         laneStrategy: LaneStrategy = LaneStrategy.BAND_ORDER,
         maxChord: Int = 1,
         profile: DspDeriveProfile = difficulty.deriveProfile,
+        selection: OnsetSelection = OnsetSelection.BALANCED,
     ): RhythmChart {
         require(master.notes.isNotEmpty()) { "master chart has no notes" }
         val chord = maxChord.coerceIn(1, MAX_CHORD_NOTES)
         val timing = master.timing.ifEmpty { listOf(RhythmTimingPoint(0, DEFAULT_BEAT_MS)) }
 
-        val groups = groupOnsets(master.notes, laneStrategy, chord, timing)
-        val selected = selectGroups(groups, profile)
+        val selected = when (selection) {
+            OnsetSelection.BALANCED ->
+                selectGroups(groupOnsets(master.notes, laneStrategy, chord, timing), profile)
+            OnsetSelection.MELODY_FIRST -> {
+                // Two pools with their own slot budgets: drum onsets cannot eat the melody's
+                // slots. Chord grouping is per pool, so a chord straddling both becomes two hits
+                // (measured trade-off in tools/rhythm-lab/docs/2026-11-03-melody-selection-comparison.md).
+                val melody = master.notes.filter { it.band in MELODY_BANDS }
+                val perc = master.notes.filterNot { it.band in MELODY_BANDS }
+                val melodyGroups = selectGroups(
+                    groupOnsets(melody, laneStrategy, chord, timing),
+                    profile.copy(maxNotesPerSecond = profile.melodySlots.toDouble()),
+                )
+                val percGroups = selectGroups(
+                    groupOnsets(perc, laneStrategy, chord, timing),
+                    profile.copy(maxNotesPerSecond = profile.percSlots.toDouble()),
+                )
+                (melodyGroups + percGroups).sortedBy { it.startMs }
+            }
+        }
         return master.copy(
             difficultyName = difficulty.label,
             notes = emitNotes(selected, laneStrategy),
@@ -465,6 +484,9 @@ internal object RhythmChartDeriver {
 
     /** Window length behind [DspDeriveProfile.maxNotesPerSecond]. */
     private const val NPS_WINDOW_MS = 1000
+
+    /** Onset bands 2..5 (108 Hz..2.4 kHz): vocals, bass lines and leads. */
+    private val MELODY_BANDS = 2..5
 
     /** Keeps the score strictly positive even for a zero-strength onset. */
     private const val BASE_NOTE_SCORE = 0.05

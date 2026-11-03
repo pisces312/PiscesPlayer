@@ -71,6 +71,7 @@ import com.lostf1sh.pixelplayeross.data.rhythm.RhythmAnalysisParams
 import com.lostf1sh.pixelplayeross.data.rhythm.RhythmChart
 import com.lostf1sh.pixelplayeross.data.rhythm.RhythmChartMeta
 import com.lostf1sh.pixelplayeross.data.rhythm.RhythmChartSettings
+import com.lostf1sh.pixelplayeross.data.rhythm.OnsetSelection
 import com.lostf1sh.pixelplayeross.data.rhythm.RhythmDeriveMode
 import com.lostf1sh.pixelplayeross.data.rhythm.RhythmRepository
 import com.lostf1sh.pixelplayeross.presentation.components.MiniPlayerBottomSpacer
@@ -229,6 +230,7 @@ fun RhythmSetupScreen(
         modes: Set<RhythmDeriveMode>,
         strategy: LaneStrategy,
         maxChord: Int,
+        onsetSelection: OnsetSelection,
     ) {
         val master = snapshot.masterChart ?: return
         val masterMeta = snapshot.master ?: return
@@ -258,6 +260,7 @@ fun RhythmSetupScreen(
                     laneStrategy = strategy,
                     displayNames = names,
                     maxChord = maxChord,
+                    onsetSelection = onsetSelection,
                 )
                 showDeriveSheet = false
                 reload()
@@ -549,18 +552,19 @@ fun RhythmSetupScreen(
                     60_000.0 / masterChart.timing.first().beatMs,
                 ),
                 deriving = deriving,
-                onComputeEstimates = { strategy, maxChord, modes ->
+                onComputeEstimates = { strategy, maxChord, modes, selection ->
                     repository.previewDerivedCounts(
                         master = masterChart,
                         difficulties = DspDifficulty.entries,
                         modes = modes,
                         laneStrategy = strategy,
                         maxChord = maxChord,
+                        onsetSelection = selection,
                     )
                 },
                 onDismiss = { if (!deriving) showDeriveSheet = false },
-                onDerive = { difficulties, modes, strategy, maxChord ->
-                    derive(difficulties, modes, strategy, maxChord)
+                onDerive = { difficulties, modes, strategy, maxChord, selection ->
+                    derive(difficulties, modes, strategy, maxChord, selection)
                 },
             )
         }

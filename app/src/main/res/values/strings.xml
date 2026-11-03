@@ -419,6 +419,10 @@
     <string name="rhythm_derive_mode_onset">Raw onsets</string>
     <string name="rhythm_derive_mode_hint">Beat grid snaps notes onto a piecewise beat grid: more musical, but timestamps move. Raw onsets keep the detected times: closer to the audio, but melodic passages can stay empty. Select both to compare.</string>
     <string name="rhythm_derive_modes_none">Pick at least one derivation mode.</string>
+    <string name="rhythm_derive_selection">Note selection</string>
+    <string name="rhythm_derive_selection_balanced">Balanced</string>
+    <string name="rhythm_derive_selection_melody">Melody first</string>
+    <string name="rhythm_derive_selection_hint">Melody first reserves slots for vocals and lead instruments so drums cannot eat them. Raw-onsets derivation only.</string>
     <string name="rhythm_derive_estimate">about %1$d notes</string>
     <string name="rhythm_derive_lane">Lane layout</string>
     <string name="rhythm_derive_lane_band_order">Same as PC</string>

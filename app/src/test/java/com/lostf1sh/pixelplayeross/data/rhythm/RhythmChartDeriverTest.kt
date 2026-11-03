@@ -386,4 +386,30 @@ class RhythmChartDeriverTest {
         assertEquals(4_000, derived.notes.single().timeMs)
         assertEquals(1f, derived.notes.single().strength, 0f)
     }
+
+    @Test
+    fun melodyFirstReservesSlotsForMelodyBands() {
+        // Per second: three strong drum onsets (band 0) and two weak melody-band onsets (band 3).
+        // The balanced NORMAL budget (4/s) spends its slots on the strong drums and drops one
+        // melody onset; melody-first runs the pools separately and keeps both melody onsets.
+        val times = (0 until 4).flatMap { second ->
+            listOf(0, 200, 400, 600, 800).map { second * 1000 + offsetMs + it }
+        }
+        val bands = times.mapIndexed { index, _ -> if (index % 5 < 3) 0 else 3 }
+        val strengths = times.mapIndexed { index, _ -> if (index % 5 < 3) 1f else 0.2f }
+        val chart = master(times, strengths, bands)
+
+        val balanced = RhythmChartDeriver.deriveOnsetNative(chart, DspDifficulty.NORMAL)
+        val melodyFirst = RhythmChartDeriver.deriveOnsetNative(
+            chart,
+            DspDifficulty.NORMAL,
+            selection = OnsetSelection.MELODY_FIRST,
+        )
+
+        val melodyBands = 2..5
+        val balancedMelody = balanced.notes.count { it.band in melodyBands }
+        val melodyFirstMelody = melodyFirst.notes.count { it.band in melodyBands }
+        assertTrue("melody-first $melodyFirstMelody vs balanced $balancedMelody",
+            melodyFirstMelody > balancedMelody)
+    }
 }

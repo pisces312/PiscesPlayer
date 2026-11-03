@@ -143,6 +143,7 @@ class RhythmRepository @Inject constructor(
         laneStrategy: LaneStrategy,
         displayNames: Map<Pair<DspDifficulty, RhythmDeriveMode>, String>,
         maxChord: Int = 1,
+        onsetSelection: OnsetSelection = OnsetSelection.BALANCED,
     ): List<RhythmChartMeta> {
         if (difficulties.isEmpty() || modes.isEmpty()) return emptyList()
         val gridTiming = gridTimingFor(master, modes)
@@ -154,7 +155,7 @@ class RhythmRepository @Inject constructor(
         }
         val charts = withContext(Dispatchers.Default) {
             jobs.map { (difficulty, mode) ->
-                deriveOne(master, difficulty, mode, laneStrategy, maxChord, gridTiming)
+                deriveOne(master, difficulty, mode, laneStrategy, maxChord, gridTiming, onsetSelection)
                     // Derived charts are stored playable: the first lead-in stays only in the
                     // master, so a difficulty starts exactly where the run has runway.
                     .withoutLeadIn()
@@ -192,13 +193,14 @@ class RhythmRepository @Inject constructor(
         modes: Set<RhythmDeriveMode>,
         laneStrategy: LaneStrategy,
         maxChord: Int = 1,
+        onsetSelection: OnsetSelection = OnsetSelection.BALANCED,
     ): Map<Pair<DspDifficulty, RhythmDeriveMode>, Int> = withContext(Dispatchers.Default) {
         if (difficulties.isEmpty() || modes.isEmpty()) return@withContext emptyMap()
         val gridTiming = gridTimingFor(master, modes)
         difficulties.flatMap { difficulty ->
             RhythmDeriveMode.entries.filter { it in modes }.map { mode ->
                 (difficulty to mode) to
-                    deriveOne(master, difficulty, mode, laneStrategy, maxChord, gridTiming)
+                    deriveOne(master, difficulty, mode, laneStrategy, maxChord, gridTiming, onsetSelection)
                         .withoutLeadIn()
                         .noteCount()
             }
@@ -212,6 +214,7 @@ class RhythmRepository @Inject constructor(
         laneStrategy: LaneStrategy,
         maxChord: Int,
         gridTiming: List<RhythmTimingPoint>,
+        onsetSelection: OnsetSelection,
     ): RhythmChart = when (mode) {
         RhythmDeriveMode.GRID -> RhythmChartDeriver.derive(
             master = master,
@@ -225,6 +228,7 @@ class RhythmRepository @Inject constructor(
             difficulty = difficulty,
             laneStrategy = laneStrategy,
             maxChord = maxChord,
+            selection = onsetSelection,
         )
     }
 

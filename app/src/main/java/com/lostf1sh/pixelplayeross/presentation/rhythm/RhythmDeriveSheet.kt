@@ -39,6 +39,7 @@ import androidx.compose.ui.unit.dp
 import com.lostf1sh.pixelplayeross.R
 import com.lostf1sh.pixelplayeross.data.rhythm.DspDifficulty
 import com.lostf1sh.pixelplayeross.data.rhythm.LaneStrategy
+import com.lostf1sh.pixelplayeross.data.rhythm.OnsetSelection
 import com.lostf1sh.pixelplayeross.data.rhythm.RhythmChartDeriver
 import com.lostf1sh.pixelplayeross.data.rhythm.RhythmDeriveMode
 
@@ -61,26 +62,33 @@ internal fun RhythmDeriveSheet(
         LaneStrategy,
         Int,
         Set<RhythmDeriveMode>,
+        OnsetSelection,
     ) -> Map<Pair<DspDifficulty, RhythmDeriveMode>, Int>,
     onDismiss: () -> Unit,
-    onDerive: (List<DspDifficulty>, Set<RhythmDeriveMode>, LaneStrategy, Int) -> Unit,
+    onDerive: (List<DspDifficulty>, Set<RhythmDeriveMode>, LaneStrategy, Int, OnsetSelection) -> Unit,
 ) {
     var selected by remember { mutableStateOf(DspDifficulty.entries.toSet()) }
     // Both modes start selected: one pass then yields grid and onset versions of every chosen
     // difficulty, which is what makes the two directly comparable while testing.
     var modes by remember { mutableStateOf(RhythmDeriveMode.entries.toSet()) }
+    // Melody first won the listening A/B (tools/rhythm-lab/docs/2026-11-03-melody-selection-comparison.md).
+    var selection by remember { mutableStateOf(OnsetSelection.MELODY_FIRST) }
     var strategy by remember { mutableStateOf(LaneStrategy.BAND_ORDER) }
     var maxChord by remember { mutableIntStateOf(DEFAULT_CHORD) }
     var estimates by remember { mutableStateOf<Map<Pair<DspDifficulty, RhythmDeriveMode>, Int>?>(null) }
 
-    LaunchedEffect(strategy, maxChord, modes) {
+    LaunchedEffect(strategy, maxChord, modes, selection) {
         estimates = null
-        estimates = onComputeEstimates(strategy, maxChord, modes)
+        estimates = onComputeEstimates(strategy, maxChord, modes, selection)
     }
 
     val modeLabels = mapOf(
         RhythmDeriveMode.GRID to stringResource(R.string.rhythm_derive_mode_grid),
         RhythmDeriveMode.ONSET to stringResource(R.string.rhythm_derive_mode_onset),
+    )
+    val selectionLabels = mapOf(
+        OnsetSelection.BALANCED to stringResource(R.string.rhythm_derive_selection_balanced),
+        OnsetSelection.MELODY_FIRST to stringResource(R.string.rhythm_derive_selection_melody),
     )
 
     ModalBottomSheet(onDismissRequest = { if (!deriving) onDismiss() }) {
@@ -132,6 +140,28 @@ internal fun RhythmDeriveSheet(
                     text = stringResource(R.string.rhythm_derive_modes_none),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.error,
+                )
+            }
+
+            if (RhythmDeriveMode.ONSET in modes) {
+                Text(
+                    text = stringResource(R.string.rhythm_derive_selection),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OnsetSelection.entries.forEach { option ->
+                        FilterChip(
+                            selected = option == selection,
+                            onClick = { selection = option },
+                            label = { Text(selectionLabels.getValue(option)) },
+                        )
+                    }
+                }
+                Text(
+                    text = stringResource(R.string.rhythm_derive_selection_hint),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
 
@@ -229,7 +259,7 @@ internal fun RhythmDeriveSheet(
                     // The derived list shows the newest chart first, so derive from hardest
                     // to easiest: the easiest chart then lands at the top.
                     onClick = {
-                        onDerive(selected.sortedDescending(), modes, strategy, maxChord)
+                        onDerive(selected.sortedDescending(), modes, strategy, maxChord, selection)
                     },
                     enabled = selected.isNotEmpty() && modes.isNotEmpty() && !deriving,
                     modifier = Modifier.weight(1f),

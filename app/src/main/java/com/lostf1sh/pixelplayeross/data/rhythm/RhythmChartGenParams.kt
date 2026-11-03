@@ -22,11 +22,15 @@ data class DspDeriveProfile(
     val minGapMs: Double,
     /** Optional whole-song ceiling, for very long tracks. `null` = no absolute cap. */
     val maxNotes: Int? = null,
+    /** MELODY-FIRST slot split per second; unused by [OnsetSelection.BALANCED]. */
+    val melodySlots: Int = 1,
+    val percSlots: Int = 1,
 ) {
     init {
         require(maxNotesPerSecond > 0.0) { "maxNotesPerSecond must be > 0" }
         require(minGapMs >= 0.0) { "minGapMs must be >= 0" }
         require(maxNotes == null || maxNotes > 0) { "maxNotes must be > 0 when set" }
+        require(melodySlots > 0 && percSlots > 0) { "melodySlots/percSlots must be > 0" }
     }
 }
 
@@ -45,8 +49,8 @@ enum class DspDifficulty(
     val deriveProfile: DspDeriveProfile,
 ) {
     EASY(1, "Easy", DspDeriveProfile(maxNotesPerSecond = 2.0, minGapMs = 300.0)),
-    NORMAL(2, "Normal", DspDeriveProfile(maxNotesPerSecond = 4.0, minGapMs = 150.0)),
-    HARD(4, "Hard", DspDeriveProfile(maxNotesPerSecond = 7.0, minGapMs = 75.0)),
+    NORMAL(2, "Normal", DspDeriveProfile(maxNotesPerSecond = 4.0, minGapMs = 150.0, melodySlots = 3, percSlots = 1)),
+    HARD(4, "Hard", DspDeriveProfile(maxNotesPerSecond = 7.0, minGapMs = 75.0, melodySlots = 5, percSlots = 2)),
     ;
 
     /** Beat subdivisions per note slot; 1 = one note per beat. v2 only. */
@@ -75,6 +79,18 @@ enum class RhythmDeriveMode {
      * musical: strong percussion tends to win the density budget and melody phrases thin out.
      */
     ONSET,
+}
+
+/** How [RhythmDeriveMode.ONSET] spends its density budget across voice classes. */
+enum class OnsetSelection {
+    /** One global budget; strong (usually percussive) onsets win it. */
+    BALANCED,
+
+    /**
+     * Split the budget into melody-band and percussion slots ([DspDeriveProfile.melodySlots] /
+     * [DspDeriveProfile.percSlots]) so drum onsets cannot starve the melody line.
+     */
+    MELODY_FIRST,
 }
 
 /**
