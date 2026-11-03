@@ -12,11 +12,15 @@
                     ⇒ 母谱约为困难档的两倍，用来验证 raw > hard > normal > easy
 
 expected.json 同时记录:
-  raw         = 参考实现 pick_peaks 的全部 onset 直接成谱（母谱的期望值）
-  EASY/NORMAL/HARD = div 1/2/4 的网格输出
+  raw         = 参考实现 pick_peaks 的全部 onset 直接成谱（母谱的期望值，Kotlin 侧逐条等价判定）
+  EASY/NORMAL/HARD = div 1/2/4 的网格输出（只作期望填充数与音区；量化时刻不作位置判据）
 
-Kotlin 侧 RhythmChartGeneratorGoldenTest 用 ±15 ms 容差匹配率 >=95% 判定，
-不逐条严格相等（Python round 是 half-to-even，Kotlin 是 half-up）。
+Kotlin 侧 RhythmChartGeneratorGoldenTest 的判定（2026-11-03 起分两套）:
+  母谱 onset 时刻与参考逐条等价（±15 ms 匹配率 >=95%）；
+  量化难度的时刻改判**构造真值** k*(500/div) ms（合成脚本把 kick 精确放在 k*500 ms）——
+  参考实现自己的网格偏真值 ~25 ms（自相关定速 −0.05%），而 Kotlin 分段拍网格实测偏差
+  9–10 ms，拿旧参考当位置裁判会惩罚更准的算法。计数与音区仍与参考比：半格中点附近的
+  onset 归属随网格相位翻转，属检测抖动，不是音乐差异。
 """
 import argparse
 import json
