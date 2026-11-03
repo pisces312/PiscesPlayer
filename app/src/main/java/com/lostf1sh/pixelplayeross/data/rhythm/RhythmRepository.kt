@@ -128,32 +128,40 @@ class RhythmRepository @Inject constructor(
     /**
      * Derive the requested difficulties from the stored master and keep every derivation.
      *
-     * Pure note selection: no audio is decoded and no timestamp moves. [displayNames] carries the
-     * localized, timestamped difficulty name; it is part of the chart body, which is what gives
-     * each derivation its own content hash and therefore its own entry.
+     * Both modes are pure functions over the master: no audio is decoded. [RhythmDeriveMode.GRID]
+     * snaps onto the master's tracked piecewise grid ([RhythmTimingRefiner] only for a legacy
+     * single-point master); [RhythmDeriveMode.ONSET] keeps the onset timestamps. [displayNames]
+     * carries the localized, timestamped difficulty and mode names; it is part of the chart body,
+     * which is what gives each derivation its own content hash and therefore its own entry.
      */
     suspend fun deriveCharts(
         songId: String,
         master: RhythmChart,
         masterMeta: RhythmChartMeta,
         difficulties: List<DspDifficulty>,
+        modes: Set<RhythmDeriveMode>,
         laneStrategy: LaneStrategy,
-        displayNames: Map<DspDifficulty, String>,
+        displayNames: Map<Pair<DspDifficulty, RhythmDeriveMode>, String>,
         maxChord: Int = 1,
     ): List<RhythmChartMeta> {
-        if (difficulties.isEmpty()) return emptyList()
+        if (difficulties.isEmpty() || modes.isEmpty()) return emptyList()
+        val gridTiming = gridTimingFor(master, modes)
+        val jobs = difficulties.flatMap { difficulty ->
+            // Grid last, so it is created last and lands on top of the newest-first list.
+            RhythmDeriveMode.entries.reversed()
+                .filter { it in modes }
+                .map { difficulty to it }
+        }
         val charts = withContext(Dispatchers.Default) {
-            difficulties.map { difficulty ->
-                RhythmChartDeriver.deriveOnsetNative(
-                    master,
-                    difficulty,
-                    laneStrategy,
-                    maxChord,
-                )
+            jobs.map { (difficulty, mode) ->
+                deriveOne(master, difficulty, mode, laneStrategy, maxChord, gridTiming)
                     // Derived charts are stored playable: the first lead-in stays only in the
                     // master, so a difficulty starts exactly where the run has runway.
                     .withoutLeadIn()
-                    .copy(difficultyName = displayNames[difficulty] ?: difficulty.label)
+                    .copy(
+                        difficultyName = displayNames[difficulty to mode]
+                            ?: "${difficulty.label} ${mode.name.lowercase()}",
+                    )
             }
         }
         return withContext(Dispatchers.IO) {
@@ -166,7 +174,7 @@ class RhythmRepository @Inject constructor(
                     // Stagger by a millisecond so a batch keeps a stable display order without
                     // relying on the filesystem clock.
                     nowMs = now + index,
-                    difficultyKey = difficultyKeyOf(difficulties[index]),
+                    difficultyKey = difficultyKeyOf(jobs[index].first),
                     parentChartId = masterMeta.chartId,
                     masterGeneratedAtMs = masterMeta.importedAtMs,
                 )
@@ -181,14 +189,61 @@ class RhythmRepository @Inject constructor(
     suspend fun previewDerivedCounts(
         master: RhythmChart,
         difficulties: List<DspDifficulty>,
+        modes: Set<RhythmDeriveMode>,
         laneStrategy: LaneStrategy,
         maxChord: Int = 1,
-    ): Map<DspDifficulty, Int> = withContext(Dispatchers.Default) {
-        difficulties.associateWith {
-            RhythmChartDeriver.deriveOnsetNative(master, it, laneStrategy, maxChord)
-                .withoutLeadIn()
-                .noteCount()
-        }
+    ): Map<Pair<DspDifficulty, RhythmDeriveMode>, Int> = withContext(Dispatchers.Default) {
+        if (difficulties.isEmpty() || modes.isEmpty()) return@withContext emptyMap()
+        val gridTiming = gridTimingFor(master, modes)
+        difficulties.flatMap { difficulty ->
+            RhythmDeriveMode.entries.filter { it in modes }.map { mode ->
+                (difficulty to mode) to
+                    deriveOne(master, difficulty, mode, laneStrategy, maxChord, gridTiming)
+                        .withoutLeadIn()
+                        .noteCount()
+            }
+        }.toMap()
+    }
+
+    private fun deriveOne(
+        master: RhythmChart,
+        difficulty: DspDifficulty,
+        mode: RhythmDeriveMode,
+        laneStrategy: LaneStrategy,
+        maxChord: Int,
+        gridTiming: List<RhythmTimingPoint>,
+    ): RhythmChart = when (mode) {
+        RhythmDeriveMode.GRID -> RhythmChartDeriver.derive(
+            master = master,
+            difficulty = difficulty,
+            laneStrategy = laneStrategy,
+            maxChord = maxChord,
+            timing = gridTiming,
+        )
+        RhythmDeriveMode.ONSET -> RhythmChartDeriver.deriveOnsetNative(
+            master = master,
+            difficulty = difficulty,
+            laneStrategy = laneStrategy,
+            maxChord = maxChord,
+        )
+    }
+
+    /**
+     * Empty unless the grid mode is requested. A current master carries the tracked piecewise
+     * grid; a legacy single-point master predates it, so refine one from its onsets instead.
+     */
+    private fun gridTimingFor(
+        master: RhythmChart,
+        modes: Set<RhythmDeriveMode>,
+    ): List<RhythmTimingPoint> {
+        if (RhythmDeriveMode.GRID !in modes) return emptyList()
+        if (master.timing.size > 1) return master.timing
+        val global = master.timing.firstOrNull() ?: RhythmTimingPoint(0, FALLBACK_BEAT_MS)
+        return RhythmTimingRefiner.refine(
+            onsets = master.notes.map { RhythmTimingRefiner.Onset(it.timeMs, it.strength) },
+            global = global,
+            durationMs = master.durationMs,
+        )
     }
 
     private class DecodedAudio(
@@ -200,6 +255,9 @@ class RhythmRepository @Inject constructor(
     companion object {
         /** Above this the one-shot PCM buffer becomes a real OOM risk on low-end devices. */
         const val MAX_ANALYSIS_DURATION_MS = 12 * 60 * 1000L
+
+        /** 120 BPM, only for a master that somehow carries no timing point at all. */
+        private const val FALLBACK_BEAT_MS = 500.0
 
         fun difficultyKeyOf(difficulty: DspDifficulty): String = difficulty.name.lowercase()
     }

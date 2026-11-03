@@ -558,6 +558,10 @@ Easy/Normal 只输出统计不设门禁。这也解释了 40 vs 41 的 1 个音�
 
 > **v3 修订（2026-11-03）**：分段 timing 保留，但只服务三件事——给拍点上的 onset 加权、
 > 按段分配每秒音符预算、元数据 / 未来 `.osu` 导出。**音符 `timeMs` 不随它移动**。
+>
+> **实现（2026-11-03）**：`RhythmTimingRefiner` 按本文做法输出分段锚点；它只供用户显式选择的
+> 网格派生模式使用（会移动音符时间），原声派生模式仍保留 onset 原始时间。见
+> `tools/rhythm-lab/docs/2026-11-03-1354-dual-derive-modes-and-segmented-beat-grid.md`。
 > "把 0.46 s 漂移压到 < 50 ms"这个目标在 v3 下不再需要：漂移只存在于"用网格生成时间"的方案里，
 > 而 v3 的时间直接来自 onset（`rhythm-chart-ladder-plan.md` §17）。
 

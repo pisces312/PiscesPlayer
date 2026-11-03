@@ -40,6 +40,7 @@ import com.lostf1sh.pixelplayeross.R
 import com.lostf1sh.pixelplayeross.data.rhythm.DspDifficulty
 import com.lostf1sh.pixelplayeross.data.rhythm.LaneStrategy
 import com.lostf1sh.pixelplayeross.data.rhythm.RhythmChartDeriver
+import com.lostf1sh.pixelplayeross.data.rhythm.RhythmDeriveMode
 
 /** Two notes per cell by default: audible variety without turning every beat into a chord. */
 private const val DEFAULT_CHORD = 2
@@ -56,19 +57,31 @@ internal fun RhythmDeriveSheet(
     masterNoteCount: Int,
     masterBpm: String,
     deriving: Boolean,
-    onComputeEstimates: suspend (LaneStrategy, Int) -> Map<DspDifficulty, Int>,
+    onComputeEstimates: suspend (
+        LaneStrategy,
+        Int,
+        Set<RhythmDeriveMode>,
+    ) -> Map<Pair<DspDifficulty, RhythmDeriveMode>, Int>,
     onDismiss: () -> Unit,
-    onDerive: (List<DspDifficulty>, LaneStrategy, Int) -> Unit,
+    onDerive: (List<DspDifficulty>, Set<RhythmDeriveMode>, LaneStrategy, Int) -> Unit,
 ) {
     var selected by remember { mutableStateOf(DspDifficulty.entries.toSet()) }
+    // Both modes start selected: one pass then yields grid and onset versions of every chosen
+    // difficulty, which is what makes the two directly comparable while testing.
+    var modes by remember { mutableStateOf(RhythmDeriveMode.entries.toSet()) }
     var strategy by remember { mutableStateOf(LaneStrategy.BAND_ORDER) }
     var maxChord by remember { mutableIntStateOf(DEFAULT_CHORD) }
-    var estimates by remember { mutableStateOf<Map<DspDifficulty, Int>?>(null) }
+    var estimates by remember { mutableStateOf<Map<Pair<DspDifficulty, RhythmDeriveMode>, Int>?>(null) }
 
-    LaunchedEffect(strategy, maxChord) {
+    LaunchedEffect(strategy, maxChord, modes) {
         estimates = null
-        estimates = onComputeEstimates(strategy, maxChord)
+        estimates = onComputeEstimates(strategy, maxChord, modes)
     }
+
+    val modeLabels = mapOf(
+        RhythmDeriveMode.GRID to stringResource(R.string.rhythm_derive_mode_grid),
+        RhythmDeriveMode.ONSET to stringResource(R.string.rhythm_derive_mode_onset),
+    )
 
     ModalBottomSheet(onDismissRequest = { if (!deriving) onDismiss() }) {
         Column(
@@ -94,6 +107,35 @@ internal fun RhythmDeriveSheet(
             )
 
             Text(
+                text = stringResource(R.string.rhythm_derive_mode),
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.primary,
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                RhythmDeriveMode.entries.forEach { mode ->
+                    FilterChip(
+                        selected = mode in modes,
+                        onClick = {
+                            modes = if (mode in modes) modes - mode else modes + mode
+                        },
+                        label = { Text(modeLabels.getValue(mode)) },
+                    )
+                }
+            }
+            Text(
+                text = stringResource(R.string.rhythm_derive_mode_hint),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            if (modes.isEmpty()) {
+                Text(
+                    text = stringResource(R.string.rhythm_derive_modes_none),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                )
+            }
+
+            Text(
                 text = stringResource(R.string.rhythm_generate_difficulty),
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.primary,
@@ -102,7 +144,7 @@ internal fun RhythmDeriveSheet(
                 DifficultyRow(
                     difficulty = difficulty,
                     checked = difficulty in selected,
-                    estimate = estimates?.get(difficulty),
+                    estimateText = estimateLabel(difficulty, estimates, modes, modeLabels),
                     onToggle = {
                         selected = if (difficulty in selected) {
                             selected - difficulty
@@ -186,8 +228,10 @@ internal fun RhythmDeriveSheet(
                 Button(
                     // The derived list shows the newest chart first, so derive from hardest
                     // to easiest: the easiest chart then lands at the top.
-                    onClick = { onDerive(selected.sortedDescending(), strategy, maxChord) },
-                    enabled = selected.isNotEmpty() && !deriving,
+                    onClick = {
+                        onDerive(selected.sortedDescending(), modes, strategy, maxChord)
+                    },
+                    enabled = selected.isNotEmpty() && modes.isNotEmpty() && !deriving,
                     modifier = Modifier.weight(1f),
                 ) {
                     Text(stringResource(R.string.rhythm_derive_start))
@@ -198,10 +242,32 @@ internal fun RhythmDeriveSheet(
 }
 
 @Composable
+private fun estimateLabel(
+    difficulty: DspDifficulty,
+    estimates: Map<Pair<DspDifficulty, RhythmDeriveMode>, Int>?,
+    modes: Set<RhythmDeriveMode>,
+    modeLabels: Map<RhythmDeriveMode, String>,
+): String {
+    val current = estimates ?: return ""
+    if (modes.isEmpty()) return ""
+    if (modes.size == 1) {
+        return current[difficulty to modes.first()]
+            ?.let { stringResource(R.string.rhythm_derive_estimate, it) }
+            .orEmpty()
+    }
+    return RhythmDeriveMode.entries
+        .filter { it in modes }
+        .mapNotNull { mode ->
+            current[difficulty to mode]?.let { "${modeLabels.getValue(mode)} $it" }
+        }
+        .joinToString(" · ")
+}
+
+@Composable
 private fun DifficultyRow(
     difficulty: DspDifficulty,
     checked: Boolean,
-    estimate: Int?,
+    estimateText: String,
     onToggle: () -> Unit,
 ) {
     Row(
@@ -219,7 +285,7 @@ private fun DifficultyRow(
             modifier = Modifier.weight(1f),
         )
         Text(
-            text = estimate?.let { stringResource(R.string.rhythm_derive_estimate, it) }.orEmpty(),
+            text = estimateText,
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )

@@ -71,6 +71,7 @@ import com.lostf1sh.pixelplayeross.data.rhythm.RhythmAnalysisParams
 import com.lostf1sh.pixelplayeross.data.rhythm.RhythmChart
 import com.lostf1sh.pixelplayeross.data.rhythm.RhythmChartMeta
 import com.lostf1sh.pixelplayeross.data.rhythm.RhythmChartSettings
+import com.lostf1sh.pixelplayeross.data.rhythm.RhythmDeriveMode
 import com.lostf1sh.pixelplayeross.data.rhythm.RhythmRepository
 import com.lostf1sh.pixelplayeross.presentation.components.MiniPlayerBottomSpacer
 import com.lostf1sh.pixelplayeross.presentation.components.MiniPlayerHeight
@@ -92,9 +93,9 @@ import kotlinx.coroutines.withContext
 private val MASTER_NAME_FORMATTER: DateTimeFormatter =
     DateTimeFormatter.ofPattern("MM-dd HH:mm").withZone(ZoneId.systemDefault())
 
-/** Derived charts: second precision, so repeated derivations stay distinguishable. */
+/** Derived charts: compact `MMdd HH:mm`, the mode is what tells paired charts apart. */
 private val DERIVED_NAME_FORMATTER: DateTimeFormatter =
-    DateTimeFormatter.ofPattern("MM-dd HH:mm:ss").withZone(ZoneId.systemDefault())
+    DateTimeFormatter.ofPattern("MMdd HH:mm").withZone(ZoneId.systemDefault())
 
 /** Everything the screen needs about one song's charts, loaded in one pass. */
 private data class LibrarySnapshot(
@@ -165,6 +166,10 @@ fun RhythmSetupScreen(
         DspDifficulty.NORMAL to stringResource(R.string.rhythm_generate_difficulty_normal),
         DspDifficulty.HARD to stringResource(R.string.rhythm_generate_difficulty_hard),
     )
+    val modeLabels = mapOf(
+        RhythmDeriveMode.GRID to stringResource(R.string.rhythm_derive_mode_grid),
+        RhythmDeriveMode.ONSET to stringResource(R.string.rhythm_derive_mode_onset),
+    )
 
     suspend fun reload() {
         val charts = repository.chartsForSong(songId)
@@ -219,20 +224,37 @@ fun RhythmSetupScreen(
         }
     }
 
-    fun derive(difficulties: List<DspDifficulty>, strategy: LaneStrategy, maxChord: Int) {
+    fun derive(
+        difficulties: List<DspDifficulty>,
+        modes: Set<RhythmDeriveMode>,
+        strategy: LaneStrategy,
+        maxChord: Int,
+    ) {
         val master = snapshot.masterChart ?: return
         val masterMeta = snapshot.master ?: return
         val labels = difficultyLabels
+        val modeNames = modeLabels
         deriving = true
         scope.launch {
             try {
                 val stamp = DERIVED_NAME_FORMATTER.format(Instant.now())
-                val names = difficulties.associateWith { "${labels[it]} · $stamp" }
+                val names = buildMap {
+                    for (difficulty in difficulties) {
+                        for (mode in modes) {
+                            put(
+                                difficulty to mode,
+                                "${labels.getValue(difficulty)} · " +
+                                    "${modeNames.getValue(mode)} · $stamp",
+                            )
+                        }
+                    }
+                }
                 val created = repository.deriveCharts(
                     songId = songId,
                     master = master,
                     masterMeta = masterMeta,
                     difficulties = difficulties,
+                    modes = modes,
                     laneStrategy = strategy,
                     displayNames = names,
                     maxChord = maxChord,
@@ -527,17 +549,18 @@ fun RhythmSetupScreen(
                     60_000.0 / masterChart.timing.first().beatMs,
                 ),
                 deriving = deriving,
-                onComputeEstimates = { strategy, maxChord ->
+                onComputeEstimates = { strategy, maxChord, modes ->
                     repository.previewDerivedCounts(
                         master = masterChart,
                         difficulties = DspDifficulty.entries,
+                        modes = modes,
                         laneStrategy = strategy,
                         maxChord = maxChord,
                     )
                 },
                 onDismiss = { if (!deriving) showDeriveSheet = false },
-                onDerive = { difficulties, strategy, maxChord ->
-                    derive(difficulties, strategy, maxChord)
+                onDerive = { difficulties, modes, strategy, maxChord ->
+                    derive(difficulties, modes, strategy, maxChord)
                 },
             )
         }

@@ -351,4 +351,39 @@ class RhythmChartDeriverTest {
             assertTrue("$maxChord: $counts", counts.zipWithNext().all { (a, b) -> a <= b })
         }
     }
+
+    @Test
+    fun piecewiseTimingSnapsToTheLocalGrid() {
+        // Eight 500 ms beats, then a slower segment. 4490 ms is 10 ms past the local line at
+        // 4000 + 480; a global 500 ms grid would have moved the note to 4500 instead.
+        val chart = master(times = listOf(4_490)).copy(
+            timing = listOf(
+                RhythmTimingPoint(0, 500.0),
+                RhythmTimingPoint(4_000, 480.0),
+            ),
+        )
+
+        val derived = RhythmChartDeriver.derive(chart, DspDifficulty.EASY)
+        assertEquals(4_480, derived.notes.single().timeMs)
+    }
+
+    @Test
+    fun boundaryBeatIsEmittedOnceWithPiecewiseTiming() {
+        // 3990 belongs to the first segment, 4010 to the second; both snap onto the shared
+        // anchor at 4000 and must collapse into one cell.
+        val chart = master(
+            times = listOf(3_990, 4_010),
+            strengths = listOf(1f, 0.4f),
+        ).copy(
+            timing = listOf(
+                RhythmTimingPoint(0, 500.0),
+                RhythmTimingPoint(4_000, 480.0),
+            ),
+        )
+
+        val derived = RhythmChartDeriver.derive(chart, DspDifficulty.EASY)
+        assertEquals(1, derived.noteCount())
+        assertEquals(4_000, derived.notes.single().timeMs)
+        assertEquals(1f, derived.notes.single().strength, 0f)
+    }
 }

@@ -415,6 +415,11 @@
     <string name="rhythm_derive_action">派生谱面</string>
     <string name="rhythm_derive_title">派生谱面</string>
     <string name="rhythm_derive_master_line">母谱：%1$d 个音符 · BPM %2$s</string>
+    <string name="rhythm_derive_mode">派生方式</string>
+    <string name="rhythm_derive_mode_grid">网格对齐</string>
+    <string name="rhythm_derive_mode_onset">原声对齐</string>
+    <string name="rhythm_derive_mode_hint">网格对齐把音符吸附到分段节拍网格，节奏更整齐但会移动时间；原声对齐保留检测到的原始时间，更贴音频，但旋律段可能偏空。可同时勾选对照。</string>
+    <string name="rhythm_derive_modes_none">至少选一种派生方式。</string>
     <string name="rhythm_derive_estimate">预计 %1$d 个音符</string>
     <string name="rhythm_derive_lane">车道布局</string>
     <string name="rhythm_derive_lane_band_order">与 PC 一致</string>

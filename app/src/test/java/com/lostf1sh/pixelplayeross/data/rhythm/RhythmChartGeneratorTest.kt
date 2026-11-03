@@ -76,10 +76,12 @@ class RhythmChartGeneratorTest {
     @Test
     fun everyNoteSitsOnTheQuantizationGrid() {
         val result = generate(RhythmChartGenParams(difficulty = DspDifficulty.NORMAL))
-        val timing = result.chart.timing.single()
-        val grid = timing.beatMs / DspDifficulty.NORMAL.gridDiv
+        val timing = result.chart.timing
         for (note in result.chart.notes) {
-            val nearest = timing.timeMs + Math.round((note.timeMs - timing.timeMs) / grid) * grid
+            // The grid is piecewise: every note sits on its own timing segment's lattice.
+            val point = timing.lastOrNull { it.timeMs <= note.timeMs } ?: timing.first()
+            val grid = point.beatMs / DspDifficulty.NORMAL.gridDiv
+            val nearest = point.timeMs + Math.round((note.timeMs - point.timeMs) / grid) * grid
             assertTrue(
                 "note ${note.timeMs} off grid ($nearest)",
                 abs(note.timeMs - nearest) <= 1.0,
@@ -107,10 +109,17 @@ class RhythmChartGeneratorTest {
     }
 
     @Test
-    fun producesSingleSegmentTimingAndDspSource() {
+    fun producesPiecewiseTimingAndDspSource() {
         val chart = generate().chart
         assertEquals(RhythmChart.SOURCE_DSP, chart.source)
-        assertEquals(1, chart.timing.size)
+        // The tracked grid is piecewise: one anchor per music beat, all on the same lattice.
+        assertTrue("timing ${chart.timing.size}", chart.timing.size > 1)
+        var previous = Int.MIN_VALUE
+        for (point in chart.timing) {
+            assertTrue("beatMs ${point.beatMs}", point.beatMs > 0.0)
+            assertTrue("anchors out of order", point.timeMs > previous)
+            previous = point.timeMs
+        }
         assertTrue(chart.difficultyName.startsWith("DSP "))
         assertEquals((durationSeconds * 1000).toInt(), chart.durationMs)
     }
@@ -120,7 +129,14 @@ class RhythmChartGeneratorTest {
         val result = generate(RhythmChartGenParams(analysis = RhythmAnalysisParams(bpmOverride = 97.5)))
         assertEquals(97.5, result.diagnostics.usedBpm, 0.0)
         assertEquals(1.0, result.diagnostics.octaveCorrection, 0.0)
-        assertEquals(60_000.0 / 97.5, result.chart.timing.single().beatMs, 1e-6)
+        // The override is the contract for the grid rate: the tracked fit may only refine it
+        // within the rate guard (RhythmBeatTracker rejects a fit that strays further and falls
+        // back to the requested rate), never replace it with a different tempo.
+        val nominal = 60_000.0 / 97.5
+        assertTrue(
+            result.chart.timing.joinToString { "%.2f".format(it.beatMs) },
+            result.chart.timing.all { abs(it.beatMs - nominal) <= nominal * 0.05 },
+        )
     }
 
     @Test
@@ -132,9 +148,20 @@ class RhythmChartGeneratorTest {
                 analysis = RhythmAnalysisParams(extraOffsetMs = 40),
             ),
         ).chart
-        assertEquals(plain.noteCount(), shifted.noteCount())
-        val delta = shifted.notes.first().timeMs - plain.notes.first().timeMs
-        assertTrue("delta $delta", abs(delta - 40) <= 1)
+
+        // The grid moves by exactly 40 ms and the notes move with it. Quantisation adds two
+        // wrinkles: an onset within 40 ms of a cell boundary flips to the neighbouring cell
+        // (a whole grid step away), and a flip can merge or split a note. So the timing must
+        // shift exactly while the notes only have to move by 40 ms minus a couple of flippers.
+        plain.timing.zip(shifted.timing).forEach { (before, after) ->
+            assertEquals(before.timeMs + 40, after.timeMs)
+            assertEquals(before.beatMs, after.beatMs, 0.0)
+        }
+        assertTrue("notes ${plain.noteCount()} -> ${shifted.noteCount()}", abs(plain.noteCount() - shifted.noteCount()) <= 2)
+        val moved = plain.notes.count { note ->
+            shifted.notes.any { abs(it.timeMs - (note.timeMs + 40)) <= 1 }
+        }
+        assertTrue("moved $moved of ${plain.noteCount()}", moved >= plain.noteCount() - 2)
     }
 
     @Test
@@ -162,7 +189,7 @@ class RhythmChartGeneratorTest {
         assertTrue("master is empty", master.noteCount() > 0)
         assertTrue("strength missing", master.notes.all { it.strength > 0f })
         assertTrue("band missing", master.notes.all { it.band in 0..7 })
-        assertEquals(1, master.timing.size)
+        assertEquals(analysis.timing, master.timing)
         // Notes are stored as whole milliseconds, so two onsets must not collapse.
         assertEquals(master.noteCount(), master.notes.map { it.timeMs }.distinct().size)
     }
@@ -195,11 +222,11 @@ class RhythmChartGeneratorTest {
             durationMs = (durationSeconds * 1000).toInt(),
             params = RhythmAnalysisParams(),
         )
-        val masterTiming = RhythmChartGenerator.renderMaster(analysis).timing.single()
+        val masterTiming = RhythmChartGenerator.renderMaster(analysis).timing
         for (difficulty in DspDifficulty.entries) {
             // Sharing one analysis is the whole point of the ladder: a difficulty derived from
             // the master must not drift against it.
-            assertEquals(masterTiming, RhythmChartGenerator.render(analysis, difficulty).timing.single())
+            assertEquals(masterTiming, RhythmChartGenerator.render(analysis, difficulty).timing)
         }
     }
 

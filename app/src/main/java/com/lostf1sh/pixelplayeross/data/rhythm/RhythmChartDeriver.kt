@@ -57,38 +57,45 @@ internal object RhythmChartDeriver {
     /**
      * @param maxChord notes allowed per cell, 1..[MAX_CHORD_NOTES]. 1 reproduces the single-note
      *   ladder exactly, which is what the golden fixture (and the Python reference) expects.
+     * @param timing beat grid to snap to. The default is the master's own timing — the tracked
+     *   piecewise grid for a current master; the repository passes the same list (or a
+     *   [RhythmTimingRefiner] result for a legacy single-point master) so the grid follows
+     *   tempo drift between anchors.
      */
     fun derive(
         master: RhythmChart,
         difficulty: DspDifficulty,
         laneStrategy: LaneStrategy = LaneStrategy.BAND_ORDER,
         maxChord: Int = 1,
+        timing: List<RhythmTimingPoint> = master.timing,
     ): RhythmChart {
         require(master.notes.isNotEmpty()) { "master chart has no notes" }
-        val timing = master.timing.firstOrNull() ?: RhythmTimingPoint(0, DEFAULT_BEAT_MS)
-        val grid = timing.beatMs / difficulty.gridDiv
-        require(grid > 0.0) { "invalid beat length ${timing.beatMs}" }
-        val offset = timing.timeMs.toDouble()
+        val points = timing.ifEmpty { listOf(RhythmTimingPoint(0, DEFAULT_BEAT_MS)) }
+            .sortedBy { it.timeMs }
+        require(points.all { it.beatMs > 0.0 }) {
+            "invalid beat length ${points.firstOrNull { it.beatMs <= 0.0 }?.beatMs}"
+        }
         val chord = maxChord.coerceIn(1, MAX_CHORD_NOTES)
 
-        // One bucket per cell. The strongest note wins the cell; the extras only survive when
-        // chord notes are allowed, so with maxChord = 1 this is byte-for-byte the old behaviour.
-        val cells = HashMap<Long, MutableList<RhythmNote>>(master.notes.size)
+        // One bucket per snapped millisecond. The strongest note wins the cell; the extras only
+        // survive when chord notes are allowed, so with maxChord = 1 this is byte-for-byte the
+        // old behaviour. With a piecewise grid the boundary beat is shared by two segments, and
+        // keying by the snapped time merges those cells instead of emitting the beat twice.
+        val cells = HashMap<Int, MutableList<RhythmNote>>(master.notes.size)
         for (note in master.notes) {
-            val cell = Math.round((note.timeMs - offset) / grid)
+            val cell = snapTime(note.timeMs, points, difficulty.gridDiv)
             cells.getOrPut(cell) { ArrayList(2) } += note
         }
 
         val notes = ArrayList<RhythmNote>(master.notes.size)
         var lastLane = -1
-        for (cell in cells.keys.sorted()) {
-            val timeMs = Math.round(offset + cell * grid).toInt()
+        for (timeMs in cells.keys.sorted()) {
             // Snapping can push the last note of a song past its end; the generator drops those
             // too, so drop them here to keep both paths producing the same note list.
             if (timeMs < 0 || timeMs > master.durationMs) continue
 
             // Strongest first, ties to the earlier onset: that is the generator's tie-break.
-            val candidates = cells.getValue(cell).sortedWith(CANDIDATE_ORDER)
+            val candidates = cells.getValue(timeMs).sortedWith(CANDIDATE_ORDER)
             val primary = candidates.first()
             val primaryLane = avoidRepeatedLane(laneOf(primary, laneStrategy), lastLane, primary.band)
             notes += RhythmNote(
@@ -129,7 +136,41 @@ internal object RhythmChartDeriver {
             }
         }
 
-        return master.copy(difficultyName = difficulty.label, notes = notes)
+        return master.copy(
+            difficultyName = difficulty.label,
+            timing = if (timing.isEmpty()) master.timing else points,
+            notes = notes,
+        )
+    }
+
+    /**
+     * Snap [timeMs] to the local grid of the timing segment that contains it. Anchors are beat
+     * lines, so the grid stays continuous: the boundary beat is both the last cell of one segment
+     * and the first cell of the next, and both map to the same millisecond.
+     *
+     * The anchors are integers while `beatMs` is not, so a segment's own last grid line rounds to
+     * within a millisecond of the next anchor. Emitting both would split one beat into two cells
+     * a millisecond apart, so the last cell of a segment snaps to the anchor itself.
+     *
+     * Shared with [RhythmChartGenerator.render] so the direct render and a derivation of the
+     * master land on identical cells.
+     */
+    internal fun snapTime(
+        timeMs: Int,
+        points: List<RhythmTimingPoint>,
+        gridDiv: Int,
+    ): Int {
+        var index = 0
+        while (index + 1 < points.size && points[index + 1].timeMs <= timeMs) index++
+        val point = points[index]
+        val grid = point.beatMs / gridDiv
+        val cell = Math.round((timeMs - point.timeMs) / grid).toInt()
+        val next = points.getOrNull(index + 1)
+        if (next != null) {
+            val boundaryCell = Math.round((next.timeMs - point.timeMs) / grid).toInt()
+            if (boundaryCell >= 1 && cell >= boundaryCell) return next.timeMs
+        }
+        return Math.round(point.timeMs + cell * grid).toInt()
     }
 
     /**

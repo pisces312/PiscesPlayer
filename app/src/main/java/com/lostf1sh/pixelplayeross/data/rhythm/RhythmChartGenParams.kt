@@ -59,6 +59,25 @@ enum class DspDifficulty(
 }
 
 /**
+ * How a derived difficulty turns the master's onsets into notes.
+ *
+ * Both modes read the same master: neither re-decodes the song.
+ */
+enum class RhythmDeriveMode {
+    /**
+     * Snap onto the piecewise beat grid (`RhythmTimingRefiner`). Timestamps move, but the result
+     * reads as a chart: patterns line up with the beat instead of following every onset.
+     */
+    GRID,
+
+    /**
+     * Keep the master's onset times and only select which ones survive. More literal than
+     * musical: strong percussion tends to win the density budget and melody phrases thin out.
+     */
+    ONSET,
+}
+
+/**
  * Lane assignment strategy.
  *
  * [BAND_ORDER] is the reference Python behaviour (`lane = band * lanes / bands`), kept as
@@ -140,7 +159,8 @@ data class DspDiagnostics(
     val detectedBpm: Double,
     val usedBpm: Double,
     val octaveCorrection: Double,
-    val beatOffsetMs: Double,
+    /** Anchors in the tracked beat grid; 1 means the tracker fell back to a fixed-rate grid. */
+    val timingPoints: Int,
     val onsetCount: Int,
     val noteCount: Int,
     val analysisMs: Long,

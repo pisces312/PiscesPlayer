@@ -6,12 +6,10 @@
 package com.lostf1sh.pixelplayeross.data.rhythm
 
 import java.util.Arrays
-import java.util.concurrent.CancellationException
 import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.exp
-import kotlin.math.ln
 import kotlin.math.log2
 import kotlin.math.max
 import kotlin.math.min
@@ -23,7 +21,7 @@ class RhythmGenerationException(message: String) : Exception(message)
 
 /**
  * Result of the expensive half of the pipeline: everything the difficulty-independent stages
- * produced, plus the tempo and phase needed to render any grid from it.
+ * produced, plus the tempo and the tracked beat grid every difficulty snaps to.
  *
  * Onsets are already filtered by the optional loudness / density constraints, so a render stage
  * does no further filtering and the master chart is literally this list turned into notes.
@@ -33,8 +31,9 @@ internal class DspAnalysis(
     val onsetStrength: FloatArray,
     /** Dominant frequency band per onset, 0..7. */
     val onsetBands: IntArray,
+    /** Tracked beat grid: the anchors every derived grid snaps to. Never empty. */
+    val timing: List<RhythmTimingPoint>,
     val beatMs: Double,
-    val beatOffsetMs: Double,
     val durationMs: Int,
     val detectedBpm: Double,
     val usedBpm: Double,
@@ -47,7 +46,7 @@ internal class DspAnalysis(
         detectedBpm = detectedBpm,
         usedBpm = usedBpm,
         octaveCorrection = octaveCorrection,
-        beatOffsetMs = beatOffsetMs,
+        timingPoints = timing.size,
         onsetCount = peakCount,
         noteCount = noteCount,
         analysisMs = System.currentTimeMillis() - startedAtMs,
@@ -78,7 +77,6 @@ internal object RhythmChartGenerator {
     private const val N_FFT = 2048
     private const val HOP = 512
     private const val N_BANDS = 8
-    private const val WHITEN_WINDOW = 32
 
     private const val PEAK_LOCAL_MS = 50.0
     private const val PEAK_CONTEXT_MS = 200.0
@@ -106,81 +104,24 @@ internal object RhythmChartGenerator {
     ): DspAnalysis {
         val startedAt = System.currentTimeMillis()
         require(sampleRate > 0) { "sampleRate must be positive" }
-        if (pcmMono.size < N_FFT) {
-            throw RhythmGenerationException("Audio is too short to analyse")
-        }
-
-        val frameCount = 1 + (pcmMono.size - N_FFT) / HOP
-        if (frameCount < 16) {
-            throw RhythmGenerationException("Audio is too short to analyse")
-        }
         val totalMs = if (durationMs > 0) durationMs else pcmMono.size * 1000 / sampleRate
 
-        val fps = sampleRate.toDouble() / HOP
-        val hopMs = HOP * 1000.0 / sampleRate
-
-        // --- 1. STFT -> 8 log band energies (streamed, never keeps the magnitude matrix) ---
-        val edges = bandEdges()
-        val bandRaw = FloatArray(frameCount * N_BANDS)
-        val window = FloatArray(N_FFT) { index ->
-            (0.5 - 0.5 * cos(2.0 * PI * index / (N_FFT - 1))).toFloat()
-        }
-        val fft = RealFft(N_FFT)
-        val magnitudes = FloatArray(N_FFT / 2 + 1)
-        val progressStep = max(1, frameCount / 100)
-
-        for (frame in 0 until frameCount) {
-            if (isCancelled()) throw CancellationException("Chart generation cancelled")
-            fft.magnitude(pcmMono, frame * HOP, window, magnitudes)
-            val base = frame * N_BANDS
-            for (band in 0 until N_BANDS) {
-                var peak = 0f
-                for (bin in edges[band] until edges[band + 1]) {
-                    val value = magnitudes[bin]
-                    if (value > peak) peak = value
-                }
-                bandRaw[base + band] = ln(1.0 + peak.toDouble()).toFloat()
-            }
-            if (frame % progressStep == 0) onProgress(0.80f * frame / frameCount)
-        }
-
-        // --- 2. running-max whitening (window includes the current frame) ---
-        val band = FloatArray(frameCount * N_BANDS)
-        val deque = IntArray(frameCount)
-        for (index in 0 until N_BANDS) {
-            var head = 0
-            var tail = 0
-            for (frame in 0 until frameCount) {
-                val value = bandRaw[frame * N_BANDS + index]
-                while (tail > head && bandRaw[deque[tail - 1] * N_BANDS + index] <= value) {
-                    tail--
-                }
-                deque[tail++] = frame
-                val lowest = frame - WHITEN_WINDOW
-                while (deque[head] < lowest) head++
-                val runningMax = bandRaw[deque[head] * N_BANDS + index]
-                band[frame * N_BANDS + index] = value / (runningMax + 1e-4f)
-            }
-        }
-        onProgress(0.85f)
-
-        // --- 3. half-wave rectified spectral flux ---
-        val novelty = FloatArray(frameCount)
-        for (frame in 0 until frameCount) {
-            val base = frame * N_BANDS
-            val previous = if (frame == 0) base else base - N_BANDS
-            var sum = 0f
-            for (index in 0 until N_BANDS) {
-                val delta = band[base + index] - band[previous + index]
-                if (delta > 0f) sum += delta
-            }
-            novelty[frame] = sum
-        }
+        // --- 1-3. STFT -> 8 log band energies -> whitening -> half-wave flux ---
+        val novelty = RhythmNovelty.compute(
+            pcmMono = pcmMono,
+            sampleRate = sampleRate,
+            bandCount = N_BANDS,
+            keepBands = true,
+            onProgress = { onProgress(0.80f + 0.05f * it) },
+            isCancelled = isCancelled,
+        )
+        val frameCount = novelty.frameCount
+        val fps = novelty.fps
+        val hopMs = novelty.hopMs
+        val band = novelty.bands
+        val novn = novelty.values
 
         // --- 4. peak picking: local max + median/MAD threshold ---
-        val p95 = percentile(novelty, 0.95)
-        val normalization = p95 + 1e-9f
-        val novn = FloatArray(frameCount) { novelty[it] / normalization }
 
         val localRadius = max(1, (PEAK_LOCAL_MS / hopMs).toInt())
         val contextRadius = max(1, (PEAK_CONTEXT_MS / hopMs).toInt())
@@ -262,30 +203,20 @@ internal object RhythmChartGenerator {
         onProgress(0.93f)
 
         val beatMs = 60_000.0 / usedBpm
-        val periodFrames = fps * 60.0 / usedBpm
-        val phasePeriod = max(1, Math.round(periodFrames).toInt())
-        val comb = DoubleArray(phasePeriod)
-        for (frame in 0 until frameCount) {
-            comb[frame % phasePeriod] += novn[frame].toDouble()
-        }
-        var phaseFrame = 0
-        for (index in 1 until phasePeriod) {
-            if (comb[index] > comb[phaseFrame]) phaseFrame = index
-        }
 
-        // --- 6. global grid offset from the strongest onsets ---
-        val strongest = (0 until onsetCount).sortedByDescending { onsetStrength[it] }
-        val offsetSamples = max(1, onsetCount / 10)
-        val offsets = DoubleArray(offsetSamples)
-        for (index in 0 until offsetSamples) {
-            val time = frameToMs(onsetFrames[strongest[index]], sampleRate)
-            val shifted = time - phaseFrame * hopMs
-            offsets[index] = ((shifted % beatMs) + beatMs) % beatMs
-        }
-        offsets.sort()
-        val beatOffsetMs = median(offsets) + params.extraOffsetMs
+        // --- 6. beat tracking: the piecewise grid every derived difficulty snaps to ---
+        val tracking = RhythmBeatTracker.estimateTiming(
+            pcmMono = pcmMono,
+            sampleRate = sampleRate,
+            chartBpm = usedBpm,
+            durationMs = totalMs,
+            extraOffsetMs = params.extraOffsetMs,
+            onProgress = { onProgress(0.93f + 0.03f * it) },
+            isCancelled = isCancelled,
+        )
 
         // --- 7. optional constraints (off by default; they measurably lower quality) ---
+        val strongest = (0 until onsetCount).sortedByDescending { onsetStrength[it] }
         val keep = BooleanArray(onsetCount) { true }
         params.minRmsPercentile?.let { cutoff ->
             val (rmsTimes, rmsValues) = rmsEnvelope(pcmMono, sampleRate, RMS_WINDOW_MS)
@@ -335,8 +266,8 @@ internal object RhythmChartGenerator {
             onsetTimesMs = keptTimes,
             onsetStrength = keptStrength,
             onsetBands = keptBands,
+            timing = tracking.timing,
             beatMs = beatMs,
-            beatOffsetMs = beatOffsetMs,
             durationMs = totalMs,
             detectedBpm = detectedBpm,
             usedBpm = usedBpm,
@@ -377,9 +308,7 @@ internal object RhythmChartGenerator {
         return RhythmChart(
             source = RhythmChart.SOURCE_DSP,
             difficultyName = "DSP Raw",
-            timing = listOf(
-                RhythmTimingPoint(Math.round(analysis.beatOffsetMs).toInt(), analysis.beatMs),
-            ),
+            timing = analysis.timing,
             notes = notes,
             durationMs = analysis.durationMs,
         )
@@ -399,43 +328,30 @@ internal object RhythmChartGenerator {
         laneStrategy: LaneStrategy = LaneStrategy.BAND_ORDER,
         maxChord: Int = 1,
     ): RhythmChart {
-        val grid = analysis.beatMs / difficulty.gridDiv
-        // The chart only stores an integer beat offset, and a derived difficulty can only see
-        // that integer. Using the raw fractional offset here would shift cell times by up to
-        // 0.5 ms and could round a note onto the neighbouring millisecond, so both paths use
-        // the value that actually lands in the chart.
-        val offset = Math.round(analysis.beatOffsetMs).toDouble()
         val chord = maxChord.coerceIn(1, RhythmChartDeriver.MAX_CHORD_NOTES)
-        val cellTimes = HashMap<Long, Double>(analysis.onsetTimesMs.size * 2)
-        val cellOnsets = HashMap<Long, MutableList<Int>>(analysis.onsetTimesMs.size * 2)
+        val cellOnsets = HashMap<Int, MutableList<Int>>(analysis.onsetTimesMs.size * 2)
 
         for (index in analysis.onsetTimesMs.indices) {
             // Round to whole milliseconds before snapping. The master chart stores integer
             // times, and a difficulty derived from it must land in the same cells; without
             // this, an onset within 0.5 ms of a cell boundary can flip cells between the two
             // paths and change which note wins.
-            val time = Math.round(analysis.onsetTimesMs[index]).toDouble()
+            val onsetMs = Math.round(analysis.onsetTimesMs[index]).toInt()
             // Drop out-of-range onsets *before* grouping, exactly like the master does.
             // Filtering after "strongest wins a cell" would let a note past the end of the
             // song win a cell that a valid note also occupies, and then discard the whole cell.
-            val onsetMs = Math.round(time).toInt()
             if (onsetMs < 0 || onsetMs > analysis.durationMs) continue
-            val snapped = offset + Math.round((time - offset) / grid) * grid
-            val quantized = if (abs(time - snapped) <= grid * 0.5) snapped else time
-            val key = Math.round(quantized * 10.0)
-            cellTimes[key] = quantized
-            cellOnsets.getOrPut(key) { ArrayList(2) } += index
+            val cell = RhythmChartDeriver.snapTime(onsetMs, analysis.timing, difficulty.gridDiv)
+            cellOnsets.getOrPut(cell) { ArrayList(2) } += index
         }
 
-        val keys = cellTimes.keys.sorted()
-        val notes = ArrayList<RhythmNote>(keys.size)
+        val notes = ArrayList<RhythmNote>(cellOnsets.size)
         var lastLane = -1
-        for (key in keys) {
-            val timeMs = Math.round(cellTimes.getValue(key)).toInt()
+        for (timeMs in cellOnsets.keys.sorted()) {
             if (timeMs < 0 || timeMs > analysis.durationMs) continue
 
             // Strongest first, ties to the earlier onset — same order the deriver uses.
-            val candidates = cellOnsets.getValue(key).sortedWith(
+            val candidates = cellOnsets.getValue(timeMs).sortedWith(
                 compareByDescending<Int> { analysis.onsetStrength[it] }.thenBy { it }
             )
             val primary = candidates.first()
@@ -501,7 +417,7 @@ internal object RhythmChartGenerator {
         return RhythmChart(
             source = RhythmChart.SOURCE_DSP,
             difficultyName = "DSP ${difficulty.label}",
-            timing = listOf(RhythmTimingPoint(Math.round(analysis.beatOffsetMs).toInt(), analysis.beatMs)),
+            timing = analysis.timing,
             notes = notes,
             durationMs = analysis.durationMs,
         )
@@ -523,23 +439,6 @@ internal object RhythmChartGenerator {
     }
 
     // --- helpers ---------------------------------------------------------------------------
-
-    /**
-     * Log-spaced band edges expressed as FFT bin indices (not Hz) so the bands match the
-     * reference implementation exactly: `[1, 2, 6, 13, 32, 76, 181, 431, 1024]` at 2048.
-     * Re-indexing by frequency would silently change every downstream number.
-     */
-    private fun bandEdges(): IntArray {
-        val highestBin = N_FFT / 2
-        val edges = IntArray(N_BANDS + 1)
-        val logLow = ln(1.0)
-        val logHigh = ln(highestBin.toDouble())
-        for (index in 0..N_BANDS) {
-            val value = exp(logLow + (logHigh - logLow) * index / N_BANDS)
-            edges[index] = Math.round(value).toInt()
-        }
-        return edges.distinct().toIntArray()
-    }
 
     private fun frameToMs(frame: Int, sampleRate: Int): Double =
         (frame.toDouble() * HOP + N_FFT - HOP / 2.0) * 1000.0 / sampleRate
@@ -780,29 +679,10 @@ internal object RhythmChartGenerator {
     }
 
     /** numpy's default linear interpolation, kept identical so fixtures stay comparable. */
-    private fun percentile(values: FloatArray, fraction: Double): Float {
-        if (values.isEmpty()) return 0f
-        val sorted = values.copyOf()
-        Arrays.sort(sorted)
-        return percentileOfSorted(sorted, fraction)
-    }
-
     private fun percentile(values: DoubleArray, fraction: Double): Double {
         if (values.isEmpty()) return 0.0
         val sorted = values.copyOf()
         Arrays.sort(sorted)
-        return percentileOfSorted(sorted, fraction)
-    }
-
-    private fun percentileOfSorted(sorted: FloatArray, fraction: Double): Float {
-        val position = (sorted.size - 1) * fraction.coerceIn(0.0, 1.0)
-        val low = position.toInt()
-        val high = min(low + 1, sorted.size - 1)
-        val weight = position - low
-        return (sorted[low] * (1.0 - weight) + sorted[high] * weight).toFloat()
-    }
-
-    private fun percentileOfSorted(sorted: DoubleArray, fraction: Double): Double {
         val position = (sorted.size - 1) * fraction.coerceIn(0.0, 1.0)
         val low = position.toInt()
         val high = min(low + 1, sorted.size - 1)
@@ -815,12 +695,5 @@ internal object RhythmChartGenerator {
             sorted[size / 2]
         } else {
             (sorted[size / 2 - 1] + sorted[size / 2]) * 0.5f
-        }
-
-    private fun median(sorted: DoubleArray): Double =
-        if (sorted.size % 2 == 1) {
-            sorted[sorted.size / 2]
-        } else {
-            (sorted[sorted.size / 2 - 1] + sorted[sorted.size / 2]) * 0.5
         }
 }
