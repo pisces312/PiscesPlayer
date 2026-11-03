@@ -269,6 +269,44 @@ class RhythmChartGeneratorGoldenTest {
     }
 
     @Test
+    fun onsetNativeDerivationKeepsDetectedTimestampsAndDensityCaps() {
+        for (stem in listOf("dsp-beats-120bpm", "dsp-dense-120bpm")) {
+            val fixture = load(stem)
+            val analysis = analysisOf(fixture)
+            val master = RhythmChartGenerator.renderMaster(analysis, LaneStrategy.BAND_ORDER)
+            val masterTimes = master.notes.map { it.timeMs }.toSet()
+            val counts = LinkedHashMap<DspDifficulty, Int>()
+
+            for (difficulty in DspDifficulty.entries) {
+                val chart = RhythmChartDeriver.deriveOnsetNative(master, difficulty)
+                val label = "$stem ${difficulty.name}"
+                val profile = difficulty.deriveProfile
+                counts[difficulty] = chart.noteCount()
+                val times = chart.notes.map { it.timeMs }.sorted()
+
+                for (time in times) {
+                    assertTrue("$label: $time is not a master onset", time in masterTimes)
+                }
+                for (index in 1 until times.size) {
+                    val gap = times[index] - times[index - 1]
+                    if (gap < profile.minGapMs) {
+                        assertTrue(
+                            "$label: $gap ms is neither a chord nor minGap",
+                            gap <= RhythmChartDeriver.CHORD_WINDOW_MS,
+                        )
+                    }
+                }
+                val cap = profile.maxNotesPerSecond.toInt()
+                for (end in times) {
+                    val inWindow = times.count { it > end - 1000 && it <= end }
+                    assertTrue("$label: $inWindow notes in the 1 s before $end", inWindow <= cap)
+                }
+            }
+            println("ONSET-NATIVE $stem: master=${master.noteCount()} counts=$counts")
+        }
+    }
+
+    @Test
     fun fixtureIsAtLeastTwentySecondsOfAudio() {
         for (stem in listOf("dsp-beats-120bpm", "dsp-dense-120bpm")) {
             val (audio, sampleRate) = RhythmTestAudio.readMonoWav16(resource("$stem.wav"))

@@ -8,18 +8,48 @@ package com.lostf1sh.pixelplayeross.data.rhythm
 import kotlin.math.min
 
 /**
- * Difficulty ladder for the DSP generator. The quantization grid is the difficulty:
- * a coarser grid can only place one note per cell, so it directly caps the note density.
- * Measured on the reference song (261.9 s / 90.84 BPM): 1/1 -> 1.55 NPS (F1 89.9 vs model
- * easy), 1/2 -> 3.03 NPS (F1 93.0 vs model normal), 1/4 -> 5.54 NPS (F1 70.5 vs model hard).
+ * Selection budget for v3 derivation (`RhythmChartDeriver.deriveOnsetNative`).
+ *
+ * A difficulty is a density, not a grid: the deriver only picks which master onsets survive and
+ * never rewrites their timestamps (`docs/rhythm-chart-ladder-plan.md` §17). Both limits apply at
+ * once and the stricter one wins — the 1 s cap alone still lets four notes bunch into 100 ms and
+ * "pay it back" with a silent second, which [minGapMs] forbids.
  */
-enum class DspDifficulty(val gridDiv: Int, val label: String) {
-    EASY(1, "Easy"),
-    NORMAL(2, "Normal"),
-    HARD(4, "Hard"),
+data class DspDeriveProfile(
+    /** Notes allowed inside any 1 s window; a chord costs one slot per note. */
+    val maxNotesPerSecond: Double,
+    /** Minimum gap from the last note of one hit to the first note of the next. */
+    val minGapMs: Double,
+    /** Optional whole-song ceiling, for very long tracks. `null` = no absolute cap. */
+    val maxNotes: Int? = null,
+) {
+    init {
+        require(maxNotesPerSecond > 0.0) { "maxNotesPerSecond must be > 0" }
+        require(minGapMs >= 0.0) { "minGapMs must be >= 0" }
+        require(maxNotes == null || maxNotes > 0) { "maxNotes must be > 0 when set" }
+    }
+}
+
+/**
+ * Difficulty ladder for the DSP generator.
+ *
+ * [deriveProfile] is the v3 definition: a difficulty is a note-density budget with no grid.
+ * [gridDiv] and [slotName] are the v2 quantization grid, kept only for the legacy
+ * `RhythmChartDeriver.derive`/`RhythmChartGenerator.render` path (osu-style grids and the golden
+ * fixtures). Measured v2 densities on the reference song (261.9 s / 90.84 BPM): 1/1 -> 1.55 NPS,
+ * 1/2 -> 3.03 NPS, 1/4 -> 5.54 NPS, which is what the v3 caps below start from.
+ */
+enum class DspDifficulty(
+    val gridDiv: Int,
+    val label: String,
+    val deriveProfile: DspDeriveProfile,
+) {
+    EASY(1, "Easy", DspDeriveProfile(maxNotesPerSecond = 2.0, minGapMs = 300.0)),
+    NORMAL(2, "Normal", DspDeriveProfile(maxNotesPerSecond = 4.0, minGapMs = 150.0)),
+    HARD(4, "Hard", DspDeriveProfile(maxNotesPerSecond = 7.0, minGapMs = 75.0)),
     ;
 
-    /** Beat subdivisions per note slot; 1 = one note per beat. */
+    /** Beat subdivisions per note slot; 1 = one note per beat. v2 only. */
     val slotName: String
         get() = when (this) {
             EASY -> "1/1"

@@ -128,9 +128,9 @@ class RhythmRepository @Inject constructor(
     /**
      * Derive the requested difficulties from the stored master and keep every derivation.
      *
-     * Pure note shuffling: no audio is decoded. [displayNames] carries the localized, timestamped
-     * difficulty name; it is part of the chart body, which is what gives each derivation its own
-     * content hash and therefore its own entry.
+     * Pure note selection: no audio is decoded and no timestamp moves. [displayNames] carries the
+     * localized, timestamped difficulty name; it is part of the chart body, which is what gives
+     * each derivation its own content hash and therefore its own entry.
      */
     suspend fun deriveCharts(
         songId: String,
@@ -144,7 +144,12 @@ class RhythmRepository @Inject constructor(
         if (difficulties.isEmpty()) return emptyList()
         val charts = withContext(Dispatchers.Default) {
             difficulties.map { difficulty ->
-                RhythmChartDeriver.derive(master, difficulty, laneStrategy, maxChord)
+                RhythmChartDeriver.deriveOnsetNative(
+                    master,
+                    difficulty,
+                    laneStrategy,
+                    maxChord,
+                )
                     // Derived charts are stored playable: the first lead-in stays only in the
                     // master, so a difficulty starts exactly where the run has runway.
                     .withoutLeadIn()
@@ -180,7 +185,7 @@ class RhythmRepository @Inject constructor(
         maxChord: Int = 1,
     ): Map<DspDifficulty, Int> = withContext(Dispatchers.Default) {
         difficulties.associateWith {
-            RhythmChartDeriver.derive(master, it, laneStrategy, maxChord)
+            RhythmChartDeriver.deriveOnsetNative(master, it, laneStrategy, maxChord)
                 .withoutLeadIn()
                 .noteCount()
         }
