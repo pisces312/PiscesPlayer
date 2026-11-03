@@ -1067,6 +1067,10 @@ fun PlaylistDetailScreen(
                     showSongInfoBottomSheet = false
                     playerViewModel.sendToast(toastPlayingNext)
                 },
+                onNavigateToRhythmGame = {
+                    navController.navigateSafely(Screen.RhythmSetup.createRoute(currentSong.id))
+                    showSongInfoBottomSheet = false
+                },
                 onAddToPlayList = {
                     showPlaylistBottomSheet = true;
                 },

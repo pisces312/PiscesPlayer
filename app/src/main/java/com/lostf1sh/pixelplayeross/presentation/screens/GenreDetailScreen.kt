@@ -467,6 +467,13 @@ fun GenreDetailScreen(
                             showSongOptionsSheet = null
                             playerViewModel.sendToast(toastPlayingNext)
                         },
+                        onNavigateToRhythmGame = {
+                            navController.navigateSafely(
+                                com.lostf1sh.pixelplayeross.presentation.navigation.Screen
+                                    .RhythmSetup.createRoute(song.id)
+                            )
+                            showSongOptionsSheet = null
+                        },
                         onAddToPlayList = {
                             showPlaylistBottomSheet = true
                         },

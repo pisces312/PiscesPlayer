@@ -73,6 +73,7 @@ fun DailyMixSection(
     onNavigateToArtist: (Song) -> Unit = {},
     onNavigateToGenre: (Song) -> Unit = {},
     onNavigateToYear: (Song) -> Unit = {},
+    onNavigateToRhythmGame: ((Song) -> Unit)? = null,
 ) {
     val playlistViewModel: PlaylistViewModel = hiltViewModel()
     val favoriteSongIds by playerViewModel.favoriteSongIds.collectAsStateWithLifecycle()
@@ -129,6 +130,7 @@ fun DailyMixSection(
                 playerViewModel.addSongNextToQueue(song)
                 showSongInfoSheet = false
             },
+            onNavigateToRhythmGame = onNavigateToRhythmGame?.let { navigate -> { navigate(song) } },
             onAddToPlayList = {
                 showPlaylistBottomSheet = true
             },

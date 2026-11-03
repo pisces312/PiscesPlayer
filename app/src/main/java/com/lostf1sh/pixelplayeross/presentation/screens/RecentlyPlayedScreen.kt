@@ -306,6 +306,10 @@ fun RecentlyPlayedScreen(
                     playerViewModel.addSongNextToQueue(song)
                     showSongInfoBottomSheet = false
                 },
+                onNavigateToRhythmGame = {
+                    navController.navigateSafely(Screen.RhythmSetup.createRoute(song.id))
+                    showSongInfoBottomSheet = false
+                },
                 onAddToPlayList = {
                     showPlaylistBottomSheet = true
                 },

@@ -769,7 +769,8 @@ fun UnifiedPlayerSheetV2(
                 onLaunchSaveQueueOverlay = sheetActionHandlers.onLaunchSaveQueueOverlay,
                 onNavigateToAlbum = sheetActionHandlers.onNavigateToAlbum,
                 onNavigateToArtist = sheetActionHandlers.onNavigateToArtist,
-                onNavigateToGenre = sheetActionHandlers.onNavigateToGenre
+                onNavigateToGenre = sheetActionHandlers.onNavigateToGenre,
+                onNavigateToRhythmGame = sheetActionHandlers.onNavigateToRhythmGame
             )
 
             UnifiedPlayerAiQaLayer(

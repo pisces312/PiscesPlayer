@@ -243,6 +243,10 @@ fun YearDetailScreen(
             onPlaySong = { playerViewModel.playSongs(songs.toImmutableList(), infoSong, queueName) },
             onAddToQueue = { playerViewModel.addSongToQueue(infoSong) },
             onAddNextToQueue = { playerViewModel.addSongNextToQueue(infoSong) },
+            onNavigateToRhythmGame = {
+                navController.navigateSafely(Screen.RhythmSetup.createRoute(infoSong.id))
+                showSongInfoBottomSheet = false
+            },
             onAddToPlayList = { showPlaylistBottomSheet = true },
             onDeleteFromDevice = { activity, song, onResult ->
                 playerViewModel.deleteFromDevice(activity, song, onResult)

@@ -25,7 +25,8 @@ internal data class SheetActionHandlers(
     val onLaunchSaveQueueOverlay: (List<Song>, String, (String, Set<String>) -> Unit) -> Unit,
     val onNavigateToAlbum: (Song) -> Unit,
     val onNavigateToArtist: (Song) -> Unit,
-    val onNavigateToGenre: (Song) -> Unit
+    val onNavigateToGenre: (Song) -> Unit,
+    val onNavigateToRhythmGame: (Song) -> Unit
 )
 
 @OptIn(UnstableApi::class)
@@ -124,6 +125,18 @@ internal fun rememberSheetActionHandlers(
         }
     }
 
+    val onNavigateToRhythmGame: (Song) -> Unit = remember(scope, navController) {
+        { song: Song ->
+            scope.launch {
+                sheetMotionControllerState.value.snapCollapsed(sheetCollapsedTargetYState.value)
+            }
+            playerViewModelState.value.collapsePlayerSheet()
+            queueSheetControllerState.value.animate(false)
+            sheetModalOverlayControllerState.value.updateSelectedSongForInfo(null)
+            navController.navigateSafely(Screen.RhythmSetup.createRoute(song.id))
+        }
+    }
+
     return SheetActionHandlers(
         openQueueSheet = openQueueSheet,
         animateQueueSheet = animateQueueSheet,
@@ -134,6 +147,7 @@ internal fun rememberSheetActionHandlers(
         onLaunchSaveQueueOverlay = onLaunchSaveQueueOverlay,
         onNavigateToAlbum = onNavigateToAlbum,
         onNavigateToArtist = onNavigateToArtist,
-        onNavigateToGenre = onNavigateToGenre
+        onNavigateToGenre = onNavigateToGenre,
+        onNavigateToRhythmGame = onNavigateToRhythmGame
     )
 }

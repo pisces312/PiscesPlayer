@@ -155,6 +155,10 @@ fun DailyMixScreen(
                 playerViewModel.addSongNextToQueue(song)
                 showSongInfoSheet = false
             },
+            onNavigateToRhythmGame = {
+                navController.navigateSafely(Screen.RhythmSetup.createRoute(song.id))
+                showSongInfoSheet = false
+            },
             onAddToPlayList = {
                 showPlaylistBottomSheet = true;
             },

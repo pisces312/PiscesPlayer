@@ -491,6 +491,9 @@ fun HomeScreen(
                                     navController.navigateSafely(Screen.YearDetail.createRoute(it))
                                 }
                             },
+                            onNavigateToRhythmGame = { song ->
+                                navController.navigateSafely(Screen.RhythmSetup.createRoute(song.id))
+                            },
                             playerViewModel = playerViewModel
                         )
                     }

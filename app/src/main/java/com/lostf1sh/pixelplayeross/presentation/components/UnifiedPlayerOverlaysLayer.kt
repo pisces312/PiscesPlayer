@@ -175,7 +175,8 @@ internal fun UnifiedPlayerSongInfoLayer(
     onDismissSongInfo: () -> Unit,
     onNavigateToAlbum: (Song) -> Unit,
     onNavigateToArtist: (Song) -> Unit,
-    onNavigateToGenre: (Song) -> Unit
+    onNavigateToGenre: (Song) -> Unit,
+    onNavigateToRhythmGame: (Song) -> Unit
 ) {
     selectedSongForInfo?.let { staticSong ->
         val context = LocalContext.current
@@ -220,6 +221,7 @@ internal fun UnifiedPlayerSongInfoLayer(
                     onDismissSongInfo()
                     Toast.makeText(context, context.getString(R.string.toast_playing_next), Toast.LENGTH_SHORT).show()
                 },
+                onNavigateToRhythmGame = { onNavigateToRhythmGame(liveSong) },
                 onAddToPlayList = {
                     showPlaylistBottomSheet = true
                 },
@@ -296,7 +298,8 @@ internal fun UnifiedPlayerQueueAndSongInfoHost(
     onLaunchSaveQueueOverlay: (List<Song>, String, (String, Set<String>) -> Unit) -> Unit,
     onNavigateToAlbum: (Song) -> Unit,
     onNavigateToArtist: (Song) -> Unit,
-    onNavigateToGenre: (Song) -> Unit
+    onNavigateToGenre: (Song) -> Unit,
+    onNavigateToRhythmGame: (Song) -> Unit
 ) {
     if (!shouldRenderHost) return
 
@@ -438,7 +441,8 @@ internal fun UnifiedPlayerQueueAndSongInfoHost(
                 onDismissSongInfo = { onSelectedSongForInfoChange(null) },
                 onNavigateToAlbum = onNavigateToAlbum,
                 onNavigateToArtist = onNavigateToArtist,
-                onNavigateToGenre = onNavigateToGenre
+                onNavigateToGenre = onNavigateToGenre,
+                onNavigateToRhythmGame = onNavigateToRhythmGame
             )
         }
     }
