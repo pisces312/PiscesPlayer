@@ -44,6 +44,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.lostf1sh.pixelplayeross.R
 import com.lostf1sh.pixelplayeross.data.rhythm.RhythmAnalysisParams
+import com.lostf1sh.pixelplayeross.presentation.components.rememberModalSheetState
 
 private val LOUDNESS_CHOICES = listOf<Pair<Int?, Int>>(
     null to R.string.rhythm_generate_loudness_off,
@@ -86,7 +87,13 @@ internal fun RhythmGenerateSheet(
     val bpmValue = bpmText.trim().takeIf { it.isNotEmpty() }?.toDoubleOrNull()
     val bpmInvalid = bpmText.isNotBlank() && (bpmValue == null || bpmValue !in 60.0..200.0)
 
-    ModalBottomSheet(onDismissRequest = { if (!generating) onDismiss() }) {
+    // Open at full height: at partial height the generate button sits on the visible edge
+    // and the settings look cut off.
+    val sheetState = rememberModalSheetState(skipPartiallyExpanded = true)
+    ModalBottomSheet(
+        onDismissRequest = { if (!generating) onDismiss() },
+        sheetState = sheetState,
+    ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()

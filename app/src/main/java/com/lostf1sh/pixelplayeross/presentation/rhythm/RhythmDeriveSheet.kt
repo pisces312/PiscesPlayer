@@ -42,6 +42,7 @@ import com.lostf1sh.pixelplayeross.data.rhythm.LaneStrategy
 import com.lostf1sh.pixelplayeross.data.rhythm.OnsetSelection
 import com.lostf1sh.pixelplayeross.data.rhythm.RhythmChartDeriver
 import com.lostf1sh.pixelplayeross.data.rhythm.RhythmDeriveMode
+import com.lostf1sh.pixelplayeross.presentation.components.rememberModalSheetState
 
 /** Two notes per cell by default: audible variety without turning every beat into a chord. */
 private const val DEFAULT_CHORD = 2
@@ -91,7 +92,13 @@ internal fun RhythmDeriveSheet(
         OnsetSelection.MELODY_FIRST to stringResource(R.string.rhythm_derive_selection_melody),
     )
 
-    ModalBottomSheet(onDismissRequest = { if (!deriving) onDismiss() }) {
+    // Open at full height: at partial height the derive button sits on the visible edge and
+    // the settings look cut off.
+    val sheetState = rememberModalSheetState(skipPartiallyExpanded = true)
+    ModalBottomSheet(
+        onDismissRequest = { if (!deriving) onDismiss() },
+        sheetState = sheetState,
+    ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
