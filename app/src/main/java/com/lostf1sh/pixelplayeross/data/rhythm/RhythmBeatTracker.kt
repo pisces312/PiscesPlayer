@@ -34,9 +34,17 @@ internal object RhythmBeatTracker {
     private const val FIT_RESIDUAL_MS = 45.0
     private const val FIT_ITERATIONS = 4
 
-    /** Intro lock-in: how many consecutive intervals must match the whole-song tempo. */
-    private const val LOCK_IN_INTERVALS = 8
-    private const val LOCK_IN_TOLERANCE = 0.03
+    /**
+     * Onset evidence within this far of a lattice line votes for that line's phase. Tight on
+     * purpose: the beat's kick/snare attacks are sharp and land dead on the line, while the
+     * offbeat texture (soft bass, smeared hats) spreads out and loses the squared-strength
+     * vote. Measured on Far Away from Home: ±50 ms / squared strength gives the beat phase
+     * twice the score of the offbeat phase.
+     */
+    private const val PHASE_VOTE_WINDOW_MS = 50.0
+
+    /** How much the offbeat phase must outscore the default before the lattice flips. */
+    private const val PHASE_VOTE_MARGIN = 1.2
 
     /** How far the fitted median beat may sit from the requested rate before it is rejected. */
     private const val MAX_RATE_DEVIATION = 0.05
@@ -45,6 +53,8 @@ internal object RhythmBeatTracker {
         val timing: List<RhythmTimingPoint>,
         val trackedBeats: Int,
         val keptBeats: Int,
+        /** The trimmed tracked beats, exposed for diagnostics (the auto-play tool). */
+        val tracked: DoubleArray = DoubleArray(0),
     )
 
     /**
@@ -58,6 +68,8 @@ internal object RhythmBeatTracker {
         chartBpm: Double,
         durationMs: Int,
         extraOffsetMs: Int = 0,
+        onsetTimesMs: DoubleArray = DoubleArray(0),
+        onsetStrengths: FloatArray = FloatArray(0),
         onProgress: (Float) -> Unit = {},
         isCancelled: () -> Boolean = { false },
     ): Result {
@@ -73,13 +85,13 @@ internal object RhythmBeatTracker {
         val kept = trimSilentTail(tracked, pcmMono, sampleRate)
         val nominalBeatMs = 60_000.0 / chartBpm
 
-        val fitted = piecewiseTiming(kept, durationMs).map {
+        val fitted = piecewiseTiming(kept, durationMs, onsetTimesMs, onsetStrengths).map {
             RhythmTimingPoint(it.timeMs + extraOffsetMs, it.beatMs)
         }
         if (fitted.size >= 2) {
             val medianBeatMs = median(fitted.map { it.beatMs }.sorted().toDoubleArray())
             if (abs(medianBeatMs - nominalBeatMs) <= MAX_RATE_DEVIATION * nominalBeatMs) {
-                return Result(fitted, tracked.size, kept.size)
+                return Result(fitted, tracked.size, kept.size, kept)
             }
         }
 
@@ -89,6 +101,7 @@ internal object RhythmBeatTracker {
             timing = listOf(RhythmTimingPoint(Math.round(phase).toInt() + extraOffsetMs, nominalBeatMs)),
             trackedBeats = tracked.size,
             keptBeats = kept.size,
+            tracked = kept,
         )
     }
 
@@ -225,69 +238,95 @@ internal object RhythmBeatTracker {
     }
 
     /**
-     * One timing anchor per tracked beat, from a trimmed local-linear fit in beat-index space
-     * (`time = slope * index + intercept`). Tricube weights centred on the anchor keep a
-     * distant beat from dragging the local tempo, and trimming residual outliers keeps a single
-     * misplaced beat from bending the grid. Each anchor's `beatMs` is half the fitted slope
-     * (chart beat = half a music beat).
+     * One timing anchor per tracked beat, all on one lattice. Anchors are beat lines, so the
+     * grid stays continuous: the boundary beat is both the last cell of one segment and the
+     * first cell of the next. The chart beat is half a tracked beat.
+     *
+     * The lattice is the whole design. The trimmed local-linear fits only describe their own
+     * window: one jittery stretch (a single long tracked gap is enough) drags the local slope
+     * and the intercepts with it, and the grid walks off the beat — the notes feel uneven
+     * first, then land half a beat out ("off-beat") once the walk passes one. Measured on Far
+     * Away from Home: a 1459 ms tracked gap at ~120 s stretched the anchors to 1350-1396 ms
+     * apart, and the DP chain re-locked onto the offbeat onsets from there on.
+     *
+     * So: the consensus period (median tracked interval) fixes the spacing — even notes, no
+     * drift; the fits only vote on the lattice's origin and the onset evidence arbitrates the
+     * two half-a-chart-beat candidates (see [PHASE_VOTE_WINDOW_MS]); every anchor then sits on
+     * that one lattice, so a chain slip or a pulled fit can not bend the grid anywhere. The
+     * true beat length is constant (validated in tools/rhythm-lab).
      */
     internal fun piecewiseTiming(
         beatTimesMs: DoubleArray,
         durationMs: Int,
+        evidenceTimesMs: DoubleArray = DoubleArray(0),
+        evidenceStrengths: FloatArray = FloatArray(0),
     ): List<RhythmTimingPoint> {
         if (beatTimesMs.size < 2) return emptyList()
-        // Intro fix: the first tracked beats can lock onto a wrong rate when the intro's
-        // evidence is too thin. Beats before the lock-in point are rebuilt from the lock-in
-        // anchor at the whole-song median period instead of trusting their own fits. The
-        // whole-song rate beat the lock-in fit's local rate in
-        // tools/rhythm-lab/experiments/intro_fix.py, and a clean intro finds lock = 0 and is
-        // untouched.
-        val lock = lockInIndex(beatTimesMs)
-        val introPeriod = medianPeriod(beatTimesMs)
-        val introOrigin = if (lock >= 1) fitAt(beatTimesMs, lock)?.intercept else null
+        val consensus = medianPeriod(beatTimesMs)
+        if (consensus <= 0.0) return emptyList()
+        val chartBeatMs = consensus / 2.0
+
+        // Each fit votes on the lattice origin through its intercept minus the anchor's slot.
+        val offsets = ArrayList<Double>(beatTimesMs.size)
+        for (anchor in beatTimesMs.indices) {
+            val fit = fitAt(beatTimesMs, anchor) ?: continue
+            if (!fit.slope.isFinite() || fit.slope <= 0.0) continue
+            offsets += fit.intercept - anchor * consensus
+        }
+        if (offsets.isEmpty()) return emptyList()
+        offsets.sort()
+        // The votes cluster into at most two camps half a chart beat apart (the beat and the
+        // offbeat the DP chain may live on): the quartile centres are the candidates. A plain
+        // median would land between the camps on an even split and phase the grid a quarter
+        // beat out.
+        val quarter = (offsets.size - 1) / 4
+        val candidates = doubleArrayOf(offsets[quarter], offsets[offsets.size - 1 - quarter])
+        val hasEvidence = evidenceTimesMs.isNotEmpty() &&
+            evidenceStrengths.size == evidenceTimesMs.size
+        var base = candidates[0]
+        var bestScore = Double.NEGATIVE_INFINITY
+        for (candidate in candidates) {
+            val score = if (hasEvidence) {
+                phaseScore(candidate, evidenceTimesMs, evidenceStrengths, chartBeatMs)
+            } else {
+                // No onset evidence (unit tests, synthetic beats): the larger camp wins.
+                offsets.count { abs(it - candidate) <= chartBeatMs / 4.0 }.toDouble()
+            }
+            if (score > bestScore) {
+                bestScore = score
+                base = candidate
+            }
+        }
+
         val timing = ArrayList<RhythmTimingPoint>(beatTimesMs.size)
         var lastAnchorMs = Double.NEGATIVE_INFINITY
         for (anchor in beatTimesMs.indices) {
-            val anchorMs: Double
-            val beatMs: Double
-            if (introOrigin != null && anchor < lock) {
-                anchorMs = introOrigin + (anchor - lock) * introPeriod
-                beatMs = introPeriod / 2.0
-            } else {
-                val fit = fitAt(beatTimesMs, anchor) ?: continue
-                if (!fit.slope.isFinite() || fit.slope <= 0.0) continue
-                anchorMs = fit.intercept
-                beatMs = fit.slope / 2.0
-            }
+            val anchorMs = base + anchor * consensus
             if (anchorMs <= 0.0 || anchorMs >= durationMs) continue
             if (anchorMs <= lastAnchorMs + 1.0) continue
             lastAnchorMs = anchorMs
-            timing += RhythmTimingPoint(Math.round(anchorMs).toInt(), beatMs)
+            timing += RhythmTimingPoint(Math.round(anchorMs).toInt(), chartBeatMs)
         }
         return timing
     }
 
-    /**
-     * First beat whose next [LOCK_IN_INTERVALS] intervals all match the whole-song median
-     * period within [LOCK_IN_TOLERANCE]; 0 means the intro already tracks the song's tempo.
-     * The whole-song median is robust to a corrupted intro of a few beats.
-     */
-    private fun lockInIndex(beatTimesMs: DoubleArray): Int {
-        if (beatTimesMs.size < LOCK_IN_INTERVALS + 1) return 0
-        val intervals = DoubleArray(beatTimesMs.size - 1) { beatTimesMs[it + 1] - beatTimesMs[it] }
-        val period = medianPeriod(beatTimesMs)
-        if (period <= 0.0) return 0
-        for (index in 0..intervals.size - LOCK_IN_INTERVALS) {
-            var run = true
-            for (offset in 0 until LOCK_IN_INTERVALS) {
-                if (abs(intervals[index + offset] - period) > LOCK_IN_TOLERANCE * period) {
-                    run = false
-                    break
-                }
+    /** Squared onset strength within [PHASE_VOTE_WINDOW_MS] of a lattice line at [origin]. */
+    private fun phaseScore(
+        origin: Double,
+        evidenceTimesMs: DoubleArray,
+        evidenceStrengths: FloatArray,
+        chartBeatMs: Double,
+    ): Double {
+        var score = 0.0
+        for (index in evidenceTimesMs.indices) {
+            val phase = ((evidenceTimesMs[index] - origin) % chartBeatMs + chartBeatMs) % chartBeatMs
+            val distance = min(phase, chartBeatMs - phase)
+            if (distance <= PHASE_VOTE_WINDOW_MS) {
+                val strength = evidenceStrengths[index].toDouble()
+                score += strength * strength
             }
-            if (run) return index
         }
-        return 0
+        return score
     }
 
     private fun medianPeriod(beatTimesMs: DoubleArray): Double {

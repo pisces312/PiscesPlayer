@@ -205,12 +205,16 @@ internal object RhythmChartGenerator {
         val beatMs = 60_000.0 / usedBpm
 
         // --- 6. beat tracking: the piecewise grid every derived difficulty snaps to ---
+        // The peak list is the phase evidence for the grid's beat-vs-offbeat arbitration.
+        val evidenceTimesMs = DoubleArray(onsetCount) { frameToMs(onsetFrames[it], sampleRate) }
         val tracking = RhythmBeatTracker.estimateTiming(
             pcmMono = pcmMono,
             sampleRate = sampleRate,
             chartBpm = usedBpm,
             durationMs = totalMs,
             extraOffsetMs = params.extraOffsetMs,
+            onsetTimesMs = evidenceTimesMs,
+            onsetStrengths = onsetStrength.copyOf(onsetCount),
             onProgress = { onProgress(0.93f + 0.03f * it) },
             isCancelled = isCancelled,
         )

@@ -93,6 +93,37 @@ class RhythmBeatTrackerTest {
     }
 
     @Test
+    fun midSongChainSlipStaysOnTheBeatLattice() {
+        // The DP chain can re-lock onto the offbeat after a jittery stretch and stay there
+        // (Far Away from Home). Beats on a 1000 ms lattice slip a quarter period from beat 8
+        // on — the slipped camp is even the majority, so only the onset evidence can keep the
+        // grid on the beat.
+        val beats = DoubleArray(20) { it * 1000.0 + if (it < 8) 0.0 else 250.0 }
+        // Strong onsets on the true beat, weak ones on the slipped chain's offbeat.
+        val evidenceTimes = DoubleArray(80) { it * 250.0 }
+        val evidenceStrengths = FloatArray(80) { if (it % 2 == 0) 1.0f else 0.3f }
+        val timing = RhythmBeatTracker.piecewiseTiming(
+            beatTimesMs = beats,
+            durationMs = 30_000,
+            evidenceTimesMs = evidenceTimes,
+            evidenceStrengths = evidenceStrengths,
+        )
+
+        assertTrue("anchors ${timing.size}", timing.size >= 15)
+        for (point in timing) {
+            assertTrue("beatMs ${point.beatMs}", abs(point.beatMs - 500.0) <= 2.0)
+            assertTrue(
+                "anchor ${point.timeMs} followed the slipped chain",
+                abs(point.timeMs % 1000.0) <= 2.0,
+            )
+        }
+        for (index in 0 until timing.size - 1) {
+            val spacing = timing[index + 1].timeMs - timing[index].timeMs
+            assertTrue("spacing at anchor $index is $spacing", abs(spacing - 1000) <= 2.0)
+        }
+    }
+
+    @Test
     fun introBeforeLockInIsRebuiltAtTheSongTempo() {
         // First five beats tracked at a corrupted 940 ms rate, the rest at 1000 ms. The
         // anchors before the lock-in point must be rebuilt on the whole-song period instead

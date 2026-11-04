@@ -68,6 +68,9 @@ class RhythmAutoPlayToolTest {
         )
         println(RhythmAutoPlayTool.formatTracking(analysis))
         println(RhythmAutoPlayTool.formatStrongPhase(analysis, durationMs))
+        RhythmBeatTracker.estimateTiming(pcm, sampleRate, analysis.usedBpm, durationMs).let {
+            println(RhythmAutoPlayTool.formatTracked(it.tracked, durationMs))
+        }
 
         val pulse = osu?.let {
             val segments = RhythmAutoPlayTool.parseOsuPulse(it)
@@ -135,6 +138,16 @@ class RhythmAutoPlayToolTest {
             val lines = RhythmAutoPlayTool.gridLines(analysis.timing, durationMs)
             File(path).writeText(lines.joinToString("\n") { "%.1f".format(it) })
             println("grid dump: ${lines.size} lines -> $path")
+            RhythmBeatTracker.estimateTiming(pcm, sampleRate, analysis.usedBpm, durationMs).let {
+                File("$path.tracked").writeText(it.tracked.joinToString("\n") { v -> "%.1f".format(v) })
+                println("tracked dump: ${it.tracked.size} beats -> $path.tracked")
+            }
+            File("$path.onsets").writeText(
+                analysis.onsetTimesMs.indices.joinToString("\n") { index ->
+                    "%.1f %.4f".format(analysis.onsetTimesMs[index], analysis.onsetStrength[index])
+                },
+            )
+            println("onset dump: ${analysis.onsetTimesMs.size} onsets -> $path.onsets")
         }
 
         for (mode in modes) {
