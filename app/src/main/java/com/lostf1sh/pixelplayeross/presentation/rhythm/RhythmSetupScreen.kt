@@ -179,6 +179,7 @@ fun RhythmSetupScreen(
     val modeLabels = mapOf(
         RhythmDeriveMode.GRID to stringResource(R.string.rhythm_derive_mode_grid),
         RhythmDeriveMode.ONSET to stringResource(R.string.rhythm_derive_mode_onset),
+        RhythmDeriveMode.CLASSIC to stringResource(R.string.rhythm_derive_mode_classic),
     )
 
     suspend fun reload() {

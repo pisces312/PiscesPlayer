@@ -8,13 +8,17 @@ package com.lostf1sh.pixelplayeross.presentation.rhythm
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -25,6 +29,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -34,6 +39,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.lostf1sh.pixelplayeross.R
@@ -53,7 +59,11 @@ private const val DEFAULT_CHORD = 2
  * Everything here is instant because deriving is a pure function over notes: the note counts are
  * computed live, before the user commits, so "about N notes" is not a guess.
  */
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
+@OptIn(
+    ExperimentalMaterial3Api::class,
+    ExperimentalMaterial3ExpressiveApi::class,
+    ExperimentalLayoutApi::class,
+)
 @Composable
 internal fun RhythmDeriveSheet(
     masterNoteCount: Int,
@@ -69,14 +79,17 @@ internal fun RhythmDeriveSheet(
     onDerive: (List<DspDifficulty>, Set<RhythmDeriveMode>, LaneStrategy, Int, OnsetSelection) -> Unit,
 ) {
     var selected by remember { mutableStateOf(DspDifficulty.entries.toSet()) }
-    // Both modes start selected: one pass then yields grid and onset versions of every chosen
-    // difficulty, which is what makes the two directly comparable while testing.
+    // Every mode starts selected: one pass then yields all versions of every chosen
+    // difficulty, which is what makes them directly comparable while testing.
     var modes by remember { mutableStateOf(RhythmDeriveMode.entries.toSet()) }
     // Melody first won the listening A/B (tools/rhythm-lab/docs/2026-11-03-melody-selection-comparison.md).
     var selection by remember { mutableStateOf(OnsetSelection.MELODY_FIRST) }
     var strategy by remember { mutableStateOf(LaneStrategy.BAND_ORDER) }
     var maxChord by remember { mutableIntStateOf(DEFAULT_CHORD) }
     var estimates by remember { mutableStateOf<Map<Pair<DspDifficulty, RhythmDeriveMode>, Int>?>(null) }
+    // Which "(i)" dialog is open, if any.
+    var infoMode by remember { mutableStateOf<RhythmDeriveMode?>(null) }
+    var infoSelection by remember { mutableStateOf<OnsetSelection?>(null) }
 
     LaunchedEffect(strategy, maxChord, modes, selection) {
         estimates = null
@@ -86,6 +99,7 @@ internal fun RhythmDeriveSheet(
     val modeLabels = mapOf(
         RhythmDeriveMode.GRID to stringResource(R.string.rhythm_derive_mode_grid),
         RhythmDeriveMode.ONSET to stringResource(R.string.rhythm_derive_mode_onset),
+        RhythmDeriveMode.CLASSIC to stringResource(R.string.rhythm_derive_mode_classic),
     )
     val selectionLabels = mapOf(
         OnsetSelection.BALANCED to stringResource(R.string.rhythm_derive_selection_balanced),
@@ -126,7 +140,10 @@ internal fun RhythmDeriveSheet(
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.primary,
             )
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            FlowRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
                 RhythmDeriveMode.entries.forEach { mode ->
                     FilterChip(
                         selected = mode in modes,
@@ -135,6 +152,7 @@ internal fun RhythmDeriveSheet(
                         },
                         label = { Text(modeLabels.getValue(mode)) },
                     )
+                    InfoButton(onClick = { infoMode = mode })
                 }
             }
             Text(
@@ -156,13 +174,17 @@ internal fun RhythmDeriveSheet(
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.primary,
                 )
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                FlowRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
                     OnsetSelection.entries.forEach { option ->
                         FilterChip(
                             selected = option == selection,
                             onClick = { selection = option },
                             label = { Text(selectionLabels.getValue(option)) },
                         )
+                        InfoButton(onClick = { infoSelection = option })
                     }
                 }
                 Text(
@@ -276,6 +298,66 @@ internal fun RhythmDeriveSheet(
             }
         }
     }
+
+    infoMode?.let { mode ->
+        DeriveInfoDialog(
+            title = modeLabels.getValue(mode),
+            body = when (mode) {
+                RhythmDeriveMode.GRID -> stringResource(R.string.rhythm_derive_info_grid)
+                RhythmDeriveMode.ONSET -> stringResource(R.string.rhythm_derive_info_onset)
+                RhythmDeriveMode.CLASSIC -> stringResource(R.string.rhythm_derive_info_classic)
+            },
+            onDismiss = { infoMode = null },
+        )
+    }
+    infoSelection?.let { option ->
+        DeriveInfoDialog(
+            title = selectionLabels.getValue(option),
+            body = when (option) {
+                OnsetSelection.BALANCED -> stringResource(R.string.rhythm_derive_info_balanced)
+                OnsetSelection.MELODY_FIRST -> stringResource(R.string.rhythm_derive_info_melody)
+            },
+            onDismiss = { infoSelection = null },
+        )
+    }
+}
+
+/** The little "(i)" button that sits after a chart-generation name and opens its description. */
+@Composable
+private fun InfoButton(onClick: () -> Unit) {
+    Text(
+        text = "(i)",
+        style = MaterialTheme.typography.labelMedium,
+        color = MaterialTheme.colorScheme.primary,
+        modifier = Modifier
+            .clip(CircleShape)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 6.dp, vertical = 6.dp),
+    )
+}
+
+@Composable
+private fun DeriveInfoDialog(
+    title: String,
+    body: String,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(title) },
+        text = {
+            Text(
+                text = body,
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.rhythm_derive_info_close))
+            }
+        },
+    )
 }
 
 @Composable
