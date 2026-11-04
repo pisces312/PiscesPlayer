@@ -65,7 +65,7 @@ enum class DspDifficulty(
 /**
  * How a derived difficulty turns the master's onsets into notes.
  *
- * Both modes read the same master: neither re-decodes the song.
+ * All modes read the same master: none of them re-decodes the song.
  */
 enum class RhythmDeriveMode {
     /**
@@ -79,6 +79,14 @@ enum class RhythmDeriveMode {
      * musical: strong percussion tends to win the density budget and melody phrases thin out.
      */
     ONSET,
+
+    /**
+     * Frozen replica of the 0.4.3-pisces.1-era default (`RhythmClassicGridDeriver`): one
+     * fixed-rate beat grid for the whole song, quantized the way the original build did it.
+     * Independent implementation on purpose — the other modes may keep evolving, this one
+     * must not move.
+     */
+    CLASSIC,
 }
 
 /** How [RhythmDeriveMode.ONSET] spends its density budget across voice classes. */

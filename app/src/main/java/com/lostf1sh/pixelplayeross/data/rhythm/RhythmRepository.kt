@@ -128,9 +128,10 @@ class RhythmRepository @Inject constructor(
     /**
      * Derive the requested difficulties from the stored master and keep every derivation.
      *
-     * Both modes are pure functions over the master: no audio is decoded. [RhythmDeriveMode.GRID]
+     * All modes are pure functions over the master: no audio is decoded. [RhythmDeriveMode.GRID]
      * snaps onto the master's tracked piecewise grid ([RhythmTimingRefiner] only for a legacy
-     * single-point master); [RhythmDeriveMode.ONSET] keeps the onset timestamps. [displayNames]
+     * single-point master); [RhythmDeriveMode.ONSET] keeps the onset timestamps;
+     * [RhythmDeriveMode.CLASSIC] is the frozen 0.4.3-pisces.1-era quantization. [displayNames]
      * carries the localized, timestamped difficulty and mode names; it is part of the chart body,
      * which is what gives each derivation its own content hash and therefore its own entry.
      */
@@ -229,6 +230,14 @@ class RhythmRepository @Inject constructor(
             laneStrategy = laneStrategy,
             maxChord = maxChord,
             selection = onsetSelection,
+        )
+        // Frozen replica of the 0.4.3-pisces.1-era grid quantization. Self-contained on
+        // purpose: it reads only the master, so nothing the live paths do can move it.
+        RhythmDeriveMode.CLASSIC -> RhythmClassicGridDeriver.derive(
+            master = master,
+            difficulty = difficulty,
+            laneStrategy = laneStrategy,
+            maxChord = maxChord,
         )
     }
 
