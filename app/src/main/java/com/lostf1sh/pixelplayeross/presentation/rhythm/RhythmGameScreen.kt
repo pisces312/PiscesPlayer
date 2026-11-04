@@ -56,12 +56,15 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.lostf1sh.pixelplayeross.R
 import com.lostf1sh.pixelplayeross.data.offline.CloudOfflineRepository
+import com.lostf1sh.pixelplayeross.data.rhythm.DspDifficulty
 import com.lostf1sh.pixelplayeross.data.rhythm.RhythmAudioClock
+import com.lostf1sh.pixelplayeross.data.rhythm.RhythmChart
 import com.lostf1sh.pixelplayeross.data.rhythm.RhythmChartSettings
 import com.lostf1sh.pixelplayeross.data.rhythm.RhythmDriftKind
 import com.lostf1sh.pixelplayeross.data.rhythm.RhythmDriftRecorder
 import com.lostf1sh.pixelplayeross.data.rhythm.RhythmDriftReport
 import com.lostf1sh.pixelplayeross.data.rhythm.RhythmPcmDecoder
+import com.lostf1sh.pixelplayeross.data.rhythm.RhythmPlayLogic
 import com.lostf1sh.pixelplayeross.data.rhythm.RhythmRepository
 import java.io.File
 import java.text.SimpleDateFormat
@@ -94,6 +97,7 @@ private val DANGER_TEXT = Color(0xFFFF8A9B)
 fun RhythmGameScreen(
     songId: String,
     chartId: String,
+    playLogic: String? = null,
     playerViewModel: com.lostf1sh.pixelplayeross.presentation.viewmodel.PlayerViewModel,
     onExit: () -> Unit,
 ) {
@@ -130,6 +134,18 @@ fun RhythmGameScreen(
     val cloudUnavailableMessage = stringResource(R.string.rhythm_cloud_not_supported)
     val chartMissingMessage = stringResource(R.string.rhythm_chart_missing)
     val songMissingMessage = stringResource(R.string.rhythm_song_missing)
+
+    // A/B placement logic (the game-start dialog): the run re-bakes the note times in memory,
+    // and the label is appended to the run title so the result screen records which logic won.
+    val logic = remember(playLogic) {
+        RhythmPlayLogic.from(playLogic) ?: RhythmPlayLogic.AS_STORED
+    }
+    val logicLabel = when (logic) {
+        RhythmPlayLogic.AS_STORED -> null
+        RhythmPlayLogic.ADAPTIVE_GRID -> stringResource(R.string.rhythm_play_logic_adaptive)
+        RhythmPlayLogic.OSU_STYLE -> stringResource(R.string.rhythm_play_logic_osu)
+        RhythmPlayLogic.LEGACY_REFINE -> stringResource(R.string.rhythm_play_logic_legacy)
+    }
 
     fun presentJudgement(event: RhythmJudgementEvent?) {
         if (event == null || event.judgement == RhythmJudgement.EMPTY) return
@@ -179,8 +195,27 @@ fun RhythmGameScreen(
     LaunchedEffect(songId, chartId) {
         withContext(Dispatchers.IO) {
             try {
-                val chart = repository.loadChart(chartId)
+                val stored = repository.loadChart(chartId)
                     ?: error(chartMissingMessage)
+                val chart = if (logic != RhythmPlayLogic.AS_STORED &&
+                    stored.source == RhythmChart.SOURCE_DSP
+                ) {
+                    // The re-bake needs the difficulty's snap divisor and, for the legacy
+                    // refiner, the master's full onset set.
+                    val meta = repository.chartsForSong(songId).firstOrNull { it.chartId == chartId }
+                    val master = meta?.parentChartId?.let { repository.loadChart(it) }
+                    val gridDiv = DspDifficulty.entries
+                        .firstOrNull { it.name.equals(meta?.difficultyKey, ignoreCase = true) }
+                        ?.gridDiv
+                        ?: DspDifficulty.HARD.gridDiv
+                    logic.retime(stored, master, gridDiv).copy(
+                        difficultyName = logicLabel
+                            ?.let { "${stored.difficultyName} · $it" }
+                            ?: stored.difficultyName,
+                    )
+                } else {
+                    stored
+                }
                 val song = playerViewModel.observeSong(songId).first()
                     ?: error(songMissingMessage)
                 if (CloudOfflineRepository.isCloudSong(song)) {

@@ -7,6 +7,7 @@ package com.lostf1sh.pixelplayeross.presentation.rhythm
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -41,6 +42,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -52,6 +54,7 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -75,6 +78,7 @@ import com.lostf1sh.pixelplayeross.data.rhythm.RhythmChartMeta
 import com.lostf1sh.pixelplayeross.data.rhythm.RhythmChartSettings
 import com.lostf1sh.pixelplayeross.data.rhythm.OnsetSelection
 import com.lostf1sh.pixelplayeross.data.rhythm.RhythmDeriveMode
+import com.lostf1sh.pixelplayeross.data.rhythm.RhythmPlayLogic
 import com.lostf1sh.pixelplayeross.data.rhythm.RhythmRepository
 import com.lostf1sh.pixelplayeross.presentation.components.MiniPlayerBottomSpacer
 import com.lostf1sh.pixelplayeross.presentation.components.MiniPlayerHeight
@@ -147,6 +151,8 @@ fun RhythmSetupScreen(
     var pendingDelete by remember { mutableStateOf<RhythmChartMeta?>(null) }
     var pendingDeleteDerived by remember { mutableStateOf(false) }
     var settingsTarget by remember { mutableStateOf<RhythmChartMeta?>(null) }
+    var playTarget by remember { mutableStateOf<RhythmChartMeta?>(null) }
+    var playLogicName by rememberSaveable { mutableStateOf(RhythmPlayLogic.AS_STORED.name) }
 
     var showGenerateSheet by remember { mutableStateOf(false) }
     var overwriting by remember { mutableStateOf(false) }
@@ -186,6 +192,15 @@ fun RhythmSetupScreen(
 
     fun refresh() {
         scope.launch { reload() }
+    }
+
+    /** Start a run: authored charts play as mapped, DSP charts first ask for the A/B logic. */
+    fun playChart(meta: RhythmChartMeta) {
+        if (meta.source != RhythmChart.SOURCE_DSP) {
+            navController.navigateSafely(Screen.RhythmGame.createRoute(songId, meta.chartId))
+            return
+        }
+        playTarget = meta
     }
 
     fun startGeneration(params: RhythmAnalysisParams) {
@@ -407,11 +422,7 @@ fun RhythmSetupScreen(
                         delayMs = snapshot.settings[masterMeta.chartId]?.delayMs ?: 0,
                         deriving = deriving,
                         derivedCount = snapshot.derived.size,
-                        onPlay = {
-                            navController.navigateSafely(
-                                Screen.RhythmGame.createRoute(songId, masterMeta.chartId),
-                            )
-                        },
+                        onPlay = { playChart(masterMeta) },
                         onDerive = { if (snapshot.masterChart != null) showDeriveSheet = true },
                         onRegenerate = {
                             generationError = null
@@ -446,11 +457,7 @@ fun RhythmSetupScreen(
                         staleMaster = masterMeta != null &&
                             meta.masterGeneratedAtMs != null &&
                             meta.masterGeneratedAtMs != masterMeta.importedAtMs,
-                        onPlay = {
-                            navController.navigateSafely(
-                                Screen.RhythmGame.createRoute(songId, meta.chartId),
-                            )
-                        },
+                        onPlay = { playChart(meta) },
                         onSettings = { settingsTarget = meta },
                         onDelete = { pendingDelete = meta },
                     )
@@ -464,11 +471,7 @@ fun RhythmSetupScreen(
                         meta = meta,
                         delayMs = snapshot.settings[meta.chartId]?.delayMs ?: 0,
                         staleMaster = false,
-                        onPlay = {
-                            navController.navigateSafely(
-                                Screen.RhythmGame.createRoute(songId, meta.chartId),
-                            )
-                        },
+                        onPlay = { playChart(meta) },
                         onSettings = { settingsTarget = meta },
                         onDelete = { pendingDelete = meta },
                     )
@@ -564,6 +567,21 @@ fun RhythmSetupScreen(
         )
     }
 
+    playTarget?.let { meta ->
+        PlayLogicDialog(
+            chartName = meta.difficultyName,
+            selected = RhythmPlayLogic.from(playLogicName) ?: RhythmPlayLogic.AS_STORED,
+            onSelect = { playLogicName = it.name },
+            onConfirm = {
+                playTarget = null
+                navController.navigateSafely(
+                    Screen.RhythmGame.createRoute(songId, meta.chartId, playLogicName),
+                )
+            },
+            onDismiss = { playTarget = null },
+        )
+    }
+
     if (showGenerateSheet) {
         RhythmGenerateSheet(
             songTitle = song?.title.orEmpty(),
@@ -644,6 +662,87 @@ fun RhythmSetupScreen(
             },
         )
     }
+}
+
+/**
+ * Game-start A/B picker: which grid logic places the notes for this run. The choice is
+ * remembered across opens and passed to the game screen as a route arg; the run re-bakes the
+ * note times in memory, so nothing on disk changes.
+ */
+@Composable
+private fun PlayLogicDialog(
+    chartName: String,
+    selected: RhythmPlayLogic,
+    onSelect: (RhythmPlayLogic) -> Unit,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val options = listOf(
+        RhythmPlayLogic.AS_STORED to (
+            stringResource(R.string.rhythm_play_logic_as_stored) to
+                stringResource(R.string.rhythm_play_logic_as_stored_desc)
+            ),
+        RhythmPlayLogic.ADAPTIVE_GRID to (
+            stringResource(R.string.rhythm_play_logic_adaptive) to
+                stringResource(R.string.rhythm_play_logic_adaptive_desc)
+            ),
+        RhythmPlayLogic.OSU_STYLE to (
+            stringResource(R.string.rhythm_play_logic_osu) to
+                stringResource(R.string.rhythm_play_logic_osu_desc)
+            ),
+        RhythmPlayLogic.LEGACY_REFINE to (
+            stringResource(R.string.rhythm_play_logic_legacy) to
+                stringResource(R.string.rhythm_play_logic_legacy_desc)
+            ),
+    )
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.rhythm_play_logic_title)) },
+        text = {
+            Column {
+                Text(
+                    text = stringResource(R.string.rhythm_play_logic_message),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    text = chartName,
+                    style = MaterialTheme.typography.labelLarge,
+                )
+                Spacer(Modifier.height(4.dp))
+                for ((logic, labels) in options) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onSelect(logic) }
+                            .padding(vertical = 2.dp),
+                    ) {
+                        RadioButton(selected = logic == selected, onClick = { onSelect(logic) })
+                        Column {
+                            Text(labels.first, style = MaterialTheme.typography.bodyMedium)
+                            Text(
+                                text = labels.second,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onConfirm) {
+                Text(stringResource(R.string.rhythm_play_logic_start))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.rhythm_play_logic_cancel))
+            }
+        },
+    )
 }
 
 @Composable
