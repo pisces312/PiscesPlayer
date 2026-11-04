@@ -124,6 +124,83 @@ class RhythmBeatTrackerTest {
     }
 
     @Test
+    fun gradualTempoChangeIsFollowed() {
+        // A ritardando: the period grows 1000 -> 1100 ms over 30 beats. The lattice must
+        // follow the onsets instead of holding a fixed period and walking off the beat.
+        val beats = DoubleArray(30)
+        var time = 0.0
+        for (index in beats.indices) {
+            beats[index] = time
+            time += 1000.0 + index * (100.0 / 29.0)
+        }
+        val onsetTimes = ArrayList<Double>()
+        val onsetStrengths = ArrayList<Float>()
+        for (beat in beats) {
+            onsetTimes += beat
+            onsetStrengths += 1.0f
+            onsetTimes += beat + 250.0
+            onsetStrengths += 0.3f
+        }
+        val timing = RhythmBeatTracker.piecewiseTiming(
+            beatTimesMs = beats,
+            durationMs = 40_000,
+            evidenceTimesMs = onsetTimes.toDoubleArray(),
+            evidenceStrengths = onsetStrengths.toFloatArray(),
+        )
+
+        assertTrue("anchors ${timing.size}", timing.size >= 25)
+        // The spacing follows the ramp smoothly (the chart beat grows 500 -> 550) and the
+        // phase stays bounded: the smoothed period lags the ramp a little, the drift builds,
+        // and the evidence-gated re-snap pulls it back every dozen-odd beats.
+        val first = timing.first()
+        val last = timing.last()
+        assertTrue("beatMs ${first.beatMs} -> ${last.beatMs}", last.beatMs > first.beatMs + 15.0)
+        assertTrue("beatMs ${last.beatMs}", last.beatMs in 480.0..570.0)
+        val outliers = timing.count { point ->
+            val nearestBeat = beats.minByOrNull { abs(it - point.timeMs) }!!
+            abs(point.timeMs - nearestBeat) > 135.0
+        }
+        assertTrue("outliers $outliers of ${timing.size}", outliers == 0)
+        for (index in 1 until timing.size) {
+            val spacing = timing[index].timeMs - timing[index - 1].timeMs
+            // Smooth spacing plus the occasional evidence-gated re-snap (~±150 ms).
+            assertTrue("spacing $spacing", spacing >= 880 && spacing <= 1250)
+        }
+    }
+
+    @Test
+    fun tempoStepSnapsToTheNewRate() {
+        // 120 BPM for 14 beats, then 90 BPM (the tempo_shift sample's step). The smoothed
+        // period lags a step by design, so the evidence-gated re-snap has to realign the
+        // lattice onto the chain's new rate within a couple of beats.
+        val beats = DoubleArray(24) { if (it < 14) it * 1000.0 else 13 * 1000.0 + (it - 13) * 1333.333 }
+        val onsetTimes = ArrayList<Double>()
+        val onsetStrengths = ArrayList<Float>()
+        for (beat in beats) {
+            onsetTimes += beat
+            onsetStrengths += 1.0f
+        }
+        val timing = RhythmBeatTracker.piecewiseTiming(
+            beatTimesMs = beats,
+            durationMs = 40_000,
+            evidenceTimesMs = onsetTimes.toDoubleArray(),
+            evidenceStrengths = onsetStrengths.toFloatArray(),
+        )
+
+        assertTrue("anchors ${timing.size}", timing.size >= 20)
+        val outliers = timing.count { point ->
+            val nearestBeat = beats.minByOrNull { abs(it - point.timeMs) }!!
+            abs(point.timeMs - nearestBeat) > 80.0
+        }
+        assertTrue("outliers $outliers of ${timing.size}", outliers <= 5)
+        val tail = timing.takeLast(3).map { it.timeMs }
+        for (index in 1 until tail.size) {
+            val spacing = tail[index] - tail[index - 1]
+            assertTrue("tail spacing $spacing", spacing >= 1250 && spacing <= 1420)
+        }
+    }
+
+    @Test
     fun introBeforeLockInIsRebuiltAtTheSongTempo() {
         // First five beats tracked at a corrupted 940 ms rate, the rest at 1000 ms. The
         // anchors before the lock-in point must be rebuilt on the whole-song period instead

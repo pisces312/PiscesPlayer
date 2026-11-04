@@ -322,6 +322,26 @@ internal object RhythmAutoPlayTool {
         }
     }
 
+    /**
+     * Tracked-beat diagnostics: the DP chain's own spacing per 30s. A sustained run of long
+     * or short intervals is the beat tracker leaving the song's true period — the piecewise
+     * fits follow it, and the chart grid drifts with them.
+     */
+    fun formatTracked(tracked: DoubleArray, durationMs: Int): String = buildString {
+        if (tracked.size < 2) return@buildString
+        val intervals = tracked.toList().zipWithNext { a, b -> b - a }
+        appendLine("tracked beats: n=${tracked.size} spacing med=${fmt(intervals.median())}ms")
+        for ((bucket, starts) in tracked.filter { it in 0.0..durationMs.toDouble() }
+            .groupBy { (it / 30_000).toInt() }.toSortedMap()) {
+            val gaps = starts.zipWithNext { a, b -> b - a }.filter { it > 0 }
+            if (gaps.isEmpty()) continue
+            appendLine(
+                "  ${bucket * 30}s-${(bucket + 1) * 30}s: n=${starts.size} " +
+                    "gap min=${fmt(gaps.min())} med=${fmt(gaps.median())} max=${fmt(gaps.max())}",
+            )
+        }
+    }
+
     /** Chart grid lines: `anchor + k * beatMs` inside each timing segment. */
     fun gridLines(timing: List<RhythmTimingPoint>, durationMs: Int): List<Double> {
         val out = ArrayList<Double>()

@@ -46,6 +46,23 @@ internal object RhythmBeatTracker {
     /** How much the offbeat phase must outscore the default before the lattice flips. */
     private const val PHASE_VOTE_MARGIN = 1.2
 
+    /** Tracked gaps on each side whose median is the lattice's local spacing. */
+    private const val PERIOD_SMOOTH = 15
+
+    /**
+     * The local spacing may stray this far from the consensus: wide enough for a real tempo
+     * change (a 120 -> 90 BPM step is +33%), the long window being what keeps the walk out.
+     */
+    private const val PERIOD_LIMIT = 0.35
+
+    /**
+     * When the lattice falls this far from the tracked beat, the chain may have found a real
+     * tempo change the smoothed period lags behind — but the *onset evidence* has to prefer
+     * the chain's position before the lattice follows it. A chain walk onto the offbeat
+     * (Far Away from Home) scores worse and is ignored.
+     */
+    private const val PERIOD_RESNAP_FRACTION = 0.12
+
     /** How far the fitted median beat may sit from the requested rate before it is rejected. */
     private const val MAX_RATE_DEVIATION = 0.05
 
@@ -299,13 +316,40 @@ internal object RhythmBeatTracker {
         }
 
         val timing = ArrayList<RhythmTimingPoint>(beatTimesMs.size)
+        val minPeriodMs = consensus * (1.0 - PERIOD_LIMIT)
+        val maxPeriodMs = consensus * (1.0 + PERIOD_LIMIT)
+        var positionMs = base
         var lastAnchorMs = Double.NEGATIVE_INFINITY
         for (anchor in beatTimesMs.indices) {
-            val anchorMs = base + anchor * consensus
-            if (anchorMs <= 0.0 || anchorMs >= durationMs) continue
-            if (anchorMs <= lastAnchorMs + 1.0) continue
-            lastAnchorMs = anchorMs
-            timing += RhythmTimingPoint(Math.round(anchorMs).toInt(), chartBeatMs)
+            // The local spacing: the median tracked gap over a long window follows a real
+            // tempo change (a ritardando is sustained) while a short jittery stretch is
+            // outvoted — Far Away from Home's 8-beat excursion dies in the 31-gap window.
+            val low = max(0, anchor - PERIOD_SMOOTH)
+            val high = min(beatTimesMs.size - 1, anchor + PERIOD_SMOOTH)
+            val gaps = DoubleArray(high - low) { beatTimesMs[low + it + 1] - beatTimesMs[low + it] }
+            gaps.sort()
+            val periodMs = median(gaps).coerceIn(minPeriodMs, maxPeriodMs)
+
+            // The smoothed period lags a tempo step; when the lattice falls away from the
+            // chain, the chain may have found the new rate — but the onset evidence has to
+            // prefer the chain's position before the lattice follows it there. A chain walk
+            // onto the offbeat scores worse and is ignored.
+            val driftMs = abs(positionMs - beatTimesMs[anchor])
+            if (hasEvidence && driftMs > PERIOD_RESNAP_FRACTION * periodMs) {
+                val chainScore = phaseScore(
+                    beatTimesMs[anchor], evidenceTimesMs, evidenceStrengths, periodMs / 2.0,
+                )
+                val latticeScore = phaseScore(
+                    positionMs, evidenceTimesMs, evidenceStrengths, periodMs / 2.0,
+                )
+                if (chainScore > latticeScore) positionMs = beatTimesMs[anchor]
+            }
+
+            if (positionMs > 0.0 && positionMs < durationMs && positionMs > lastAnchorMs + 1.0) {
+                lastAnchorMs = positionMs
+                timing += RhythmTimingPoint(Math.round(positionMs).toInt(), periodMs / 2.0)
+            }
+            positionMs += periodMs
         }
         return timing
     }
