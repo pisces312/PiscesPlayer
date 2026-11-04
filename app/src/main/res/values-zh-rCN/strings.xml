@@ -324,11 +324,11 @@
     <string name="rhythm_best_score">最高分：%1$d</string>
     <string name="rhythm_play_chart">开始</string>
     <string name="rhythm_play_logic_title">选择谱面播放逻辑</string>
-    <string name="rhythm_play_logic_message">仅本次游玩按所选网格逻辑重新放置音符时间——音符数与轨道保持不变，不会写回存储的谱面。</string>
-    <string name="rhythm_play_logic_as_stored">原版</string>
-    <string name="rhythm_play_logic_as_stored_desc">按保存的谱面原样游玩</string>
+    <string name="rhythm_play_logic_message">「正常」就是按谱面原样玩。其余选项仅本次游玩把音符时间重排到另一套网格以便对比——音符数与轨道保持不变，不会写回存储的谱面。</string>
+    <string name="rhythm_play_logic_as_stored">正常（按谱面原样）</string>
+    <string name="rhythm_play_logic_as_stored_desc">音符留在谱面位置——就是正常开局</string>
     <string name="rhythm_play_logic_adaptive">自适应格点</string>
-    <string name="rhythm_play_logic_adaptive_desc">追踪格点 + 变速跟随（现行）</string>
+    <string name="rhythm_play_logic_adaptive_desc">吸附到追踪格点（在 onset 谱面/母谱上与「正常」不同）</string>
     <string name="rhythm_play_logic_osu">osu 式</string>
     <string name="rhythm_play_logic_osu_desc">全曲单一 BPM，按 osu! 编辑器公式吸附</string>
     <string name="rhythm_play_logic_legacy">旧版拟合</string>

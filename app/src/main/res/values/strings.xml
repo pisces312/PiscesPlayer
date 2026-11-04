@@ -323,11 +323,11 @@
     <string name="rhythm_best_score">Best score: %1$d</string>
     <string name="rhythm_play_chart">Play</string>
     <string name="rhythm_play_logic_title">Chart play logic</string>
-    <string name="rhythm_play_logic_message">For this run only, the note times are re-placed onto the chosen grid logic — note count and lanes stay as stored and nothing is written back.</string>
-    <string name="rhythm_play_logic_as_stored">As stored</string>
-    <string name="rhythm_play_logic_as_stored_desc">Play the chart exactly as saved</string>
+    <string name="rhythm_play_logic_message">\"Normal\" plays the chart exactly as saved. The other options re-place the note times onto a different grid for this run only — note count and lanes stay as stored and nothing is written back.</string>
+    <string name="rhythm_play_logic_as_stored">Normal (chart as saved)</string>
+    <string name="rhythm_play_logic_as_stored_desc">Notes stay where the chart puts them — just play</string>
     <string name="rhythm_play_logic_adaptive">Adaptive grid</string>
-    <string name="rhythm_play_logic_adaptive_desc">Tracked lattice with tempo following (current)</string>
+    <string name="rhythm_play_logic_adaptive_desc">Snapped onto the tracked lattice (differs from Normal on onset charts and the master)</string>
     <string name="rhythm_play_logic_osu">osu!-style</string>
     <string name="rhythm_play_logic_osu_desc">One BPM for the whole song, snapped like the osu! editor</string>
     <string name="rhythm_play_logic_legacy">Legacy refine</string>
