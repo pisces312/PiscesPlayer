@@ -16,6 +16,10 @@ PixelPlayerOSS — Android 音乐播放器（100% Kotlin，Jetpack Compose + Mat
 - **无 AI 子系统**：OSS 用本地 NLP（`data/playlist/nlp/PlaylistIntentEngine`）替代云端 AI 生成播放列表。
 - **版权红线**：把 china-only 的功能搬进来时，**原创算法/解析层**（parser、matcher、分桶、日志收集等）可搬，提交注明 `Original work, GPL-3.0-or-later`；**glue 层**（ViewModel / DI / DAO / 设置项 / UI 接线 / strings）必须在 OSS 侧重写；**禁止整文件复制专有 PixelPlayer 的实现**。
 
+## 节奏游戏文档
+
+节奏游戏相关的设计、调研与实施文档统一存放在 `D:\3rd-party-projects\RhythmChartLab\docs`，本仓库 `docs/` 不再保存这类文档。后续新增节奏游戏相关设计文档也放入该目录，不要在 PixelPlayerOSS 内另建副本。
+
 ## 分支
 
 - `main`：**不是唯一的开发分支，而是发版起点** —— release 一般从 `main` 打 tag 构建。
