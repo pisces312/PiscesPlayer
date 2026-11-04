@@ -27,7 +27,7 @@ import org.junit.Test
  * $env:RHYTHM_AUTOPLAY_KICK_TXT = 'D:\path\kicks.txt'    # clean kick list (tools/rhythm-lab/
  *                                                        # extract_kicks.py) for kickPhase
  * $env:RHYTHM_AUTOPLAY_DUMP_GRID = 'D:\path\grid.txt'    # write the chart grid lines
- * $env:RHYTHM_AUTOPLAY_MODES = 'grid,onset'              # default: grid,onset
+ * $env:RHYTHM_AUTOPLAY_MODES = 'grid,onset,classic'      # default: every derive mode
  * $env:RHYTHM_AUTOPLAY_DIFFS = 'easy,normal,hard'        # default: all
  * .\gradlew.bat :app:testDebugUnitTest --tests "com.lostf1sh.pixelplayeross.data.rhythm.RhythmAutoPlayToolTest"
  * ```
@@ -158,6 +158,9 @@ class RhythmAutoPlayToolTest {
                         maxChord = 2, timing = analysis.timing,
                     )
                     RhythmDeriveMode.ONSET -> RhythmChartDeriver.deriveOnsetNative(master, difficulty)
+                    RhythmDeriveMode.CLASSIC -> RhythmClassicGridDeriver.derive(
+                        master, difficulty, LaneStrategy.BAND_ORDER, maxChord = 2,
+                    )
                 }.copy(difficultyName = "${mode.name} ${difficulty.label}")
                 val report = RhythmAutoPlayTool.play(chart, master, pulse, tapTimes, kickTimes)
                 println(RhythmAutoPlayTool.format(report))
@@ -194,6 +197,7 @@ class RhythmAutoPlayToolTest {
             when (token.trim().lowercase()) {
                 "grid" -> RhythmDeriveMode.GRID
                 "onset" -> RhythmDeriveMode.ONSET
+                "classic" -> RhythmDeriveMode.CLASSIC
                 else -> null
             }
         }?.ifEmpty { RhythmDeriveMode.entries } ?: RhythmDeriveMode.entries
