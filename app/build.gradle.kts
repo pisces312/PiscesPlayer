@@ -115,7 +115,10 @@ android {
                 "/META-INF/io.netty.versions.properties",
                 "META-INF/CONTRIBUTORS.md",
                 "META-INF/NOTICE.txt",
-                "META-INF/NOTICE.md"
+                "META-INF/NOTICE.md",
+                // ~13 MB compressed / 33 MB raw. Downloaded on demand by
+                // JapaneseDictionaryManager and loaded through ExternalDictionaryTokenizer.
+                "com/atilika/kuromoji/ipadic/*.bin"
             )
             pickFirsts += listOf(
                 "META-INF/LICENSE.md",

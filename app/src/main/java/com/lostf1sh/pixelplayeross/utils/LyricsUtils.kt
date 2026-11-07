@@ -56,14 +56,16 @@ import kotlin.math.max
 import kotlin.math.sin
 
 object MultiLangRomanizer {
-    private val kuromojiTokenizer: Tokenizer? by lazy {
-        try {
-            Thread.currentThread().contextClassLoader = MultiLangRomanizer::class.java.classLoader
-            Tokenizer()
-        } catch (e: Throwable) {
-            Timber.e(e)
-            null
-        }
+    /**
+     * Supplies a tokenizer built from the externally downloaded dictionary. Null means the
+     * Japanese dictionary is not installed or the option is disabled, in which case Japanese
+     * lines are left without romanization. Installed by JapaneseDictionaryManager.start().
+     */
+    @Volatile
+    private var japaneseTokenizerProvider: (() -> Tokenizer?)? = null
+
+    fun setJapaneseTokenizerProvider(provider: (() -> Tokenizer?)?) {
+        japaneseTokenizerProvider = provider
     }
 
     private val HANGUL_ROMAJA_MAP = mapOf(
@@ -140,7 +142,7 @@ object MultiLangRomanizer {
     private fun isMacedonian(text: String) = text.any { MACEDONIAN_CYRILLIC_LETTERS.contains(it.toString()) || MACEDONIAN_SPECIFIC_CYRILLIC_LETTERS.contains(it.toString()) } && text.all { MACEDONIAN_CYRILLIC_LETTERS.contains(it.toString()) || MACEDONIAN_SPECIFIC_CYRILLIC_LETTERS.contains(it.toString()) || !it.toString().matches("[\\u0400-\\u04FF]".toRegex()) }
 
     fun romanizeJapanese(japaneseText: String): String? {
-        val tokenizer = kuromojiTokenizer ?: return null
+        val tokenizer = japaneseTokenizerProvider?.invoke() ?: return null
 
         return try {
             val tokens = tokenizer.tokenize(japaneseText)

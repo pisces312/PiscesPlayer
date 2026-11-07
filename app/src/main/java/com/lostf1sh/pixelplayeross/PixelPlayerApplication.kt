@@ -82,6 +82,9 @@ class PixelPlayerApplication : Application(), ImageLoaderFactory, Configuration.
     @Inject
     lateinit var updateCheckScheduler: dagger.Lazy<com.lostf1sh.pixelplayeross.data.update.UpdateCheckScheduler>
 
+    @Inject
+    lateinit var japaneseDictionaryManager: dagger.Lazy<com.lostf1sh.pixelplayeross.data.dictionary.JapaneseDictionaryManager>
+
     private val startupScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     companion object {
@@ -142,6 +145,8 @@ class PixelPlayerApplication : Application(), ImageLoaderFactory, Configuration.
         m3uSyncCoordinator.get().start()
 
         updateCheckScheduler.get().start()
+
+        japaneseDictionaryManager.get().start()
 
         advancedPerformanceDiagnosticsController.get().start(startupScope)
 

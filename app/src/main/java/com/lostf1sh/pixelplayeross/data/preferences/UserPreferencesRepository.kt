@@ -222,6 +222,7 @@ constructor(
         val LYRICS_SOURCE_PREFERENCE = stringPreferencesKey("lyrics_source_preference")
         val AUTO_SCAN_LRC_FILES = booleanPreferencesKey("auto_scan_lrc_files")
         val EXTERNAL_LYRICS_ENABLED = booleanPreferencesKey("external_lyrics_enabled")
+        val JAPANESE_ROMANIZATION_ENABLED = booleanPreferencesKey("japanese_romanization_enabled")
         val EXTERNAL_ARTIST_IMAGES_ENABLED = booleanPreferencesKey("external_artist_images_enabled")
         val SONG_DELETION_ENABLED = booleanPreferencesKey("song_deletion_enabled")
 
@@ -652,6 +653,17 @@ constructor(
             if (!enabled && preferences[PreferencesKeys.LYRICS_SOURCE_PREFERENCE] == LyricsSourcePreference.API_FIRST.name) {
                 preferences[PreferencesKeys.LYRICS_SOURCE_PREFERENCE] = LyricsSourcePreference.EMBEDDED_FIRST.name
             }
+        }
+    }
+
+    val japaneseRomanizationEnabledFlow: Flow<Boolean> =
+            dataStore.data.map { preferences ->
+                preferences[PreferencesKeys.JAPANESE_ROMANIZATION_ENABLED] ?: false
+            }.distinctUntilChanged()
+
+    suspend fun setJapaneseRomanizationEnabled(enabled: Boolean) {
+        dataStore.edit { preferences ->
+            preferences[PreferencesKeys.JAPANESE_ROMANIZATION_ENABLED] = enabled
         }
     }
 

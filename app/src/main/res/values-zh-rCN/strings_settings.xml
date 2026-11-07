@@ -69,6 +69,14 @@
     <string name="setcat_lyrics_local_first">优先本地(.lrc)歌词</string>
     <string name="setcat_reset_imported_lyrics_title">重置导入的歌词</string>
     <string name="setcat_reset_imported_lyrics_subtitle">清除数据库内全部导入的歌词</string>
+    <string name="setcat_japanese_romanization_title">日文歌词罗马音</string>
+    <string name="setcat_japanese_romanization_subtitle">在日文歌词上方显示罗马音。首次使用时下载可选词典（约 13 MB）。</string>
+    <string name="setcat_japanese_dictionary_title">日文词典</string>
+    <string name="setcat_japanese_dictionary_not_downloaded">尚未下载，点按开始下载</string>
+    <string name="setcat_japanese_dictionary_downloading">正在下载… %1$d%%</string>
+    <string name="setcat_japanese_dictionary_downloading_unknown">正在下载…</string>
+    <string name="setcat_japanese_dictionary_installed">已安装，离线可用</string>
+    <string name="setcat_japanese_dictionary_failed">下载失败，点按重试</string>
 
     <string name="setcat_global_theme">全局主题</string>
     <string name="setcat_app_language_label">应用语言</string>

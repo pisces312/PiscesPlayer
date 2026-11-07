@@ -149,6 +149,22 @@ object SettingsRegistry {
                 onToggle = { viewModel, checked -> viewModel.setExternalArtistImagesEnabled(checked) }
             ),
             SettingSpec(
+                id = "library_japanese_romanization",
+                itemKey = "item_library_japanese_romanization",
+                titleRes = R.string.setcat_japanese_romanization_title,
+                subtitleRes = R.string.setcat_japanese_romanization_subtitle,
+                category = SettingsCategory.LIBRARY,
+                subscreenRoute = Screen.SettingsCategory.createRoute("library"),
+                type = SettingType.SWITCH,
+                keywordsStatic = listOf(
+                    "japanese", "romaji", "romanization", "lyrics", "kuromoji", "dictionary"
+                ),
+                getValue = { it.japaneseRomanizationEnabled },
+                onToggle = { viewModel, checked ->
+                    viewModel.setJapaneseRomanizationEnabled(checked)
+                }
+            ),
+            SettingSpec(
                 id = "library_allow_delete_songs",
                 itemKey = "item_library_allow_delete_songs",
                 titleRes = R.string.setcat_allow_delete_songs_title,

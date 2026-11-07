@@ -80,6 +80,14 @@
     <string name="setcat_lyrics_local_first">Local (.lrc) First</string>
     <string name="setcat_reset_imported_lyrics_title">Reset Imported Lyrics</string>
     <string name="setcat_reset_imported_lyrics_subtitle">Remove all imported lyrics from the database.</string>
+    <string name="setcat_japanese_romanization_title">Japanese lyrics romanization</string>
+    <string name="setcat_japanese_romanization_subtitle">Show romaji above Japanese lyrics. Uses an optional dictionary downloaded on first use (about 13 MB).</string>
+    <string name="setcat_japanese_dictionary_title">Japanese dictionary</string>
+    <string name="setcat_japanese_dictionary_not_downloaded">Not downloaded. Tap to download.</string>
+    <string name="setcat_japanese_dictionary_downloading">Downloading… %1$d%%</string>
+    <string name="setcat_japanese_dictionary_downloading_unknown">Downloading…</string>
+    <string name="setcat_japanese_dictionary_installed">Installed. Romaji works offline.</string>
+    <string name="setcat_japanese_dictionary_failed">Download failed. Tap to retry.</string>
 
     <string name="setcat_global_theme">Global Theme</string>
     <string name="setcat_app_language_label">App Language</string>

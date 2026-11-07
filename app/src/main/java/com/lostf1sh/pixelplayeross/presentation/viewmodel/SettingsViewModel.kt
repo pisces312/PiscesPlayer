@@ -21,6 +21,7 @@ import com.lostf1sh.pixelplayeross.data.preferences.CarLyricTitleSettings
 import com.lostf1sh.pixelplayeross.data.preferences.CarouselStyle
 import com.lostf1sh.pixelplayeross.data.preferences.LibraryNavigationMode
 import com.lostf1sh.pixelplayeross.data.preferences.ThemePreference
+import com.lostf1sh.pixelplayeross.data.dictionary.JapaneseDictionaryManager
 import com.lostf1sh.pixelplayeross.data.preferences.UserPreferencesRepository
 import com.lostf1sh.pixelplayeross.utils.FolderArtworkSettingsCoordinator
 import com.lostf1sh.pixelplayeross.data.preferences.AlbumArtQuality
@@ -86,6 +87,7 @@ data class SettingsUiState(
     val autoScanLrcFiles: Boolean = false,
     val externalLyricsEnabled: Boolean = false,
     val externalArtistImagesEnabled: Boolean = false,
+    val japaneseRomanizationEnabled: Boolean = false,
     val songDeletionEnabled: Boolean = true,
     val blockedDirectories: Set<String> = emptySet(),
     val appRebrandDialogShown: Boolean = false,
@@ -175,7 +177,8 @@ private sealed interface SettingsUiUpdate {
         val animatedLyricsBlurEnabled: Boolean,
         val animatedLyricsBlurStrength: Float,
         val songDeletionEnabled: Boolean,
-        val carLyricTitle: CarLyricTitleSettings
+        val carLyricTitle: CarLyricTitleSettings,
+        val japaneseRomanizationEnabled: Boolean
     ) : SettingsUiUpdate
 }
 
@@ -190,6 +193,7 @@ class SettingsViewModel @Inject constructor(
     private val musicRepository: MusicRepository,
     private val backupManager: BackupManager,
     private val folderArtworkSettingsCoordinator: FolderArtworkSettingsCoordinator,
+    private val japaneseDictionaryManager: JapaneseDictionaryManager,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
 
@@ -333,7 +337,8 @@ class SettingsViewModel @Inject constructor(
                 userPreferencesRepository.animatedLyricsBlurEnabledFlow,
                 userPreferencesRepository.animatedLyricsBlurStrengthFlow,
                 userPreferencesRepository.songDeletionEnabledFlow,
-                userPreferencesRepository.carLyricTitleSettingsFlow
+                userPreferencesRepository.carLyricTitleSettingsFlow,
+                userPreferencesRepository.japaneseRomanizationEnabledFlow
             ) { values ->
                 val requestedAudioOutputMode = values[4] as AudioOutputMode
                 SettingsUiUpdate.Group2(
@@ -361,7 +366,8 @@ class SettingsViewModel @Inject constructor(
                     animatedLyricsBlurEnabled = values[14] as Boolean,
                     animatedLyricsBlurStrength = values[15] as Float,
                     songDeletionEnabled = values[16] as Boolean,
-                    carLyricTitle = values[17] as CarLyricTitleSettings
+                    carLyricTitle = values[17] as CarLyricTitleSettings,
+                    japaneseRomanizationEnabled = values[18] as Boolean
                 )
             }.collect { update ->
                 _uiState.update { state ->
@@ -383,7 +389,8 @@ class SettingsViewModel @Inject constructor(
                         animatedLyricsBlurEnabled = update.animatedLyricsBlurEnabled,
                         animatedLyricsBlurStrength = update.animatedLyricsBlurStrength,
                         songDeletionEnabled = update.songDeletionEnabled,
-                        carLyricTitle = update.carLyricTitle
+                        carLyricTitle = update.carLyricTitle,
+                        japaneseRomanizationEnabled = update.japaneseRomanizationEnabled
                     )
                 }
             }
@@ -743,6 +750,22 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch {
             userPreferencesRepository.setExternalArtistImagesEnabled(enabled)
         }
+    }
+
+    val japaneseDictionaryState: StateFlow<JapaneseDictionaryManager.State> =
+        japaneseDictionaryManager.state
+
+    fun setJapaneseRomanizationEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            userPreferencesRepository.setJapaneseRomanizationEnabled(enabled)
+            if (enabled) {
+                japaneseDictionaryManager.ensureDownloaded()
+            }
+        }
+    }
+
+    fun downloadJapaneseDictionary() {
+        japaneseDictionaryManager.ensureDownloaded()
     }
 
     fun setDelayAllFullPlayerContent(enabled: Boolean) {
