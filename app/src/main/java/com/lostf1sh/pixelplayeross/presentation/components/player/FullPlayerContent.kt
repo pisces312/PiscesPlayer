@@ -99,6 +99,7 @@ import androidx.compose.ui.unit.coerceAtLeast
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.PlaylistAdd
 import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.Bookmark
 import androidx.compose.material.icons.rounded.Cloud
@@ -219,6 +220,7 @@ fun FullPlayerContent(
     onPrevious: () -> Unit,
     onCollapse: () -> Unit,
     onShowQueueClicked: () -> Unit,
+    onAddToPlaylistClick: () -> Unit,
     onAskAiClick: () -> Unit,
     onAskAiTranslateLyrics: () -> Unit,
     onOpenRhythmGame: () -> Unit,
@@ -800,6 +802,20 @@ fun FullPlayerContent(
                                 Icon(
                                     painter = painterResource(R.drawable.rounded_queue_music_24),
                                     contentDescription = stringResource(R.string.presentation_batch_g_player_cd_queue),
+                                    tint = playerAccentColor
+                                )
+                            }
+                            Box(
+                                modifier = Modifier
+                                    .size(42.dp)
+                                    .clip(CircleShape)
+                                    .background(playerOnAccentColor.copy(alpha = 0.7f))
+                                    .clickable(onClick = onAddToPlaylistClick),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Rounded.PlaylistAdd,
+                                    contentDescription = stringResource(R.string.cd_add_to_playlist),
                                     tint = playerAccentColor
                                 )
                             }

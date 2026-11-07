@@ -52,6 +52,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.media3.common.util.UnstableApi
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -85,6 +86,7 @@ import com.lostf1sh.pixelplayeross.presentation.navigation.navigateSafely
 import com.lostf1sh.pixelplayeross.presentation.viewmodel.AiSongQaPreset
 import com.lostf1sh.pixelplayeross.presentation.viewmodel.PlayerSheetState
 import com.lostf1sh.pixelplayeross.presentation.viewmodel.PlayerViewModel
+import com.lostf1sh.pixelplayeross.presentation.viewmodel.PlaylistViewModel
 import com.lostf1sh.pixelplayeross.presentation.viewmodel.StablePlayerState
 import com.lostf1sh.pixelplayeross.ui.theme.LocalPixelPlayerDarkTheme
 import kotlinx.collections.immutable.persistentListOf
@@ -382,6 +384,8 @@ fun UnifiedPlayerSheetV2(
     var showAiQaSheet by remember { mutableStateOf(false) }
     var aiQaInitialSong by remember { mutableStateOf<Song?>(null) }
     var aiQaPreset by remember { mutableStateOf<AiSongQaPreset?>(null) }
+    // Snapshot the song at tap time: playback may advance while the picker is open.
+    var playlistPickerSong by remember { mutableStateOf<Song?>(null) }
     val sheetBackAndDragState = rememberSheetBackAndDragState(
         showPlayerContentArea = showPlayerContentArea,
         currentSheetContentState = currentSheetContentState
@@ -389,12 +393,14 @@ fun UnifiedPlayerSheetV2(
     val canHandlePlayerBack by remember(
         sheetBackAndDragState.predictiveBackEnabled,
         showQueueSheet,
-        showAiQaSheet
+        showAiQaSheet,
+        playlistPickerSong
     ) {
         derivedStateOf {
             sheetBackAndDragState.predictiveBackEnabled &&
                 !showQueueSheet &&
-                !showAiQaSheet
+                !showAiQaSheet &&
+                playlistPickerSong == null
         }
     }
     val velocityTracker = remember { VelocityTracker() }
@@ -676,6 +682,9 @@ fun UnifiedPlayerSheetV2(
                             rating = currentSongRating,
                             shouldRenderFullPlayer = shouldRenderFullPlayer,
                             onShowQueueClicked = sheetActionHandlers.openQueueSheet,
+                            onAddToPlaylistClick = {
+                                playlistPickerSong = infrequentPlayerState.currentSong
+                            },
                             onAskAiClick = {
                                 aiQaInitialSong = infrequentPlayerState.currentSong
                                 aiQaPreset = null
@@ -731,6 +740,7 @@ fun UnifiedPlayerSheetV2(
                     onShowQueueClicked = sheetActionHandlers.openQueueSheet,
                     // Prewarm layer is invisible (alpha 0f) but still hit-testable: keep it inert
                     // so taps on the collapsed player cannot open the song info sheet.
+                    onAddToPlaylistClick = {},
                     onAskAiClick = {},
                     onSongTitleClick = {},
                     onQueueDragStart = sheetActionHandlers.beginQueueDrag,
@@ -789,6 +799,26 @@ fun UnifiedPlayerSheetV2(
                     )
                 }
             )
+
+            playlistPickerSong?.let { playlistSong ->
+                val playlistViewModel: PlaylistViewModel = hiltViewModel()
+                val playlistUiState by playlistViewModel.uiState.collectAsStateWithLifecycle()
+
+                MaterialTheme(
+                    colorScheme = albumColorScheme,
+                    typography = MaterialTheme.typography,
+                    shapes = MaterialTheme.shapes
+                ) {
+                    PlaylistBottomSheet(
+                        playlistUiState = playlistUiState,
+                        songs = persistentListOf(playlistSong),
+                        onDismiss = { playlistPickerSong = null },
+                        bottomBarHeight = 0.dp,
+                        playerViewModel = playerViewModel,
+                        playlistViewModel = playlistViewModel
+                    )
+                }
+            }
         }
     }
 
