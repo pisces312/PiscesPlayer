@@ -128,9 +128,10 @@ class RhythmRepository @Inject constructor(
     /**
      * Derive the requested difficulties from the stored master and keep every derivation.
      *
-     * All modes are pure functions over the master: no audio is decoded. [RhythmDeriveMode.GRID]
-     * snaps onto the master's tracked piecewise grid ([RhythmTimingRefiner] only for a legacy
-     * single-point master); [RhythmDeriveMode.ONSET] keeps the onset timestamps;
+     * All modes are pure functions over the master: no audio is decoded. Loudness / density
+     * filters run here ([RhythmDeriveFilters]), followed by the timing-variant choice, then the
+     * mode rule: [RhythmDeriveMode.GRID] snaps onto the chosen grid ([RhythmTimingRefiner] only
+     * as a legacy single-point fallback), [RhythmDeriveMode.ONSET] keeps the onset timestamps,
      * [RhythmDeriveMode.CLASSIC] is the frozen 0.4.3-pisces.1-era quantization. [displayNames]
      * carries the localized, timestamped difficulty and mode names; it is part of the chart body,
      * which is what gives each derivation its own content hash and therefore its own entry.
@@ -145,9 +146,14 @@ class RhythmRepository @Inject constructor(
         displayNames: Map<Pair<DspDifficulty, RhythmDeriveMode>, String>,
         maxChord: Int = 1,
         onsetSelection: OnsetSelection = OnsetSelection.BALANCED,
+        options: RhythmDeriveOptions = RhythmDeriveOptions(),
     ): List<RhythmChartMeta> {
         if (difficulties.isEmpty() || modes.isEmpty()) return emptyList()
-        val gridTiming = gridTimingFor(master, modes)
+        val notes = filteredNotes(master, options)
+        if (notes.isEmpty()) return emptyList()
+        val source = master.copy(notes = notes)
+        val timing = selectedTiming(master, options)
+        val gridTiming = gridTimingFor(master, modes, options, timing)
         val jobs = difficulties.flatMap { difficulty ->
             // Grid last, so it is created last and lands on top of the newest-first list.
             RhythmDeriveMode.entries.reversed()
@@ -156,13 +162,17 @@ class RhythmRepository @Inject constructor(
         }
         val charts = withContext(Dispatchers.Default) {
             jobs.map { (difficulty, mode) ->
-                deriveOne(master, difficulty, mode, laneStrategy, maxChord, gridTiming, onsetSelection)
+                deriveOne(source, difficulty, mode, laneStrategy, maxChord, gridTiming, timing, onsetSelection)
                     // Derived charts are stored playable: the first lead-in stays only in the
                     // master, so a difficulty starts exactly where the run has runway.
                     .withoutLeadIn()
                     .copy(
                         difficultyName = displayNames[difficulty to mode]
                             ?: "${difficulty.label} ${mode.name.lowercase()}",
+                        // Variants and cutoffs describe the master; a derived chart has one grid
+                        // and no filter data, and keeping them would fake a second derivation.
+                        timingVariants = emptyList(),
+                        rmsThresholds = emptyList(),
                     )
             }
         }
@@ -195,17 +205,50 @@ class RhythmRepository @Inject constructor(
         laneStrategy: LaneStrategy,
         maxChord: Int = 1,
         onsetSelection: OnsetSelection = OnsetSelection.BALANCED,
+        options: RhythmDeriveOptions = RhythmDeriveOptions(),
     ): Map<Pair<DspDifficulty, RhythmDeriveMode>, Int> = withContext(Dispatchers.Default) {
         if (difficulties.isEmpty() || modes.isEmpty()) return@withContext emptyMap()
-        val gridTiming = gridTimingFor(master, modes)
+        val notes = filteredNotes(master, options)
+        if (notes.isEmpty()) return@withContext emptyMap()
+        val source = master.copy(notes = notes)
+        val timing = selectedTiming(master, options)
+        val gridTiming = gridTimingFor(master, modes, options, timing)
         difficulties.flatMap { difficulty ->
             RhythmDeriveMode.entries.filter { it in modes }.map { mode ->
                 (difficulty to mode) to
-                    deriveOne(master, difficulty, mode, laneStrategy, maxChord, gridTiming, onsetSelection)
+                    deriveOne(source, difficulty, mode, laneStrategy, maxChord, gridTiming, timing, onsetSelection)
                         .withoutLeadIn()
                         .noteCount()
             }
         }.toMap()
+    }
+
+    /**
+     * Loudness first, then density — the order the generator used before the filters moved here.
+     * A percentile the master has no stored cutoff for is treated as off (legacy master).
+     */
+    private fun filteredNotes(
+        master: RhythmChart,
+        options: RhythmDeriveOptions,
+    ): List<RhythmNote> {
+        val minRms = options.minRmsPercentile?.let(master::rmsThresholdFor)
+        return RhythmDeriveFilters.apply(
+            notes = master.notes,
+            minRms = minRms,
+            maxLocalNps = options.maxLocalNps,
+        )
+    }
+
+    /** The chosen timing variant, falling back to the master's primary timing. */
+    private fun selectedTiming(
+        master: RhythmChart,
+        options: RhythmDeriveOptions,
+    ): List<RhythmTimingPoint> {
+        val variants = master.timingVariantsFor()
+        val chosen = options.timingVariant
+            ?.let { key -> variants.firstOrNull { it.key == key } }
+            ?: variants.firstOrNull { it.key == RhythmTimingVariantKey.TRACKED }
+        return chosen?.timing ?: master.timing
     }
 
     private fun deriveOne(
@@ -215,6 +258,7 @@ class RhythmRepository @Inject constructor(
         laneStrategy: LaneStrategy,
         maxChord: Int,
         gridTiming: List<RhythmTimingPoint>,
+        timing: List<RhythmTimingPoint>,
         onsetSelection: OnsetSelection,
     ): RhythmChart = when (mode) {
         RhythmDeriveMode.GRID -> RhythmChartDeriver.derive(
@@ -230,26 +274,36 @@ class RhythmRepository @Inject constructor(
             laneStrategy = laneStrategy,
             maxChord = maxChord,
             selection = onsetSelection,
+            timing = timing,
         )
         // Frozen replica of the 0.4.3-pisces.1-era grid quantization. Self-contained on
-        // purpose: it reads only the master, so nothing the live paths do can move it.
+        // purpose: it reads only the master and the selected timing, so nothing the live
+        // paths do can move it.
         RhythmDeriveMode.CLASSIC -> RhythmClassicGridDeriver.derive(
             master = master,
             difficulty = difficulty,
             laneStrategy = laneStrategy,
             maxChord = maxChord,
+            timing = timing,
         )
     }
 
     /**
-     * Empty unless the grid mode is requested. A current master carries the tracked piecewise
-     * grid; a legacy single-point master predates it, so refine one from its onsets instead.
+     * Empty unless the grid mode is requested.
+     *
+     * A current master stores both variants, so the chosen one is used as-is. A legacy master
+     * predates them: selecting its synthesized classic grid works directly, while the default
+     * tracked choice keeps the historical behaviour of refining a piecewise grid from its onsets.
      */
     private fun gridTimingFor(
         master: RhythmChart,
         modes: Set<RhythmDeriveMode>,
+        options: RhythmDeriveOptions,
+        timing: List<RhythmTimingPoint>,
     ): List<RhythmTimingPoint> {
         if (RhythmDeriveMode.GRID !in modes) return emptyList()
+        if (master.timingVariants.isNotEmpty()) return timing
+        if (options.timingVariant == RhythmTimingVariantKey.CLASSIC) return timing
         if (master.timing.size > 1) return master.timing
         val global = master.timing.firstOrNull() ?: RhythmTimingPoint(0, FALLBACK_BEAT_MS)
         return RhythmTimingRefiner.refine(

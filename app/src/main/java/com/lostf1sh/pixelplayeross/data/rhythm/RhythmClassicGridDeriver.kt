@@ -20,9 +20,9 @@ import kotlin.math.min
  *
  * The one adaptation from the original: the era's masters carried exactly ONE timing point
  * (the song-global beat), while a current master carries a tracked piecewise grid. The single
- * fixed-rate grid used here is anchored at the master's first timing point with the MEDIAN
- * beat of its timing; on a single-point master (i.e. on every chart this replica was written
- * from) that is exactly the old code path.
+ * fixed-rate grid used here is anchored at the supplied timing's first point with the MEDIAN
+ * beat of that timing; on a single-point timing (the classic variant, i.e. the shape this
+ * replica was written from) that is exactly the old code path.
  *
  * The enum `when`s at the boundary are deliberate trip-wires: adding a difficulty or a lane
  * strategy must fail compilation here instead of silently changing these charts.
@@ -64,12 +64,14 @@ internal object RhythmClassicGridDeriver {
         difficulty: DspDifficulty,
         laneStrategy: LaneStrategy,
         maxChord: Int,
+        /** Grid source; the derive sheet passes the selected timing variant. */
+        timing: List<RhythmTimingPoint> = master.timing,
     ): RhythmChart {
         require(master.notes.isNotEmpty()) { "master chart has no notes" }
         val gridDiv = gridDivOf(difficulty)
-        val grid = globalBeatMs(master) / gridDiv
-        require(grid > 0.0) { "invalid beat length ${globalBeatMs(master)}" }
-        val offset = globalAnchorMs(master).toDouble()
+        val grid = globalBeatMs(timing) / gridDiv
+        require(grid > 0.0) { "invalid beat length ${globalBeatMs(timing)}" }
+        val offset = globalAnchorMs(timing).toDouble()
         val chord = maxChord.coerceIn(1, MAX_CHORD_NOTES)
 
         // One bucket per cell index. The strongest note wins the cell; the extras only survive
@@ -139,15 +141,15 @@ internal object RhythmClassicGridDeriver {
         DspDifficulty.HARD -> 4
     }
 
-    /** The single grid's beat length: the median of the master's timing points. */
-    private fun globalBeatMs(master: RhythmChart): Double {
-        val beats = master.timing.map { it.beatMs }.sorted()
+    /** The single grid's beat length: the median of the supplied timing points. */
+    private fun globalBeatMs(timing: List<RhythmTimingPoint>): Double {
+        val beats = timing.map { it.beatMs }.sorted()
         return if (beats.isEmpty()) DEFAULT_BEAT_MS else beats[beats.size / 2]
     }
 
-    /** The single grid's anchor: where the master's own grid starts. */
-    private fun globalAnchorMs(master: RhythmChart): Int =
-        master.timing.minByOrNull { it.timeMs }?.timeMs ?: 0
+    /** The single grid's anchor: where the supplied grid starts. */
+    private fun globalAnchorMs(timing: List<RhythmTimingPoint>): Int =
+        timing.minByOrNull { it.timeMs }?.timeMs ?: 0
 
     /**
      * Two adjacent notes must not share a lane: a repeated lane reads as a single long note.

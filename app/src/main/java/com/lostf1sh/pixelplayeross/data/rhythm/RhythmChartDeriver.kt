@@ -197,14 +197,16 @@ internal object RhythmChartDeriver {
         maxChord: Int = 1,
         profile: DspDeriveProfile = difficulty.deriveProfile,
         selection: OnsetSelection = OnsetSelection.BALANCED,
+        /** Beat grid for the accent prior; the derive sheet passes the selected timing variant. */
+        timing: List<RhythmTimingPoint> = master.timing,
     ): RhythmChart {
         require(master.notes.isNotEmpty()) { "master chart has no notes" }
         val chord = maxChord.coerceIn(1, MAX_CHORD_NOTES)
-        val timing = master.timing.ifEmpty { listOf(RhythmTimingPoint(0, DEFAULT_BEAT_MS)) }
+        val gridTiming = timing.ifEmpty { listOf(RhythmTimingPoint(0, DEFAULT_BEAT_MS)) }
 
         val selected = when (selection) {
             OnsetSelection.BALANCED ->
-                selectGroups(groupOnsets(master.notes, laneStrategy, chord, timing), profile)
+                selectGroups(groupOnsets(master.notes, laneStrategy, chord, gridTiming), profile)
             OnsetSelection.MELODY_FIRST -> {
                 // Two pools with their own slot budgets: drum onsets cannot eat the melody's
                 // slots. Chord grouping is per pool, so a chord straddling both becomes two hits
@@ -212,11 +214,11 @@ internal object RhythmChartDeriver {
                 val melody = master.notes.filter { it.band in MELODY_BANDS }
                 val perc = master.notes.filterNot { it.band in MELODY_BANDS }
                 val melodyGroups = selectGroups(
-                    groupOnsets(melody, laneStrategy, chord, timing),
+                    groupOnsets(melody, laneStrategy, chord, gridTiming),
                     profile.copy(maxNotesPerSecond = profile.melodySlots.toDouble()),
                 )
                 val percGroups = selectGroups(
-                    groupOnsets(perc, laneStrategy, chord, timing),
+                    groupOnsets(perc, laneStrategy, chord, gridTiming),
                     profile.copy(maxNotesPerSecond = profile.percSlots.toDouble()),
                 )
                 (melodyGroups + percGroups).sortedBy { it.startMs }

@@ -231,6 +231,57 @@ class RhythmChartGeneratorTest {
     }
 
     @Test
+    fun analysisCarriesBothTrackedAndClassicTiming() {
+        val audio = RhythmTestAudio.drumLoop(durationSeconds, sampleRate)
+        val analysis = RhythmChartGenerator.analyze(
+            pcmMono = audio,
+            sampleRate = sampleRate,
+            durationMs = (durationSeconds * 1000).toInt(),
+            params = RhythmAnalysisParams(),
+        )
+        // The 0.4.3-pisces.1 contract: one analysis now carries both grids. Classic is a
+        // single fixed-rate point, tracked is the piecewise lattice.
+        assertEquals(1, analysis.classicTiming.size)
+        assertTrue("tracked ${analysis.timing.size}", analysis.timing.size > 1)
+        assertEquals(60_000.0 / analysis.usedBpm, analysis.classicTiming[0].beatMs, 0.0)
+        assertTrue("anchor ${analysis.classicTiming[0].timeMs}", analysis.classicTiming[0].timeMs >= 0)
+    }
+
+    @Test
+    fun classicTimingHonorsExtraOffset() {
+        val plain = RhythmChartGenerator.analyze(
+            pcmMono = RhythmTestAudio.drumLoop(durationSeconds, sampleRate),
+            sampleRate = sampleRate,
+            durationMs = (durationSeconds * 1000).toInt(),
+            params = RhythmAnalysisParams(),
+        )
+        val shifted = RhythmChartGenerator.analyze(
+            pcmMono = RhythmTestAudio.drumLoop(durationSeconds, sampleRate),
+            sampleRate = sampleRate,
+            durationMs = (durationSeconds * 1000).toInt(),
+            params = RhythmAnalysisParams(extraOffsetMs = 40),
+        )
+        assertEquals(plain.classicTiming[0].timeMs + 40, shifted.classicTiming[0].timeMs)
+        assertEquals(plain.classicTiming[0].beatMs, shifted.classicTiming[0].beatMs, 0.0)
+    }
+
+    @Test
+    fun classicTimingMatchesTheFrozenGoldenValues() {
+        // Pinned from the 0.4.3-pisces.1 phone build (refineTempo + single-point grid) on the
+        // 20 s / 120 BPM drum loop. A failure here means the replica moved, not that the pin is old.
+        val analysis = RhythmChartGenerator.analyze(
+            pcmMono = RhythmTestAudio.drumLoop(durationSeconds, sampleRate),
+            sampleRate = sampleRate,
+            durationMs = (durationSeconds * 1000).toInt(),
+            params = RhythmAnalysisParams(),
+        )
+        assertEquals(1, analysis.classicTiming.size)
+        assertEquals(19, analysis.classicTiming[0].timeMs)
+        assertEquals(500.01270187424916, analysis.classicTiming[0].beatMs, 1e-9)
+        assertEquals(119.99695162762029, analysis.usedBpm, 1e-9)
+    }
+
+    @Test
     fun rejectsAudioShorterThanOneWindow() {
         val failure = runCatching {
             RhythmChartGenerator.generate(FloatArray(100), sampleRate, 10, RhythmChartGenParams())

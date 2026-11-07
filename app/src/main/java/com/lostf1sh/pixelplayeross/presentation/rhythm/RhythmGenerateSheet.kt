@@ -21,7 +21,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
@@ -46,25 +45,12 @@ import com.lostf1sh.pixelplayeross.R
 import com.lostf1sh.pixelplayeross.data.rhythm.RhythmAnalysisParams
 import com.lostf1sh.pixelplayeross.presentation.components.rememberModalSheetState
 
-private val LOUDNESS_CHOICES = listOf<Pair<Int?, Int>>(
-    null to R.string.rhythm_generate_loudness_off,
-    25 to R.string.rhythm_generate_loudness_medium,
-    40 to R.string.rhythm_generate_loudness_strong,
-)
-
-private val DENSITY_CHOICES = listOf<Pair<Double?, Int>>(
-    null to R.string.rhythm_generate_density_off,
-    8.0 to R.string.rhythm_generate_density_8,
-    5.0 to R.string.rhythm_generate_density_5,
-)
-
 /**
  * Parameter sheet for the master chart.
  *
- * Only analysis knobs live here: difficulty is not a generation parameter any more, it is a way
- * to thin out the master afterwards (see `RhythmDeriveSheet`). Defaults stay the measured-best
- * configuration — no loudness filter, no density cap; the two filters are an escape hatch for
- * noisy material, not an improvement (both measured worse than plain quantization).
+ * Only analysis knobs live here: difficulty, loudness / density filters and the timing variant
+ * are all derivation choices now (see `RhythmDeriveSheet`). A master stores every onset and both
+ * beat grids, so re-decoding audio is only needed to change the tempo estimate or its phase.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -78,8 +64,6 @@ internal fun RhythmGenerateSheet(
     onStart: (RhythmAnalysisParams) -> Unit,
     onCancel: () -> Unit,
 ) {
-    var loudness by remember { mutableStateOf<Int?>(null) }
-    var density by remember { mutableStateOf<Double?>(null) }
     var advancedOpen by remember { mutableStateOf(false) }
     var bpmText by remember { mutableStateOf("") }
     var offsetMs by remember { mutableFloatStateOf(0f) }
@@ -126,10 +110,6 @@ internal fun RhythmGenerateSheet(
                 }
 
                 GenerationParams(
-                    loudness = loudness,
-                    onLoudnessChange = { loudness = it },
-                    density = density,
-                    onDensityChange = { density = it },
                     advancedOpen = advancedOpen,
                     onAdvancedToggle = { advancedOpen = !advancedOpen },
                     bpmText = bpmText,
@@ -162,8 +142,6 @@ internal fun RhythmGenerateSheet(
                         onClick = {
                             onStart(
                                 RhythmAnalysisParams(
-                                    minRmsPercentile = loudness,
-                                    maxLocalNps = density,
                                     bpmOverride = bpmValue,
                                     extraOffsetMs = offsetMs.toInt(),
                                 ),
@@ -225,10 +203,6 @@ private fun GenerationProgress(progress: Float, onCancel: () -> Unit) {
 
 @Composable
 private fun GenerationParams(
-    loudness: Int?,
-    onLoudnessChange: (Int?) -> Unit,
-    density: Double?,
-    onDensityChange: (Double?) -> Unit,
     advancedOpen: Boolean,
     onAdvancedToggle: () -> Unit,
     bpmText: String,
@@ -237,28 +211,6 @@ private fun GenerationParams(
     offsetMs: Float,
     onOffsetChange: (Float) -> Unit,
 ) {
-    SectionLabel(stringResource(R.string.rhythm_generate_loudness))
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        LOUDNESS_CHOICES.forEach { (value, label) ->
-            FilterChip(
-                selected = loudness == value,
-                onClick = { onLoudnessChange(value) },
-                label = { Text(stringResource(label)) },
-            )
-        }
-    }
-
-    SectionLabel(stringResource(R.string.rhythm_generate_density))
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        DENSITY_CHOICES.forEach { (value, label) ->
-            FilterChip(
-                selected = density == value,
-                onClick = { onDensityChange(value) },
-                label = { Text(stringResource(label)) },
-            )
-        }
-    }
-
     TextButton(onClick = onAdvancedToggle) {
         Text(
             stringResource(
@@ -314,13 +266,4 @@ private fun GenerationParams(
             modifier = Modifier.fillMaxWidth(),
         )
     }
-}
-
-@Composable
-private fun SectionLabel(text: String) {
-    Text(
-        text = text,
-        style = MaterialTheme.typography.labelLarge,
-        color = MaterialTheme.colorScheme.primary,
-    )
 }

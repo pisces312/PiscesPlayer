@@ -148,21 +148,14 @@ internal fun avoidRepeatedLane(lane: Int, lastLane: Int, band: Int): Int =
 /**
  * Everything the *analysis* half of the pipeline needs. Difficulty is absent on purpose: the
  * master chart is produced once per song, and every difficulty is derived from it later.
+ *
+ * Loudness / density filtering is absent too: a master keeps every onset and both beat grids,
+ * and those filters moved to derivation (`RhythmDeriveOptions`), where they cost no decode.
  */
 data class RhythmAnalysisParams(
-    /**
-     * Drop onsets whose local RMS (40 ms window) sits below this percentile of the whole
-     * song. `null` = off. Needs the PCM, so it can only be applied while building the master.
-     */
-    val minRmsPercentile: Int? = null,
-    /**
-     * Cap notes inside any 1 s window. `null` = off. Also master-level: a difficulty already
-     * caps density through its grid.
-     */
-    val maxLocalNps: Double? = null,
     /** Skip automatic BPM detection (the octave ambiguity is unsolvable for some songs). */
     val bpmOverride: Double? = null,
-    /** Shifts the beat grid phase; a generation-time alignment knob, not a playback setting. */
+    /** Shifts the beat grids' phase; a generation-time alignment knob, not a playback setting. */
     val extraOffsetMs: Int = 0,
 )
 

@@ -19,26 +19,35 @@ import kotlin.math.sqrt
 /** Raised when the audio cannot produce a playable chart. Message is user-facing. */
 class RhythmGenerationException(message: String) : Exception(message)
 
+/** Percentiles the master stores absolute loudness cutoffs for; the derive sheet offers exactly these. */
+internal val RMS_PERCENTILES = listOf(25, 40)
+
 /**
- * Result of the expensive half of the pipeline: everything the difficulty-independent stages
- * produced, plus the tempo and the tracked beat grid every difficulty snaps to.
+ * Result of the expensive half of the pipeline: every difficulty-independent stage, the tempo and
+ * both beat grids a master stores.
  *
- * Onsets are already filtered by the optional loudness / density constraints, so a render stage
- * does no further filtering and the master chart is literally this list turned into notes.
+ * Every detected onset is kept. Loudness and density filtering now happen at derivation time, so
+ * the analysis also carries what those filters need: the local RMS at each onset and the absolute
+ * full-envelope cutoffs for the offered percentiles.
  */
 internal class DspAnalysis(
     val onsetTimesMs: DoubleArray,
     val onsetStrength: FloatArray,
     /** Dominant frequency band per onset, 0..7. */
     val onsetBands: IntArray,
+    /** Local RMS at each onset, same index as [onsetTimesMs]. */
+    val onsetRms: FloatArray,
     /** Tracked beat grid: the anchors every derived grid snaps to. Never empty. */
     val timing: List<RhythmTimingPoint>,
+    /** 0.4.3-pisces.1 single-point grid, stored alongside the tracked one. */
+    val classicTiming: List<RhythmTimingPoint>,
+    /** Absolute loudness cutoffs for [RMS_PERCENTILES], measured on the full-song envelope. */
+    val rmsThresholds: List<RhythmRmsThreshold>,
     val beatMs: Double,
     val durationMs: Int,
     val detectedBpm: Double,
     val usedBpm: Double,
     val octaveCorrection: Double,
-    /** Peaks found by the detector, before the optional constraints dropped any. */
     val peakCount: Int,
     private val startedAtMs: Long,
 ) {
@@ -204,10 +213,25 @@ internal object RhythmChartGenerator {
 
         val beatMs = 60_000.0 / usedBpm
 
-        // --- 6. beat tracking: the piecewise grid every derived difficulty snaps to ---
+        // --- 6. beat grid: both variants are produced so the master can offer either ---
+        // The classic grid is cheap (comb-fold phase); the tracked grid is the expensive half.
+        val classicTiming = listOf(
+            classicTimingPoint(
+                novn = novn,
+                fps = fps,
+                frameCount = frameCount,
+                usedBpm = usedBpm,
+                hopMs = hopMs,
+                onsetFrames = onsetFrames,
+                onsetStrength = onsetStrength,
+                onsetCount = onsetCount,
+                sampleRate = sampleRate,
+                extraOffsetMs = params.extraOffsetMs,
+            ),
+        )
         // The peak list is the phase evidence for the grid's beat-vs-offbeat arbitration.
         val evidenceTimesMs = DoubleArray(onsetCount) { frameToMs(onsetFrames[it], sampleRate) }
-        val tracking = RhythmBeatTracker.estimateTiming(
+        val timing = RhythmBeatTracker.estimateTiming(
             pcmMono = pcmMono,
             sampleRate = sampleRate,
             chartBpm = usedBpm,
@@ -217,60 +241,33 @@ internal object RhythmChartGenerator {
             onsetStrengths = onsetStrength.copyOf(onsetCount),
             onProgress = { onProgress(0.93f + 0.03f * it) },
             isCancelled = isCancelled,
-        )
+        ).timing
 
-        // --- 7. optional constraints (off by default; they measurably lower quality) ---
-        val strongest = (0 until onsetCount).sortedByDescending { onsetStrength[it] }
-        val keep = BooleanArray(onsetCount) { true }
-        params.minRmsPercentile?.let { cutoff ->
-            val (rmsTimes, rmsValues) = rmsEnvelope(pcmMono, sampleRate, RMS_WINDOW_MS)
-            val threshold = percentile(rmsValues, cutoff / 100.0)
-            for (index in 0 until onsetCount) {
-                val time = frameToMs(onsetFrames[index], sampleRate)
-                if (interpolate(time, rmsTimes, rmsValues) < threshold) keep[index] = false
-            }
+        // --- 7. loudness evidence for derivation ---
+        // The master keeps every onset; loudness / density filtering moved to derivation
+        // (`RhythmDeriveFilters`). The stored cutoffs still come from the full-song envelope,
+        // not from the onset set, so a derived filter reproduces a generation-time one exactly.
+        val (rmsTimes, rmsValues) = rmsEnvelope(pcmMono, sampleRate, RMS_WINDOW_MS)
+        val onsetRms = FloatArray(onsetCount) { index ->
+            interpolate(
+                time = frameToMs(onsetFrames[index], sampleRate),
+                times = rmsTimes,
+                values = rmsValues,
+            ).toFloat()
         }
-        params.maxLocalNps?.let { limit ->
-            val keptTimes = ArrayList<Double>()
-            for (index in strongest) {
-                if (!keep[index]) continue
-                val time = frameToMs(onsetFrames[index], sampleRate)
-                var neighbours = 0
-                for (kept in keptTimes) {
-                    if (abs(kept - time) <= 500.0) neighbours++
-                }
-                if (neighbours >= limit) {
-                    keep[index] = false
-                    continue
-                }
-                keptTimes.add(time)
-            }
-        }
-
-        val keptCount = keep.count { it }
-        if (keptCount == 0) {
-            throw RhythmGenerationException(
-                "No playable notes were produced; try another song or set the BPM manually",
-            )
-        }
-        val keptTimes = DoubleArray(keptCount)
-        val keptStrength = FloatArray(keptCount)
-        val keptBands = IntArray(keptCount)
-        var cursor = 0
-        for (index in 0 until onsetCount) {
-            if (!keep[index]) continue
-            keptTimes[cursor] = frameToMs(onsetFrames[index], sampleRate)
-            keptStrength[cursor] = onsetStrength[index]
-            keptBands[cursor] = onsetBands[index]
-            cursor++
+        val rmsThresholds = RMS_PERCENTILES.map { cutoff ->
+            RhythmRmsThreshold(cutoff, percentile(rmsValues, cutoff / 100.0).toFloat())
         }
         onProgress(0.97f)
 
         return DspAnalysis(
-            onsetTimesMs = keptTimes,
-            onsetStrength = keptStrength,
-            onsetBands = keptBands,
-            timing = tracking.timing,
+            onsetTimesMs = evidenceTimesMs,
+            onsetStrength = onsetStrength.copyOf(onsetCount),
+            onsetBands = onsetBands.copyOf(onsetCount),
+            onsetRms = onsetRms,
+            timing = timing,
+            classicTiming = classicTiming,
+            rmsThresholds = rmsThresholds,
             beatMs = beatMs,
             durationMs = totalMs,
             detectedBpm = detectedBpm,
@@ -301,6 +298,7 @@ internal object RhythmChartGenerator {
                 lane = lane,
                 strength = analysis.onsetStrength[index],
                 band = band,
+                rms = analysis.onsetRms[index],
             )
             lastLane = lane
         }
@@ -313,6 +311,11 @@ internal object RhythmChartGenerator {
             source = RhythmChart.SOURCE_DSP,
             difficultyName = "DSP Raw",
             timing = analysis.timing,
+            timingVariants = listOf(
+                RhythmTimingVariant(RhythmTimingVariantKey.TRACKED, analysis.timing),
+                RhythmTimingVariant(RhythmTimingVariantKey.CLASSIC, analysis.classicTiming),
+            ),
+            rmsThresholds = analysis.rmsThresholds,
             notes = notes,
             durationMs = analysis.durationMs,
         )
@@ -446,6 +449,47 @@ internal object RhythmChartGenerator {
 
     private fun frameToMs(frame: Int, sampleRate: Int): Double =
         (frame.toDouble() * HOP + N_FFT - HOP / 2.0) * 1000.0 / sampleRate
+
+    /**
+     * FROZEN REPLICA of the 0.4.3-pisces.1 single-point timing (commit 8250c1bb): comb-fold
+     * phase + median offset of the strongest onsets. Do not "improve" or share with the live
+     * tracker — CLASSIC derivation off this grid must keep reproducing the old build's charts.
+     */
+    private fun classicTimingPoint(
+        novn: FloatArray,
+        fps: Double,
+        frameCount: Int,
+        usedBpm: Double,
+        hopMs: Double,
+        onsetFrames: IntArray,
+        onsetStrength: FloatArray,
+        onsetCount: Int,
+        sampleRate: Int,
+        extraOffsetMs: Int,
+    ): RhythmTimingPoint {
+        val beatMs = 60_000.0 / usedBpm
+        val periodFrames = fps * 60.0 / usedBpm
+        val phasePeriod = max(1, Math.round(periodFrames).toInt())
+        val comb = DoubleArray(phasePeriod)
+        for (frame in 0 until frameCount) {
+            comb[frame % phasePeriod] += novn[frame].toDouble()
+        }
+        var phaseFrame = 0
+        for (index in 1 until phasePeriod) {
+            if (comb[index] > comb[phaseFrame]) phaseFrame = index
+        }
+        val strongest = (0 until onsetCount).sortedByDescending { onsetStrength[it] }
+        val offsetSamples = max(1, onsetCount / 10)
+        val offsets = DoubleArray(offsetSamples)
+        for (index in 0 until offsetSamples) {
+            val time = frameToMs(onsetFrames[strongest[index]], sampleRate)
+            val shifted = time - phaseFrame * hopMs
+            offsets[index] = ((shifted % beatMs) + beatMs) % beatMs
+        }
+        offsets.sort()
+        val beatOffsetMs = median(offsets) + extraOffsetMs
+        return RhythmTimingPoint(Math.round(beatOffsetMs).toInt(), beatMs)
+    }
 
     /**
      * Autocorrelation over a narrow lag window, then a harmonic search that uses longer
@@ -699,5 +743,12 @@ internal object RhythmChartGenerator {
             sorted[size / 2]
         } else {
             (sorted[size / 2 - 1] + sorted[size / 2]) * 0.5f
+        }
+
+    private fun median(sorted: DoubleArray): Double =
+        if (sorted.size % 2 == 1) {
+            sorted[sorted.size / 2]
+        } else {
+            (sorted[sorted.size / 2 - 1] + sorted[sorted.size / 2]) * 0.5
         }
 }

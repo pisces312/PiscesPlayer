@@ -70,14 +70,13 @@ import com.lostf1sh.pixelplayeross.R
 import com.lostf1sh.pixelplayeross.data.model.Song
 import com.lostf1sh.pixelplayeross.data.offline.CloudOfflineRepository
 import com.lostf1sh.pixelplayeross.data.rhythm.DspDifficulty
-import com.lostf1sh.pixelplayeross.data.rhythm.LaneStrategy
 import com.lostf1sh.pixelplayeross.data.rhythm.MasterGenerationResult
 import com.lostf1sh.pixelplayeross.data.rhythm.RhythmAnalysisParams
 import com.lostf1sh.pixelplayeross.data.rhythm.RhythmChart
 import com.lostf1sh.pixelplayeross.data.rhythm.RhythmChartMeta
 import com.lostf1sh.pixelplayeross.data.rhythm.RhythmChartSettings
-import com.lostf1sh.pixelplayeross.data.rhythm.OnsetSelection
 import com.lostf1sh.pixelplayeross.data.rhythm.RhythmDeriveMode
+import com.lostf1sh.pixelplayeross.data.rhythm.RhythmDeriveSettings
 import com.lostf1sh.pixelplayeross.data.rhythm.RhythmPlayLogic
 import com.lostf1sh.pixelplayeross.data.rhythm.RhythmRepository
 import com.lostf1sh.pixelplayeross.presentation.components.MiniPlayerBottomSpacer
@@ -244,24 +243,19 @@ fun RhythmSetupScreen(
         }
     }
 
-    fun derive(
-        difficulties: List<DspDifficulty>,
-        modes: Set<RhythmDeriveMode>,
-        strategy: LaneStrategy,
-        maxChord: Int,
-        onsetSelection: OnsetSelection,
-    ) {
+    fun derive(settings: RhythmDeriveSettings) {
         val master = snapshot.masterChart ?: return
         val masterMeta = snapshot.master ?: return
         val labels = difficultyLabels
         val modeNames = modeLabels
+        val difficulties = settings.difficulties.sortedDescending()
         deriving = true
         scope.launch {
             try {
                 val stamp = DERIVED_NAME_FORMATTER.format(Instant.now())
                 val names = buildMap {
                     for (difficulty in difficulties) {
-                        for (mode in modes) {
+                        for (mode in settings.modes) {
                             put(
                                 difficulty to mode,
                                 "${labels.getValue(difficulty)} · " +
@@ -275,11 +269,12 @@ fun RhythmSetupScreen(
                     master = master,
                     masterMeta = masterMeta,
                     difficulties = difficulties,
-                    modes = modes,
-                    laneStrategy = strategy,
+                    modes = settings.modes,
+                    laneStrategy = settings.laneStrategy,
                     displayNames = names,
-                    maxChord = maxChord,
-                    onsetSelection = onsetSelection,
+                    maxChord = settings.maxChord,
+                    onsetSelection = settings.selection,
+                    options = settings.options(),
                 )
                 showDeriveSheet = false
                 reload()
@@ -607,27 +602,21 @@ fun RhythmSetupScreen(
         val masterChart = snapshot.masterChart
         if (masterChart != null) {
             RhythmDeriveSheet(
-                masterNoteCount = masterChart.noteCount(),
-                masterBpm = String.format(
-                    Locale.US,
-                    "%.1f",
-                    60_000.0 / masterChart.timing.first().beatMs,
-                ),
+                master = masterChart,
                 deriving = deriving,
-                onComputeEstimates = { strategy, maxChord, modes, selection ->
+                onComputeEstimates = { settings ->
                     repository.previewDerivedCounts(
                         master = masterChart,
                         difficulties = DspDifficulty.entries,
-                        modes = modes,
-                        laneStrategy = strategy,
-                        maxChord = maxChord,
-                        onsetSelection = selection,
+                        modes = settings.modes,
+                        laneStrategy = settings.laneStrategy,
+                        maxChord = settings.maxChord,
+                        onsetSelection = settings.selection,
+                        options = settings.options(),
                     )
                 },
                 onDismiss = { if (!deriving) showDeriveSheet = false },
-                onDerive = { difficulties, modes, strategy, maxChord, selection ->
-                    derive(difficulties, modes, strategy, maxChord, selection)
-                },
+                onDerive = { settings -> derive(settings) },
             )
         }
     }

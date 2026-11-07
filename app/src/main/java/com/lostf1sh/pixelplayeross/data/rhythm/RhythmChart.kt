@@ -23,6 +23,8 @@ data class RhythmNote(
     val strength: Float = 0f,
     /** Dominant frequency band 0..7; -1 when unknown (osu imports). */
     val band: Int = -1,
+    /** Local RMS at the onset (40 ms envelope, interpolated); 0 when unknown (osu imports, legacy masters). */
+    val rms: Float = 0f,
 ) {
     init {
         require(timeMs >= 0) { "note timeMs must be >= 0" }
@@ -34,13 +36,50 @@ data class RhythmNote(
 @Serializable
 data class RhythmTimingPoint(val timeMs: Int, val beatMs: Double)
 
+/** Stable keys for the timing alternatives stored on a DSP master; they never follow the UI language. */
+object RhythmTimingVariantKey {
+    const val TRACKED = "tracked"
+    const val CLASSIC = "classic"
+}
+
+/** One selectable beat grid alternative of a master chart. */
+@Serializable
+data class RhythmTimingVariant(
+    val key: String,
+    val timing: List<RhythmTimingPoint>,
+)
+
+/** Absolute loudness cutoff for one percentile of the master's full-song RMS envelope. */
+@Serializable
+data class RhythmRmsThreshold(
+    /** Percentile of the envelope values, e.g. 25 or 40. */
+    val percentile: Int,
+    /** Absolute RMS threshold computed at generation time; derivation only compares against it. */
+    val rms: Float,
+)
+
+/**
+ * A timing variant resolved for derivation. [approximate] is true when a legacy master had to be
+ * approximated instead of carrying the variant as stored (see [RhythmChart.timingVariantsFor]).
+ */
+data class RhythmTimingChoice(
+    val key: String,
+    val timing: List<RhythmTimingPoint>,
+    val approximate: Boolean = false,
+)
+
 /** Unified internal chart shared by osu import and (future) DSP generation. */
 @Serializable
 data class RhythmChart(
     val schemaVersion: Int = 1,
     val source: String,
     val difficultyName: String,
+    /** Primary timing: playback and every legacy reader use it; a new master stores `tracked` here. */
     val timing: List<RhythmTimingPoint> = emptyList(),
+    /** Selectable timing alternatives; only a master writes them, derived charts leave this empty. */
+    val timingVariants: List<RhythmTimingVariant> = emptyList(),
+    /** Loudness cutoffs for the offered percentiles; only a master writes them. */
+    val rmsThresholds: List<RhythmRmsThreshold> = emptyList(),
     val notes: List<RhythmNote> = emptyList(),
     val durationMs: Int = 0,
 ) {
@@ -71,6 +110,43 @@ data class RhythmChart(
         val span = if (durationMs > 0) durationMs else (notes.last().timeMs + 1)
         return notes.size * 1000.0 / span
     }
+
+    /**
+     * Timing variants this chart offers for derivation, in a stable order.
+     *
+     * A master written by the current build carries both variants already. Older masters carry
+     * only [timing], so the alternatives are synthesized on read and nothing is rewritten on disk:
+     * a single-point master is its own classic grid (that is exactly the 0.4.3-pisces.1 shape),
+     * while a piecewise master gets an approximate classic grid (median beat + earliest anchor),
+     * which the UI labels as approximate.
+     */
+    fun timingVariantsFor(): List<RhythmTimingChoice> {
+        if (timingVariants.isNotEmpty()) {
+            return timingVariants.map { RhythmTimingChoice(it.key, it.timing) }
+        }
+        if (timing.isEmpty()) return emptyList()
+        if (timing.size == 1) {
+            return listOf(
+                RhythmTimingChoice(RhythmTimingVariantKey.TRACKED, timing),
+                RhythmTimingChoice(RhythmTimingVariantKey.CLASSIC, timing),
+            )
+        }
+        val beats = timing.map { it.beatMs }.sorted()
+        val classic = listOf(
+            RhythmTimingPoint(
+                timeMs = timing.minOf { it.timeMs },
+                beatMs = beats[beats.size / 2],
+            ),
+        )
+        return listOf(
+            RhythmTimingChoice(RhythmTimingVariantKey.TRACKED, timing),
+            RhythmTimingChoice(RhythmTimingVariantKey.CLASSIC, classic, approximate = true),
+        )
+    }
+
+    /** Absolute loudness cutoff for [percentile]; null when the master has no RMS data for it. */
+    fun rmsThresholdFor(percentile: Int): Float? =
+        rmsThresholds.firstOrNull { it.percentile == percentile }?.rms
 
     companion object {
         val SOURCES = setOf(SOURCE_OSU, SOURCE_DSP, SOURCE_PRC)
