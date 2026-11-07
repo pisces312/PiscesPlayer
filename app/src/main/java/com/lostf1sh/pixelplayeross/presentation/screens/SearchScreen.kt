@@ -84,7 +84,6 @@ import com.lostf1sh.pixelplayeross.presentation.components.SongInfoBottomSheet
 import com.lostf1sh.pixelplayeross.presentation.viewmodel.PlayerViewModel
 import com.lostf1sh.pixelplayeross.ui.theme.LocalPixelPlayerDarkTheme
 import androidx.compose.material.icons.rounded.DeleteForever
-import androidx.compose.material.icons.rounded.PlaylistPlay
 import androidx.compose.material.icons.rounded.History
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.LaunchedEffect

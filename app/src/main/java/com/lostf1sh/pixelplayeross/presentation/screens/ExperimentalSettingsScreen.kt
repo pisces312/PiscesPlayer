@@ -40,7 +40,6 @@ import androidx.compose.material.icons.outlined.Style
 import androidx.compose.material.icons.rounded.LinearScale
 import androidx.compose.material.icons.rounded.MusicNote
 import androidx.compose.material.icons.rounded.Rectangle
-import androidx.compose.material.icons.rounded.Title
 import androidx.compose.material.icons.rounded.ViewCarousel
 import androidx.compose.material.icons.rounded.BlurOn
 import androidx.compose.material.icons.rounded.Visibility

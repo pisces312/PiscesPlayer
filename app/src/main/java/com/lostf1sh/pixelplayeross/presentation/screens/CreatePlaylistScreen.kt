@@ -47,7 +47,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.ArrowForward
-import androidx.compose.material.icons.filled.AddPhotoAlternate
 import androidx.compose.material.icons.rounded.AddPhotoAlternate
 import androidx.compose.material.icons.rounded.Album
 import androidx.compose.material.icons.rounded.AudioFile
@@ -61,9 +60,7 @@ import androidx.compose.material.icons.rounded.Headphones
 import androidx.compose.material.icons.rounded.MicExternalOn
 import androidx.compose.material.icons.rounded.MusicNote
 import androidx.compose.material.icons.rounded.Piano
-import androidx.compose.material.icons.rounded.QueueMusic
 import androidx.compose.material.icons.rounded.Speaker
-import androidx.compose.material.icons.rounded.Crop
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api

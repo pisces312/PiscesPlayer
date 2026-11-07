@@ -22,7 +22,6 @@ import androidx.compose.material.icons.rounded.FormatListNumbered
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Image
 import androidx.compose.material.icons.rounded.MusicNote
-import androidx.compose.material.icons.rounded.Notes
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material3.*
 import androidx.compose.material3.BasicAlertDialog

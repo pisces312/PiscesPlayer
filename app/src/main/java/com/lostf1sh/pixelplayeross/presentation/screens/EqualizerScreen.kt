@@ -107,9 +107,7 @@ import kotlin.math.roundToInt
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
-import androidx.compose.material.icons.rounded.VolumeUp
 import androidx.compose.material.icons.rounded.GraphicEq
-import androidx.compose.material.icons.rounded.Speed
 import androidx.compose.material.icons.rounded.SurroundSound
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
@@ -122,7 +120,6 @@ import com.lostf1sh.pixelplayeross.presentation.components.MiniPlayerHeight
 import androidx.compose.material.icons.rounded.BarChart
 import androidx.compose.material.icons.rounded.Block
 import androidx.compose.material.icons.rounded.Close
-import androidx.compose.material.icons.rounded.ShowChart
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -140,7 +137,6 @@ import com.lostf1sh.pixelplayeross.presentation.components.ReorderPresetsSheet
 import com.lostf1sh.pixelplayeross.presentation.components.SavePresetDialog
 import com.lostf1sh.pixelplayeross.presentation.components.RenamePresetDialog
 import com.lostf1sh.pixelplayeross.data.preferences.UserPreferencesRepository.EqualizerViewMode
-import androidx.compose.material.icons.rounded.ViewQuilt
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.material.icons.automirrored.rounded.ShowChart

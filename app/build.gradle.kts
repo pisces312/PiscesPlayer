@@ -1,12 +1,21 @@
 import javax.inject.Inject
 import com.android.build.api.variant.FilterConfiguration
 import org.gradle.api.DefaultTask
+import org.gradle.api.GradleException
+import org.gradle.api.file.ConfigurableFileCollection
 import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.file.FileSystemOperations
 import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.tasks.InputFile
+import org.gradle.api.tasks.InputFiles
 import org.gradle.api.tasks.OutputDirectory
+import org.gradle.api.tasks.OutputFile
+import org.gradle.api.tasks.PathSensitive
+import org.gradle.api.tasks.PathSensitivity
 import org.gradle.api.tasks.TaskAction
+import java.util.jar.JarEntry
+import java.util.jar.JarOutputStream
+import java.util.zip.ZipFile
 
 plugins {
     alias(libs.plugins.android.application)
@@ -44,6 +53,97 @@ abstract class CopyAssetFile : DefaultTask() {
     }
 }
 
+/**
+ * Repackages material-icons-extended so the APK only carries the icons the app references.
+ *
+ * Release builds already let R8 drop the ~10k unused icon classes, but the debug variant is not
+ * minified and therefore pays for every icon in the artifact. This task scans the Kotlin sources
+ * for `Icons.<style>.<Name>` references, copies the matching classes (plus any `NameKt$...`
+ * synthetics) out of the AAR's classes.jar, and emits them as a small jar that replaces the
+ * original dependency. Icons that live in material-icons-core are simply not present in the
+ * extended AAR and stay provided by that dependency. Adding a new icon needs no manual step: the
+ * scan is an input of the task, so the next build picks it up.
+ */
+abstract class GenerateUsedIconJar : DefaultTask() {
+
+    @get:InputFiles
+    @get:PathSensitive(PathSensitivity.RELATIVE)
+    abstract val kotlinSources: ConfigurableFileCollection
+
+    @get:InputFile
+    abstract val iconsAar: RegularFileProperty
+
+    @get:OutputFile
+    abstract val outputJar: RegularFileProperty
+
+    @TaskAction
+    fun generate() {
+        val iconPattern = Regex(
+            """\bIcons\.(Filled|Outlined|Rounded|Sharp|TwoTone|Default|""" +
+                """AutoMirrored\.(?:Filled|Outlined|Rounded|Sharp|TwoTone|Default))\.(\w+)"""
+        )
+        val usedClasses = mutableSetOf<String>()
+        kotlinSources.files.filter { it.isFile }.forEach { source ->
+            source.forEachLine { line ->
+                iconPattern.findAll(line).forEach { match ->
+                    val rawStyle = match.groupValues[1]
+                    val name = match.groupValues[2]
+                    val style = when {
+                        rawStyle == "Default" -> "filled"
+                        rawStyle.startsWith("AutoMirrored.") -> {
+                            val mirrored = rawStyle.substringAfter("AutoMirrored.")
+                            "automirrored/" + if (mirrored == "Default") "filled" else mirrored.lowercase()
+                        }
+                        else -> rawStyle.lowercase()
+                    }
+                    usedClasses += "androidx/compose/material/icons/$style/${name}Kt"
+                }
+            }
+        }
+
+        val aarFile = iconsAar.asFile.get()
+        val classesJar = File(temporaryDir, "classes.jar")
+        ZipFile(aarFile).use { aar ->
+            val entry = aar.getEntry("classes.jar")
+                ?: throw GradleException("$aarFile does not contain classes.jar")
+            aar.getInputStream(entry).use { input ->
+                classesJar.outputStream().use { output -> input.copyTo(output) }
+            }
+        }
+
+        val destination = outputJar.asFile.get()
+        destination.parentFile.mkdirs()
+        var packedIcons = 0
+        JarOutputStream(destination.outputStream()).use { jar ->
+            ZipFile(classesJar).use { icons ->
+                icons.entries().asSequence()
+                    .filter { entry ->
+                        // Keep the zip layout and META-INF as-is: without the .kotlin_module file
+                        // the Kotlin compiler cannot resolve the package-level icon properties.
+                        entry.isDirectory ||
+                            entry.name.startsWith("META-INF/") ||
+                            run {
+                                val className = entry.name.removeSuffix(".class")
+                                usedClasses.any { used ->
+                                    className == used || className.startsWith("$used$")
+                                }
+                            }
+                    }
+                    .forEach { entry ->
+                        jar.putNextEntry(JarEntry(entry.name))
+                        if (!entry.isDirectory) {
+                            icons.getInputStream(entry).use { input -> input.copyTo(jar) }
+                            if (!entry.name.startsWith("META-INF/")) packedIcons++
+                        }
+                        jar.closeEntry()
+                    }
+            }
+        }
+        if (packedIcons == 0) throw GradleException("No icon classes were found in $aarFile")
+        logger.info("Packed $packedIcons icon classes into $destination")
+    }
+}
+
 // Release signing credentials come from the KEY_* environment variables, and from nowhere else
 // (see AGENTS.md > 签名与发布). Refusing to read a keystore.properties file is the point: no
 // plaintext password can be picked up off the working tree on any machine, this one or CI, and
@@ -75,6 +175,30 @@ val enableAbiSplits = providers.gradleProperty("pixelplayer.enableAbiSplits")
 val enableComposeCompilerReports = providers.gradleProperty("pixelplayer.enableComposeCompilerReports")
     .getOrElse("false")
     .toBoolean()
+
+// Resolves the full material-icons-extended AAR for GenerateUsedIconJar only. The app classpath
+// gets the generated subset jar instead, so the unused ~10k icon classes never reach the debug
+// dex (release already drops them via R8).
+val iconsExtendedAar = configurations.create("iconsExtendedAar") {
+    isCanBeConsumed = false
+    isCanBeResolved = true
+}
+
+// The extended artifact is multiplatform; request the Android AAR directly so the task always
+// receives a zip containing classes.jar regardless of metadata handling.
+dependencies {
+    add(
+        iconsExtendedAar.name,
+        "androidx.compose.material:material-icons-extended-android:" +
+            "${libs.versions.composeMaterialIcons.get()}@aar"
+    )
+}
+
+val generateUsedIconJar = tasks.register<GenerateUsedIconJar>("generateUsedIconJar") {
+    kotlinSources.from(fileTree("src") { include("**/*.kt") })
+    iconsAar.set(layout.file(iconsExtendedAar.elements.map { it.single().asFile }))
+    outputJar.set(layout.buildDirectory.file("generated/icons/material-icons-extended-used.jar"))
+}
 
 // The in-app changelog reads CHANGELOG.md at runtime, so the repository file is the single
 // source of truth instead of a hardcoded list of localized entries.
@@ -287,7 +411,9 @@ dependencies {
     implementation(libs.androidx.compose.material3)
     implementation(libs.androidx.compose.material3.adaptive)
     implementation(libs.androidx.material.icons.core)
-    implementation(libs.androidx.material.icons.extended)
+    // Concrete build-dir path: a task-provider-backed file collection was not picked up by AGP's
+    // compile classpath, while this form is (verified via the resolved debugCompileClasspath).
+    implementation(files(layout.buildDirectory.file("generated/icons/material-icons-extended-used.jar")).builtBy(generateUsedIconJar))
     implementation(libs.androidx.constraintlayout.compose)
     implementation(libs.androidx.foundation)
     implementation(libs.androidx.animation)
@@ -314,11 +440,9 @@ dependencies {
     implementation(libs.androidx.paging.common)
 
     implementation(libs.androidx.media3.exoplayer)
-    implementation(libs.androidx.media3.ui)
     implementation(libs.androidx.media3.session)
     implementation(libs.androidx.media3.exoplayer.ffmpeg)
     implementation(libs.androidx.media3.exoplayer.midi)
-    implementation(libs.androidx.media3.transformer)
     implementation(libs.androidx.media)
     implementation(libs.coil.compose)
     implementation(libs.taglib)
