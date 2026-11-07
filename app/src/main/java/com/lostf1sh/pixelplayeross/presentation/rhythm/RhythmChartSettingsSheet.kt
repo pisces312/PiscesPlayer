@@ -33,6 +33,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.lostf1sh.pixelplayeross.R
 import com.lostf1sh.pixelplayeross.data.rhythm.RhythmChartSettings
+import com.lostf1sh.pixelplayeross.data.rhythm.delayAfterTap
 
 /**
  * Per-chart playback settings. Saving on drag-release (not on every frame) keeps the sidecar
@@ -83,23 +84,18 @@ internal fun RhythmChartSettingsSheet(
                     style = MaterialTheme.typography.titleMedium,
                     modifier = Modifier.weight(1f),
                 )
-                OutlinedButton(onClick = { commit(newDelay = delayMs - 1) }) { Text("-1") }
+                OutlinedButton(onClick = { commit(newDelay = delayAfterTap(delayMs, -10)) }) {
+                    Text("-10")
+                }
                 Spacer(Modifier.width(8.dp))
-                OutlinedButton(onClick = { commit(newDelay = delayMs + 1) }) { Text("+1") }
+                OutlinedButton(onClick = { commit(newDelay = delayAfterTap(delayMs, 10)) }) {
+                    Text("+10")
+                }
                 Spacer(Modifier.width(8.dp))
                 TextButton(onClick = { commit(newDelay = 0, newApproach = approachMs) }) {
                     Text(stringResource(R.string.rhythm_settings_reset))
                 }
             }
-            Slider(
-                value = delayMs.toFloat(),
-                onValueChange = { delayMs = it.toInt() },
-                onValueChangeFinished = { commit() },
-                valueRange = RhythmChartSettings.MIN_DELAY_MS.toFloat()..
-                    RhythmChartSettings.MAX_DELAY_MS.toFloat(),
-                steps = 59,
-                modifier = Modifier.fillMaxWidth(),
-            )
             Text(
                 text = stringResource(R.string.rhythm_settings_delay_hint),
                 style = MaterialTheme.typography.bodySmall,

@@ -287,7 +287,7 @@ class RhythmLibraryStoreTest {
     }
 
     @Test
-    fun settingsRoundTripAndClampOutOfRangeValues() {
+    fun settingsRoundTripKeepsAnyDelayAndClampsApproach() {
         val store = RhythmLibraryStore(root())
 
         val stored = store.writeSettings(
@@ -296,7 +296,8 @@ class RhythmLibraryStoreTest {
             nowMs = 42,
         )
 
-        assertEquals(RhythmChartSettings.MAX_DELAY_MS, stored.delayMs)
+        // Delay is unbounded (plan §14); the approach window keeps its 700..3000 clamp.
+        assertEquals(9_999, stored.delayMs)
         assertEquals(RhythmChartSettings.MIN_APPROACH_MS, stored.approachMs)
         assertEquals(42, stored.updatedAtMs)
         assertEquals(stored, store.readSettings("chart-a"))

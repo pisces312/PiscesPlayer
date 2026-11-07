@@ -33,16 +33,18 @@ data class RhythmChartSettings(
     }
 
     fun clamped(): RhythmChartSettings = copy(
-        delayMs = delayMs.coerceIn(MIN_DELAY_MS, MAX_DELAY_MS),
+        // Delay is intentionally unbounded: compensation must be able to reach any value on
+        // badly out-of-sync devices (plan §14), and an extreme offset only shifts the clock.
         approachMs = approachMs.coerceIn(MIN_APPROACH_MS, MAX_APPROACH_MS),
     )
 
     companion object {
-        const val MIN_DELAY_MS = -300
-        const val MAX_DELAY_MS = 300
         const val MIN_APPROACH_MS = 700
         const val MAX_APPROACH_MS = 3000
 
         val DEFAULT = RhythmChartSettings()
     }
 }
+
+/** One latency tap: plain addition, no clamp and no wraparound (plan §14). */
+fun delayAfterTap(currentMs: Int, deltaMs: Int): Int = currentMs + deltaMs

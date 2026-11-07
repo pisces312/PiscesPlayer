@@ -66,6 +66,7 @@ import com.lostf1sh.pixelplayeross.data.rhythm.RhythmDriftReport
 import com.lostf1sh.pixelplayeross.data.rhythm.RhythmPcmDecoder
 import com.lostf1sh.pixelplayeross.data.rhythm.RhythmPlayLogic
 import com.lostf1sh.pixelplayeross.data.rhythm.RhythmRepository
+import com.lostf1sh.pixelplayeross.data.rhythm.delayAfterTap
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -160,14 +161,10 @@ fun RhythmGameScreen(
     /** Offset tweak from the pause screen: applied live and persisted to the chart sidecar. */
     fun adjustDelay(deltaMs: Int) {
         val currentSession = session ?: return
-        val next = (currentSession.clock.offsetMs + deltaMs)
-            .coerceIn(
-                RhythmChartSettings.MIN_DELAY_MS.toDouble(),
-                RhythmChartSettings.MAX_DELAY_MS.toDouble(),
-            )
-        currentSession.clock.offsetMs = next
+        val next = delayAfterTap(currentSession.clock.offsetMs.roundToInt(), deltaMs)
+        currentSession.clock.offsetMs = next.toDouble()
         val updated = chartSettings.copy(
-            delayMs = next.roundToInt(),
+            delayMs = next,
             updatedAtMs = System.currentTimeMillis(),
         )
         chartSettings = updated
