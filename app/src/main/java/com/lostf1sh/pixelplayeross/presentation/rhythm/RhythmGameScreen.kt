@@ -163,6 +163,9 @@ fun RhythmGameScreen(
         val currentSession = session ?: return
         val next = delayAfterTap(currentSession.clock.offsetMs.roundToInt(), deltaMs)
         currentSession.clock.offsetMs = next.toDouble()
+        // The paused game loop does not sample the clock; refresh the frame-stable render time
+        // explicitly so the playfield reflects the new offset before playback resumes.
+        songMs = currentSession.clock.nowMs()
         val updated = chartSettings.copy(
             delayMs = next,
             updatedAtMs = System.currentTimeMillis(),
