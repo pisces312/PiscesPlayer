@@ -184,6 +184,8 @@
     <string name="about_app_name">PixelPlayerOSS</string>
     <string name="about_tagline">优先本地播放、支持自建流媒体，基于 Material 3 的开源播放器。</string>
     <string name="about_version_format">版本 v%1$s</string>
+    <string name="about_build_built_at">构建于 %1$s</string>
+    <string name="about_build_changed_files">%1$d 处改动</string>
     <string name="about_contributions_format">%1$d 位贡献者</string>
     <string name="screen_about">关于</string>
     <string name="about_maintainer_title">维护者</string>

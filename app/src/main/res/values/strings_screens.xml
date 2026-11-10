@@ -185,6 +185,8 @@
     <string name="about_app_name">PixelPlayerOSS</string>
     <string name="about_tagline">Local-first music, self-hosted streaming, and Material 3 craft in one FOSS player.</string>
     <string name="about_version_format">Version v%1$s</string>
+    <string name="about_build_built_at">Built %1$s</string>
+    <string name="about_build_changed_files">%1$d changed</string>
     <string name="about_contributions_format">%1$d contrib.</string>
     <string name="screen_about">About</string>
     <string name="about_maintainer_title">Maintainers</string>

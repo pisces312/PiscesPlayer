@@ -6,6 +6,8 @@ import org.gradle.api.file.ConfigurableFileCollection
 import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.file.FileSystemOperations
 import org.gradle.api.file.RegularFileProperty
+import org.gradle.api.provider.Property
+import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.InputFile
 import org.gradle.api.tasks.InputFiles
 import org.gradle.api.tasks.OutputDirectory
@@ -13,6 +15,12 @@ import org.gradle.api.tasks.OutputFile
 import org.gradle.api.tasks.PathSensitive
 import org.gradle.api.tasks.PathSensitivity
 import org.gradle.api.tasks.TaskAction
+import org.gradle.process.ExecOperations
+import java.io.ByteArrayOutputStream
+import java.io.File
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import java.util.jar.JarEntry
 import java.util.jar.JarOutputStream
 import java.util.zip.ZipFile
@@ -50,6 +58,86 @@ abstract class CopyAssetFile : DefaultTask() {
             from(sourceFile)
             into(outputDirectory)
         }
+    }
+}
+
+/**
+ * Writes the source revision and build timestamp into an asset that the About screen reads.
+ *
+ * Both the git calls and [Instant.now] happen in the task action, never during configuration:
+ * a value read at configuration time is serialized into the configuration cache and would go
+ * stale on the next build. `outputs.upToDateWhen { false }` is set at registration time so the
+ * timestamp is refreshed on every build. Keeping this in assets (instead of BuildConfig or
+ * resValue) means a changed timestamp only re-runs mergeAssets/packaging - Kotlin compilation
+ * and R8 stay UP-TO-DATE.
+ */
+abstract class GenerateBuildInfo : DefaultTask() {
+
+    @get:Input
+    abstract val gitExecutable: Property<String>
+
+    @get:Input
+    abstract val repositoryRoot: Property<String>
+
+    @get:Input
+    abstract val versionName: Property<String>
+
+    @get:OutputDirectory
+    abstract val outputDirectory: DirectoryProperty
+
+    @get:Inject
+    abstract val execOperations: ExecOperations
+
+    /** Returns null (instead of failing the build) when git is missing or the tree has no .git. */
+    private fun git(vararg args: String): String? {
+        val stdout = ByteArrayOutputStream()
+        val result = try {
+            execOperations.exec {
+                commandLine(gitExecutable.get(), *args)
+                workingDir(File(repositoryRoot.get()))
+                standardOutput = stdout
+                errorOutput = ByteArrayOutputStream()
+                isIgnoreExitValue = true
+            }
+        } catch (_: Exception) {
+            return null
+        }
+        return if (result.exitValue == 0) stdout.toString(Charsets.UTF_8.name()).trim() else null
+    }
+
+    @TaskAction
+    fun generate() {
+        val commit = git("rev-parse", "--short=8", "HEAD") ?: "unknown"
+        val commitFull = git("rev-parse", "HEAD") ?: "unknown"
+        // Committer date, not author date: amend/rebase/cherry-pick move the committer date.
+        val commitTimeEpochSec = git("log", "-1", "--format=%ct") ?: ""
+        val branch = git("rev-parse", "--abbrev-ref", "HEAD") ?: "unknown"
+        val describe = git("describe", "--tags", "--always", "--dirty") ?: commit
+        val status = git("status", "--porcelain")
+        val changedFiles = status?.lineSequence()?.count { it.isNotBlank() } ?: 0
+        val dirty = changedFiles > 0
+
+        val now = Instant.now()
+        val buildTimeIso = DateTimeFormatter.ISO_OFFSET_DATE_TIME
+            .format(now.atZone(ZoneId.systemDefault()))
+
+        val outputFile = outputDirectory.file("build-info.properties").get().asFile
+        outputFile.parentFile.mkdirs()
+        outputFile.writeText(
+            buildString {
+                appendLine("commit=$commit")
+                appendLine("commitFull=$commitFull")
+                appendLine("commitTimeEpochSec=$commitTimeEpochSec")
+                appendLine("branch=$branch")
+                appendLine("describe=$describe")
+                appendLine("dirty=$dirty")
+                appendLine("changedFiles=$changedFiles")
+                appendLine("buildTimeEpochMs=${now.toEpochMilli()}")
+                appendLine("buildTimeIso=$buildTimeIso")
+                appendLine("versionName=${versionName.get()}")
+            },
+            Charsets.UTF_8,
+        )
     }
 }
 
@@ -208,6 +296,18 @@ val copyChangelog = tasks.register<CopyAssetFile>("copyChangelog") {
     outputDirectory.set(generatedChangelogAssets)
 }
 
+val generatedBuildInfoAssets = layout.buildDirectory.dir("generated/assets/build-info")
+val generateBuildInfo = tasks.register<GenerateBuildInfo>("generateBuildInfo") {
+    // WorkBuddy's PowerShell sessions do not always have git on PATH; override with
+    // -Ppixelplayer.gitExecutable=<path> or set it once in ~/.gradle/gradle.properties.
+    gitExecutable.set(providers.gradleProperty("pixelplayer.gitExecutable").getOrElse("git"))
+    repositoryRoot.set(rootProject.layout.projectDirectory.asFile.absolutePath)
+    versionName.set(providers.gradleProperty("APP_VERSION_NAME").getOrElse("0.0.0"))
+    outputDirectory.set(generatedBuildInfoAssets)
+    // A fresh build time is the point of this task, so it can never be UP-TO-DATE.
+    outputs.upToDateWhen { false }
+}
+
 @Suppress("DEPRECATION")
 android {
     namespace = "com.lostf1sh.pixelplayeross"
@@ -356,6 +456,10 @@ androidComponents {
         variant.sources.assets?.addGeneratedSourceDirectory(
             copyChangelog,
             CopyAssetFile::outputDirectory,
+        )
+        variant.sources.assets?.addGeneratedSourceDirectory(
+            generateBuildInfo,
+            GenerateBuildInfo::outputDirectory,
         )
     }
 }
