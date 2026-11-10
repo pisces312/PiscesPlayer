@@ -284,7 +284,7 @@
     <string name="updates_status_reinstall_signature">%1$s sürümü bu derlemenin üzerine yüklenemez: farklı bir anahtarla imzalanmış ya da paket adı farklı (örneğin bir debug derlemesi).</string>
     <string name="updates_status_downloading">%1$s indiriliyor…</string>
     <string name="updates_status_downloading_progress">%1$s indiriliyor… %%%2$d</string>
-    <string name="updates_status_permission">%1$s güncellemesini bitirmek için PixelPlayerOSS\'in uygulama yüklemesine izin ver.</string>
+    <string name="updates_status_permission">%1$s güncellemesini bitirmek için PiscesPlayer\'in uygulama yüklemesine izin ver.</string>
     <string name="updates_status_confirm">%1$s kurulumunu sistem penceresinde onayla.</string>
     <string name="updates_status_installing">%1$s yükleniyor…</string>
     <string name="updates_error_check">Güncelleme sunucusuna ulaşılamadı. Bağlantını kontrol edip tekrar dene.</string>
@@ -304,7 +304,7 @@
     <string name="updates_action_dismiss">Kapat</string>
     <string name="updates_notification_channel">Uygulama güncellemeleri</string>
     <string name="updates_notification_title">Güncelleme var</string>
-    <string name="updates_notification_text">PixelPlayerOSS %1$s yüklenmeye hazır.</string>
-    <string name="updates_notification_confirm_title">PixelPlayerOSS güncellemesini tamamla</string>
+    <string name="updates_notification_text">PiscesPlayer %1$s yüklenmeye hazır.</string>
+    <string name="updates_notification_confirm_title">PiscesPlayer güncellemesini tamamla</string>
     <string name="updates_notification_confirm_text">Kurulumu onaylamak için dokun.</string>
 </resources>

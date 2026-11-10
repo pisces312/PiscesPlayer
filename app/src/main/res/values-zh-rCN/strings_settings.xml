@@ -207,7 +207,7 @@
     <string name="setcat_trigger_crash_title">触发测试崩溃</string>
     <string name="setcat_trigger_crash_subtitle">模拟程序崩溃，用于测试崩溃上报系统</string>
     <string name="setcat_application">应用信息</string>
-    <string name="setcat_about_pixelplayer_title">关于 PixelPlayerOSS</string>
+    <string name="setcat_about_pixelplayer_title">关于 PiscesPlayer</string>
     <string name="setcat_about_pixelplayer_subtitle">版本、致谢等更多信息</string>
 
     <string name="backup_summary_none">未选择任何备份模块</string>
@@ -262,7 +262,7 @@
     <string name="dialog_regenerate_stats_title">重建播放统计？</string>
     <string name="dialog_regenerate_stats_body">清空统计缓存，基于数据库历史重新计算播放数据。</string>
     <string name="toast_stats_regeneration_started">开始重建播放统计</string>
-    <string name="backup_file_name_format">PixelPlayerOSS_Backup_%1$d.pxpl</string>
+    <string name="backup_file_name_format">PiscesPlayer_Backup_%1$d.pxpl</string>
 
     <string name="setcat_regenerate_daily_mix_action">重新生成每日混合歌单</string>
     <string name="setcat_regenerate_stats_action">重建播放统计</string>
@@ -330,7 +330,7 @@
     <string name="updates_status_reinstall_signature">版本 %1$s 无法覆盖安装：它使用了不同的签名或不同的包名（例如调试版）。</string>
     <string name="updates_status_downloading">正在下载 %1$s…</string>
     <string name="updates_status_downloading_progress">正在下载 %1$s… %2$d%%</string>
-    <string name="updates_status_permission">允许 PixelPlayerOSS 安装应用，以完成升级到 %1$s。</string>
+    <string name="updates_status_permission">允许 PiscesPlayer 安装应用，以完成升级到 %1$s。</string>
     <string name="updates_status_confirm">在系统提示中确认安装 %1$s。</string>
     <string name="updates_status_installing">正在安装 %1$s…</string>
     <string name="updates_error_check">无法连接更新服务器。请检查网络后重试。</string>
@@ -350,7 +350,7 @@
     <string name="updates_action_dismiss">忽略</string>
     <string name="updates_notification_channel">应用更新</string>
     <string name="updates_notification_title">有新版本</string>
-    <string name="updates_notification_text">PixelPlayerOSS %1$s 可以安装。</string>
-    <string name="updates_notification_confirm_title">完成 PixelPlayerOSS 更新</string>
+    <string name="updates_notification_text">PiscesPlayer %1$s 可以安装。</string>
+    <string name="updates_notification_confirm_title">完成 PiscesPlayer 更新</string>
     <string name="updates_notification_confirm_text">点击以确认安装。</string>
 </resources>

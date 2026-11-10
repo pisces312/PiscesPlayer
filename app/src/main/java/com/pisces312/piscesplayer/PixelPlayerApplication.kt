@@ -1,0 +1,222 @@
+package com.pisces312.piscesplayer
+
+import android.app.Application
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.content.ComponentCallbacks2
+import android.content.Context
+import android.os.Build
+import androidx.lifecycle.DefaultLifecycleObserver
+import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.ProcessLifecycleOwner
+import androidx.hilt.work.HiltWorkerFactory
+import androidx.work.Configuration
+import coil.ImageLoader
+import coil.ImageLoaderFactory
+import com.pisces312.piscesplayer.data.diagnostics.AdvancedPerformanceDiagnosticsController
+import com.pisces312.piscesplayer.data.preferences.UserPreferencesRepository
+import com.pisces312.piscesplayer.data.playlist.M3uSyncCoordinator
+import com.pisces312.piscesplayer.data.repository.ArtistImageRepository
+import com.pisces312.piscesplayer.presentation.viewmodel.LibraryStateHolder
+import com.pisces312.piscesplayer.presentation.viewmodel.ThemeStateHolder
+import com.pisces312.piscesplayer.utils.AlbumArtCacheManager
+import com.pisces312.piscesplayer.utils.FolderArtworkSettingsCoordinator
+import com.pisces312.piscesplayer.utils.AppLocaleManager
+import com.pisces312.piscesplayer.utils.AppLogCollector
+import com.pisces312.piscesplayer.utils.CrashHandler
+import com.pisces312.piscesplayer.utils.MediaMetadataRetrieverPool
+import dagger.hilt.android.HiltAndroidApp
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
+import timber.log.Timber
+import javax.inject.Inject
+
+@HiltAndroidApp
+class PixelPlayerApplication : Application(), ImageLoaderFactory, Configuration.Provider {
+
+    @Inject
+    lateinit var workerFactory: HiltWorkerFactory
+
+    @Inject
+    lateinit var imageLoader: dagger.Lazy<ImageLoader>
+
+    @Inject
+    lateinit var navidromeCoilFetcherFactory: dagger.Lazy<com.pisces312.piscesplayer.data.image.NavidromeCoilFetcher.Factory>
+
+    @Inject
+    lateinit var jellyfinCoilFetcherFactory: dagger.Lazy<com.pisces312.piscesplayer.data.image.JellyfinCoilFetcher.Factory>
+
+    @Inject
+    lateinit var localArtworkCoilFetcherFactory: dagger.Lazy<com.pisces312.piscesplayer.data.image.LocalArtworkCoilFetcher.Factory>
+
+    @Inject
+    lateinit var themeStateHolder: dagger.Lazy<ThemeStateHolder>
+
+    @Inject
+    lateinit var artistImageRepository: dagger.Lazy<ArtistImageRepository>
+
+    @Inject
+    lateinit var libraryStateHolder: dagger.Lazy<LibraryStateHolder>
+
+    @Inject
+    lateinit var userPreferencesRepository: dagger.Lazy<UserPreferencesRepository>
+
+    @Inject
+    lateinit var folderArtworkSettingsCoordinator: dagger.Lazy<FolderArtworkSettingsCoordinator>
+
+    @Inject
+    lateinit var syncManager: dagger.Lazy<com.pisces312.piscesplayer.data.worker.SyncManager>
+
+    @Inject
+    lateinit var playlistRestoreResolver: dagger.Lazy<com.pisces312.piscesplayer.data.backup.restore.PlaylistRestoreResolver>
+
+    @Inject
+    lateinit var advancedPerformanceDiagnosticsController: dagger.Lazy<AdvancedPerformanceDiagnosticsController>
+
+    @Inject
+    lateinit var m3uSyncCoordinator: dagger.Lazy<M3uSyncCoordinator>
+
+    @Inject
+    lateinit var updateCheckScheduler: dagger.Lazy<com.pisces312.piscesplayer.data.update.UpdateCheckScheduler>
+
+    @Inject
+    lateinit var japaneseDictionaryManager: dagger.Lazy<com.pisces312.piscesplayer.data.dictionary.JapaneseDictionaryManager>
+
+    private val startupScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    companion object {
+        const val NOTIFICATION_CHANNEL_ID = "pixelplayer_music_channel"
+    }
+
+    private val appLifecycleObserver = object : DefaultLifecycleObserver {
+        override fun onStart(owner: LifecycleOwner) {
+            libraryStateHolder.get().restoreAfterTrimIfNeeded()
+            m3uSyncCoordinator.get().onAppForeground()
+            advancedPerformanceDiagnosticsController.get().onAppForeground()
+        }
+
+        override fun onResume(owner: LifecycleOwner) {
+            // Image access can change while system settings is open, without restarting us.
+            startupScope.launch { folderArtworkSettingsCoordinator.get().reconcile() }
+        }
+
+        override fun onStop(owner: LifecycleOwner) {
+            advancedPerformanceDiagnosticsController.get().onAppBackground()
+        }
+    }
+
+    override fun attachBaseContext(base: Context) {
+        super.attachBaseContext(AppLocaleManager.wrapContext(base))
+    }
+
+    override fun onCreate() {
+        super.onCreate()
+
+        if (BuildConfig.BUILD_TYPE != "benchmark") {
+            CrashHandler.install(this)
+        }
+
+        AppLogCollector.install(this)
+
+        if (BuildConfig.DEBUG) {
+            Timber.plant(Timber.DebugTree())
+        } else {
+            Timber.plant(ReleaseTree())
+        }
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = NotificationChannel(
+                NOTIFICATION_CHANNEL_ID,
+                "PiscesPlayer Music Playback",
+                NotificationManager.IMPORTANCE_LOW
+            )
+            val notificationManager = getSystemService(NotificationManager::class.java)
+            notificationManager.createNotificationChannel(channel)
+        }
+
+        ProcessLifecycleOwner.get().lifecycle.addObserver(appLifecycleObserver)
+
+        syncManager.get().start()
+        playlistRestoreResolver.get().start()
+
+        m3uSyncCoordinator.get().start()
+
+        updateCheckScheduler.get().start()
+
+        japaneseDictionaryManager.get().start()
+
+        advancedPerformanceDiagnosticsController.get().start(startupScope)
+
+        startupScope.launch {
+            val savedLimit = runCatching {
+                userPreferencesRepository.get().albumArtCacheLimitMbFlow.first()
+            }.getOrNull()
+            if (savedLimit != null) {
+                AlbumArtCacheManager.configuredCacheLimitMb = savedLimit.toLong()
+            }
+        }
+
+        // Collected rather than read once: the preference can also change underneath us, most
+        // notably when a backup restore writes it straight into DataStore. A stale mirror would
+        // leave the toggle reporting one thing while artwork resolution did another.
+        startupScope.launch {
+            userPreferencesRepository.get().useFolderAlbumArtFlow.collect {
+                folderArtworkSettingsCoordinator.get().reconcile()
+            }
+        }
+    }
+
+    override fun newImageLoader(): ImageLoader {
+        return imageLoader.get().newBuilder()
+            .components {
+                add(com.pisces312.piscesplayer.data.image.SharedCloudArtworkStringMapper(packageName))
+                add(com.pisces312.piscesplayer.data.image.SharedCloudArtworkUriMapper(packageName))
+                add(localArtworkCoilFetcherFactory.get())
+                add(navidromeCoilFetcherFactory.get())
+                add(jellyfinCoilFetcherFactory.get())
+            }
+            .build()
+    }
+
+    @Suppress("DEPRECATION")
+    override fun onTrimMemory(level: Int) {
+        super.onTrimMemory(level)
+
+        imageLoader.get().memoryCache?.trimMemory(level)
+
+        if (
+            level >= ComponentCallbacks2.TRIM_MEMORY_RUNNING_MODERATE ||
+            level >= ComponentCallbacks2.TRIM_MEMORY_BACKGROUND ||
+            level == ComponentCallbacks2.TRIM_MEMORY_UI_HIDDEN
+        ) {
+            themeStateHolder.get().trimMemory(level)
+        }
+
+        if (
+            level >= ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW ||
+            level >= ComponentCallbacks2.TRIM_MEMORY_BACKGROUND ||
+            level == ComponentCallbacks2.TRIM_MEMORY_UI_HIDDEN
+        ) {
+            artistImageRepository.get().clearCache()
+            MediaMetadataRetrieverPool.clear()
+        }
+
+        libraryStateHolder.get().trimMemory(level)
+
+        if (
+            level >= ComponentCallbacks2.TRIM_MEMORY_RUNNING_CRITICAL ||
+            level >= ComponentCallbacks2.TRIM_MEMORY_COMPLETE
+        ) {
+            imageLoader.get().memoryCache?.clear()
+        }
+    }
+
+    override val workManagerConfiguration: Configuration
+        get() = Configuration.Builder()
+            .setWorkerFactory(workerFactory)
+            .build()
+
+}
