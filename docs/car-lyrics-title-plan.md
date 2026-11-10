@@ -396,7 +396,7 @@ L2 最值得先做——**它直接观察的就是车机将要读到的那一份
 
 无头交互（没有窗口，全靠 adb）：
 
-1. 启动 App：`adb shell monkey -p com.lostf1sh.pixelplayeross.debug -c android.intent.category.LAUNCHER 1`
+1. 启动 App：`adb shell monkey -p com.pisces312.piscesplayer.debug -c android.intent.category.LAUNCHER 1`
 2. 定位控件：`adb shell uiautomator dump /sdcard/ui.xml` → `tr '<' '\n<'` → grep `text=` / `checkable="true"` 取 `bounds` → `input tap`。
    **开关的判据是 `checkable="true"` 节点的 `checked` 属性**，不能靠类名——dump 出来是 `android.view.View`。
 3. 滚动：`input swipe 540 1600 540 500 300`（上下若干次直到目标可见）。
@@ -407,7 +407,7 @@ L2 最值得先做——**它直接观察的就是车机将要读到的那一份
 |---|---|---|
 | 车机视角的数据 | `dumpsys media_session` 的 `metadata: size=…, description=<title>, …` | 与开关状态一致 |
 | 队列是否被动过 | 同一份 dump 的 `active item id=` / `queueTitle=null, size=` | 全程不变 |
-| 推送频率 | `adb logcat -d -s MusicService_PixelPlayer \| grep "car lyric title"` | 开关关闭时无推送行 |
+| 推送频率 | `adb logcat -d -s MusicService_PiscesPlayer \| grep "car lyric title"` | 开关关闭时无推送行 |
 
 > `dumpsys media_session` 之所以能代表车机：蓝牙 AVRCP 的 `GetElementAttributes` 由 AOSP 蓝牙栈从 `MediaSession` 的 legacy stub 读**同一份** `MediaMetadata`（§3.1）。
 
@@ -427,7 +427,7 @@ L2 最值得先做——**它直接观察的就是车机将要读到的那一份
 `adb shell dumpsys media_session` 抓到的 session：
 
 ```
-package=com.lostf1sh.pixelplayeross.debug
+package=com.pisces312.piscesplayer.debug
 active=true
 controllers: 4
 state=PlaybackState {state=STOPPED(1), position=17936, ..., active item id=88}
@@ -435,13 +435,13 @@ metadata: size=12, description=[SPIKE] idle #7, <unknown>, 1
 queueTitle=null, size=89
 ```
 
-logcat（`MusicService_PixelPlayer`）同步显示埋点每秒推送，且运行在主线程（tid 与 pid 相同）：
+logcat（`MusicService_PiscesPlayer`）同步显示埋点每秒推送，且运行在主线程（tid 与 pid 相同）：
 
 ```
-09-14 00:51:09.528  4263  4263 D MusicService_PixelPlayer: car lyric title spike: [SPIKE] idle #2
-09-14 00:51:10.533  4263  4263 D MusicService_PixelPlayer: car lyric title spike: [SPIKE] idle #3
+09-14 00:51:09.528  4263  4263 D MusicService_PiscesPlayer: car lyric title spike: [SPIKE] idle #2
+09-14 00:51:10.533  4263  4263 D MusicService_PiscesPlayer: car lyric title spike: [SPIKE] idle #3
 ...
-09-14 00:51:14.567  4263  4263 D MusicService_PixelPlayer: car lyric title spike: [SPIKE] idle #7
+09-14 00:51:14.567  4263  4263 D MusicService_PiscesPlayer: car lyric title spike: [SPIKE] idle #7
 ```
 
 结论与解读：
@@ -489,7 +489,7 @@ logcat（`MusicService_PixelPlayer`）同步显示埋点每秒推送，且运行
 ```bash
 # 给 id=1000001891 的曲目写入 8 行 LRC（每 3 秒一行）
 # char(10) 拼换行，绕开 adb shell 的转义问题
-adb shell "run-as com.lostf1sh.pixelplayeross.debug sqlite3 databases/pixelplayer_database \
+adb shell "run-as com.pisces312.piscesplayer.debug sqlite3 databases/pixelplayer_database \
   \"update songs set lyrics = '[00:00.00]CARLYRIC alpha' || char(10) || '[00:03.00]CARLYRIC bravo' ... where id = 1000001891\""
 ```
 
@@ -582,7 +582,7 @@ adb shell "run-as com.lostf1sh.pixelplayeross.debug sqlite3 databases/pixelplaye
 [00:20.00]0123456789abcdefghijklmnopqrstuvwxyz          2 段，末行跨度 = 45.0 − 20 = 25.0 s
 ```
 
-| 断言 | 观察（logcat `MusicService_PixelPlayer`，2026-09-18 00:46:08 起） | 结论 |
+| 断言 | 观察（logcat `MusicService_PiscesPlayer`，2026-09-18 00:46:08 起） | 结论 |
 |---|---|---|
 | ① 每段驻留封顶 4 s | `08.062` 发第 1 段 → `12.351` 发第 2 段（**4.29 s**）；中间三条 `next wake` 依次 `5000` → `3500` → `100` ms | 生效。`3500 = 4000 − 500(lead)` 正是「第 2 段边界 = 行起点 + 4 s」；**旧公式**此行跨度 20 s ⇒ 边界在 10 s 位置，残差会是 9500 ms（被看门狗截成 5000 再重排），实际看到的是 3500 |
 | ② 末行（跨度最大）同样封顶 | 第 2 行两段间隔 **4.86 s**（`28.329` → `33.187`） | 旧公式该段落在 32.5 s 位置（跨度 25 s ÷ 2）。多出的 0.86 s 来自模拟器音频管线停顿后的重排（同段内有 `next wake in 618 ms` 的重排行），不是公式误差 |
@@ -614,8 +614,8 @@ adb shell "run-as com.lostf1sh.pixelplayeross.debug sqlite3 databases/pixelplaye
 
 # 2. 装 & 授权 & 启动
 adb install -r -d app/build/outputs/apk/debug/pixelplayeross-arm64-v8a-*-debug.apk
-adb shell pm grant com.lostf1sh.pixelplayeross.debug android.permission.READ_MEDIA_AUDIO
-adb shell monkey -p com.lostf1sh.pixelplayeross.debug -c android.intent.category.LAUNCHER 1
+adb shell pm grant com.pisces312.piscesplayer.debug android.permission.READ_MEDIA_AUDIO
+adb shell monkey -p com.pisces312.piscesplayer.debug -c android.intent.category.LAUNCHER 1
 
 # 3. 打开开关：设置 → 播放 → 车载蓝牙 → 标题显示歌词
 #    无头环境下先 dump 拿到标题的 bounds，switch 与标题同一垂直位置
@@ -641,11 +641,11 @@ adb shell settings put global pixelplayer_car_lyric_title_force_a2dp 1
 
 # 5. 观察车机视角的数据 + 门控日志
 adb shell dumpsys media_session | grep -A 12 com.lostf1sh | grep -E "metadata:|active item"
-adb logcat -s MusicService_PixelPlayer | grep "car lyric title"
+adb logcat -s MusicService_PiscesPlayer | grep "car lyric title"
 
 # 6. 给某首歌注入同步歌词（不动文件，id 稳定），再播放它
 #    char(10) 拼换行以避开 adb shell 的转义问题
-adb shell "run-as com.lostf1sh.pixelplayeross.debug sqlite3 databases/pixelplayer_database \
+adb shell "run-as com.pisces312.piscesplayer.debug sqlite3 databases/pixelplayer_database \
   \"update songs set lyrics = '[00:00.00]L0' || char(10) || '[00:03.00]L1' || char(10) || '[00:06.00]L2' \
      where id = <songId>\""
 

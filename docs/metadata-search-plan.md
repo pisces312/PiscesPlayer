@@ -1107,29 +1107,29 @@ cd D:/3rd-party-projects/PixelPlayerOSS
 ### 新增
 
 ```
-app/src/main/java/com/lostf1sh/pixelplayeross/data/metadata/MetadataCandidate.kt
-app/src/main/java/com/lostf1sh/pixelplayeross/data/metadata/MetadataMergePolicy.kt
-app/src/main/java/com/lostf1sh/pixelplayeross/data/metadata/FileNameMetadataParser.kt
-app/src/main/java/com/lostf1sh/pixelplayeross/data/metadata/MetadataQueryBuilder.kt
-app/src/main/java/com/lostf1sh/pixelplayeross/data/musicbrainz/MusicBrainzReleaseParser.kt
-app/src/main/java/com/lostf1sh/pixelplayeross/data/musicbrainz/CoverArtArchiveService.kt
-app/src/main/java/com/lostf1sh/pixelplayeross/presentation/components/MetadataCandidateSheet.kt
-app/src/main/java/com/lostf1sh/pixelplayeross/presentation/viewmodel/MetadataMatchStateHolder.kt
-app/src/test/java/com/lostf1sh/pixelplayeross/data/musicbrainz/MusicBrainzReleaseParserTest.kt
-app/src/test/java/com/lostf1sh/pixelplayeross/data/metadata/MetadataMergePolicyTest.kt
-app/src/test/java/com/lostf1sh/pixelplayeross/data/metadata/FileNameMetadataParserTest.kt
-app/src/test/java/com/lostf1sh/pixelplayeross/data/metadata/MetadataQueryBuilderTest.kt
+app/src/main/java/com/pisces312/piscesplayer/data/metadata/MetadataCandidate.kt
+app/src/main/java/com/pisces312/piscesplayer/data/metadata/MetadataMergePolicy.kt
+app/src/main/java/com/pisces312/piscesplayer/data/metadata/FileNameMetadataParser.kt
+app/src/main/java/com/pisces312/piscesplayer/data/metadata/MetadataQueryBuilder.kt
+app/src/main/java/com/pisces312/piscesplayer/data/musicbrainz/MusicBrainzReleaseParser.kt
+app/src/main/java/com/pisces312/piscesplayer/data/musicbrainz/CoverArtArchiveService.kt
+app/src/main/java/com/pisces312/piscesplayer/presentation/components/MetadataCandidateSheet.kt
+app/src/main/java/com/pisces312/piscesplayer/presentation/viewmodel/MetadataMatchStateHolder.kt
+app/src/test/java/com/pisces312/piscesplayer/data/musicbrainz/MusicBrainzReleaseParserTest.kt
+app/src/test/java/com/pisces312/piscesplayer/data/metadata/MetadataMergePolicyTest.kt
+app/src/test/java/com/pisces312/piscesplayer/data/metadata/FileNameMetadataParserTest.kt
+app/src/test/java/com/pisces312/piscesplayer/data/metadata/MetadataQueryBuilderTest.kt
 ```
 
 ### 修改
 
 ```
-app/src/main/java/com/lostf1sh/pixelplayeross/data/musicbrainz/MusicBrainzApiService.kt
-app/src/main/java/com/lostf1sh/pixelplayeross/data/musicbrainz/MusicBrainzRepository.kt
-app/src/main/java/com/lostf1sh/pixelplayeross/data/database/MusicDao.kt
-app/src/main/java/com/lostf1sh/pixelplayeross/presentation/viewmodel/MetadataEditStateHolder.kt
-app/src/main/java/com/lostf1sh/pixelplayeross/presentation/viewmodel/SongInfoBottomSheetViewModel.kt
-app/src/main/java/com/lostf1sh/pixelplayeross/presentation/components/SongInfoBottomSheet.kt
+app/src/main/java/com/pisces312/piscesplayer/data/musicbrainz/MusicBrainzApiService.kt
+app/src/main/java/com/pisces312/piscesplayer/data/musicbrainz/MusicBrainzRepository.kt
+app/src/main/java/com/pisces312/piscesplayer/data/database/MusicDao.kt
+app/src/main/java/com/pisces312/piscesplayer/presentation/viewmodel/MetadataEditStateHolder.kt
+app/src/main/java/com/pisces312/piscesplayer/presentation/viewmodel/SongInfoBottomSheetViewModel.kt
+app/src/main/java/com/pisces312/piscesplayer/presentation/components/SongInfoBottomSheet.kt
 app/src/main/res/values/strings.xml
 app/src/main/res/values-zh-rCN/strings.xml
 ```

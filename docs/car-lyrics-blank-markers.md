@@ -81,7 +81,7 @@ LRC 里的 `作词 : …` / `作曲 : …` / `曲版权管理方：…` / 尾部
 # 生成夹具；--check 顺手证明夹具与真曲的 cue 时刻逐位相同（不一致则退出码 1）
 python gen_lyric_fixture.py --source "E:\resources\music\如愿-王菲.mp3" --check
 
-./gradlew :app:testDebugUnitTest --tests "com.lostf1sh.pixelplayeross.utils.LyricsTimelineUtilsRealFileTest"
+./gradlew :app:testDebugUnitTest --tests "com.pisces312.piscesplayer.utils.LyricsTimelineUtilsRealFileTest"
 ```
 
 `--check` 是这套做法的可靠性来源：同一套算式分别跑在真歌词与夹具上，逐条比对 cue 时刻（本曲 89 个全部相同）。「夹具等价于真曲」因此不是声称，而是可复核的。换歌时同理——**先 `--check` 通过，夹具才可信**。
@@ -129,8 +129,8 @@ adb shell settings put global pixelplayer_car_lyric_title_force_a2dp 1        # 
 
 # 真实文件已在设备上时：Library → 文件夹 → Internal Storage → Music → 点那首歌
 # （无头环境靠 uiautomator dump 拿 bounds，再 input tap 中心点）
-adb shell am force-stop com.lostf1sh.pixelplayeross.debug
-adb shell monkey -p com.lostf1sh.pixelplayeross.debug -c android.intent.category.LAUNCHER 1
+adb shell am force-stop com.pisces312.piscesplayer.debug
+adb shell monkey -p com.pisces312.piscesplayer.debug -c android.intent.category.LAUNCHER 1
 adb shell uiautomator dump /sdcard/ui.xml
 adb shell cat /sdcard/ui.xml | tr '<' '\n<' | grep -oE 'text="[^"]+"[^/]*bounds="[^"]+"'
 
@@ -202,12 +202,12 @@ adb shell settings delete global pixelplayer_car_lyric_title_force_a2dp      # �
 关键日志（歌词行以占位符代替，只保留可 grep 的形态）：
 
 ```
-D/MusicService_PixelPlayer: car lyric title: loaded 105 synced lines as 89 cues for 1000001867 (offset 0 ms, lead 500 ms, split true)
-D/MusicService_PixelPlayer: car lyric title: 作词 : 唐恬 作曲 :        ← 署名行照常上屏（第 1 段）
-D/MusicService_PixelPlayer: car lyric title: back to the track title (instrumental stretch)
-V/MusicService_PixelPlayer: car lyric title: next wake in 5000 ms (cue 9, lead 500 ms)
+D/MusicService_PiscesPlayer: car lyric title: loaded 105 synced lines as 89 cues for 1000001867 (offset 0 ms, lead 500 ms, split true)
+D/MusicService_PiscesPlayer: car lyric title: 作词 : 唐恬 作曲 :        ← 署名行照常上屏（第 1 段）
+D/MusicService_PiscesPlayer: car lyric title: back to the track title (instrumental stretch)
+V/MusicService_PiscesPlayer: car lyric title: next wake in 5000 ms (cue 9, lead 500 ms)
 …（31 s 的真实曲名）…
-D/MusicService_PixelPlayer: car lyric title: ⟨第 1 句歌词，段 1/2⟩
+D/MusicService_PiscesPlayer: car lyric title: ⟨第 1 句歌词，段 1/2⟩
 ```
 
 **两点提醒**：

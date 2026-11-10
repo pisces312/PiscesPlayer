@@ -237,8 +237,8 @@
     <string name="setcat_trigger_crash_title">Trigger Test Crash</string>
     <string name="setcat_trigger_crash_subtitle">Simulate a crash to test the crash reporting system.</string>
     <string name="setcat_application">Application</string>
-    <string name="setcat_about_pixelplayer_title">About PixelPlayerOSS</string>
-    <string name="setcat_about_pixelplayer_subtitle">App version, credits, and more.</string>
+    <string name="setcat_about_piscesplayer_title">About PiscesPlayer</string>
+    <string name="setcat_about_piscesplayer_subtitle">App version, credits, and more.</string>
 
     <string name="backup_summary_none">No sections selected.</string>
     <string name="backup_summary_all">All sections selected.</string>
@@ -292,7 +292,7 @@
     <string name="dialog_regenerate_stats_title">Regenerate Stats?</string>
     <string name="dialog_regenerate_stats_body">This will clear the statistics cache and force a recalculation from the database history.</string>
     <string name="toast_stats_regeneration_started">Stats regeneration started</string>
-    <string name="backup_file_name_format">PixelPlayerOSS_Backup_%1$d.pxpl</string>
+    <string name="backup_file_name_format">PiscesPlayer_Backup_%1$d.pxpl</string>
 
     <string name="setcat_regenerate_daily_mix_action">Regenerate Daily Mix</string>
     <string name="setcat_regenerate_stats_action">Regenerate Stats</string>
@@ -335,7 +335,7 @@
     <string name="updates_status_reinstall_signature">Version %1$s can\'t be installed over this build: it is signed with a different key or uses a different package name (for example, a debug build).</string>
     <string name="updates_status_downloading">Downloading %1$s…</string>
     <string name="updates_status_downloading_progress">Downloading %1$s… %2$d%%</string>
-    <string name="updates_status_permission">Allow PixelPlayerOSS to install apps to finish updating to %1$s.</string>
+    <string name="updates_status_permission">Allow PiscesPlayer to install apps to finish updating to %1$s.</string>
     <string name="updates_status_confirm">Confirm the installation of %1$s in the system prompt.</string>
     <string name="updates_status_installing">Installing %1$s…</string>
     <string name="updates_error_check">Couldn\'t reach the update server. Check your connection and try again.</string>
@@ -355,7 +355,7 @@
     <string name="updates_action_dismiss">Dismiss</string>
     <string name="updates_notification_channel">App updates</string>
     <string name="updates_notification_title">Update available</string>
-    <string name="updates_notification_text">PixelPlayerOSS %1$s is ready to install.</string>
-    <string name="updates_notification_confirm_title">Finish updating PixelPlayerOSS</string>
+    <string name="updates_notification_text">PiscesPlayer %1$s is ready to install.</string>
+    <string name="updates_notification_confirm_title">Finish updating PiscesPlayer</string>
     <string name="updates_notification_confirm_text">Tap to confirm the installation.</string>
 </resources>

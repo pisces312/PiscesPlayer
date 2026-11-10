@@ -74,7 +74,7 @@
     <string name="rebuild">Yeniden Oluştur</string>
     <string name="search_no_songs_match">Aramanızla eşleşen şarkı bulunamadı.</string>
     <string name="search_songs_by_title_artist_album">Başlık, sanatçı veya albüme göre ara</string>
-    <string name="setcat_about_pixelplayer_subtitle">Uygulama sürümü, katkıda bulunanlar ve daha fazlası.</string>
+    <string name="setcat_about_piscesplayer_subtitle">Uygulama sürümü, katkıda bulunanlar ve daha fazlası.</string>
     <string name="setcat_album_art_cache_limit">Albüm Kapağı Önbellek Sınırı</string>
     <string name="setcat_album_art_palette_subtitle">Mevcut: %1$s. Canlı önizlemeyi açın ve stil seçin.</string>
     <string name="setcat_album_art_palette_title">Albüm Kapağı Palet Stili</string>
@@ -284,7 +284,7 @@
     <string name="updates_status_reinstall_signature">%1$s sürümü bu derlemenin üzerine yüklenemez: farklı bir anahtarla imzalanmış ya da paket adı farklı (örneğin bir debug derlemesi).</string>
     <string name="updates_status_downloading">%1$s indiriliyor…</string>
     <string name="updates_status_downloading_progress">%1$s indiriliyor… %%%2$d</string>
-    <string name="updates_status_permission">%1$s güncellemesini bitirmek için PixelPlayerOSS\'in uygulama yüklemesine izin ver.</string>
+    <string name="updates_status_permission">%1$s güncellemesini bitirmek için PiscesPlayer\'in uygulama yüklemesine izin ver.</string>
     <string name="updates_status_confirm">%1$s kurulumunu sistem penceresinde onayla.</string>
     <string name="updates_status_installing">%1$s yükleniyor…</string>
     <string name="updates_error_check">Güncelleme sunucusuna ulaşılamadı. Bağlantını kontrol edip tekrar dene.</string>
@@ -304,7 +304,7 @@
     <string name="updates_action_dismiss">Kapat</string>
     <string name="updates_notification_channel">Uygulama güncellemeleri</string>
     <string name="updates_notification_title">Güncelleme var</string>
-    <string name="updates_notification_text">PixelPlayerOSS %1$s yüklenmeye hazır.</string>
-    <string name="updates_notification_confirm_title">PixelPlayerOSS güncellemesini tamamla</string>
+    <string name="updates_notification_text">PiscesPlayer %1$s yüklenmeye hazır.</string>
+    <string name="updates_notification_confirm_title">PiscesPlayer güncellemesini tamamla</string>
     <string name="updates_notification_confirm_text">Kurulumu onaylamak için dokun.</string>
 </resources>

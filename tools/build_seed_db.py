@@ -4,7 +4,8 @@ import sqlite3
 import sys
 from pathlib import Path
 
-BASE = Path(r"D:\3rd-party-projects\PixelPlayerOSS\app\schemas\com.lostf1sh.pixelplayeross.data.database.PixelPlayerDatabase")
+ROOT = Path(__file__).resolve().parents[1]
+BASE = ROOT / "app" / "schemas" / "com.pisces312.piscesplayer.data.database.PiscesPlayerDatabase"
 
 
 def build(version: int, out_path: Path) -> None:

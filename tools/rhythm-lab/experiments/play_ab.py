@@ -41,7 +41,7 @@ def write_osu(path: Path, notes, timing, title: str, audio_filename: str) -> Non
         "osu file format v14", "", "[General]",
         f"AudioFilename: {audio_filename}", "Mode: 3", "",
         "[Metadata]", f"Title:{title}", "Artist:Unknown",
-        "Creator:PixelPlayerOSS-lab", "Version:Generated", "",
+        "Creator:PiscesPlayer-lab", "Version:Generated", "",
         "[Difficulty]", f"CircleSize:{LANES}", "OverallDifficulty:8",
         "ApproachRate:5", "HPDrainRate:8", "SliderMultiplier:1.4",
         "SliderTickRate:1", "", "[TimingPoints]",

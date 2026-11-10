@@ -40,7 +40,7 @@
 |---|---|---|
 | `ai_cache` 表结构 | ✅ 可参考 | china-only **原创** schema（上游 OSS 无此表）；schema 不受版权保护 |
 | `ai_usage` 表结构 | ✅ 可参考 | 同上 |
-| DAO / Entity 代码 | ⚠️ clean-room 重写 | 包名 `com.theveloper` → `com.lostf1sh.pixelplayeross`；只保留 Room 注解语义，不逐行复制 |
+| DAO / Entity 代码 | ⚠️ clean-room 重写 | 包名 `com.theveloper` → `com.pisces312.piscesplayer`；只保留 Room 注解语义，不逐行复制 |
 | `AiHandler` / 网络层 / UI | ⚠️ clean-room 重写 | 原代码深度耦合 Gemini + 13 provider + 细粒度参数；直接搬会引入 Google SDK，违反版权红线 |
 | GEMINI provider | ❌ 排除 | 需 Google SDK / 非 OpenAI 兼容 |
 
@@ -52,14 +52,14 @@ ai_usage:  id INTEGER PK AUTO, timestamp INTEGER, provider TEXT, model TEXT,
            promptType TEXT, promptTokens INTEGER, outputTokens INTEGER, thoughtTokens INTEGER
 ```
 
-> OSS 当前 `PixelPlayerDatabase` version = **7**，新增两表需 **MIGRATION_7_8**。
+> OSS 当前 `PiscesPlayerDatabase` version = **7**，新增两表需 **MIGRATION_7_8**。
 > 注：china-only 分支「Room schema 恒 v43」的限制**不适用** OSS（v7 独立演进），直接升 v8 即可。
 
 ---
 
 ## 3. 数据库实现
 
-**新增文件**（`app/src/main/java/com/lostf1sh/pixelplayeross/data/database/`）：
+**新增文件**（`app/src/main/java/com/pisces312/piscesplayer/data/database/`）：
 - `AiCacheEntity.kt` — `@Entity(tableName = "ai_cache")`
 - `AiCacheDao.kt` — insert(REPLACE) / getCache(hash) / clearOldCache(ts) / clearAllCache
 - `AiUsageEntity.kt` — `@Entity(tableName = "ai_usage")`
@@ -67,7 +67,7 @@ ai_usage:  id INTEGER PK AUTO, timestamp INTEGER, provider TEXT, model TEXT,
   getTotalPromptTokens:Flow<Int?> / getTotalOutputTokens / clearAll
 
 **修改文件**：
-- `PixelPlayerDatabase.kt`：`version = 8`，`entities` 加两 Entity，`abstract fun` 加两 DAO。
+- `PiscesPlayerDatabase.kt`：`version = 8`，`entities` 加两 Entity，`abstract fun` 加两 DAO。
 - `Migrations.kt`：加 `MIGRATION_7_8`（`CREATE TABLE ai_cache ...` + `CREATE TABLE ai_usage ...`）。
 
 ---
@@ -217,7 +217,7 @@ EQUALIZER/DEVICE_CAPABILITIES/ABOUT）新增 **`AI`** 分类（置于 PLAYBACK �
 
 ## 7. 文件清单
 
-### 新增（`com.lostf1sh.pixelplayeross`）
+### 新增（`com.pisces312.piscesplayer`）
 ```
 data/database/AiCacheEntity.kt
 data/database/AiCacheDao.kt
@@ -243,7 +243,7 @@ presentation/screens/AiRequestLogScreen.kt
 
 ### 修改
 ```
-data/database/PixelPlayerDatabase.kt       # version 8 + 两 DAO
+data/database/PiscesPlayerDatabase.kt       # version 8 + 两 DAO
 data/database/Migrations.kt                # MIGRATION_7_8
 presentation/model/SettingsCategory.kt     # 新增 AI 分类
 presentation/screens/SettingsScreen.kt     # 接线 AI 分类 → AiSettingsScreen
@@ -302,7 +302,7 @@ prompt + response + token 用量。
 
 ## 9. 恢复上下文速查（压缩后重建用）
 
-- OSS 根：`D:\3rd-party-projects\PixelPlayerOSS`，分支 `pisces/port`，包 `com.lostf1sh.pixelplayeross`。
+- OSS 根：`D:\3rd-party-projects\PixelPlayerOSS`，分支 `pisces/port`，包 `com.pisces312.piscesplayer`。
 - china-only 根：`D:\3rd-party-projects\PixelPlayer`，分支 `china-only`，包 `com.theveloper.pixelplay`。
 - 参考文件（china-only，只读参考 schema/交互，不复制）：
   - `data/database/AiCacheEntity.kt`、`AiCacheDao.kt`、`AiUsageEntity.kt`、`AiUsageDao.kt`

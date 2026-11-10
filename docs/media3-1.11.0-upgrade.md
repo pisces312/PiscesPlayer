@@ -18,7 +18,7 @@
 | 文件 | 改动 |
 |---|---|
 | `gradle/libs.versions.toml` | `media3Session` / `media3Transformer`：`1.10.1` → `1.11.0` |
-| `app/src/main/java/com/lostf1sh/pixelplayeross/data/service/MusicService.kt` | `onConnect` 中 `super.onConnect(session, controller)` → `MediaSession.ConnectionResult.AcceptedResultBuilder(session, controller).build()` |
+| `app/src/main/java/com/pisces312/piscesplayer/data/service/MusicService.kt` | `onConnect` 中 `super.onConnect(session, controller)` → `MediaSession.ConnectionResult.AcceptedResultBuilder(session, controller).build()` |
 
 版本号一经提升，`media3-exoplayer`、`media3-exoplayer-midi`、`media3-session`、`media3-ui`
 （均引用 `media3Session`）与 `media3-transformer` 一并生效，并透传到 `media3-common` 等传递依赖。

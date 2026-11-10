@@ -310,7 +310,7 @@ val generateBuildInfo = tasks.register<GenerateBuildInfo>("generateBuildInfo") {
 
 @Suppress("DEPRECATION")
 android {
-    namespace = "com.lostf1sh.pixelplayeross"
+    namespace = "com.pisces312.piscesplayer"
     compileSdk = 37
 
     sourceSets {
@@ -352,7 +352,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.lostf1sh.pixelplayeross"
+        applicationId = "com.pisces312.piscesplayer"
         minSdk = 30
         targetSdk = 37
         versionCode = (project.findProperty("APP_VERSION_CODE") as? String)?.toInt() ?: 1
@@ -450,7 +450,7 @@ androidComponents {
             val abi = output.filters
                 .firstOrNull { it.filterType == FilterConfiguration.FilterType.ABI }
                 ?.identifier ?: "universal"
-            output.outputFileName.set("pixelplayeross-${abi}-${appVersionName}-${variant.buildType}.apk")
+            output.outputFileName.set("piscesplayer-${abi}-${appVersionName}-${variant.buildType}.apk")
         }
 
         variant.sources.assets?.addGeneratedSourceDirectory(

@@ -198,7 +198,7 @@ SettingsCategoryScreen（ThemeSelectorItem, SettingsCategoryScreen.kt:974-1009�
 
 | 内容 | 位置 |
 | --- | --- |
-| 模式枚举与语义 | `app/src/main/java/com/lostf1sh/pixelplayeross/data/model/AudioOutputMode.kt` |
+| 模式枚举与语义 | `app/src/main/java/com/pisces312/piscesplayer/data/model/AudioOutputMode.kt` |
 | AudioSink 构建（三模式分叉） | `data/service/player/DualPlayerEngine.kt:1002-1030` |
 | 模式切换入口与 PCM_FLOAT 回退 | `data/service/player/DualPlayerEngine.kt:1204-1217` |
 | 重建 player 保留状态 | `data/service/player/DualPlayerEngine.kt:820-863` |
@@ -211,7 +211,7 @@ SettingsCategoryScreen（ThemeSelectorItem, SettingsCategoryScreen.kt:974-1009�
 | 设置 UI | `presentation/screens/SettingsCategoryScreen.kt:974-1009` |
 | ViewModel 接线与回退 | `presentation/viewmodel/SettingsViewModel.kt:645-656` |
 | 服务侧订阅 | `data/service/MusicService.kt:452-456` |
-| 单元测试 | `app/src/test/java/com/lostf1sh/pixelplayeross/data/model/AudioOutputModeTest.kt`、`data/service/player/AudioOffloadPolicyTest.kt` |
+| 单元测试 | `app/src/test/java/com/pisces312/piscesplayer/data/model/AudioOutputModeTest.kt`、`data/service/player/AudioOffloadPolicyTest.kt` |
 | 文案（英文基准） | `app/src/main/res/values/strings_settings.xml:172-180` |
 
 ---
@@ -235,7 +235,7 @@ adb shell "dumpsys audio | grep -iE 'direct|flags|session|samplerate|sample rate
 ```
 
 - 在 `Output threads` 段落里找 flags 带 **`AUDIO_OUTPUT_FLAG_DIRECT = 0x4`** 的 direct 输出线程（通常显示为 `flags: 0x...`，低 4 位含 `0x4`；FAST=0x8、OFFLOAD=0x200 不是 DIRECT）。
-- 再确认你的包（`com.lostf1sh.pixelplayeross` 或 `.debug`）的 track 及其 session id / 采样率**挂在那个 direct 线程下**。若 track 挂在 48 kHz 的 mixer 线程下（flags 无 0x4），说明被 fallback 了。
+- 再确认你的包（`com.pisces312.piscesplayer` 或 `.debug`）的 track 及其 session id / 采样率**挂在那个 direct 线程下**。若 track 挂在 48 kHz 的 mixer 线程下（flags 无 0x4），说明被 fallback 了。
 
 ### 6.2 交叉验证：用采样率"测谎"
 

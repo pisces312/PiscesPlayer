@@ -1,5 +1,8 @@
 # F-Droid
 
+Historical notes for upstream PixelPlayerOSS. **PiscesPlayer is not published on F-Droid**;
+this fork distributes signed GitHub releases and keeps these notes only for provenance.
+
 PixelPlayerOSS is published on F-Droid:
 
 ```text

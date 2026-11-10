@@ -48,7 +48,7 @@
 | 1 | `data/model/PlayList.kt` | 加 `aiSampleMode: String? = null`、`aiSampleSize: Int? = null`、`aiOriginalSongIds: List<String> = emptyList()`（均有默认，手动/旧歌单为空） |
 | 2 | `data/database/PlaylistEntity.kt` | 加列 `ai_sample_mode TEXT`、`ai_sample_size INTEGER`、`ai_original_song_ids TEXT`（JSON 字符串数组，保序快照，不进关联表）；`toPlaylist/toEntity` 双向映射，List↔JSON 用 kotlinx.serialization（`Playlist` 已 `@Serializable`，mapper 内一个私有 `Json`） |
 | 3 | `data/database/Migrations.kt` | 新增 `MIGRATION_9_10`，对 playlists `addColumnIfMissing` 上述三列（均可空、无默认，照抄 8_9） |
-| 4 | `data/database/PixelPlayerDatabase.kt` | version 9→10（KSP 构建生成 `10.json`，一并提交） |
+| 4 | `data/database/PiscesPlayerDatabase.kt` | version 9→10（KSP 构建生成 `10.json`，一并提交） |
 | 5 | `di/AppModule.kt` | 注册 `MIGRATION_9_10` |
 | 6 | `data/preferences/PlaylistPreferencesRepository.kt` | `createPlaylist(...)` 加 `aiSampleMode/aiSampleSize/aiOriginalSongIds` 三个默认参数并透传 |
 | 7 | `presentation/viewmodel/PlaylistViewModel.kt` | 见下 |

@@ -2,7 +2,7 @@ import subprocess
 from pathlib import Path
 
 adb = r"D:/dev/android_sdk/platform-tools/adb.exe"
-pkg = "com.lostf1sh.pixelplayeross.debug"
+pkg = "com.pisces312.piscesplayer.debug"
 out_dir = Path(r"D:\Temp\pulled_db")
 out_dir.mkdir(exist_ok=True)
 

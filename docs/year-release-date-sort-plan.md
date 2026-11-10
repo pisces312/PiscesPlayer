@@ -40,7 +40,7 @@
 
 ### 3.1 新列
 
-`SongEntity` 新增列 `release_date TEXT`，`Song` 模型新增 `releaseDate: String?` 字段，DB version 11 → 12（`Migrations.kt` `addColumnIfMissing` + `di/AppModule.addMigrations` + `PixelPlayerDatabase.version` +1，提交新生成的 `app/schemas/12.json`）。
+`SongEntity` 新增列 `release_date TEXT`，`Song` 模型新增 `releaseDate: String?` 字段，DB version 11 → 12（`Migrations.kt` `addColumnIfMissing` + `di/AppModule.addMigrations` + `PiscesPlayerDatabase.version` +1，提交新生成的 `app/schemas/12.json`）。
 
 ### 3.2 四态语义
 

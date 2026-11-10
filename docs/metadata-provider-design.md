@@ -371,7 +371,7 @@ Phase 3 不新增 Room 列，不改 `applyMusicBrainzMatch`；自定义来源**�
 > **Gson + Kotlin 的关键注意**：Gson 通过 Unsafe 或无参构造创建对象，**缺字段时不保证使用 Kotlin 默认值**；即使属性声明为非空 `String`/`Int`，反序列化后也可能是 `null`/`0`。因此 DTO 只能当作“不可信传输形状”：校验器必须逐项做 null/类型检查，任何缺失都转成 `ValidationIssue`。实现时推荐把 DTO 字段全部声明为可空（或用 `JsonObject` 手动读取）；下面代码块里的 `= ""`/`= 1` 只是文档可读性，不是运行时保证。
 
 ```kotlin
-package com.lostf1sh.pixelplayeross.data.metadata.provider.schema
+package com.pisces312.piscesplayer.data.metadata.provider.schema
 
 data class ProviderDefinitionDto(
     @SerializedName("schemaVersion") val schemaVersion: Int = 1,
@@ -2176,7 +2176,7 @@ sealed interface ProviderError {
 # Custom metadata provider configuration is persisted and exported as Gson JSON.
 # Renamed fields would make a stored/exported file unreadable (same failure mode as
 # the backup payloads documented above).
--keep class com.lostf1sh.pixelplayeross.data.metadata.provider.schema.** { *; }
+-keep class com.pisces312.piscesplayer.data.metadata.provider.schema.** { *; }
 ```
 
 - DTO 字段仍写 `@SerializedName`，双保险。
@@ -2437,26 +2437,26 @@ metadata_provider_warning_*
 
 | 事实 | 位置 |
 |---|---|
-| 设置分类枚举 | `app/src/main/java/com/lostf1sh/pixelplayeross/presentation/model/SettingsCategory.kt:16` |
-| Developer/AI 子区块 | `app/src/main/java/com/lostf1sh/pixelplayeross/presentation/screens/SettingsCategoryScreen.kt:1292`、`:1382` |
-| 设置搜索注册 | `app/src/main/java/com/lostf1sh/pixelplayeross/presentation/settings/search/SettingsRegistry.kt:636` |
-| 导航 route | `app/src/main/java/com/lostf1sh/pixelplayeross/presentation/navigation/Screen.kt:8`、`:19`、`:27` |
-| 导航注册 | `app/src/main/java/com/lostf1sh/pixelplayeross/presentation/navigation/AppNavigation.kt:254`、`:305` |
-| 现有 MusicBrainz 搜索/限速/调分 | `app/src/main/java/com/lostf1sh/pixelplayeross/data/musicbrainz/MusicBrainzApiService.kt:30`、`:48`、`:51`、`:193` |
-| 现有 MusicBrainz 应用 | `app/src/main/java/com/lostf1sh/pixelplayeross/data/musicbrainz/MusicBrainzRepository.kt:24` |
-| 只填空的 DAO | `app/src/main/java/com/lostf1sh/pixelplayeross/data/database/MusicDao.kt:1905`、`:1926` |
-| 单曲资料页对话框 | `app/src/main/java/com/lostf1sh/pixelplayeross/presentation/components/SongInfoBottomSheet.kt:922` |
-| ViewModel 搜索/应用状态 | `app/src/main/java/com/lostf1sh/pixelplayeross/presentation/viewmodel/SongInfoBottomSheetViewModel.kt:134`、`:151` |
-| DB 字段 | `app/src/main/java/com/lostf1sh/pixelplayeross/data/database/SongEntity.kt:86`、`:95`、`:99` |
-| DataStore 单例 | `app/src/main/java/com/lostf1sh/pixelplayeross/data/preferences/UserPreferencesRepository.kt:39`；`app/src/main/java/com/lostf1sh/pixelplayeross/di/AppModule.kt:115` |
-| 加密 Prefs 范例 | `app/src/main/java/com/lostf1sh/pixelplayeross/data/listenbrainz/ListenBrainzRepository.kt:79` |
-| 本地网络权限范例 | `app/src/main/java/com/lostf1sh/pixelplayeross/presentation/navidrome/auth/NavidromeLoginActivity.kt:189` |
+| 设置分类枚举 | `app/src/main/java/com/pisces312/piscesplayer/presentation/model/SettingsCategory.kt:16` |
+| Developer/AI 子区块 | `app/src/main/java/com/pisces312/piscesplayer/presentation/screens/SettingsCategoryScreen.kt:1292`、`:1382` |
+| 设置搜索注册 | `app/src/main/java/com/pisces312/piscesplayer/presentation/settings/search/SettingsRegistry.kt:636` |
+| 导航 route | `app/src/main/java/com/pisces312/piscesplayer/presentation/navigation/Screen.kt:8`、`:19`、`:27` |
+| 导航注册 | `app/src/main/java/com/pisces312/piscesplayer/presentation/navigation/AppNavigation.kt:254`、`:305` |
+| 现有 MusicBrainz 搜索/限速/调分 | `app/src/main/java/com/pisces312/piscesplayer/data/musicbrainz/MusicBrainzApiService.kt:30`、`:48`、`:51`、`:193` |
+| 现有 MusicBrainz 应用 | `app/src/main/java/com/pisces312/piscesplayer/data/musicbrainz/MusicBrainzRepository.kt:24` |
+| 只填空的 DAO | `app/src/main/java/com/pisces312/piscesplayer/data/database/MusicDao.kt:1905`、`:1926` |
+| 单曲资料页对话框 | `app/src/main/java/com/pisces312/piscesplayer/presentation/components/SongInfoBottomSheet.kt:922` |
+| ViewModel 搜索/应用状态 | `app/src/main/java/com/pisces312/piscesplayer/presentation/viewmodel/SongInfoBottomSheetViewModel.kt:134`、`:151` |
+| DB 字段 | `app/src/main/java/com/pisces312/piscesplayer/data/database/SongEntity.kt:86`、`:95`、`:99` |
+| DataStore 单例 | `app/src/main/java/com/pisces312/piscesplayer/data/preferences/UserPreferencesRepository.kt:39`；`app/src/main/java/com/pisces312/piscesplayer/di/AppModule.kt:115` |
+| 加密 Prefs 范例 | `app/src/main/java/com/pisces312/piscesplayer/data/listenbrainz/ListenBrainzRepository.kt:79` |
+| 本地网络权限范例 | `app/src/main/java/com/pisces312/piscesplayer/presentation/navidrome/auth/NavidromeLoginActivity.kt:189` |
 | security-crypto 依赖 | `app/build.gradle.kts:339` |
 | OkHttp 版本 | `gradle/libs.versions.toml:80` |
 | Manifest 明文开关 | `app/src/main/AndroidManifest.xml:52` |
 | R8 Gson 先例 | `app/proguard-rules.pro:27`–`43` |
-| 现有 AI 设置 UI | `app/src/main/java/com/lostf1sh/pixelplayeross/presentation/screens/AiSettingsScreen.kt:57` |
-| 现有 AI 偏好备份 | `app/src/main/java/com/lostf1sh/pixelplayeross/data/preferences/AiPreferencesRepository.kt:301`、`:321` |
+| 现有 AI 设置 UI | `app/src/main/java/com/pisces312/piscesplayer/presentation/screens/AiSettingsScreen.kt:57` |
+| 现有 AI 偏好备份 | `app/src/main/java/com/pisces312/piscesplayer/data/preferences/AiPreferencesRepository.kt:301`、`:321` |
 
 ### 20.4 参考文档
 

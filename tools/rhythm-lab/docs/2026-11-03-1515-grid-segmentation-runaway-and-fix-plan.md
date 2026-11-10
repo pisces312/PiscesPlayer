@@ -58,7 +58,7 @@ pt[32..]    337.375 → 332.375 → 327.375 → 322.375 → 317.375 ms
 
 ## 3. 根因：L2 残差在密集 onset 上系统性偏爱更短的拍长
 
-`RhythmTimingRefiner.residual()`（[RhythmTimingRefiner.kt:150](file:///D:/3rd-party-projects/PixelPlayerOSS/app/src/main/java/com/lostf1sh/pixelplayeross/data/rhythm/RhythmTimingRefiner.kt#L150)）
+`RhythmTimingRefiner.residual()`（[RhythmTimingRefiner.kt:150](file:///D:/3rd-party-projects/PixelPlayerOSS/app/src/main/java/com/pisces312/piscesplayer/data/rhythm/RhythmTimingRefiner.kt#L150)）
 的评分是「每个 onset 到最近拍线的强度加权平方距离」。对**相位近似均匀**的 onset 集合，
 期望残差 ≈ `P²/12`（P 为拍长）——**拍越短，分数必然越低**，与音乐的真实速度无关。
 
@@ -69,13 +69,13 @@ pt[32..]    337.375 → 332.375 → 327.375 → 322.375 → 317.375 ms
 - 相位信息不足，L2 景观的全局极小值就是"尽可能短的拍"。
 
 于是每一段的最优偏移都贴在下界（−40 ms）；`±3%` 限幅只限制了每段能走多快，
-15% 改进门槛（[RhythmTimingRefiner.kt:105](file:///D:/3rd-party-projects/PixelPlayerOSS/app/src/main/java/com/lostf1sh/pixelplayeross/data/rhythm/RhythmTimingRefiner.kt#L105)）
+15% 改进门槛（[RhythmTimingRefiner.kt:105](file:///D:/3rd-party-projects/PixelPlayerOSS/app/src/main/java/com/pisces312/piscesplayer/data/rhythm/RhythmTimingRefiner.kt#L105)）
 被随机跨过几次；而接受后的拍长又被**原样带到下一段**
-（[RhythmTimingRefiner.kt:113](file:///D:/3rd-party-projects/PixelPlayerOSS/app/src/main/java/com/lostf1sh/pixelplayeross/data/rhythm/RhythmTimingRefiner.kt#L113)），
+（[RhythmTimingRefiner.kt:113](file:///D:/3rd-party-projects/PixelPlayerOSS/app/src/main/java/com/pisces312/piscesplayer/data/rhythm/RhythmTimingRefiner.kt#L113)），
 形成**只降不升的棘轮**：7 次 × 5 ms = 35 ms/拍，352.3 → 317.4。
 
-`RhythmRepository.gridTimingFor()`（[RhythmRepository.kt:232](file:///D:/3rd-party-projects/PixelPlayerOSS/app/src/main/java/com/lostf1sh/pixelplayeross/data/rhythm/RhythmRepository.kt#L232)）
-把母谱全部 onset 喂给它，`RhythmChartDeriver.snapTime()`（[RhythmChartDeriver.kt:150](file:///D:/3rd-party-projects/PixelPlayerOSS/app/src/main/java/com/lostf1sh/pixelplayeross/data/rhythm/RhythmChartDeriver.kt#L150)）
+`RhythmRepository.gridTimingFor()`（[RhythmRepository.kt:232](file:///D:/3rd-party-projects/PixelPlayerOSS/app/src/main/java/com/pisces312/piscesplayer/data/rhythm/RhythmRepository.kt#L232)）
+把母谱全部 onset 喂给它，`RhythmChartDeriver.snapTime()`（[RhythmChartDeriver.kt:150](file:///D:/3rd-party-projects/PixelPlayerOSS/app/src/main/java/com/pisces312/piscesplayer/data/rhythm/RhythmChartDeriver.kt#L150)）
 再按各段拍长吸附——错的是"分段拍长"本身，吸附按设计执行。
 
 ## 4. 为什么旧的全局网格也会漂，以及这次为什么不同
