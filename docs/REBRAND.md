@@ -1,6 +1,6 @@
 # PiscesPlayer Rebranding — 决策、迁移与发版记录
 
-日期：2026-11-10 · 分支：`rebrand/piscesplayer` · 版本：`1.0.0-pisces.1`（versionCode `1000001`）
+日期：2026-11-10 · 分支：`rebrand/piscesplayer` · 版本：`1.0.0`（versionCode `1000001`）
 
 本文记录本 fork 从 PixelPlayerOSS 更名为 PiscesPlayer 的完整决策、改动范围、验证方式与发版计划，
 供后续维护者（以及未来的自己）追溯「为什么这么改、改了哪些地方、漏改会怎样」。
@@ -11,8 +11,9 @@
 | --- | --- | --- |
 | 应用名 | `PiscesPlayer`（所有 locale 统一） | 与 GitHub 账号 `pisces312` 一致，简短，与上游无字面重叠 |
 | 包名（applicationId + namespace + 源码包） | `com.pisces312.piscesplayer`，与上游完全切割 | 用户明确选择彻底切割；一次性承担数据断点，避免以后再断一次 |
-| GitHub 仓库名 | 保留 `pisces312/PixelPlayerOSS` | fork 身份标识；改名会使 raw 图片链接、`AppReleaseSource` 的 GitHub API URL 全部失效 |
-| 版本号 | 从 `1.0.0-pisces.1` 重新起步 | 更名 + 新包名等价于新应用；`0.4.x` 系列留给上游名下的历史 |
+| GitHub 仓库名 | 改名 `pisces312/PiscesPlayer`（2026-11-10 执行） | 与产品名一致；GitHub 对旧 URL 自动 301 重定向，`AppReleaseSource` 的 GitHub API、词典下载、MusicBrainz UA、README/Release 正文的 raw 图片链接已全部切换到新名 |
+| 兼容 / 持久化标识 | **不改名**（`pixelplayer_database`、`pixelplayer_local_art`、`pixelplayer_music_channel` 等，`pixelplayer.*` Gradle 属性同） | 旧名已持久化（DB 文件名、封面 URI、通知渠道、旧 `.m3u` 标记），改名需数据迁移与导入兼容层，用户可见收益为零 |
+| 版本号 | 从 `1.0.0` 重新起步 | 更名 + 新包名等价于新应用；`0.4.x` 系列留给上游名下的历史 |
 | 许可证 | GPL-3.0-or-later 不变，`LICENSE` 原文保留 | GPL 允许改名再分发，但要求保留许可证与版权声明 |
 | 上游署名 | 新增 `NOTICE`；README/About/fastlane 均注明基于 PixelPlayerOSS by @lostf1sh | GPL 合规 + 商标礼貌；`assets/PixelPlayerOSS.svg` 与原作者署名保留 |
 
@@ -41,7 +42,7 @@
 - About 页：新增 `ForkMaintainer`（@pisces312）卡片置顶，原维护者标注为 Upstream FOSS Maintainer；
   链接区分 Source repo（本 fork）与 Upstream project；赞助文案指向 @lostf1sh。
 - MusicBrainz / CoverArtArchive 的 User-Agent 品牌段改为 `PiscesPlayer/<version>`（URL 仍指向上游仓库主页）。
-- Beta 反馈、Changelog 弹窗的 GitHub 链接指向 `pisces312/PixelPlayerOSS`。
+- Beta 反馈、Changelog 弹窗的 GitHub 链接指向 `pisces312/PiscesPlayer`。
 - fastlane：`title.txt` → `PiscesPlayer`；`full_description.txt` 重写（注明基于上游 + 新增节奏游戏条目）；
   `images/icon.png` 换新图标。
 - README：徽章指向本 fork、移除 F-Droid 徽章与下载段（本 fork 不上 F-Droid）、截图条加入节奏游戏两张、
@@ -66,9 +67,9 @@
 
 ## 3. 版本与 CHANGELOG
 
-- `gradle.properties`：`APP_VERSION_NAME=1.0.0-pisces.1`，`APP_VERSION_CODE=1000001`
+- `gradle.properties`：`APP_VERSION_NAME=1.0.0`，`APP_VERSION_CODE=1000001`
   （沿用 major×1,000,000 + minor×100,000 + patch×100 + build 的编码规则，0.4.3 → 400301 同源）。
-- `CHANGELOG.md`：`[Unreleased]` 收口为 `[1.0.0-pisces.1] - 2026-11-10`，并补记历史上静默丢失的
+- `CHANGELOG.md`：`[Unreleased]` 收口为 `[1.0.0] - 2026-11-10`，并补记历史上静默丢失的
   节奏游戏核心条目（DSP 生成、派生、Classic 冻结、入口、播放逻辑选择器）、AI 问歌/翻译/罗马音、
   MusicBrainz、Updates 屏、About 构建信息、更名本身。
 - `ChangelogParserTest`：版本列表、日期列表、每版本 section 数（`3,3,3,3,4,5,4,5`）同步更新。
@@ -82,16 +83,20 @@
 3. 新版内恢复备份；本地音乐文件本身不受影响。
 4. 确认无误后卸载旧版。
 
+兼容性边界：备份格式不校验旧包名，0.4.x 导出的 `.pxpl` 可直接导入；但加密备份只能在
+完成初始设置后从 `Settings → Backup` 输入密码恢复（Setup 向导没有密码入口），自定义
+艺术家图片建议在首次曲库扫描完成后再恢复，避免 artist 尚未入库时被跳过。
+
 Release 正文会写明以上步骤。旧版收不到应用内更新（包名不同），只能通过 Release 页/README 得知迁移。
 
 ## 5. 发版与旧 Release 清理计划
 
 | 步骤 | 内容 | 状态 |
 | --- | --- | --- |
-| 1 | `rebrand/piscesplayer` 分支提交全部更名改动 | 待提交 |
+| 1 | `rebrand/piscesplayer` 分支提交全部更名改动 | 已提交（收尾改动合为一个提交） |
 | 2 | 合并回 `main`（fast-forward 或 merge commit） | 待用户确认 |
 | 3 | `gradle.properties` 已是 1.0.0；签名构建（`KEY_*` 环境变量）+ `apksigner verify` | 待执行 |
-| 4 | tag `v1.0.0-pisces.1`，push main + tag | 待用户确认 |
+| 4 | tag `v1.0.0`，push main + tag | 待用户确认 |
 | 5 | 创建 GitHub Release：双语正文（英文在前）、APK + 截图附件；正文含迁移说明与上游署名 | 待用户确认 |
 | 6 | 删除旧 Release（v0.1.0…v0.4.3-pisces.1 共 4 个 tag 的 Release）| 待用户确认 |
 | 7 | 词典资产保护：日语词典挂在独立 tag `dictionary-kuromoji-0.9.0`，**不在**删除范围 | 已核实 |
@@ -116,6 +121,68 @@ Release 正文会写明以上步骤。旧版收不到应用内更新（包名不
 | 旧包名残留（源码与配置，排除 build 日志） | 0 处 |
 | 默认英文资源汉字残留 | 0 处（4 条 rhythm 帮助文案已译英并经模拟器验证） |
 | XML 合法性（全部改动 strings） | 通过 |
-| 单元测试 `:app:testDebugUnitTest` | 见提交信息 / CI 记录 |
-| 签名验证 | `apksigner verify` + `CN=pisces312`（发版时执行） |
-| 模拟器冒烟（安装、启动、谱面库、游戏进入） | 发版前在 AVD pixel6 复验 |
+| 单元测试 `:app:testDebugUnitTest` | 全绿（含 M3U 新旧标记双用例、更新器版本解析用例） |
+| androidTest 编译 `:app:compileDebugAndroidTestKotlin` | 通过 |
+| baselineprofile 编译 `:baselineprofile:compileBenchmarkReleaseKotlin` | 通过 |
+| release 构建 + 签名 | `:app:assembleRelease` 通过；`apksigner verify` = v2，`CN=pisces312` |
+| PixelPlayer 字样清点 | 见 §8.2，当前产品面零残留 |
+| 模拟器冒烟（安装、启动、谱面库、游戏进入） | 已过冒烟；发版前在 AVD pixel6 复验（清单见 HANDOVER §6） |
+
+## 8. 最终结果（2026-11-10 收口，含原 HANDOVER 已完成部分）
+
+### 8.1 完成清单
+
+| 项 | 落点 / 结果 |
+| --- | --- |
+| 应用名 / 包名 / namespace 全量改 `com.pisces312.piscesplayer` | `app/build.gradle.kts`、`settings.gradle.kts`、Manifest 广播 action、`AppReleaseSource.PUBLISHED_PACKAGE`、`app/schemas/` 15 份 JSON、880 文件约 24,590 处 |
+| 版本号 | `gradle.properties`：`APP_VERSION_NAME=1.0.0`（纯语义化，**无 `-pisces` 后缀**）、`APP_VERSION_CODE=1000001` |
+| 新图标（四角透明） | adaptive icon + 各密度 legacy webp + fastlane；母版 `docs/images/piscesplayer-icon.png` |
+| debug 图标 | 红底覆盖重新生成（`gen_debug_icons.py`），与 release 蓝/青底明确区分 |
+| CHANGELOG | `[1.0.0] - 2026-11-10` 段（含此前静默丢失的节奏游戏核心条目） |
+| 许可证 / 署名 | 新增 `NOTICE`；About 加 fork 维护者与上游链接；README 双署名 + fork 徽章 |
+| 更新器版本解析 | `AlphaVersion.PATTERN` 接受纯 `X.Y.Z`（以及历史 `alpha` / `pisces` 预发布），`v1.0.0` 可解析 |
+| M3U 播放列表标记 | 写入 `#PISCESPLAYER-PLAYLIST-ID:`，解析兼容旧 `#PIXELPLAYER-PLAYLIST-ID:`（旧 `.m3u` 备份可直接导入） |
+| 内部代码标识改名 | `PiscesPlayerApplication` / `PiscesPlayerDatabase` / `PiscesPlayerTheme` / `Theme.PiscesPlayer` / widget 类 / MediaButtonReceiver / Room schema 目录 / 日志标签等 |
+| GitHub 仓库改名 | `pisces312/PixelPlayerOSS` → `pisces312/PiscesPlayer`（gh 已执行，旧 URL 自动 301）；代码、测试、字符串、文档中的硬编码 URL 全部切换；About 描述与 topics 也已更新为 PiscesPlayer |
+| README | 英文重写 + 新增 `README.zh-CN.md`，突出节奏游戏 / AI / 性能优化，双语互链 |
+| 文档 | `docs/REBRAND.md`（本文）、`docs/RELEASE_ARCHIVE.md`（4 个旧 Release 正文归档）、`docs/releases/1.0.0.md`（Release 正文成品）、fastlane 文案 |
+| 单测 / 编译 | `:app:testDebugUnitTest` 全绿；`:app:compileDebugAndroidTestKotlin`、`:baselineprofile:compileBenchmarkReleaseKotlin`、`:app:assembleRelease` 通过 |
+| 模拟器冒烟 | 新旧包共存安装、10 步引导、曲库扫描、谱面生成（52 音符 / 103.7 BPM）、圆形遮罩图标正常 |
+| 签名 APK | 见 §8.3，`apksigner verify` 通过（v2，`CN=pisces312`） |
+
+### 8.2 PixelPlayer 字样清点（最终边界）
+
+**已清除**：当前产品文本、代码类名（`PiscesPlayer*`）、主题、日志标签、当前文档、脚本工具、测试 fixture、CI workflow 标签、构建产物符号。
+
+**保留**（四类，均有硬理由）：
+
+1. **其他项目名 / 仓库 URL**：`PixelPlayerHQ/PixelPlayerOSS`（上游）、`pisces312/PixelPlayer`（china-only 专有分支）—— 引用其他项目的名字；本仓库 URL 已是 `github.com/pisces312/PiscesPlayer`。
+2. **版权 / 署名 / 来源声明**：`NOTICE`、README 许可证块、`THIRD_PARTY_NOTICES.md`、各文件 SPDX 头（"Original work … china-only PixelPlayer fork"）、fastlane 简介署名、About「支持上游」区块、`metadata/com.lostf1sh.pixelplayeross.yml`（上游 F-Droid 元数据参考副本）。
+3. **历史记录**（不改写）：`CHANGELOG.md` 0.1.0–0.4.3 条目、`docs/RELEASE_ARCHIVE.md`、`fastlane/changelogs/1–3.txt`、旧计划文档。
+4. **兼容 / 持久化标识**（不改名，见 §1 决策表）：`pixelplayer_database`、`pixelplayer_local_art`（含旧 scheme `pixelplay_local_art`）、`pixelplayer_music_channel`、`pixelplayer_easter_egg`、`pixelplayer_car_lyric_title_force_a2dp`、`.pixelplayer-` M3U 文件名段、`#PIXELPLAYER-PLAYLIST-ID:` 旧标记（只读兼容）、`pixelplayer.*` Gradle 属性。
+
+### 8.3 产物
+
+```
+dist/piscesplayer-arm64-v8a-1.0.0-release.apk
+size   25,124,984 bytes
+sha256 66a3f67af0145d38015014ebff97f0fc94e02568077333cab43471b7247c2b24
+```
+
+`dist/` 不在 git 里（`.gitignore` 有 `*.apk`）。重编命令：
+
+```powershell
+.\gradlew.bat :app:assembleRelease -Ppixelplayer.enableAbiSplits=true
+```
+
+**校验签名（发版前必做，唯一判据）**：
+
+```powershell
+$env:JAVA_HOME='D:\dev\jdk-25'
+& 'D:\dev\android_sdk\build-tools\37.0.0\apksigner.bat' verify --print-certs -v `
+  'dist\piscesplayer-arm64-v8a-1.0.0-release.apk'
+```
+
+判据：`Verifies` + `v2 scheme: true` + `CN=pisces312`；`aapt2 dump badging` 核对 `versionName=1.0.0` / `versionCode=1000001` / `arm64-v8a`。
+
+> SHA-256 与 `docs/releases/1.0.0.md` 中的值必须一致；任何重编之后都要重算并同步两处。

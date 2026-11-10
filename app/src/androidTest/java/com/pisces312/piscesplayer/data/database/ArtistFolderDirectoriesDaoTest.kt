@@ -13,16 +13,16 @@ import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class ArtistFolderDirectoriesDaoTest {
-    private lateinit var database: PixelPlayerDatabase
+    private lateinit var database: PiscesPlayerDatabase
     private lateinit var musicDao: MusicDao
 
     @Before
     fun createDatabase() {
         database = Room.inMemoryDatabaseBuilder(
             ApplicationProvider.getApplicationContext<Context>(),
-            PixelPlayerDatabase::class.java
+            PiscesPlayerDatabase::class.java
         )
-            .addCallback(PixelPlayerDatabase.createRuntimeArtifactsCallback())
+            .addCallback(PiscesPlayerDatabase.createRuntimeArtifactsCallback())
             .allowMainThreadQueries()
             .build()
         musicDao = database.musicDao()

@@ -38,7 +38,7 @@
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 
     <application
-        android:name=".PixelPlayerApplication"
+        android:name=".PiscesPlayerApplication"
         android:allowBackup="true"
         android:enableOnBackInvokedCallback="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
@@ -48,14 +48,14 @@
         android:localeConfig="@xml/locales_config"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:theme="@style/Theme.PixelPlayer"
+        android:theme="@style/Theme.PiscesPlayer"
         android:usesCleartextTraffic="true"
         android:networkSecurityConfig="@xml/network_security_config"
         tools:targetApi="31">
         <activity
             android:name=".MainActivity"
             android:exported="true"
-            android:theme="@style/Theme.PixelPlayer"
+            android:theme="@style/Theme.PiscesPlayer"
             android:launchMode="singleTop"
             android:configChanges="orientation|screenSize|keyboardHidden|screenLayout|smallestScreenSize"
             android:windowSoftInputMode="adjustResize">
@@ -82,14 +82,14 @@
             android:name=".presentation.navidrome.auth.NavidromeLoginActivity"
             android:exported="false"
             android:label="Navidrome Login"
-            android:theme="@style/Theme.PixelPlayer"
+            android:theme="@style/Theme.PiscesPlayer"
             android:windowSoftInputMode="adjustResize" />
 
         <activity
             android:name=".presentation.jellyfin.auth.JellyfinLoginActivity"
             android:exported="false"
             android:label="Jellyfin Login"
-            android:theme="@style/Theme.PixelPlayer"
+            android:theme="@style/Theme.PiscesPlayer"
             android:windowSoftInputMode="adjustResize" />
 
 
@@ -97,7 +97,7 @@
             android:name=".ExternalPlayerActivity"
             android:exported="true"
             android:launchMode="singleTop"
-            android:theme="@style/Theme.PixelPlayer.ExternalPlayer"
+            android:theme="@style/Theme.PiscesPlayer.ExternalPlayer"
             android:excludeFromRecents="true"
             android:grantUriPermissions="true">
             <!-- Mirror AmazeFileExplorer's audio alias: VIEW + audio/* with NO scheme constraint.
@@ -140,14 +140,14 @@
             tools:node="merge" />
 
         <receiver
-            android:name=".ui.glancewidget.PixelPlayerGlanceWidgetReceiver"
+            android:name=".ui.glancewidget.PiscesPlayerGlanceWidgetReceiver"
             android:exported="false">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
             </intent-filter>
             <meta-data
                 android:name="android.appwidget.provider"
-                android:resource="@xml/pixelplayer_glance_widget_info" />
+                android:resource="@xml/piscesplayer_glance_widget_info" />
         </receiver>
 
         <receiver
@@ -186,7 +186,7 @@
         <receiver android:name=".data.service.SleepTimerReceiver" android:exported="false" />
 
         <receiver
-            android:name=".data.service.PixelPlayerMediaButtonReceiver"
+            android:name=".data.service.PiscesPlayerMediaButtonReceiver"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MEDIA_BUTTON" />

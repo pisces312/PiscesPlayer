@@ -193,7 +193,7 @@
     <string name="about_project_title">项目信息</string>
     <string name="about_project_subtitle">源代码、发布版本以及社区入口。</string>
     <string name="about_link_source_title">源代码</string>
-    <string name="about_link_source_subtitle">github.com/pisces312/PixelPlayerOSS</string>
+    <string name="about_link_source_subtitle">github.com/pisces312/PiscesPlayer</string>
     <string name="about_link_upstream_title">上游项目</string>
     <string name="about_link_upstream_subtitle">基于 PixelPlayerOSS · GPL-3.0-or-later</string>
     <string name="cd_about_open_link">打开 %1$s</string>

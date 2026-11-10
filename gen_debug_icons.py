@@ -1,9 +1,9 @@
-"""Generate red-tinted launcher icons for the debug source set of PixelPlayerOSS.
+"""Generate red-tinted launcher icons for the debug source set of PiscesPlayer.
 
 Run from anywhere:  python gen_debug_icons.py
 
 The debug variant already uses a separate application id (`.debug`) and app name
-(`PixelPlayerOSS [D]`). This script adds the visual half of that separation by
+(`PiscesPlayer [D]`). This script adds the visual half of that separation by
 writing a red-tinted copy of the adaptive icon background into
 `app/src/debug/res`, so debug and release builds are distinguishable on the
 launcher without touching the main sources.
@@ -30,11 +30,6 @@ ICON_SIZES = {
     "xxxhdpi": 192,
 }
 
-# Adaptive icon foreground layer is drawn on a 108dp canvas for a 48dp icon.
-FOREGROUND_SIZES = {density: size * 108 // 48 for density, size in ICON_SIZES.items()}
-
-FOREGROUND_SRC = MAIN_RES / "mipmap-xxxhdpi" / "ic_launcher_foreground.webp"
-
 
 def tint_red(image: Image.Image) -> Image.Image:
     """Tint an RGBA image red while preserving its alpha channel."""
@@ -46,33 +41,41 @@ def tint_red(image: Image.Image) -> Image.Image:
 
 
 def main() -> None:
-    for density, size in ICON_SIZES.items():
+    for density, legacy_size in ICON_SIZES.items():
         out_dir = DEBUG_RES / f"mipmap-{density}"
         out_dir.mkdir(parents=True, exist_ok=True)
 
-        background = (
-            Image.open(MAIN_RES / f"mipmap-{density}" / "ic_launcher_background.webp")
-            .convert("RGBA")
-            .resize((size, size), Image.LANCZOS)
-        )
-        background = tint_red(background)
-        background.save(out_dir / "ic_launcher_background.webp", "WEBP", quality=90)
+        main_dir = MAIN_RES / f"mipmap-{density}"
+        background = Image.open(main_dir / "ic_launcher_background.webp").convert("RGBA")
+        foreground = Image.open(main_dir / "ic_launcher_foreground.webp").convert("RGBA")
+        debug_background = tint_red(background)
+        debug_background.save(out_dir / "ic_launcher_background.webp", "WEBP", quality=90)
 
-        # Legacy square icons for launchers that ignore the adaptive icon XML.
-        foreground_size = FOREGROUND_SIZES[density]
-        foreground = (
-            Image.open(FOREGROUND_SRC)
-            .convert("RGBA")
-            .resize((foreground_size, foreground_size), Image.LANCZOS)
+        # Legacy icons show the complete adaptive icon at the launcher's fixed size.
+        full = Image.alpha_composite(debug_background, foreground).resize(
+            (legacy_size, legacy_size), Image.Resampling.LANCZOS
         )
-        composed = Image.new("RGBA", (size, size), (0, 0, 0, 0))
-        offset = (size - foreground_size) // 2
-        composed.paste(background, (0, 0), background)
-        composed.paste(foreground, (offset, offset), foreground)
-        composed.save(out_dir / "ic_launcher.webp", "WEBP", quality=90)
-        composed.save(out_dir / "ic_launcher_round.webp", "WEBP", quality=90)
 
-        print(f"{density}: {size}x{size}")
+        # Reuse the release icon masks so debug and release keep the same silhouette.
+        square = full.copy()
+        square.putalpha(
+            Image.open(main_dir / "ic_launcher.webp")
+            .convert("RGBA")
+            .getchannel("A")
+            .resize((legacy_size, legacy_size), Image.Resampling.LANCZOS)
+        )
+        round_icon = full.copy()
+        round_icon.putalpha(
+            Image.open(main_dir / "ic_launcher_round.webp")
+            .convert("RGBA")
+            .getchannel("A")
+            .resize((legacy_size, legacy_size), Image.Resampling.LANCZOS)
+        )
+
+        square.save(out_dir / "ic_launcher.webp", "WEBP", quality=90)
+        round_icon.save(out_dir / "ic_launcher_round.webp", "WEBP", quality=90)
+
+        print(f"{density}: {legacy_size}x{legacy_size}")
 
     print(f"Debug icons written to {DEBUG_RES}")
 

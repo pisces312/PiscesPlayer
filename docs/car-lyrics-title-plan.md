@@ -407,7 +407,7 @@ L2 最值得先做——**它直接观察的就是车机将要读到的那一份
 |---|---|---|
 | 车机视角的数据 | `dumpsys media_session` 的 `metadata: size=…, description=<title>, …` | 与开关状态一致 |
 | 队列是否被动过 | 同一份 dump 的 `active item id=` / `queueTitle=null, size=` | 全程不变 |
-| 推送频率 | `adb logcat -d -s MusicService_PixelPlayer \| grep "car lyric title"` | 开关关闭时无推送行 |
+| 推送频率 | `adb logcat -d -s MusicService_PiscesPlayer \| grep "car lyric title"` | 开关关闭时无推送行 |
 
 > `dumpsys media_session` 之所以能代表车机：蓝牙 AVRCP 的 `GetElementAttributes` 由 AOSP 蓝牙栈从 `MediaSession` 的 legacy stub 读**同一份** `MediaMetadata`（§3.1）。
 
@@ -435,13 +435,13 @@ metadata: size=12, description=[SPIKE] idle #7, <unknown>, 1
 queueTitle=null, size=89
 ```
 
-logcat（`MusicService_PixelPlayer`）同步显示埋点每秒推送，且运行在主线程（tid 与 pid 相同）：
+logcat（`MusicService_PiscesPlayer`）同步显示埋点每秒推送，且运行在主线程（tid 与 pid 相同）：
 
 ```
-09-14 00:51:09.528  4263  4263 D MusicService_PixelPlayer: car lyric title spike: [SPIKE] idle #2
-09-14 00:51:10.533  4263  4263 D MusicService_PixelPlayer: car lyric title spike: [SPIKE] idle #3
+09-14 00:51:09.528  4263  4263 D MusicService_PiscesPlayer: car lyric title spike: [SPIKE] idle #2
+09-14 00:51:10.533  4263  4263 D MusicService_PiscesPlayer: car lyric title spike: [SPIKE] idle #3
 ...
-09-14 00:51:14.567  4263  4263 D MusicService_PixelPlayer: car lyric title spike: [SPIKE] idle #7
+09-14 00:51:14.567  4263  4263 D MusicService_PiscesPlayer: car lyric title spike: [SPIKE] idle #7
 ```
 
 结论与解读：
@@ -582,7 +582,7 @@ adb shell "run-as com.pisces312.piscesplayer.debug sqlite3 databases/pixelplayer
 [00:20.00]0123456789abcdefghijklmnopqrstuvwxyz          2 段，末行跨度 = 45.0 − 20 = 25.0 s
 ```
 
-| 断言 | 观察（logcat `MusicService_PixelPlayer`，2026-09-18 00:46:08 起） | 结论 |
+| 断言 | 观察（logcat `MusicService_PiscesPlayer`，2026-09-18 00:46:08 起） | 结论 |
 |---|---|---|
 | ① 每段驻留封顶 4 s | `08.062` 发第 1 段 → `12.351` 发第 2 段（**4.29 s**）；中间三条 `next wake` 依次 `5000` → `3500` → `100` ms | 生效。`3500 = 4000 − 500(lead)` 正是「第 2 段边界 = 行起点 + 4 s」；**旧公式**此行跨度 20 s ⇒ 边界在 10 s 位置，残差会是 9500 ms（被看门狗截成 5000 再重排），实际看到的是 3500 |
 | ② 末行（跨度最大）同样封顶 | 第 2 行两段间隔 **4.86 s**（`28.329` → `33.187`） | 旧公式该段落在 32.5 s 位置（跨度 25 s ÷ 2）。多出的 0.86 s 来自模拟器音频管线停顿后的重排（同段内有 `next wake in 618 ms` 的重排行），不是公式误差 |
@@ -641,7 +641,7 @@ adb shell settings put global pixelplayer_car_lyric_title_force_a2dp 1
 
 # 5. 观察车机视角的数据 + 门控日志
 adb shell dumpsys media_session | grep -A 12 com.lostf1sh | grep -E "metadata:|active item"
-adb logcat -s MusicService_PixelPlayer | grep "car lyric title"
+adb logcat -s MusicService_PiscesPlayer | grep "car lyric title"
 
 # 6. 给某首歌注入同步歌词（不动文件，id 稳定），再播放它
 #    char(10) 拼换行以避开 adb shell 的转义问题

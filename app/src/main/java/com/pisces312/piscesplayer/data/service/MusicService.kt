@@ -38,7 +38,7 @@ import androidx.media3.session.SessionResult
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
 import com.google.common.util.concurrent.SettableFuture
-import com.pisces312.piscesplayer.PixelPlayerApplication
+import com.pisces312.piscesplayer.PiscesPlayerApplication
 import com.pisces312.piscesplayer.MainActivity
 import com.pisces312.piscesplayer.R
 import com.pisces312.piscesplayer.data.diagnostics.AdvancedPerformanceDiagnostics
@@ -54,7 +54,7 @@ import com.pisces312.piscesplayer.data.service.player.DualPlayerEngine
 import com.pisces312.piscesplayer.data.service.player.TransitionController
 import com.pisces312.piscesplayer.data.service.player.selectCanonicalCloudPlaybackUri
 import com.pisces312.piscesplayer.ui.glancewidget.ControlWidget4x2
-import com.pisces312.piscesplayer.ui.glancewidget.PixelPlayerGlanceWidget
+import com.pisces312.piscesplayer.ui.glancewidget.PiscesPlayerGlanceWidget
 import com.pisces312.piscesplayer.ui.glancewidget.PlayerActions
 import com.pisces312.piscesplayer.ui.glancewidget.PlayerInfoStateDefinition
 import com.pisces312.piscesplayer.utils.AlbumArtUtils
@@ -143,7 +143,7 @@ suspend fun loadArtworkBytesViaCoil(context: Context, uri: Uri): ByteArray? {
             config = ArtworkTransportSanitizer.WIDGET_CONFIG,
         )
     }.getOrElse { error ->
-        Timber.tag("MusicService_PixelPlayer").w(error, "Artwork read failed via Coil for uri=%s", uri)
+        Timber.tag("MusicService_PiscesPlayer").w(error, "Artwork read failed via Coil for uri=%s", uri)
         null
     }
 }
@@ -232,7 +232,7 @@ class MusicService : MediaSessionService() {
     private var temporaryForegroundNotificationVisible = false
 
     companion object {
-        private const val TAG = "MusicService_PixelPlayer"
+        private const val TAG = "MusicService_PiscesPlayer"
         const val NOTIFICATION_ID = 101
         const val ACTION_SLEEP_TIMER_EXPIRED = "com.pisces312.piscesplayer.ACTION_SLEEP_TIMER_EXPIRED"
         const val EXTRA_FORCE_FOREGROUND_ON_START =
@@ -805,7 +805,7 @@ class MusicService : MediaSessionService() {
     private fun startTemporaryForegroundForCommand() {
         val notification = NotificationCompat.Builder(
             this,
-            PixelPlayerApplication.NOTIFICATION_CHANNEL_ID
+            PiscesPlayerApplication.NOTIFICATION_CHANNEL_ID
         )
             .setSmallIcon(R.drawable.monochrome_player)
             .setContentTitle(getString(R.string.app_name))
@@ -2128,10 +2128,10 @@ class MusicService : MediaSessionService() {
             val glanceManager = GlanceAppWidgetManager(applicationContext)
             val widgetPlayerInfo = playerInfo.toWidgetTransportState()
 
-            val glanceIds = glanceManager.getGlanceIds(PixelPlayerGlanceWidget::class.java)
+            val glanceIds = glanceManager.getGlanceIds(PiscesPlayerGlanceWidget::class.java)
             glanceIds.forEach { id ->
                 updateAppWidgetState(applicationContext, PlayerInfoStateDefinition, id) { widgetPlayerInfo }
-                PixelPlayerGlanceWidget().update(applicationContext, id)
+                PiscesPlayerGlanceWidget().update(applicationContext, id)
             }
 
             val barGlanceIds = glanceManager.getGlanceIds(BarWidget4x1::class.java)

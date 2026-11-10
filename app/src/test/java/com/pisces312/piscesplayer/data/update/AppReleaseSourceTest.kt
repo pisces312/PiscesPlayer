@@ -19,7 +19,7 @@ class AppReleaseSourceTest {
         val latest = AppReleaseSource.parseLatestRelease(releases, listOf("arm64-v8a"))!!
 
         assertThat(latest.versionName).isEqualTo("0.3.0-alpha.16")
-        assertThat(latest.apkUrl).endsWith("/PiscesPlayer-0.3.0-alpha.16-arm64-v8a.apk")
+        assertThat(latest.apkUrl).endsWith("/piscesplayer-arm64-v8a-0.3.0-alpha.16-release.apk")
     }
 
     @Test
@@ -28,11 +28,11 @@ class AppReleaseSourceTest {
 
         val latest = AppReleaseSource.parseLatestRelease(releases, listOf("armeabi-v7a", "arm64-v8a"))!!
 
-        assertThat(latest.apkUrl).endsWith("-armeabi-v7a.apk")
+        assertThat(latest.apkUrl).endsWith("/piscesplayer-armeabi-v7a-0.3.0-alpha.16-release.apk")
     }
 
     @Test
-    fun `drafts, plain version tags and releases without a matching APK are not offered`() {
+    fun `plain semantic versions are offered and drafts or missing APKs are not`() {
         val releases = JSONArray(
             listOf(
                 release("v0.3.0-alpha.20", draft = true),
@@ -43,8 +43,19 @@ class AppReleaseSourceTest {
         )
 
         assertThat(AppReleaseSource.parseLatestRelease(releases, listOf("arm64-v8a"))!!.versionName)
-            .isEqualTo("0.3.0-alpha.18")
+            .isEqualTo("0.4.0")
         assertThat(AppReleaseSource.parseLatestRelease(releases, listOf("x86"))).isNull()
+    }
+
+    @Test
+    fun `plain semantic versions sort by base version`() {
+        val releases = JSONArray(
+            listOf(release("v1.0.0"), release("v1.0.1"), release("v1.1.0"))
+                .joinToString(prefix = "[", postfix = "]")
+        )
+
+        assertThat(AppReleaseSource.parseLatestRelease(releases, listOf("arm64-v8a"))!!.versionName)
+            .isEqualTo("1.1.0")
     }
 
     @Test
@@ -62,6 +73,13 @@ class AppReleaseSourceTest {
         assertThat(alphaRelease("0.3.0-alpha.16").isNewerThan("0.3.0-pr.137.ba94188")).isTrue()
     }
 
+    @Test
+    fun `plain semantic versions compare against prereleases`() {
+        assertThat(alphaRelease("1.0.0").isNewerThan("1.0.0")).isFalse()
+        assertThat(alphaRelease("1.0.1").isNewerThan("1.0.0")).isTrue()
+        assertThat(alphaRelease("1.0.0").isNewerThan("0.4.3-pisces.1")).isTrue()
+    }
+
     private fun alphaRelease(versionName: String) = AppRelease(
         versionName = versionName,
         apkUrl = "https://example.invalid/app.apk",
@@ -77,10 +95,10 @@ class AppReleaseSourceTest {
     ): String {
         val name = tag.removePrefix("v")
         val assets = abis.joinToString(prefix = "[", postfix = "]") { abi ->
-            """{"name":"PiscesPlayer-$name-$abi.apk","size":37082259,
-               "browser_download_url":"https://github.com/PixelPlayerHQ/PixelPlayerOSS/releases/download/$tag/PiscesPlayer-$name-$abi.apk"}"""
+            """{"name":"piscesplayer-$abi-$name-release.apk","size":37082259,
+               "browser_download_url":"https://github.com/pisces312/PiscesPlayer/releases/download/$tag/piscesplayer-$abi-$name-release.apk"}"""
         }
         return """{"tag_name":"$tag","prerelease":$prerelease,"draft":$draft,
-                   "html_url":"https://github.com/PixelPlayerHQ/PixelPlayerOSS/releases/tag/$tag","assets":$assets}"""
+                   "html_url":"https://github.com/pisces312/PiscesPlayer/releases/tag/$tag","assets":$assets}"""
     }
 }

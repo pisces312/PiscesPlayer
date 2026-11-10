@@ -35,7 +35,7 @@ class ReplayGainProcessor(
     private val currentSessionMediaItem: () -> MediaItem?,
 ) {
     private companion object {
-        private const val TAG = "MusicService_PixelPlayer"
+        private const val TAG = "MusicService_PiscesPlayer"
     }
 
     private var enabled = false

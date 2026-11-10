@@ -69,7 +69,7 @@ fun ChangelogBottomSheet(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
-    val changelogUrl = "https://github.com/pisces312/PixelPlayerOSS"
+    val changelogUrl = "https://github.com/pisces312/PiscesPlayer"
     val changelog by produceState(initialValue = emptyList<ChangelogVersion>()) {
         value = withContext(Dispatchers.IO) {
             runCatching {

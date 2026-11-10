@@ -376,7 +376,7 @@ class AppUpdateManager @Inject constructor(
     private fun updatesDir() = File(context.cacheDir, UPDATES_DIR)
 
     private fun downloadedApk(release: AppRelease) =
-        File(updatesDir(), "pixelplayeross-${release.versionName}.apk")
+        File(updatesDir(), "piscesplayer-${release.versionName}.apk")
 
     private companion object {
         const val UPDATES_DIR = "updates"

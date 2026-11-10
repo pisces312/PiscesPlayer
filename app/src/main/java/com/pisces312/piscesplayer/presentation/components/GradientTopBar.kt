@@ -40,7 +40,7 @@ import androidx.compose.ui.unit.dp
 import com.pisces312.piscesplayer.BuildConfig
 import com.pisces312.piscesplayer.R
 import com.pisces312.piscesplayer.ui.theme.RoundedSans
-import com.pisces312.piscesplayer.ui.theme.PixelPlayerStatusBarStyle
+import com.pisces312.piscesplayer.ui.theme.PiscesPlayerStatusBarStyle
 import androidx.compose.ui.res.stringResource
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -57,7 +57,7 @@ fun GenreGradientTopBar(
         Brush.verticalGradient(colors = listOf(startColor, endColor))
     }
 
-    PixelPlayerStatusBarStyle(color = startColor)
+    PiscesPlayerStatusBarStyle(color = startColor)
 
     LargeTopAppBar(
         scrollBehavior = scrollBehavior,
@@ -107,7 +107,7 @@ fun HomeGradientTopBar(
 ) {
     val surfaceContainerHigh = MaterialTheme.colorScheme.surfaceContainerHighest
 
-    PixelPlayerStatusBarStyle(color = surfaceContainerHigh)
+    PiscesPlayerStatusBarStyle(color = surfaceContainerHigh)
 
     val animatedAlpha by animateFloatAsState(
         targetValue = if (isScrolled) 1f else 0f,

@@ -33,7 +33,7 @@ class CoverArtArchiveService @Inject constructor(
                     .header(
                         "User-Agent",
                         "PiscesPlayer/${BuildConfig.VERSION_NAME} " +
-                            "(https://github.com/pisces312/PixelPlayerOSS)"
+                            "(https://github.com/pisces312/PiscesPlayer)"
                     )
                     .header("Accept", "image/*")
                     .build()

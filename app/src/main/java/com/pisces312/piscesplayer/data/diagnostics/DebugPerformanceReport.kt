@@ -38,7 +38,7 @@ data class DebugPerformanceReport(
 
     /** Human-readable rendering for users who prefer text over JSON. */
     fun toPlainText(): String = buildString {
-        appendLine("PixelPlayer performance report (schema v$schemaVersion)")
+        appendLine("PiscesPlayer performance report (schema v$schemaVersion)")
         appendLine("Generated: $generatedAtIso")
         appendLine()
 

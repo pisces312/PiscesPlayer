@@ -3,7 +3,7 @@
 > 状态：**已实施（2026-09-16）** —— 实现记录、与计划的偏离及验证结果见 §9。
 > 真机端到端（结果页展开 / 滚动条拖动、详情弹窗展示、覆盖安装）待接设备后补。
 > 涉及代码：`data/database/PlaylistEntity.kt`、`data/database/Migrations.kt`、
-> `data/database/PixelPlayerDatabase.kt`、`di/AppModule.kt`（+ 新增 `app/schemas/.../11.json`）、
+> `data/database/PiscesPlayerDatabase.kt`、`di/AppModule.kt`（+ 新增 `app/schemas/.../11.json`）、
 > `data/model/PlayList.kt`、`data/preferences/PlaylistPreferencesRepository.kt`、
 > `presentation/viewmodel/PlaylistViewModel.kt`、`presentation/components/AiMixSheet.kt`、
 > `presentation/screens/PlaylistDetailScreen.kt`。
@@ -36,7 +36,7 @@
 |---|---|
 | `PlaylistEntity.kt` | 加 `@ColumnInfo(name = "ai_thinking") val aiThinking: String? = null`；`toPlaylist()` / `toEntity()` 双向映射补该字段 |
 | `Migrations.kt` | 新增 `MIGRATION_10_11`：`db.addColumnIfMissing("playlists", "ai_thinking", "\`ai_thinking\` TEXT")`，沿用既有 `addColumnIfMissing`（Auto Backup 还原后列漂移的兜底） |
-| `PixelPlayerDatabase.kt` | `version = 10` → `11` |
+| `PiscesPlayerDatabase.kt` | `version = 10` → `11` |
 | `di/AppModule.kt` | `.addMigrations(...)` 列表**末尾追加** `MIGRATION_10_11`（:142 起） |
 | `app/schemas/.../11.json` | 构建时由 KSP 生成，**必须提交**（`exportSchema = true`，且 `androidTest` 的 assets 依赖它跑迁移测试） |
 | `data/model/PlayList.kt` | 加 `val aiThinking: String? = null` |
@@ -174,7 +174,7 @@ if (!playlist.aiThinking.isNullOrBlank()) {
 
 | 提交 | message | 内容 |
 |---|---|---|
-| 1 | `feat(ai): persist the model's thought process with the playlist` | `PlaylistEntity.kt`、`Migrations.kt`、`PixelPlayerDatabase.kt`、`AppModule.kt`、`schemas/11.json`、`PlayList.kt`、`PlaylistPreferencesRepository.kt`、`PlaylistViewModel.kt`（终态保留 + `saveAiMix`）、新增映射单测、`LocalPlaylistDaoTest` / `PlaylistMigrationTest` 补用例 |
+| 1 | `feat(ai): persist the model's thought process with the playlist` | `PlaylistEntity.kt`、`Migrations.kt`、`PiscesPlayerDatabase.kt`、`AppModule.kt`、`schemas/11.json`、`PlayList.kt`、`PlaylistPreferencesRepository.kt`、`PlaylistViewModel.kt`（终态保留 + `saveAiMix`）、新增映射单测、`LocalPlaylistDaoTest` / `PlaylistMigrationTest` 补用例 |
 | 2 | `feat(ai): show the thought process in the result and prompt-details views` | `AiMixSheet.kt`（结果页 + 滚动条 + `ThinkingCard` 参数化）、`PlaylistDetailScreen.kt` |
 
 只拆两个的原因：UI 展示（提交 2）依赖数据层与 VM 保留（提交 1），再往下拆会留下没有可读性
@@ -188,7 +188,7 @@ if (!playlist.aiThinking.isNullOrBlank()) {
 |---|---|
 | `data/database/PlaylistEntity.kt` | 加 `ai_thinking` 列字段，`toPlaylist()` / `toEntity()` 双向映射 |
 | `data/database/Migrations.kt` | 新增 `MIGRATION_10_11`（`addColumnIfMissing`） |
-| `data/database/PixelPlayerDatabase.kt` | `version = 11` |
+| `data/database/PiscesPlayerDatabase.kt` | `version = 11` |
 | `di/AppModule.kt` | `addMigrations(...)` 末尾追加 `MIGRATION_10_11` |
 | `app/schemas/.../11.json` | 新增（KSP 生成，`ai_thinking TEXT` 可空） |
 | `data/model/PlayList.kt` | 加 `aiThinking: String? = null` |

@@ -83,7 +83,7 @@ import com.pisces312.piscesplayer.data.jellyfin.model.JellyfinCredentials
 import com.pisces312.piscesplayer.presentation.components.CloudLibraryPickerItem
 import com.pisces312.piscesplayer.presentation.components.CloudLibraryPickerSheet
 import com.pisces312.piscesplayer.ui.theme.RoundedSans
-import com.pisces312.piscesplayer.ui.theme.PixelPlayerTheme
+import com.pisces312.piscesplayer.ui.theme.PiscesPlayerTheme
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.collections.immutable.toImmutableList
 import racra.compose.smooth_corner_rect_library.AbsoluteSmoothCornerShape
@@ -99,7 +99,7 @@ class JellyfinLoginActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            PixelPlayerTheme {
+            PiscesPlayerTheme {
                 JellyfinLoginScreen(onClose = { finish() })
             }
         }

@@ -19,13 +19,13 @@ import java.io.IOException
 class MusicDaoTest {
 
     private lateinit var musicDao: MusicDao
-    private lateinit var db: PixelPlayerDatabase
+    private lateinit var db: PiscesPlayerDatabase
 
     @Before
     fun createDb() {
         val context = ApplicationProvider.getApplicationContext<Context>()
-        db = Room.inMemoryDatabaseBuilder(context, PixelPlayerDatabase::class.java)
-            .addCallback(PixelPlayerDatabase.createRuntimeArtifactsCallback())
+        db = Room.inMemoryDatabaseBuilder(context, PiscesPlayerDatabase::class.java)
+            .addCallback(PiscesPlayerDatabase.createRuntimeArtifactsCallback())
             .allowMainThreadQueries()
             .build()
         musicDao = db.musicDao()

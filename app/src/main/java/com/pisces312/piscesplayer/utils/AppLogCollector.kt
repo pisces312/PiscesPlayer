@@ -42,7 +42,7 @@ object AppLogCollector {
     private const val EXPORT_KEEP_MS = 60 * 60 * 1000L
 
     private const val LOG_DIR = "logs"
-    private const val LOG_FILE_NAME = "pixelplayeross.log"
+    private const val LOG_FILE_NAME = "piscesplayer.log"
     private const val EXPORT_DIR = "log_export"
 
     private const val PREFS_NAME = "log_collector"
@@ -146,7 +146,7 @@ object AppLogCollector {
         cleanupOldExports(exportDir)
 
         val stamp = SimpleDateFormat("yyyyMMdd-HHmmss", Locale.US).format(Date())
-        val out = File(exportDir, "pixelplayeross-log-$stamp.txt")
+        val out = File(exportDir, "piscesplayer-log-$stamp.txt")
         out.bufferedWriter(Charsets.UTF_8).use { writer ->
             writer.write(buildHeader(ctx))
             writer.write("\n")

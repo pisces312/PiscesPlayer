@@ -19,7 +19,7 @@ class M3uManagerTest {
         )
         val content = """
             #EXTM3U
-            #PIXELPLAYER-PLAYLIST-ID:playlist-42
+            #PISCESPLAYER-PLAYLIST-ID:playlist-42
             /Music/Album/one.flac
             shared.flac
             missing.flac
@@ -31,6 +31,21 @@ class M3uManagerTest {
         assertThat(result.songIds).containsExactly("1")
         assertThat(result.ambiguousEntries).containsExactly("shared.flac")
         assertThat(result.unresolvedEntries).containsExactly("missing.flac")
+    }
+
+    @Test
+    fun `parser still accepts the legacy pre-rebrand playlist id marker`() {
+        val songs = listOf(song("1", "/Music/Album/one.flac"))
+        val content = """
+            #EXTM3U
+            #PIXELPLAYER-PLAYLIST-ID:playlist-42
+            /Music/Album/one.flac
+        """.trimIndent()
+
+        val result = M3uManager.parseContent(content, songs)
+
+        assertThat(result.playlistId).isEqualTo("playlist-42")
+        assertThat(result.songIds).containsExactly("1")
     }
 
     @Test
@@ -47,7 +62,7 @@ class M3uManagerTest {
 
         val content = M3uManager.generateContent(playlist, songs)
 
-        assertThat(content).contains("#PIXELPLAYER-PLAYLIST-ID:playlist-42")
+        assertThat(content).contains("#PISCESPLAYER-PLAYLIST-ID:playlist-42")
         assertThat(content).contains("/Music/one.flac")
         assertThat(content).contains("navidrome://song-cloud")
     }

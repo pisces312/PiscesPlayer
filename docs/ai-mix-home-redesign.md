@@ -435,7 +435,7 @@ AI 横幅 → 一句话描述 + 长度 chips → 生成中（可取消）
 | `data/model/PlayList.kt` | `Playlist` 末尾新增 `aiPrompt: String? = null`（放末尾 → 所有位置参数调用点不受影响）|
 | `data/database/PlaylistEntity.kt` | `@ColumnInfo(name = "ai_prompt")` + 两个映射函数 |
 | `data/database/Migrations.kt` | `MIGRATION_8_9`：`addColumnIfMissing("playlists", "ai_prompt", "`ai_prompt` TEXT")` |
-| `data/database/PixelPlayerDatabase.kt` | `version = 9`（schema `9.json` 已随编译导出）|
+| `data/database/PiscesPlayerDatabase.kt` | `version = 9`（schema `9.json` 已随编译导出）|
 | `di/AppModule.kt` | `addMigrations(…, MIGRATION_8_9)` |
 | `data/preferences/PlaylistPreferencesRepository.kt` | `createPlaylist(…, aiPrompt: String? = null)` |
 | `presentation/viewmodel/PlaylistViewModel.kt` | `saveAiMix` 落库时带 `aiPrompt = prompt`（此前 `prompt` 只进事件、不入库）|

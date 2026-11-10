@@ -18,7 +18,7 @@ import androidx.work.testing.TestListenableWorkerBuilder
 import androidx.work.workDataOf
 import com.google.common.truth.Truth.assertThat
 import com.pisces312.piscesplayer.data.database.MusicDao
-import com.pisces312.piscesplayer.data.database.PixelPlayerDatabase
+import com.pisces312.piscesplayer.data.database.PiscesPlayerDatabase
 import com.pisces312.piscesplayer.data.preferences.UserPreferencesRepository
 import io.mockk.coEvery
 import io.mockk.every
@@ -46,7 +46,7 @@ class SyncWorkerTest {
     )
 
     private lateinit var context: Context
-    private lateinit var database: PixelPlayerDatabase
+    private lateinit var database: PiscesPlayerDatabase
     private lateinit var musicDao: MusicDao
     private lateinit var mockContentResolver: android.content.ContentResolver
 
@@ -80,8 +80,8 @@ class SyncWorkerTest {
     @Before
     fun setUp() {
         context = ApplicationProvider.getApplicationContext()
-        database = Room.inMemoryDatabaseBuilder(context, PixelPlayerDatabase::class.java)
-            .addCallback(PixelPlayerDatabase.createRuntimeArtifactsCallback())
+        database = Room.inMemoryDatabaseBuilder(context, PiscesPlayerDatabase::class.java)
+            .addCallback(PiscesPlayerDatabase.createRuntimeArtifactsCallback())
             .allowMainThreadQueries()
             .build()
         musicDao = database.musicDao()

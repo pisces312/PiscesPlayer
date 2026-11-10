@@ -133,7 +133,7 @@ import com.pisces312.piscesplayer.presentation.navigation.Screen
 import com.pisces312.piscesplayer.presentation.screens.SetupScreen
 import com.pisces312.piscesplayer.presentation.viewmodel.MainViewModel
 import com.pisces312.piscesplayer.presentation.viewmodel.PlayerViewModel
-import com.pisces312.piscesplayer.ui.theme.PixelPlayerTheme
+import com.pisces312.piscesplayer.ui.theme.PiscesPlayerTheme
 import com.pisces312.piscesplayer.ui.theme.resolveAppWideNowPlayingColorSchemePair
 import com.pisces312.piscesplayer.utils.AppLocaleManager
 import com.pisces312.piscesplayer.utils.CrashHandler
@@ -242,13 +242,13 @@ class MainActivity : ComponentActivity() {
         val isBenchmarkMode = intent.getBooleanExtra("is_benchmark", false)
         val shouldBenchmarkRebuildDatabase =
             isBenchmarkMode && intent.getBooleanExtra("benchmark_rebuild_database", false)
-        Timber.tag("PixelPlayerBenchmark").i(
+        Timber.tag("PiscesBenchmark").i(
             "onCreate benchmark=$isBenchmarkMode rebuildDatabase=$shouldBenchmarkRebuildDatabase"
         )
         if (shouldBenchmarkRebuildDatabase) {
             lifecycleScope.launch {
                 userPreferencesRepository.setInitialSetupDone(true)
-                Timber.tag("PixelPlayerBenchmark").i("Enqueueing benchmark database rebuild")
+                Timber.tag("PiscesBenchmark").i("Enqueueing benchmark database rebuild")
                 syncManager.rebuildDatabase()
                 delay(1_500L)
                 playerViewModel.prepareBenchmarkPlayerFromLibrary()
@@ -341,7 +341,7 @@ class MainActivity : ComponentActivity() {
                 }
             }
 
-            PixelPlayerTheme(
+            PiscesPlayerTheme(
                 darkTheme = useDarkTheme,
                 colorSchemePairOverride = appWideNowPlayingScheme
             ) {

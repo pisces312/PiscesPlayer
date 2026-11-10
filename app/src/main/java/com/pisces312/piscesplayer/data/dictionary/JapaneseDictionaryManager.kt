@@ -236,7 +236,7 @@ class JapaneseDictionaryManager @Inject constructor(
     private companion object {
         const val ARCHIVE_NAME = "kuromoji-ipadic-0.9.0.zip"
         const val DOWNLOAD_URL =
-            "https://github.com/pisces312/PixelPlayerOSS/releases/download/" +
+            "https://github.com/pisces312/PiscesPlayer/releases/download/" +
                 "dictionary-kuromoji-0.9.0/kuromoji-ipadic-0.9.0.zip"
         const val EXPECTED_SHA256 =
             "dbcecc13e5ec410b58f401b8286ff82c3f8eae2d0789f798e07ae7acc826624e"

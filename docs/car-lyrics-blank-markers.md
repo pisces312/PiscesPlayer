@@ -202,12 +202,12 @@ adb shell settings delete global pixelplayer_car_lyric_title_force_a2dp      # �
 关键日志（歌词行以占位符代替，只保留可 grep 的形态）：
 
 ```
-D/MusicService_PixelPlayer: car lyric title: loaded 105 synced lines as 89 cues for 1000001867 (offset 0 ms, lead 500 ms, split true)
-D/MusicService_PixelPlayer: car lyric title: 作词 : 唐恬 作曲 :        ← 署名行照常上屏（第 1 段）
-D/MusicService_PixelPlayer: car lyric title: back to the track title (instrumental stretch)
-V/MusicService_PixelPlayer: car lyric title: next wake in 5000 ms (cue 9, lead 500 ms)
+D/MusicService_PiscesPlayer: car lyric title: loaded 105 synced lines as 89 cues for 1000001867 (offset 0 ms, lead 500 ms, split true)
+D/MusicService_PiscesPlayer: car lyric title: 作词 : 唐恬 作曲 :        ← 署名行照常上屏（第 1 段）
+D/MusicService_PiscesPlayer: car lyric title: back to the track title (instrumental stretch)
+V/MusicService_PiscesPlayer: car lyric title: next wake in 5000 ms (cue 9, lead 500 ms)
 …（31 s 的真实曲名）…
-D/MusicService_PixelPlayer: car lyric title: ⟨第 1 句歌词，段 1/2⟩
+D/MusicService_PiscesPlayer: car lyric title: ⟨第 1 句歌词，段 1/2⟩
 ```
 
 **两点提醒**：

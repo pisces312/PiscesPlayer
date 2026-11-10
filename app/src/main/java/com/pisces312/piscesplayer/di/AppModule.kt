@@ -16,7 +16,7 @@ import coil.ImageLoader
 import coil.disk.DiskCache
 import coil.memory.MemoryCache
 import com.pisces312.piscesplayer.BuildConfig
-import com.pisces312.piscesplayer.PixelPlayerApplication
+import com.pisces312.piscesplayer.PiscesPlayerApplication
 import com.pisces312.piscesplayer.data.database.AiCacheDao
 import com.pisces312.piscesplayer.data.database.AiUsageDao
 import com.pisces312.piscesplayer.data.ai.AiLyricsTranslationCache
@@ -43,7 +43,7 @@ import com.pisces312.piscesplayer.data.database.MIGRATION_13_14
 import com.pisces312.piscesplayer.data.database.MIGRATION_14_15
 import com.pisces312.piscesplayer.data.database.MusicDao
 import com.pisces312.piscesplayer.data.database.OfflineTrackDao
-import com.pisces312.piscesplayer.data.database.PixelPlayerDatabase
+import com.pisces312.piscesplayer.data.database.PiscesPlayerDatabase
 import com.pisces312.piscesplayer.data.database.SearchHistoryDao
 import com.pisces312.piscesplayer.data.database.TransitionDao
 import com.pisces312.piscesplayer.data.preferences.UserPreferencesRepository
@@ -88,8 +88,8 @@ object AppModule {
 
     @Singleton
     @Provides
-    fun provideApplication(@ApplicationContext app: Context): PixelPlayerApplication {
-        return app as PixelPlayerApplication
+    fun provideApplication(@ApplicationContext app: Context): PiscesPlayerApplication {
+        return app as PiscesPlayerApplication
     }
 
     @Singleton
@@ -139,13 +139,13 @@ object AppModule {
 
     @Singleton
     @Provides
-    fun providePixelPlayerDatabase(@ApplicationContext context: Context): PixelPlayerDatabase {
+    fun providePiscesPlayerDatabase(@ApplicationContext context: Context): PiscesPlayerDatabase {
         val builder = Room.databaseBuilder(
             context.applicationContext,
-            PixelPlayerDatabase::class.java,
+            PiscesPlayerDatabase::class.java,
             "pixelplayer_database"
         )
-            .addCallback(PixelPlayerDatabase.createRuntimeArtifactsCallback())
+            .addCallback(PiscesPlayerDatabase.createRuntimeArtifactsCallback())
             .addMigrations(
                 MIGRATION_1_2,
                 MIGRATION_2_3,
@@ -169,91 +169,91 @@ object AppModule {
 
     @Singleton
     @Provides
-    fun provideAlbumArtThemeDao(database: PixelPlayerDatabase): AlbumArtThemeDao {
+    fun provideAlbumArtThemeDao(database: PiscesPlayerDatabase): AlbumArtThemeDao {
         return database.albumArtThemeDao()
     }
 
     @Singleton
     @Provides
-    fun provideSearchHistoryDao(database: PixelPlayerDatabase): SearchHistoryDao {
+    fun provideSearchHistoryDao(database: PiscesPlayerDatabase): SearchHistoryDao {
         return database.searchHistoryDao()
     }
 
     @Singleton
     @Provides
-    fun provideMusicDao(database: PixelPlayerDatabase): MusicDao {
+    fun provideMusicDao(database: PiscesPlayerDatabase): MusicDao {
         return database.musicDao()
     }
 
     @Singleton
     @Provides
-    fun provideTransitionDao(database: PixelPlayerDatabase): TransitionDao {
+    fun provideTransitionDao(database: PiscesPlayerDatabase): TransitionDao {
         return database.transitionDao()
     }
 
     @Singleton
     @Provides
-    fun provideEngagementDao(database: PixelPlayerDatabase): EngagementDao {
+    fun provideEngagementDao(database: PiscesPlayerDatabase): EngagementDao {
         return database.engagementDao()
     }
 
     @Singleton
     @Provides
-    fun provideFavoritesDao(database: PixelPlayerDatabase): FavoritesDao {
+    fun provideFavoritesDao(database: PiscesPlayerDatabase): FavoritesDao {
         return database.favoritesDao()
     }
 
     @Singleton
     @Provides
-    fun provideLyricsDao(database: PixelPlayerDatabase): LyricsDao {
+    fun provideLyricsDao(database: PiscesPlayerDatabase): LyricsDao {
         return database.lyricsDao()
     }
 
     @Singleton
     @Provides
-    fun provideLocalPlaylistDao(database: PixelPlayerDatabase): LocalPlaylistDao {
+    fun provideLocalPlaylistDao(database: PiscesPlayerDatabase): LocalPlaylistDao {
         return database.localPlaylistDao()
     }
 
     @Singleton
     @Provides
-    fun provideNavidromeDao(database: PixelPlayerDatabase): com.pisces312.piscesplayer.data.database.NavidromeDao {
+    fun provideNavidromeDao(database: PiscesPlayerDatabase): com.pisces312.piscesplayer.data.database.NavidromeDao {
         return database.navidromeDao()
     }
     
     @Singleton
     @Provides
-    fun provideJellyfinDao(database: PixelPlayerDatabase): com.pisces312.piscesplayer.data.database.JellyfinDao {
+    fun provideJellyfinDao(database: PiscesPlayerDatabase): com.pisces312.piscesplayer.data.database.JellyfinDao {
         return database.jellyfinDao()
     }
 
     @Singleton
     @Provides
-    fun provideListenBrainzDao(database: PixelPlayerDatabase): ListenBrainzDao {
+    fun provideListenBrainzDao(database: PiscesPlayerDatabase): ListenBrainzDao {
         return database.listenBrainzDao()
     }
 
     @Singleton
     @Provides
-    fun provideAudioBookmarkDao(database: PixelPlayerDatabase): AudioBookmarkDao {
+    fun provideAudioBookmarkDao(database: PiscesPlayerDatabase): AudioBookmarkDao {
         return database.audioBookmarkDao()
     }
 
     @Singleton
     @Provides
-    fun provideOfflineTrackDao(database: PixelPlayerDatabase): OfflineTrackDao {
+    fun provideOfflineTrackDao(database: PiscesPlayerDatabase): OfflineTrackDao {
         return database.offlineTrackDao()
     }
 
     @Singleton
     @Provides
-    fun provideAiCacheDao(database: PixelPlayerDatabase): AiCacheDao {
+    fun provideAiCacheDao(database: PiscesPlayerDatabase): AiCacheDao {
         return database.aiCacheDao()
     }
 
     @Singleton
     @Provides
-    fun provideAiUsageDao(database: PixelPlayerDatabase): AiUsageDao {
+    fun provideAiUsageDao(database: PiscesPlayerDatabase): AiUsageDao {
         return database.aiUsageDao()
     }
 

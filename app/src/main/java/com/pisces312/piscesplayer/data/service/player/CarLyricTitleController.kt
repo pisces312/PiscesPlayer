@@ -498,7 +498,7 @@ class CarLyricTitleController(
     }
 
     companion object {
-        private const val TAG = "MusicService_PixelPlayer"
+        private const val TAG = "MusicService_PiscesPlayer"
 
         /**
          * Title columns per published cue. The head unit truncates its title field at roughly this

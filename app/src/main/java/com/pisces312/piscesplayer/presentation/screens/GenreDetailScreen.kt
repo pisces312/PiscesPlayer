@@ -73,7 +73,7 @@ import com.pisces312.piscesplayer.presentation.viewmodel.SectionData
 import com.pisces312.piscesplayer.presentation.viewmodel.AlbumData
 import com.pisces312.piscesplayer.presentation.viewmodel.PlayerViewModel
 import com.pisces312.piscesplayer.presentation.viewmodel.StablePlayerState
-import com.pisces312.piscesplayer.ui.theme.LocalPixelPlayerDarkTheme
+import com.pisces312.piscesplayer.ui.theme.LocalPiscesPlayerDarkTheme
 import com.pisces312.piscesplayer.utils.formatDuration
 import com.pisces312.piscesplayer.utils.formatSongCount
 import kotlinx.collections.immutable.persistentListOf
@@ -108,7 +108,7 @@ fun GenreDetailScreen(
     }
 
     val density = LocalDensity.current
-    val darkMode = LocalPixelPlayerDarkTheme.current
+    val darkMode = LocalPiscesPlayerDarkTheme.current
 
     val coroutineScope = rememberCoroutineScope()
     val lazyListState = rememberLazyListState()

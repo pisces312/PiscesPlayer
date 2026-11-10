@@ -160,7 +160,7 @@ class ExternalPlayerViewModel @Inject constructor(
 
 **A1-a′ · 仅在明确放弃 Quick play 时可选 —— 迁移 intent-filter + 删除第二入口**
 
-- `AndroidManifest.xml`：把 `VIEW` + `audio/*` + `content` 的 `<intent-filter>`（含 `BROWSABLE`）从 `ExternalPlayerActivity` 移到 `MainActivity`；删除 `ExternalPlayerActivity` 条目与 `Theme.PixelPlayer.ExternalPlayer`。
+- `AndroidManifest.xml`：把 `VIEW` + `audio/*` + `content` 的 `<intent-filter>`（含 `BROWSABLE`）从 `ExternalPlayerActivity` 移到 `MainActivity`；删除 `ExternalPlayerActivity` 条目与 `Theme.PiscesPlayer.ExternalPlayer`。
 - 删除 `ExternalPlayerActivity.kt`（151 行）与 `ExternalPlayerOverlay.kt`（371 行）；`ACTION_VIEW` 分支接 `playerViewModel.showPlayer()`。
 - 收益：**净删约 520 行**，全进程单 VM，第二 owner 从根上消失；`initialize()` 非幂等导致的竞态不再成立。
 - 代价：**Quick play 语义消失**（见关键前提 2）——进最近任务、打开主界面、关闭后不回文件管理器。
@@ -538,7 +538,7 @@ M1（`DailyMixScreen.kt:98` 死参数 `mainViewModel`）可随时清；其余不
 
 原清单第 1 条不足以覆盖 C1，补两条：
 
-1. **C1 顺序 A**：应用运行中 → 从文件管理器打开音频（触发 `ExternalPlayerActivity`）→ 点「打开完整播放器」→ `ExternalPlayerActivity` 关闭后，验证播放位置更新、歌词加载、主题取色、连通性指示、睡眠定时器、听歌统计**全部仍在工作**（对照 `files/logs/pixelplayeross.log` 中 holder 的 `Timber.w` 告警）；
+1. **C1 顺序 A**：应用运行中 → 从文件管理器打开音频（触发 `ExternalPlayerActivity`）→ 点「打开完整播放器」→ `ExternalPlayerActivity` 关闭后，验证播放位置更新、歌词加载、主题取色、连通性指示、睡眠定时器、听歌统计**全部仍在工作**（对照 `files/logs/piscesplayer.log` 中 holder 的 `Timber.w` 告警）；
 2. **C1 顺序 B**：`adb shell am force-stop` 后冷启，`adb shell am start -a android.intent.action.VIEW -d <content-uri> -t audio/mpeg`，进入 `ExternalPlayerActivity` → 点「打开完整播放器」→ 重复上述验证；
 3. 冷启动 → 播放 → 锁屏 → 解锁（`PlaybackStateHolder` 未被误清）；
 4. 进 AI 混音页 → 返回 → 搜索（历史 Search 回归场景）；

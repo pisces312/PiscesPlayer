@@ -1,6 +1,6 @@
 # Release Checklist
 
-PixelPlayerOSS releases are tagged from `main` — `main` is the release starting point, not the
+PiscesPlayer releases are tagged from `main` — `main` is the release starting point, not the
 only branch development happens on. Feature branches are merged into `main` before a release
 is cut, otherwise the tag would miss their work. Every release candidate then passes the local
 checks below and a basic device smoke test.
@@ -10,16 +10,16 @@ checks below and a basic device smoke test.
 Version values live in `gradle.properties`:
 
 ```properties
-APP_VERSION_NAME=0.1.0
-APP_VERSION_CODE=1
+APP_VERSION_NAME=1.0.0
+APP_VERSION_CODE=1000001
 ```
 
 For every public release:
 
-1. Update `APP_VERSION_NAME`.
+1. Update `APP_VERSION_NAME` to a plain semantic version (`X.Y.Z`).
 2. Increment `APP_VERSION_CODE`.
 3. Move the relevant `CHANGELOG.md` entries from `Unreleased` to the release version.
-4. Tag the release as `v<APP_VERSION_NAME>`, for example `v0.1.0`.
+4. Tag the release as `v<APP_VERSION_NAME>`, for example `v1.0.0`.
 
 ## Required Local Checks
 
@@ -77,12 +77,17 @@ Install the release candidate and verify:
 
 ## In-App Updates
 
-The Updates screen (`data/update/`) reads two sources, so keep their formats stable:
+The Updates screen (`data/update/`) checks this fork's GitHub releases. Keep these formats stable:
 
-- **Stable:** `https://f-droid.org/api/v1/packages/<applicationId>` (`suggestedVersionCode`) and the F-Droid APK at `https://f-droid.org/repo/<applicationId>_<versionCode>.apk`. The app treats any version name without a `-` suffix as an F-Droid install.
-- **Alpha:** GitHub prereleases tagged `v<X.Y.Z>-alpha.<N>` with assets named `PixelPlayerOSS-<X.Y.Z>-alpha.<N>-<abi>.apk`, as produced by `.github/workflows/alpha-release.yml`. Renaming tags or assets there breaks alpha update discovery.
+- **Tags:** `v<X.Y.Z>`, for example `v1.0.0`.
+- **APK assets:** `piscesplayer-<abi>-<X.Y.Z>-release.apk`, for example
+  `piscesplayer-arm64-v8a-1.0.0-release.apk`.
+- **Release visibility:** publish the release as a normal (non-draft) GitHub release.
 
-F-Droid and alpha builds are signed with different keys. The updater installs only same-channel releases whose signer matches the installed app, and walks users through uninstalling to switch channels.
+The updater accepts both plain semantic versions and historical prerelease tags such as
+`v<X.Y.Z>-alpha.<N>` or `v<X.Y.Z>-pisces.<N>`, but new releases should use plain `v<X.Y.Z>`.
+It matches APK assets by ABI as a whole filename segment and installs only releases whose
+package name and signing key match the running app.
 
 ## Publishing
 
@@ -90,13 +95,12 @@ F-Droid and alpha builds are signed with different keys. The updater installs on
 2. Create a tag: `git tag v<APP_VERSION_NAME>`.
 3. Push the tag: `git push origin v<APP_VERSION_NAME>`.
 4. Create a GitHub release from the tag.
-5. Attach APK artifacts and paste the changelog section.
+5. Attach APK artifacts named `piscesplayer-<abi>-<APP_VERSION_NAME>-release.apk` and paste the changelog section.
 
 ## F-Droid Metadata
 
-Before submitting a tagged release to F-Droid-compatible app stores:
-
-1. Update `fastlane/metadata/android/en-US/changelogs/<versionCode>.txt`.
-2. Verify the unsigned universal release build from [FDROID.md](FDROID.md).
-3. Check `PRIVACY.md` still matches the optional network services present in the app.
-4. Create source archives from git, not from the working tree, so ignored local artifacts are excluded.
+This fork is not published on F-Droid. The Fastlane metadata under
+`fastlane/metadata/android/en-US` is still maintained for release-page presentation and any
+future store submission, but no F-Droid build recipe is expected for `com.pisces312.piscesplayer`.
+When preparing a release, still update `fastlane/metadata/android/en-US/changelogs/<versionCode>.txt`
+and check that `PRIVACY.md` matches the optional network services present in the app.

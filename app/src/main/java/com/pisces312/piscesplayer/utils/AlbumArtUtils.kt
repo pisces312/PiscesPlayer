@@ -53,7 +53,7 @@ object AlbumArtUtils {
     /**
      * Mirrors `UserPreferencesRepository.useFolderAlbumArtFlow`. AlbumArtUtils is a plain object
      * reached from a Coil fetcher and a ContentProvider, so it cannot take a DI dependency; the
-     * value is pushed in from PixelPlayerApplication and from SettingsViewModel, the same way as
+     * value is pushed in from PiscesPlayerApplication and from SettingsViewModel, the same way as
      * [AlbumArtCacheManager.configuredCacheLimitMb].
      *
      * Null means "not read yet" rather than "disabled" — treating the two alike would let an

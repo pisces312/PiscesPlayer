@@ -52,7 +52,7 @@ ai_usage:  id INTEGER PK AUTO, timestamp INTEGER, provider TEXT, model TEXT,
            promptType TEXT, promptTokens INTEGER, outputTokens INTEGER, thoughtTokens INTEGER
 ```
 
-> OSS 当前 `PixelPlayerDatabase` version = **7**，新增两表需 **MIGRATION_7_8**。
+> OSS 当前 `PiscesPlayerDatabase` version = **7**，新增两表需 **MIGRATION_7_8**。
 > 注：china-only 分支「Room schema 恒 v43」的限制**不适用** OSS（v7 独立演进），直接升 v8 即可。
 
 ---
@@ -67,7 +67,7 @@ ai_usage:  id INTEGER PK AUTO, timestamp INTEGER, provider TEXT, model TEXT,
   getTotalPromptTokens:Flow<Int?> / getTotalOutputTokens / clearAll
 
 **修改文件**：
-- `PixelPlayerDatabase.kt`：`version = 8`，`entities` 加两 Entity，`abstract fun` 加两 DAO。
+- `PiscesPlayerDatabase.kt`：`version = 8`，`entities` 加两 Entity，`abstract fun` 加两 DAO。
 - `Migrations.kt`：加 `MIGRATION_7_8`（`CREATE TABLE ai_cache ...` + `CREATE TABLE ai_usage ...`）。
 
 ---
@@ -243,7 +243,7 @@ presentation/screens/AiRequestLogScreen.kt
 
 ### 修改
 ```
-data/database/PixelPlayerDatabase.kt       # version 8 + 两 DAO
+data/database/PiscesPlayerDatabase.kt       # version 8 + 两 DAO
 data/database/Migrations.kt                # MIGRATION_7_8
 presentation/model/SettingsCategory.kt     # 新增 AI 分类
 presentation/screens/SettingsScreen.kt     # 接线 AI 分类 → AiSettingsScreen

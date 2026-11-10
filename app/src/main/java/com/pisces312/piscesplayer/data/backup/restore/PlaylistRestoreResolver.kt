@@ -47,7 +47,7 @@ class PlaylistRestoreResolver @Inject constructor(
     @Volatile
     private var started = false
 
-    /** Idempotent; called once from PixelPlayerApplication.onCreate. */
+    /** Idempotent; called once from PiscesPlayerApplication.onCreate. */
     fun start() {
         if (started) return
         started = true

@@ -82,7 +82,7 @@ import com.pisces312.piscesplayer.presentation.components.SmartImage
 import com.pisces312.piscesplayer.presentation.components.SmartImageListTargetSize
 import com.pisces312.piscesplayer.presentation.components.SongInfoBottomSheet
 import com.pisces312.piscesplayer.presentation.viewmodel.PlayerViewModel
-import com.pisces312.piscesplayer.ui.theme.LocalPixelPlayerDarkTheme
+import com.pisces312.piscesplayer.ui.theme.LocalPiscesPlayerDarkTheme
 import androidx.compose.material.icons.rounded.DeleteForever
 import androidx.compose.material.icons.rounded.History
 import androidx.compose.material3.TextButton
@@ -214,7 +214,7 @@ fun SearchScreen(
 
     val searchbarCornerRadius = 28.dp
 
-    val dm = LocalPixelPlayerDarkTheme.current
+    val dm = LocalPiscesPlayerDarkTheme.current
 
     val primaryContainer = MaterialTheme.colorScheme.primaryContainer
     val onPrimaryContainer = MaterialTheme.colorScheme.onPrimaryContainer

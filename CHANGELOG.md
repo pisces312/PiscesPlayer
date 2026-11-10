@@ -3,7 +3,7 @@
 All notable changes to PiscesPlayer will be documented in this file. PiscesPlayer is a fork of
 PixelPlayerOSS; versions up to and including 0.4.3 were published under the upstream name.
 
-## [1.0.0-pisces.1] - 2026-11-10
+## [1.0.0] - 2026-11-10
 
 First release under the PiscesPlayer name, with its own package name
 (`com.pisces312.piscesplayer`) and icon. It installs side by side with PixelPlayerOSS; moving a

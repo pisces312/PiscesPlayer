@@ -1,7 +1,7 @@
 # AGENTS.md
 
-PixelPlayerOSS — Android 音乐播放器（100% Kotlin，Jetpack Compose + Material 3）。
-本仓库是 `PixelPlayerHQ/PixelPlayerOSS` 的 fork：`pisces312/PixelPlayerOSS`。Gradle 模块：`:app`、`:baselineprofile`。
+PiscesPlayer — Android 音乐播放器（100% Kotlin，Jetpack Compose + Material 3）。
+本仓库是 `PixelPlayerHQ/PixelPlayerOSS` 的 fork：`pisces312/PiscesPlayer`。Gradle 模块：`:app`、`:baselineprofile`。
 包名 `com.pisces312.piscesplayer`，许可证 **GPL-3.0-or-later**。
 
 ## 仓库历史关系（重要，动手前必读）
@@ -18,7 +18,7 @@ PixelPlayerOSS — Android 音乐播放器（100% Kotlin，Jetpack Compose + Mat
 
 ## 节奏游戏文档
 
-节奏游戏相关的设计、调研与实施文档统一存放在 `D:\3rd-party-projects\RhythmChartLab\docs`，本仓库 `docs/` 不再保存这类文档。后续新增节奏游戏相关设计文档也放入该目录，不要在 PixelPlayerOSS 内另建副本。
+节奏游戏相关的设计、调研与实施文档统一存放在 `D:\3rd-party-projects\RhythmChartLab\docs`，本仓库 `docs/` 不再保存这类文档。后续新增节奏游戏相关设计文档也放入该目录，不要在 PiscesPlayer 内另建副本。
 
 ## 分支
 
@@ -33,7 +33,7 @@ PixelPlayerOSS — Android 音乐播放器（100% Kotlin，Jetpack Compose + Mat
 - compileSdk = targetSdk = 37，minSdk = 30；版本号在 `gradle.properties` 的 `APP_VERSION_NAME` / `APP_VERSION_CODE`
   （**以该文件为准，本文不抄写具体值** —— 每发一版就变，抄在这里必然过期）。
 - Media3 1.11.0（`libs.versions.toml` 的 `media3Session` / `media3Transformer` **保持一致**，不要只升其中一个）、
-  Room 2.8.5（**数据库 schema 版本以 `PixelPlayerDatabase.kt` 的 `version` 为准，本文不抄写**；
+  Room 2.8.5（**数据库 schema 版本以 `PiscesPlayerDatabase.kt` 的 `version` 为准，本文不抄写**；
   任何实体变更都要把 `version` +1 并新增 migration）、Hilt、OkHttp/Retrofit、TagLib + JAudioTagger 元数据。
 - 依赖仓库为官方 `google()` / `mavenCentral()`（首次构建较慢，无国内镜像）。
 - **Compose 栈由 `material3` 锚定**：它当前钉在 `1.5.0-alpha27`。升它的 alpha 号会经传递依赖
@@ -73,7 +73,7 @@ PixelPlayerOSS — Android 音乐播放器（100% Kotlin，Jetpack Compose + Mat
 .\gradlew.bat :app:connectedDebugAndroidTest    # instrumented 测试（需连真机 / 模拟器）
 ```
 
-- **debug / release 可共存**：`debug` 带 `applicationIdSuffix = ".debug"` + `versionNameSuffix = "-debug"`，应用名 `PixelPlayerOSS [D]`（`app/src/debug/res/values/strings.xml`），
+- **debug / release 可共存**：`debug` 带 `applicationIdSuffix = ".debug"` + `versionNameSuffix = "-debug"`，应用名 `PiscesPlayer [D]`（`app/src/debug/res/values/strings.xml`），
   图标走 `app/src/debug/res` 的红底覆盖（只覆盖 `ic_launcher_background` 与 legacy 方/圆图标，foreground 与 `mipmap-anydpi-v26` XML 沿用 main）。
   改了 main 图标后重跑根目录 `gen_debug_icons.py`（Pillow）重新生成 debug 图标。
 - **默认构建 `release`；`debug` 只在按需排查时构建**：R8 只跑在 `release` / `benchmark` 上，
@@ -89,7 +89,7 @@ PixelPlayerOSS — Android 音乐播放器（100% Kotlin，Jetpack Compose + Mat
 - **模拟器可直接安装运行 `arm64-v8a` 产物（已实测确认 2026-09-14，2026-11-01 再次确认）**：
   本机 AVD `pixel6` 是 **x86_64** 系统镜像（`system-images\android-34\google_apis\x86_64`），
   但 API 30+ 的 Google x86_64 镜像自带 **ARM 二进制翻译**，`adb install` 默认构建的
-  `pixelplayeross-arm64-v8a-*.apk` 直接就能跑。
+  `piscesplayer-arm64-v8a-*.apk` 直接就能跑。
   - **不要**为了"让模拟器装得上"去构建 universal —— `-Ppixelplayer.enableAbiSplits=false`
     会覆盖并清掉同目录的 arm64 产物；
   - **别把"翻译慢"误判成"不支持"**：首帧与冷启动明显慢于真机，`am start` 后请
@@ -103,8 +103,8 @@ PixelPlayerOSS — Android 音乐播放器（100% Kotlin，Jetpack Compose + Mat
   只跑某几个类：追加 `-Pandroid.testInstrumentationRunnerArguments.class=全限定类名,逗号分隔`。
   唯一跑不了的：`SyncWorkerTest` 需要 MockK inline（JVMTI agent），ART 拒绝从 app cache 加载，
   属既有测试设计问题，与构建配置无关。
-- **APK 命名**：`pixelplayeross-<abi>-<APP_VERSION_NAME>-<buildtype>.apk`（`androidComponents.onVariants` 设置 `outputFileName`），
-  例 `pixelplayeross-arm64-v8a-0.3.0-debug.apk`。改命名规则改 `app/build.gradle.kts`。
+- **APK 命名**：`piscesplayer-<abi>-<APP_VERSION_NAME>-<buildtype>.apk`（`androidComponents.onVariants` 设置 `outputFileName`），
+  例 `piscesplayer-arm64-v8a-1.0.0-debug.apk`。改命名规则改 `app/build.gradle.kts`。
 - 签名**只读 `KEY_*` 环境变量**（或 `pixelplayer.disableReleaseSigning=true` 跳过）；
   仓库里没有、也不该有任何 keystore 文件。详见下方「签名与发布」。
 - `GRADLE_USER_HOME=D:\dev\.gradle`；wrapper 的 Gradle 发行版走腾讯云镜像。
@@ -140,11 +140,11 @@ PixelPlayerOSS — Android 音乐播放器（100% Kotlin，Jetpack Compose + Mat
 ### CI：本 fork 保持禁用（2026-09-18 定）
 
 `.github/workflows/` 的 `nightly-apk.yml` / `pr-build.yml` 沿用上游，**在本 fork 一直禁用、从未跑过**
-（fork 默认不启用 schedule，`gh api repos/pisces312/PixelPlayerOSS/actions/runs` → `total_count=0`）。
+（fork 默认不启用 schedule，`gh api repos/pisces312/PiscesPlayer/actions/runs` → `total_count=0`）。
 **继续保持禁用，不要为它们做适配**；它们另有三处与本 fork 不符，真要启用得先补齐：
 
 1. `runs-on: blacksmith-4vcpu-ubuntu-2404` —— 本 fork 没有这个 runner（`pr-build.yml` 即因此从未成功）；
-2. 期望产物 `app-arm64-v8a-release.apk` —— 本 fork 的 `outputFileName` 是 `pixelplayeross-<abi>-<版本>-<buildtype>.apk`；
+2. 期望产物 `app-arm64-v8a-release.apk` —— 本 fork 的 `outputFileName` 是 `piscesplayer-<abi>-<版本>-<buildtype>.apk`；
 3. 签名凭据落盘成 `keystore.properties` —— 该读取路径已删除，需改成写 `$GITHUB_ENV` 的 `KEY_*`。
 
 因此**签名机制的真相只有 `app/build.gradle.kts` + `KEY_*` 环境变量一处**：别照 workflow 反推本机怎么签，
@@ -158,7 +158,7 @@ PixelPlayerOSS — Android 音乐播放器（100% Kotlin，Jetpack Compose + Mat
 - 本机 build-tools：`D:/dev/android_sdk/build-tools/37.0.0/`。
 
 发版链路：`main` → 版本号提交 → `tag v<版本名>` → `assembleRelease` → `gh release create`。
-版本号带 `-pisces.N` 后缀，版本码沿用 `主版本 * 100000 + 序号`。
+版本号使用纯语义化 `X.Y.Z`（不再带 `-pisces.N` 后缀），版本码沿用 `主版本 * 100000 + 序号`。
 
 > 上游的 `.github/workflows/alpha-release.yml`（push `main` 自动造 `v<版本>-alpha.N` 预发布）
 > **已在本 fork 删除**：它跑在 `blacksmith-4vcpu-ubuntu-2404` 上，本 fork 没有对应 runner，
@@ -202,7 +202,7 @@ OSS 有**设置搜索**，开关不注册就搜不到：
    `onCleared(owner)`，**首个 owner 胜出**（"接管"语义无效：第二个 VM 会拿到所有权，销毁时照样清空），
    非 owner 的调用忽略并打 `Timber.w`，调用点传 `this@PlayerViewModel`。回归测试见 `SearchStateHolderTest`。
 
-**探针**：`logcat` / `files/logs/pixelplayeross.log` 里 grep `SearchStateHolder` 的 `Timber.w` 告警 ——
+**探针**：`logcat` / `files/logs/piscesplayer.log` 里 grep `SearchStateHolder` 的 `Timber.w` 告警 ——
 有告警就说明又有第二个 VM 在调 `initialize`/`onCleared`，即传递链又漏了一处。
 
 ## 关键架构速查

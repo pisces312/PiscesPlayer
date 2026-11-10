@@ -1,6 +1,6 @@
 <resources>
 <string name="app_name">PiscesPlayer</string>
-    <string name="intent_label_music_player">PixelPlayer 音乐播放</string>
+    <string name="intent_label_music_player">PiscesPlayer 音乐播放</string>
 <string name="app_name_change_title">应用名称已变更</string>
 <string name="app_name_change_message">本应用现已更名为 PiscesPlayer！开启你的音乐之旅吧！</string>
 <string name="do_not_show_again">不再提示</string>

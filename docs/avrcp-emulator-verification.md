@@ -97,7 +97,7 @@ adb shell dumpsys media_session | grep -E "package=com.pisces312.piscesplayer.de
 
 | tag | 内容 |
 |---|---|
-| `MusicService_PixelPlayer` | 我方：`car lyric title: …`（`bluetooth output active` / `switching to song` / `loaded N synced lines as M cues` / 每段文本 / `next wake`） |
+| `MusicService_PiscesPlayer` | 我方：`car lyric title: …`（`bluetooth output active` / `switching to song` / `loaded N synced lines as M cues` / 每段文本 / `next wake`） |
 | `AudioMediaPlayerWrapper` | 蓝牙 Java 层：`trySendMediaUpdate(): Metadata has been updated for …` |
 | `bt_stack` | 蓝牙 native：`avrcp_service.cc(515) SendMediaUpdate(bool,bool,bool) track_changed=1 : play_state=1 : queue=0` |
 | `AvrcpTargetService` / `AvrcpTargetJni` | AVRCP target 其他行为 |
@@ -106,7 +106,7 @@ adb shell dumpsys media_session | grep -E "package=com.pisces312.piscesplayer.de
 对齐命令（把两条时间线并排打出来）：
 
 ```bash
-adb logcat -d | grep -E "MusicService_PixelPlayer: car lyric title: (abc|vwxy|一二三|五六七|short)|SendMediaUpdate\(bool" \
+adb logcat -d | grep -E "MusicService_PiscesPlayer: car lyric title: (abc|vwxy|一二三|五六七|short)|SendMediaUpdate\(bool" \
   | grep -vE "loaded|active:|bluetooth output|switching" \
   | sed 's/^\(09-17 [0-9:.]*\).*car lyric title: \(.*\)/\1  APP-PUBLISH \2/
          s/^\(09-17 [0-9:.]*\).*SendMediaUpdate/\1  BT-SEND/'

@@ -128,7 +128,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import com.pisces312.piscesplayer.ui.theme.LocalPixelPlayerDarkTheme
+import com.pisces312.piscesplayer.ui.theme.LocalPiscesPlayerDarkTheme
 import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.media3.common.util.UnstableApi
@@ -740,7 +740,7 @@ fun LibraryScreen(
     val bottomBarHeightDp = resolveNavBarOccupiedHeight(systemNavBarInset, navBarCompactMode)
     val bottomGradientHeight = resolveMainScreenBottomGradientHeight(navBarCompactMode)
 
-    val dm = LocalPixelPlayerDarkTheme.current
+    val dm = LocalPiscesPlayerDarkTheme.current
 
     val iconRotation by transition.animateFloat(
         label = "Action Button Icon Rotation",
@@ -3127,7 +3127,7 @@ fun AlbumGridItemRedesigned(
     onSelectionToggle: () -> Unit = {}
 ) {
     val albumColorSchemePair by albumColorSchemePairFlow.collectAsStateWithLifecycle()
-    val systemIsDark = LocalPixelPlayerDarkTheme.current
+    val systemIsDark = LocalPiscesPlayerDarkTheme.current
 
     val currentMaterialColorScheme = MaterialTheme.colorScheme
 
@@ -3472,7 +3472,7 @@ fun AlbumListItem(
     onSelectionToggle: () -> Unit = {}
 ) {
     val albumColorSchemePair by albumColorSchemePairFlow.collectAsStateWithLifecycle()
-    val systemIsDark = LocalPixelPlayerDarkTheme.current
+    val systemIsDark = LocalPiscesPlayerDarkTheme.current
     val currentMaterialColorScheme = MaterialTheme.colorScheme
 
     val itemDesignColorScheme = remember(albumColorSchemePair, systemIsDark, currentMaterialColorScheme) {

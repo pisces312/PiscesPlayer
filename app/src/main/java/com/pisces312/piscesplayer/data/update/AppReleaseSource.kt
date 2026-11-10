@@ -12,7 +12,7 @@ import java.io.IOException
 import javax.inject.Inject
 import javax.inject.Singleton
 
-/** Looks up the newest published build of each channel. */
+/** Looks up the newest published release. */
 @Singleton
 class AppReleaseSource @Inject constructor(
     baseClient: OkHttpClient,
@@ -44,17 +44,17 @@ class AppReleaseSource @Inject constructor(
     }
 
     companion object {
-        private const val PROJECT_URL = "https://github.com/pisces312/PixelPlayerOSS"
+        private const val PROJECT_URL = "https://github.com/pisces312/PiscesPlayer"
 
         /** Release applicationId; debug builds add a suffix but should still see real releases. */
         internal const val PUBLISHED_PACKAGE = "com.pisces312.piscesplayer"
         private const val GITHUB_RELEASES_API =
-            "https://api.github.com/repos/pisces312/PixelPlayerOSS/releases?per_page=30"
+            "https://api.github.com/repos/pisces312/PiscesPlayer/releases?per_page=30"
 
         /**
          * Newest published release with an APK for one of [supportedAbis] (in device preference
          * order). This fork publishes one lowercase APK per release named
-         * `pixelplayeross-<abi>-<version>-release.apk` (abi in the middle, ends with `.apk`).
+         * `piscesplayer-<abi>-<version>-release.apk` (abi in the middle, ends with `.apk`).
          */
         internal fun parseLatestRelease(releases: JSONArray, supportedAbis: List<String>): AppRelease? {
             return (0 until releases.length())

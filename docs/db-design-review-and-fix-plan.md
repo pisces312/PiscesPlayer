@@ -11,7 +11,7 @@
 - 单一 Room 库 `pixelplayer_database`，**version = 15**，`exportSchema = true`（schema 在 `app/schemas/.../1.json` … `15.json`）。
 - 22 张实体表；本地 MediaStore 曲、Navidrome / Jellyfin 云曲统一进 `songs`，用 `source_type` + **负 Long id** 分区。
 - JournalMode = WAL。
-- 运行时 artifact（收藏同步 trigger、FTS 同步 trigger）由 `PixelPlayerDatabase.createRuntimeArtifactsCallback()` 安装。
+- 运行时 artifact（收藏同步 trigger、FTS 同步 trigger）由 `PiscesPlayerDatabase.createRuntimeArtifactsCallback()` 安装。
 
 ```mermaid
 erDiagram
@@ -632,9 +632,9 @@ if (songId.value <= 0L) → WARNING "INVALID_SONG_ID"
 
 | 文件 | 角色 |
 |---|---|
-| `data/database/PixelPlayerDatabase.kt` | 实体注册、version、trigger 安装 |
+| `data/database/PiscesPlayerDatabase.kt` | 实体注册、version、trigger 安装 |
 | `data/database/Migrations.kt` | v1–v15 |
-| `di/AppModule.kt` | `providePixelPlayerDatabase` |
+| `di/AppModule.kt` | `providePiscesPlayerDatabase` |
 | `data/database/MusicDao.kt` | 曲库主 DAO（含死 API 待删） |
 | `data/database/FavoritesDao.kt` | 收藏/评分真源 |
 | `data/database/LyricsDao.kt` | 歌词真源 |

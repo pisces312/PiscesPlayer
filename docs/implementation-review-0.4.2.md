@@ -261,7 +261,7 @@
 | 不写 `PlayerViewModel = hiltViewModel()` 默认值 | 0 命中 | ✅ |
 | 新增 StateHolder 照抄 SearchStateHolder owner 校验 | 仅 Search 有，其余 13 个无 | ❌ C1 |
 | SettingsRegistry 注册开关 | 64 项 | ✅ |
-| DB version 以 `PixelPlayerDatabase.kt` 为准 | v11，migration 齐全 | ✅ |
+| DB version 以 `PiscesPlayerDatabase.kt` 为准 | v11，migration 齐全 | ✅ |
 | Media3 版本 | 文档 1.10.1 / 实际 1.11.0 | ❌ H7 文档漂移 |
 | 目标设备仅主流直板竖屏 | 布局未发现小屏兜底回退 | ✅ |
 | 新功能字符串中英双语 | 抽查通过 | ✅ |

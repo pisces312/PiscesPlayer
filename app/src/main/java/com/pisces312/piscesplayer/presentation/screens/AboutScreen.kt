@@ -156,7 +156,7 @@ private val NonFossMaintainer = Contributor(
     id = "theovilardo",
     displayName = "@theovilardo",
     role = "Author / Non-FOSS Maintainer",
-    detail = "Author and maintainer of the original Google Play / non-FOSS PixelPlayer release.",
+    detail = "Author and maintainer of the original Google Play / non-FOSS release.",
     badge = "Original app",
     avatarUrl = "https://github.com/theovilardo.png",
     iconRes = R.drawable.round_developer_board_24,
@@ -169,7 +169,7 @@ private val AboutMaintainers = listOf(
     NonFossMaintainer,
 )
 
-private const val SourceRepoUrl = "https://github.com/pisces312/PixelPlayerOSS"
+private const val SourceRepoUrl = "https://github.com/pisces312/PiscesPlayer"
 private const val UpstreamRepoUrl = "https://github.com/PixelPlayerHQ/PixelPlayerOSS"
 private const val SponsorUrl = "https://github.com/sponsors/lostf1sh"
 
@@ -503,7 +503,7 @@ private fun AboutHeroCard(
                         color = MaterialTheme.colorScheme.primaryContainer,
                     ) {
                         Icon(
-                            painter = painterResource(R.drawable.pixelplayer_base_monochrome),
+                            painter = painterResource(R.drawable.piscesplayer_base_monochrome),
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.onPrimaryContainer,
                             modifier = Modifier.padding(10.dp).size(28.dp),

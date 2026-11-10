@@ -41,7 +41,7 @@ import com.pisces312.piscesplayer.presentation.components.getNavigationBarHeight
 import com.pisces312.piscesplayer.presentation.components.resolveNavBarOccupiedHeight
 import com.pisces312.piscesplayer.presentation.utils.GenreIconProvider
 import com.pisces312.piscesplayer.presentation.viewmodel.PlayerViewModel
-import com.pisces312.piscesplayer.ui.theme.LocalPixelPlayerDarkTheme
+import com.pisces312.piscesplayer.ui.theme.LocalPiscesPlayerDarkTheme
 import androidx.compose.ui.res.stringResource
 import com.pisces312.piscesplayer.R
 import racra.compose.smooth_corner_rect_library.AbsoluteSmoothCornerShape
@@ -114,7 +114,7 @@ private fun GenreCard(
     onClick: () -> Unit,
     isGridView: Boolean
 ) {
-    val isDark = LocalPixelPlayerDarkTheme.current
+    val isDark = LocalPiscesPlayerDarkTheme.current
     val themeColor = remember(genre, isDark) {
         com.pisces312.piscesplayer.ui.theme.GenreThemeUtils.getGenreThemeColor(
             genre = genre,

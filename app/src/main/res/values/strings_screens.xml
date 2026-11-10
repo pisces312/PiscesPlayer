@@ -194,7 +194,7 @@
     <string name="about_project_title">Project</string>
     <string name="about_project_subtitle">Source, releases, and community entry points.</string>
     <string name="about_link_source_title">Source code</string>
-    <string name="about_link_source_subtitle">github.com/pisces312/PixelPlayerOSS</string>
+    <string name="about_link_source_subtitle">github.com/pisces312/PiscesPlayer</string>
     <string name="about_link_upstream_title">Upstream project</string>
     <string name="about_link_upstream_subtitle">Based on PixelPlayerOSS · GPL-3.0-or-later</string>
     <string name="cd_about_open_link">Open %1$s</string>

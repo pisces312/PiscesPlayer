@@ -1369,7 +1369,7 @@ private fun Tag.applyCustomMetadataChanges(
         MetadataValueUpdate.Keep -> Unit
         MetadataValueUpdate.Clear -> {
             runCatching { deleteField(FieldKey.RATING) }
-            // Older PixelPlayer builds and third-party taggers may have used a generic RATING
+            // Older builds and third-party taggers may have used a generic RATING
             // field. Remove it as well even when deleting the standard field was a successful no-op.
             runCatching { removeRawCustomMetadataField("RATING") }
         }

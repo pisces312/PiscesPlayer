@@ -15,7 +15,7 @@ import androidx.compose.runtime.getValue
 import dagger.hilt.android.AndroidEntryPoint
 import com.pisces312.piscesplayer.presentation.viewmodel.PlayerViewModel
 import com.pisces312.piscesplayer.presentation.components.external.ExternalPlayerOverlay
-import com.pisces312.piscesplayer.ui.theme.PixelPlayerTheme
+import com.pisces312.piscesplayer.ui.theme.PiscesPlayerTheme
 import android.content.Intent.EXTRA_STREAM
 import androidx.media3.common.util.UnstableApi
 import com.pisces312.piscesplayer.data.preferences.AppThemeMode
@@ -55,7 +55,7 @@ class ExternalPlayerActivity : ComponentActivity() {
                 AppThemeMode.LIGHT -> false
                 else -> systemDarkTheme
             }
-            PixelPlayerTheme(darkTheme = useDarkTheme) {
+            PiscesPlayerTheme(darkTheme = useDarkTheme) {
                 ExternalPlayerOverlay(
                     playerViewModel = playerViewModel,
                     onDismiss = { finish() },

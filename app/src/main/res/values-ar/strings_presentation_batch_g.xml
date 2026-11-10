@@ -50,7 +50,7 @@
     <string name="device_capabilities_report_generate">إنشاء التقرير</string>
     <string name="device_capabilities_report_regenerate">إعادة إنشاء</string>
     <string name="device_capabilities_report_share">مشاركة</string>
-    <string name="device_capabilities_report_share_title">تقرير أداء PixelPlay</string>
+    <string name="device_capabilities_report_share_title">تقرير أداء PiscesPlayer</string>
     <string name="device_capabilities_report_title">تقرير الأداء</string>
     <string name="device_capabilities_review_title">التشغيل يتطلب مراجعة</string>
     <string name="device_capabilities_storage_available">المتاح</string>

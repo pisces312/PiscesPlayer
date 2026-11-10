@@ -2213,7 +2213,7 @@ private fun AlbumPlaceholder(
         Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
             Icon(
                 modifier = Modifier.size(86.dp),
-                painter = painterResource(R.drawable.pixelplayer_base_monochrome),
+                painter = painterResource(R.drawable.piscesplayer_base_monochrome),
                 contentDescription = null,
                 tint = onColor
             )

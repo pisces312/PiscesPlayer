@@ -204,7 +204,7 @@ def cmd_export(args) -> None:
         "gradlew.bat",
         ":app:testDebugUnitTest",
         "--tests",
-        "com.lostf1sh.pixelplayeross.data.rhythm.RhythmLabExportTest",
+        "com.pisces312.piscesplayer.data.rhythm.RhythmLabExportTest",
         "--console=plain",
     ]
     print("running:", " ".join(command))

@@ -25,7 +25,7 @@ import androidx.core.view.WindowCompat
 import com.pisces312.piscesplayer.presentation.viewmodel.ColorSchemePair
 import androidx.core.graphics.ColorUtils
 
-val LocalPixelPlayerDarkTheme = staticCompositionLocalOf { false }
+val LocalPiscesPlayerDarkTheme = staticCompositionLocalOf { false }
 
 private tailrec fun Context.findActivity(): Activity? = when (this) {
     is Activity -> this
@@ -35,7 +35,7 @@ private tailrec fun Context.findActivity(): Activity? = when (this) {
 
 @Suppress("DEPRECATION")
 @Composable
-fun PixelPlayerStatusBarStyle(
+fun PiscesPlayerStatusBarStyle(
     color: Color,
     useDarkIcons: Boolean = ColorUtils.calculateLuminance(color.toArgb()) > 0.55,
     navigationColor: Color? = null,
@@ -69,31 +69,31 @@ fun PixelPlayerStatusBarStyle(
 }
 
 val DarkColorScheme = darkColorScheme(
-    primary = PixelPlayerPurplePrimary,
-    secondary = PixelPlayerPink,
-    tertiary = PixelPlayerOrange,
-    background = PixelPlayerPurpleDark,
-    surface = PixelPlayerSurface,
-    onPrimary = PixelPlayerWhite,
-    onSecondary = PixelPlayerWhite,
-    onTertiary = PixelPlayerWhite,
-    onBackground = PixelPlayerWhite,
-    onSurface = PixelPlayerLightPurple,
+    primary = PiscesPlayerPurplePrimary,
+    secondary = PiscesPlayerPink,
+    tertiary = PiscesPlayerOrange,
+    background = PiscesPlayerPurpleDark,
+    surface = PiscesPlayerSurface,
+    onPrimary = PiscesPlayerWhite,
+    onSecondary = PiscesPlayerWhite,
+    onTertiary = PiscesPlayerWhite,
+    onBackground = PiscesPlayerWhite,
+    onSurface = PiscesPlayerLightPurple,
     error = Color(0xFFFF5252),
-    onError = PixelPlayerWhite
+    onError = PiscesPlayerWhite
 )
 
 val LightColorScheme = lightColorScheme(
     primary = LightPrimary,
-    onPrimary = PixelPlayerWhite,
+    onPrimary = PiscesPlayerWhite,
     primaryContainer = LightPrimaryContainer,
     onPrimaryContainer = LightOnPrimaryContainer,
-    secondary = PixelPlayerPink,
-    onSecondary = PixelPlayerWhite,
-    secondaryContainer = PixelPlayerPink.copy(alpha = 0.15f),
-    onSecondaryContainer = PixelPlayerPink.copy(alpha = 0.85f),
-    tertiary = PixelPlayerOrange,
-    onTertiary = PixelPlayerBlack,
+    secondary = PiscesPlayerPink,
+    onSecondary = PiscesPlayerWhite,
+    secondaryContainer = PiscesPlayerPink.copy(alpha = 0.15f),
+    onSecondaryContainer = PiscesPlayerPink.copy(alpha = 0.85f),
+    tertiary = PiscesPlayerOrange,
+    onTertiary = PiscesPlayerBlack,
     background = LightBackground,
     onBackground = LightOnSurface,
     surface = LightSurface,
@@ -104,12 +104,12 @@ val LightColorScheme = lightColorScheme(
     outlineVariant = LightOutline.copy(alpha = 0.6f),
     surfaceTint = LightPrimary,
     error = Color(0xFFD32F2F),
-    onError = PixelPlayerWhite
+    onError = PiscesPlayerWhite
 )
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-fun PixelPlayerTheme(
+fun PiscesPlayerTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     colorSchemePairOverride: ColorSchemePair? = null,
     content: @Composable () -> Unit
@@ -130,12 +130,12 @@ fun PixelPlayerTheme(
         else -> LightColorScheme
     }
 
-    PixelPlayerStatusBarStyle(
+    PiscesPlayerStatusBarStyle(
         color = finalColorScheme.background,
         navigationColor = finalColorScheme.background
     )
 
-    CompositionLocalProvider(LocalPixelPlayerDarkTheme provides darkTheme) {
+    CompositionLocalProvider(LocalPiscesPlayerDarkTheme provides darkTheme) {
         MaterialTheme(
             colorScheme = finalColorScheme,
             motionScheme = MotionScheme.expressive(),

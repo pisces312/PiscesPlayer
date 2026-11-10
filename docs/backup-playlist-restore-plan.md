@@ -48,7 +48,7 @@
 
 逐段证据：
 
-1. `PixelPlayerApplication.onCreate` 调 `SyncManager.start()`，但 `start()` 只做三件事：
+1. `PiscesPlayerApplication.onCreate` 调 `SyncManager.start()`，但 `start()` 只做三件事：
    注册媒体变更观察者、注册回前台追赶同步、排 24h 周期维护 —— **本身不发起扫描**。
 2. 两条"自动同步"路径在向导期间都被 `initialSetupDone=false` 显式拦截：
    - 存储变更自动同步：`SyncManager.runLocalAutoSyncAfterDebounce`（L345 附近）直接 return；
@@ -124,7 +124,7 @@
    悬挂的歌曲引用本来就留在 `playlist_songs` 表里，`getSongsByIds` 对缺失行天然过滤，
    显示层零改动。
 3. **新增 `PlaylistRestoreResolver`（@Singleton）：**
-   - 在 `PixelPlayerApplication.onCreate` 紧挨 `syncManager.start()` 启动；
+   - 在 `PiscesPlayerApplication.onCreate` 紧挨 `syncManager.start()` 启动；
    - 监听 `SyncManager` 的 unique work 状态，**每次前台同步 SUCCEEDED 后跑一次**；
      启动时也跑一次（覆盖 app 没运行时同步已完成的情况）；
    - 现有两个"恢复后触发同步"的点直接被它接住：向导完成时的 `completeSetup → fullSync`、
@@ -154,7 +154,7 @@
 | `data/backup/module/PlaylistsModuleHandler.kt` | restore 空库短路；未匹配条目入 pending 而非丢弃；抽出可复用的解析函数；restore/rollback 时覆盖/清空 pending |
 | `data/preferences/UserPreferencesRepository.kt` | 新增 pending JSON 的 get/set/clear（按既有偏好键模式，英文 strings 无需新增） |
 | 新增 `data/backup/restore/PlaylistRestoreResolver.kt` | 同步完成/启动时补解析 + 全量同步后的终态清理；重映射走 `PlaylistPreferencesRepository`（按列表 `replacePlaylistSongs` 保序） |
-| `PixelPlayerApplication.kt` | 启动 resolver（与 `syncManager.start()` 同位置，显式可 grep） |
+| `PiscesPlayerApplication.kt` | 启动 resolver（与 `syncManager.start()` 同位置，显式可 grep） |
 | `data/worker/SyncManager.kt` | 如需区分全量/增量完成事件，补一个暴露 WorkInfo/同步模式（`SyncMode` 走 worker inputData）的 Flow；先读现有 `syncProgress`，能复用就不加 |
 | `SetupViewModel.kt` | 向导内恢复**成功后立即** enqueue 一次 `fullSync(deepScan=false)`（现状要等用户点完成才首扫；不等结果，resolver 兜底），让用户停在完成页时扫描就已经在跑 |
 | `SettingsViewModel.kt` | 无需改动（恢复成功后已有 `syncManager.sync()`，resolver 会接住） |
@@ -206,7 +206,7 @@
 3. **pending 存储**：`UserPreferencesRepository` 新增
    `playlist_restore_pending_json_v1`（裸 JSON 字符串，Gson 由调用方持有），未动 Room schema。
 4. **补解析器**：新建 `data/backup/restore/PlaylistRestoreResolver.kt`（@Singleton），
-   在 `PixelPlayerApplication.onCreate` 启动；启动时跑一次，并监听
+   在 `PiscesPlayerApplication.onCreate` 启动；启动时跑一次，并监听
    `getWorkInfosForUniqueWorkFlow(SyncWorker.WORK_NAME)` 的 SUCCEEDED。
    全量/增量的区分没有加新 Flow，而是给 SyncWorker 各 WorkRequest 加了
    `TAG_SYNC_MODE_FULL/INCREMENTAL/REBUILD` tag（WorkInfo 不暴露 inputData，tags 可读）；

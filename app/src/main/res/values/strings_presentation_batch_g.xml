@@ -182,7 +182,7 @@
     <string name="device_capabilities_report_copy">Copy</string>
     <string name="device_capabilities_report_share">Share</string>
     <string name="device_capabilities_report_copied">Report copied to clipboard</string>
-    <string name="device_capabilities_report_share_title">PixelPlayer performance report</string>
+    <string name="device_capabilities_report_share_title">PiscesPlayer performance report</string>
     <string name="device_capabilities_advanced_diagnostics_title">Advanced performance diagnostics</string>
     <string name="device_capabilities_advanced_diagnostics_description">Off by default. Records a short lag timeline for beta troubleshooting.</string>
     <string name="device_capabilities_advanced_diagnostics_expires">Active until %1$s</string>

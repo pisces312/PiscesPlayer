@@ -24,7 +24,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
-import com.pisces312.piscesplayer.ui.theme.PixelPlayerStatusBarStyle
+import com.pisces312.piscesplayer.ui.theme.PiscesPlayerStatusBarStyle
 import androidx.compose.ui.res.stringResource
 import com.pisces312.piscesplayer.R
 
@@ -65,7 +65,7 @@ fun CollapsibleCommonTopBar(
     val statusBarFallbackColor = backgroundColor.compositeOver(MaterialTheme.colorScheme.surface)
 
     if (syncStatusBarWithContainer) {
-        PixelPlayerStatusBarStyle(color = statusBarFallbackColor)
+        PiscesPlayerStatusBarStyle(color = statusBarFallbackColor)
     }
     
     Box(

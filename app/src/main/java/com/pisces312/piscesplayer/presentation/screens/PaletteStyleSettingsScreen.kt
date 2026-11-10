@@ -68,7 +68,7 @@ import com.pisces312.piscesplayer.presentation.components.MiniPlayerHeight
 import com.pisces312.piscesplayer.presentation.viewmodel.ColorSchemePair
 import com.pisces312.piscesplayer.presentation.viewmodel.PlayerViewModel
 import com.pisces312.piscesplayer.presentation.viewmodel.SettingsViewModel
-import com.pisces312.piscesplayer.ui.theme.LocalPixelPlayerDarkTheme
+import com.pisces312.piscesplayer.ui.theme.LocalPiscesPlayerDarkTheme
 import com.pisces312.piscesplayer.ui.theme.generateColorSchemeFromSeed
 import kotlin.math.roundToInt
 
@@ -82,7 +82,7 @@ fun PaletteStyleSettingsScreen(
 ) {
     val uiState by settingsViewModel.uiState.collectAsStateWithLifecycle()
     val stablePlayerState by playerViewModel.stablePlayerState.collectAsStateWithLifecycle()
-    val isDarkTheme = LocalPixelPlayerDarkTheme.current
+    val isDarkTheme = LocalPiscesPlayerDarkTheme.current
     val albumSchemePair by playerViewModel.currentAlbumArtColorSchemePair.collectAsStateWithLifecycle()
 
     val baseScheme = MaterialTheme.colorScheme

@@ -35,7 +35,7 @@ import timber.log.Timber
 import javax.inject.Inject
 
 @HiltAndroidApp
-class PixelPlayerApplication : Application(), ImageLoaderFactory, Configuration.Provider {
+class PiscesPlayerApplication : Application(), ImageLoaderFactory, Configuration.Provider {
 
     @Inject
     lateinit var workerFactory: HiltWorkerFactory

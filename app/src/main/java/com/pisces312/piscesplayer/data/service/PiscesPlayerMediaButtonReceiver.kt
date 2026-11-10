@@ -9,7 +9,7 @@ import androidx.media3.common.util.UnstableApi
 import timber.log.Timber
 
 @Suppress("DEPRECATION")
-class PixelPlayerMediaButtonReceiver : MediaButtonReceiver() {
+class PiscesPlayerMediaButtonReceiver : MediaButtonReceiver() {
 
     @OptIn(UnstableApi::class)
     override fun onReceive(context: Context, intent: Intent) {
