@@ -22,10 +22,12 @@
 </p>
 
 <p align="center">
-  <img src="assets/screenshot1.jpeg" alt="PiscesPlayer home screen" width="205"/>
-  <img src="assets/screenshot2.jpeg" alt="PiscesPlayer now playing screen" width="205"/>
-  <img src="assets/screenshot-rhythm-play.jpg" alt="PiscesPlayer rhythm game" width="205"/>
-  <img src="assets/screenshot-rhythm-library.png" alt="PiscesPlayer rhythm chart library" width="205"/>
+  <img src="assets/screenshot-home.jpg" alt="PiscesPlayer home screen" width="165"/>
+  <img src="assets/screenshot-nowplaying.jpg" alt="PiscesPlayer now playing screen" width="165"/>
+  <img src="assets/screenshot-lyrics.jpg" alt="PiscesPlayer lyrics screen" width="165"/>
+  <img src="assets/screenshot-playlist.jpg" alt="PiscesPlayer playlist" width="165"/>
+  <img src="assets/screenshot-rhythm-charts.jpg" alt="PiscesPlayer rhythm chart library" width="165"/>
+  <img src="assets/screenshot-rhythm-play.jpg" alt="PiscesPlayer rhythm game" width="165"/>
 </p>
 
 ## What It Is

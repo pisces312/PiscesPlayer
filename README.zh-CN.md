@@ -22,10 +22,12 @@
 </p>
 
 <p align="center">
-  <img src="assets/screenshot1.jpeg" alt="PiscesPlayer 首页" width="205"/>
-  <img src="assets/screenshot2.jpeg" alt="PiscesPlayer 正在播放" width="205"/>
-  <img src="assets/screenshot-rhythm-play.jpg" alt="PiscesPlayer 节奏游戏" width="205"/>
-  <img src="assets/screenshot-rhythm-library.png" alt="PiscesPlayer 谱面库" width="205"/>
+  <img src="assets/screenshot-home.jpg" alt="PiscesPlayer 首页" width="165"/>
+  <img src="assets/screenshot-nowplaying.jpg" alt="PiscesPlayer 正在播放" width="165"/>
+  <img src="assets/screenshot-lyrics.jpg" alt="PiscesPlayer 歌词" width="165"/>
+  <img src="assets/screenshot-playlist.jpg" alt="PiscesPlayer 播放列表" width="165"/>
+  <img src="assets/screenshot-rhythm-charts.jpg" alt="PiscesPlayer 谱面库" width="165"/>
+  <img src="assets/screenshot-rhythm-play.jpg" alt="PiscesPlayer 节奏游戏" width="165"/>
 </p>
 
 ## 这是什么
