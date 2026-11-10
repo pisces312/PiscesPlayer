@@ -74,8 +74,12 @@ PiscesPlayer — Android 音乐播放器（100% Kotlin，Jetpack Compose + Mater
 ```
 
 - **debug / release 可共存**：`debug` 带 `applicationIdSuffix = ".debug"` + `versionNameSuffix = "-debug"`，应用名 `PiscesPlayer [D]`（`app/src/debug/res/values/strings.xml`），
-  图标走 `app/src/debug/res` 的红底覆盖（只覆盖 `ic_launcher_background` 与 legacy 方/圆图标，foreground 与 `mipmap-anydpi-v26` XML 沿用 main）。
-  改了 main 图标后重跑根目录 `gen_debug_icons.py`（Pillow）重新生成 debug 图标。
+  图标走 `app/src/debug/res` 的「琥珀橙渐变 + 玫红主体」覆盖（`ic_launcher_background` / `ic_launcher_foreground` / legacy 方、圆图标四层）：
+  foreground 自带不透明青色渐变，**只染 background 层是看不见的**；且 launcher 圆形遮罩只留 16.3% 背景、主体占 83.7%，
+  所以还要把深蓝鱼腹/圆盘/尾鳍的 HSV 色相转到 325°（只改 H，保留 S/V 与白鱼），圆内平均色差从 27.6 提到约 91。
+  `mipmap-anydpi-v26` 的 XML 在 debug 源集覆盖一份、故意去掉 `monochrome`，否则 Android 13+ 主题图标会把颜色差异抹平。
+  改了 main 图标后重跑根目录 `gen_debug_icons.py`（Pillow + numpy + scipy，默认 `amber` / `--subject-hue 325`，可用 `--colorway` 换配色）；
+  脚本自带断言：白鱼像素零变化、圆内色差 ≥ 80。
 - **默认构建 `release`；`debug` 只在按需排查时构建**：R8 只跑在 `release` / `benchmark` 上，
   `debug` 是 `isMinifyEnabled = false` + `isShrinkResources = false`。
   理由：debug 的用途是「release 上复现不了、又难定位」的问题，此时未混淆的栈帧逐行对应源码，
