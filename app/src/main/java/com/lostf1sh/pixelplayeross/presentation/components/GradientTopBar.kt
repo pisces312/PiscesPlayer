@@ -100,7 +100,6 @@ fun GenreGradientTopBar(
 @Composable
 fun HomeGradientTopBar(
     onNavigationIconClick: () -> Unit,
-    onMoreOptionsClick: () -> Unit,
     onBetaClick: () -> Unit,
     onStreamingClick: () -> Unit,
     onMenuClick: () -> Unit = {},
@@ -162,18 +161,6 @@ fun HomeGradientTopBar(
                     Icon(
                           imageVector = Icons.Rounded.Cloud,
                           contentDescription = stringResource(R.string.presentation_batch_g_streaming_title)
-                    )
-                }
-                FilledIconButton(
-                    colors = IconButtonDefaults.filledIconButtonColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                        contentColor = MaterialTheme.colorScheme.onSurface
-                    ),
-                    onClick = onMoreOptionsClick
-                ) {
-                    Icon(
-                        painter = painterResource(R.drawable.round_newspaper_24),
-                        contentDescription = stringResource(R.string.presentation_batch_g_topbar_cd_changelog)
                     )
                 }
                 FilledIconButton(

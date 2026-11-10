@@ -90,7 +90,6 @@ import com.lostf1sh.pixelplayeross.presentation.components.AiGenerateEntryCard
 import com.lostf1sh.pixelplayeross.presentation.components.AiMixSheet
 import com.lostf1sh.pixelplayeross.presentation.components.AlbumArtCollage
 import com.lostf1sh.pixelplayeross.presentation.components.BetaInfoBottomSheet
-import com.lostf1sh.pixelplayeross.presentation.components.ChangelogBottomSheet
 import com.lostf1sh.pixelplayeross.presentation.jellyfin.dashboard.JellyfinDashboardViewModel
 import com.lostf1sh.pixelplayeross.presentation.navidrome.dashboard.NavidromeDashboardViewModel
 import com.lostf1sh.pixelplayeross.presentation.components.DailyMixSection
@@ -249,7 +248,6 @@ fun HomeScreen(
     val bottomGradientHeight = resolveMainScreenBottomGradientHeight(navBarCompactMode)
 
     var showOptionsBottomSheet by remember { mutableStateOf(false) }
-    var showChangelogBottomSheet by remember { mutableStateOf(false) }
     var showBetaInfoBottomSheet by remember { mutableStateOf(false) }
     var showStreamingProviderSheet by remember { mutableStateOf(false) }
     val sheetState = rememberModalSheetState()
@@ -313,9 +311,6 @@ fun HomeScreen(
                 HomeGradientTopBar(
                     onNavigationIconClick = {
                         navController.navigateSafely(Screen.Settings.route)
-                    },
-                    onMoreOptionsClick = {
-                        showChangelogBottomSheet = true
                     },
                     onBetaClick = {
                         showBetaInfoBottomSheet = true
@@ -537,14 +532,6 @@ fun HomeScreen(
                     }
                 }
             )
-        }
-    }
-    if (showChangelogBottomSheet) {
-        ModalBottomSheet(
-            onDismissRequest = { showChangelogBottomSheet = false },
-            sheetState = sheetState
-        ) {
-            ChangelogBottomSheet()
         }
     }
     if (showBetaInfoBottomSheet) {
