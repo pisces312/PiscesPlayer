@@ -133,9 +133,12 @@ $env:JAVA_HOME='D:\dev\jdk-25'
 
 - [ ] 删 `docs/HANDOVER-piscesplayer-1.0.0.md`（本文）；`docs/REBRAND.md` 保留。
 - [ ] 旧 tag `v0.4.0~v0.4.3-pisces.1` 是否保留：删 Release 不影响 tag，建议**保留**（历史可追溯），已删的话需同步改 `docs/RELEASE_ARCHIVE.md` 里的链接说明。
-- [ ] `docs/RELEASE.md` 里仍是上游口吻的示例版本（`0.1.0`）与 alpha 命名，有空时补一段「本 fork 的 tag/资产命名 `piscesplayer-<abi>-<version>-release.apk`」。
+- [x] `docs/RELEASE.md` 补本 fork 的 tag/资产命名（已含 `v<X.Y.Z>` 与 `piscesplayer-<abi>-<X.Y.Z>-release.apk`，示例 `1.0.0`；收尾大提交里完成）。
 - [x] `AppReleaseSource.kt` 注释里还写着旧资产名 `pixelplayeross-<abi>-...`（已改为 `piscesplayer-<abi>-...`）。
 - [ ] 清 `D:\Temp\pp-release\`（截图与临时脚本，可再生）。
+- [ ] **fastlane 与 README 截图换新**（2026-11-10 定）：`fastlane/metadata/android/en-US/images/phoneScreenshots/1-4.jpeg`
+      与 `assets/screenshot1-4.jpeg` 是同一批旧上游界面截图，等真机新截图到位后一起替换
+      （fastlane 与 README 用同一批图）；`fastlane/.../images/icon.png` 若还是旧图标也一并换。
 
 ### P2 —— 待用户决策（不要擅自做）
 

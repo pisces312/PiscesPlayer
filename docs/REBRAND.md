@@ -165,8 +165,8 @@ Release 正文会写明以上步骤。旧版收不到应用内更新（包名不
 
 ```
 dist/piscesplayer-arm64-v8a-1.0.0-release.apk
-size   25,124,984 bytes
-sha256 66a3f67af0145d38015014ebff97f0fc94e02568077333cab43471b7247c2b24
+size   25,124,980 bytes
+sha256 5fc1afbc36c0df9b7bd7037eee092c189ec3da2923bfabfeccec82e9bba17e81
 ```
 
 `dist/` 不在 git 里（`.gitignore` 有 `*.apk`）。重编命令：
