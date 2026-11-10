@@ -46,7 +46,7 @@ java.lang.ExceptionInInitializerError / NoClassDefFoundError: io.mockk.impl.JvmM
 Caused by: io.mockk.proxy.MockKAgentException:
   MockK could not self-attach a jvmti agent to the current VM.
 Caused by: java.io.IOException: Native-bridge agents unsupported:
-  /data/user/0/com.lostf1sh.pixelplayeross.debug/cache/mockkjvmtiagent….so
+  /data/user/0/com.pisces312.piscesplayer.debug/cache/mockkjvmtiagent….so
 ```
 
 ### 根因
@@ -98,7 +98,7 @@ after the ComposeTestRule runs
   at …WavySliderExpressiveTest.reportedProgress(WavySliderExpressiveTest.kt:30)
 ```
 
-测试源码：`app/src/androidTest/java/com/lostf1sh/pixelplayeross/presentation/components/WavySliderExpressiveTest.kt`
+测试源码：`app/src/androidTest/java/com/pisces312/piscesplayer/presentation/components/WavySliderExpressiveTest.kt`
 （`createComposeRule()` + `setContent { WavySliderExpressive(...) }`，通过 `semanticsLabel = "Playback position"` 找节点。）
 
 ### 已观察到的设备侧事实
@@ -158,7 +158,7 @@ after the ComposeTestRule runs
 两端均报 2 条失败，XML 形态为：
 
 ```xml
-<testcase name="null" classname="com.lostf1sh.pixelplayeross.benchmark.StartupBenchmark" time="0.000">
+<testcase name="null" classname="com.pisces312.piscesplayer.benchmark.StartupBenchmark" time="0.000">
   <failure></failure>
 </testcase>
 ```
@@ -167,7 +167,7 @@ after the ComposeTestRule runs
 
 ### 来源
 
-`app/src/androidTest/java/com/lostf1sh/pixelplayeross/benchmark/StartupBenchmark.kt`：
+`app/src/androidTest/java/com/pisces312/piscesplayer/benchmark/StartupBenchmark.kt`：
 
 ```kotlin
 @Ignore("Macrobenchmark scenarios should run from the dedicated benchmark setup, not app androidTest.")

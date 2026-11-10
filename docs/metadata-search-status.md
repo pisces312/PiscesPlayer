@@ -93,7 +93,7 @@
 | `./gradlew :app:testDebugUnitTest` | 全绿（新增 23 个用例 + 既有 3 个） |
 | `./gradlew :app:assembleRelease` | 成功，产物 `app/build/outputs/apk/release/pixelplayeross-arm64-v8a-0.4.3-pisces.1-release.apk` |
 | `adb install -r …-release.apk`（pixel6 AVD） | Success |
-| 启动检查 | `topResumedActivity=com.lostf1sh.pixelplayeross/.MainActivity`，进程存活，logcat 无 FATAL |
+| 启动检查 | `topResumedActivity=com.pisces312.piscesplayer/.MainActivity`，进程存活，logcat 无 FATAL |
 
 **未验证**（留给人工）：真实曲库的搜索/写入流程、云端曲目、封面实际落盘、文件标签在外部工具中的可读性。
 

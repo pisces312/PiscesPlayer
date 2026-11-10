@@ -46,7 +46,7 @@ adb install -r -d app/build/outputs/apk/debug/pixelplayeross-arm64-v8a-0.4.2-pis
 真曲库的歌词不可控，直接改数据库最省事。找一首歌（下面用 `id=1000001891`），写三行测试歌词 —— **纯英文长行 / 纯中文长行 / 短行**，正好覆盖「列宽切段」的三类输入：
 
 ```bash
-adb shell "run-as com.lostf1sh.pixelplayeross.debug sqlite3 databases/pixelplayer_database \
+adb shell "run-as com.pisces312.piscesplayer.debug sqlite3 databases/pixelplayer_database \
   \"update songs set lyrics =
      '[00:00.00]abcdefghijklmnopqrstuvwxyzabcdefghijklmnop' || char(10) ||
      '[00:06.00]一二三四五六七八九十一二三四五六七八九十一' || char(10) ||
@@ -54,7 +54,7 @@ adb shell "run-as com.lostf1sh.pixelplayeross.debug sqlite3 databases/pixelplaye
    where id = 1000001891\""
 
 # 回读确认
-adb shell "run-as com.lostf1sh.pixelplayeross.debug sqlite3 databases/pixelplayer_database \
+adb shell "run-as com.pisces312.piscesplayer.debug sqlite3 databases/pixelplayer_database \
   \"select lyrics, duration from songs where id = 1000001891\""
 ```
 
@@ -83,7 +83,7 @@ adb shell settings delete global pixelplayer_car_lyric_title_force_a2dp   # 关�
 ### 3.1 `dumpsys media_session` —— 蓝牙进程读到的就是这份数据
 
 ```bash
-adb shell dumpsys media_session | grep -E "package=com.lostf1sh.pixelplayeross.debug" -A 12 \
+adb shell dumpsys media_session | grep -E "package=com.pisces312.piscesplayer.debug" -A 12 \
   | grep -oE "active item id=[^,]*|queueTitle=[^,]*, size=[0-9]*|description=[^,]*"
 ```
 
@@ -123,22 +123,22 @@ adb logcat -d | grep -ciE "media update timeout"
 ```bash
 # 1) 基线：关掉门控
 adb shell settings delete global pixelplayer_car_lyric_title_force_a2dp
-adb shell am force-stop com.lostf1sh.pixelplayeross.debug
-adb shell monkey -p com.lostf1sh.pixelplayeross.debug -c android.intent.category.LAUNCHER 1 >/dev/null 2>&1
+adb shell am force-stop com.pisces312.piscesplayer.debug
+adb shell monkey -p com.pisces312.piscesplayer.debug -c android.intent.category.LAUNCHER 1 >/dev/null 2>&1
 sleep 6
 adb shell input tap 420 2203      # 搜索框
 sleep 3; adb shell input text "Night"; sleep 3
 adb logcat -c
 adb shell input tap 300 800       # 搜索结果行
 sleep 2
-for i in 1 2 3; do adb shell dumpsys media_session | grep -E "package=com.lostf1sh.pixelplayeross.debug" -A 12 \
+for i in 1 2 3; do adb shell dumpsys media_session | grep -E "package=com.pisces312.piscesplayer.debug" -A 12 \
   | grep -oE "active item id=[^,]*|description=[^,]*" | head -2 | tr '\n' '|'; echo; sleep 2; done
 # 期望：active item id=0 | description=Night Tone   ← 真实曲名
 
 # 2) 窗口内：打开门控（不用重启进程）
 adb shell settings put global pixelplayer_car_lyric_title_force_a2dp 1
 sleep 4
-for i in 1 2 3 4 5 6; do adb shell dumpsys media_session | grep -E "package=com.lostf1sh.pixelplayeross.debug" -A 12 \
+for i in 1 2 3 4 5 6; do adb shell dumpsys media_session | grep -E "package=com.pisces312.piscesplayer.debug" -A 12 \
   | grep -oE "active item id=[^,]*|description=[^,]*" | head -2 | tr '\n' '|'; echo; sleep 2; done
 ```
 

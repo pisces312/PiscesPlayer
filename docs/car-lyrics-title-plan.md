@@ -396,7 +396,7 @@ L2 最值得先做——**它直接观察的就是车机将要读到的那一份
 
 无头交互（没有窗口，全靠 adb）：
 
-1. 启动 App：`adb shell monkey -p com.lostf1sh.pixelplayeross.debug -c android.intent.category.LAUNCHER 1`
+1. 启动 App：`adb shell monkey -p com.pisces312.piscesplayer.debug -c android.intent.category.LAUNCHER 1`
 2. 定位控件：`adb shell uiautomator dump /sdcard/ui.xml` → `tr '<' '\n<'` → grep `text=` / `checkable="true"` 取 `bounds` → `input tap`。
    **开关的判据是 `checkable="true"` 节点的 `checked` 属性**，不能靠类名——dump 出来是 `android.view.View`。
 3. 滚动：`input swipe 540 1600 540 500 300`（上下若干次直到目标可见）。
@@ -427,7 +427,7 @@ L2 最值得先做——**它直接观察的就是车机将要读到的那一份
 `adb shell dumpsys media_session` 抓到的 session：
 
 ```
-package=com.lostf1sh.pixelplayeross.debug
+package=com.pisces312.piscesplayer.debug
 active=true
 controllers: 4
 state=PlaybackState {state=STOPPED(1), position=17936, ..., active item id=88}
@@ -489,7 +489,7 @@ logcat（`MusicService_PixelPlayer`）同步显示埋点每秒推送，且运行
 ```bash
 # 给 id=1000001891 的曲目写入 8 行 LRC（每 3 秒一行）
 # char(10) 拼换行，绕开 adb shell 的转义问题
-adb shell "run-as com.lostf1sh.pixelplayeross.debug sqlite3 databases/pixelplayer_database \
+adb shell "run-as com.pisces312.piscesplayer.debug sqlite3 databases/pixelplayer_database \
   \"update songs set lyrics = '[00:00.00]CARLYRIC alpha' || char(10) || '[00:03.00]CARLYRIC bravo' ... where id = 1000001891\""
 ```
 
@@ -614,8 +614,8 @@ adb shell "run-as com.lostf1sh.pixelplayeross.debug sqlite3 databases/pixelplaye
 
 # 2. 装 & 授权 & 启动
 adb install -r -d app/build/outputs/apk/debug/pixelplayeross-arm64-v8a-*-debug.apk
-adb shell pm grant com.lostf1sh.pixelplayeross.debug android.permission.READ_MEDIA_AUDIO
-adb shell monkey -p com.lostf1sh.pixelplayeross.debug -c android.intent.category.LAUNCHER 1
+adb shell pm grant com.pisces312.piscesplayer.debug android.permission.READ_MEDIA_AUDIO
+adb shell monkey -p com.pisces312.piscesplayer.debug -c android.intent.category.LAUNCHER 1
 
 # 3. 打开开关：设置 → 播放 → 车载蓝牙 → 标题显示歌词
 #    无头环境下先 dump 拿到标题的 bounds，switch 与标题同一垂直位置
@@ -645,7 +645,7 @@ adb logcat -s MusicService_PixelPlayer | grep "car lyric title"
 
 # 6. 给某首歌注入同步歌词（不动文件，id 稳定），再播放它
 #    char(10) 拼换行以避开 adb shell 的转义问题
-adb shell "run-as com.lostf1sh.pixelplayeross.debug sqlite3 databases/pixelplayer_database \
+adb shell "run-as com.pisces312.piscesplayer.debug sqlite3 databases/pixelplayer_database \
   \"update songs set lyrics = '[00:00.00]L0' || char(10) || '[00:03.00]L1' || char(10) || '[00:06.00]L2' \
      where id = <songId>\""
 

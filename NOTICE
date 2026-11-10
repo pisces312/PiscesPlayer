@@ -1,0 +1,32 @@
+PiscesPlayer
+Copyright (C) 2026 pisces312
+
+This product includes software developed as part of PixelPlayerOSS:
+https://github.com/PixelPlayerHQ/PixelPlayerOSS
+Copyright (C) 2026 Theo Vilardo (@lostf1sh)
+
+PiscesPlayer is a heavily modified fork of PixelPlayerOSS and is distributed
+under the terms of the GNU General Public License v3.0 or later
+(SPDX-License-Identifier: GPL-3.0-or-later). The complete license text is
+available in the LICENSE file.
+
+Significant modifications maintained in this fork include, among others:
+- A built-in rhythm game: master chart generation from any local song,
+  Easy/Normal/Hard chart derivation, latency calibration, scroll-speed and
+  note-density controls, and play-logic presets
+- AI-assisted song identification ("ask about a song"), song-title and lyric
+  translation, and Japanese romaji reading support
+- On-demand MusicBrainz metadata matching (recording, release, artist)
+- In-app changelog, About screen with build info, and an in-app updater for
+  GitHub releases
+- Car/Bluetooth AVRCP and MediaSession improvements (e.g. placeholder lyrics
+  for pure-music playback)
+- Removal of F-Droid distribution channels and related update plumbing
+
+The upstream project is not responsible for any of the modifications above.
+Upstream logo of PixelPlayerOSS was designed by Aureal
+(https://github.com/NPSummers); the PiscesPlayer icon was created for this
+fork by pisces312.
+
+Third-party components shipped in distributed APKs are listed in
+THIRD_PARTY_NOTICES.md.

@@ -154,7 +154,7 @@ value = `ImageBitmap(96×96)`，LRU ~64 项。
 
 ## 4. 验证方法（不要用推断代替实测）
 
-1. **基线**：`adb shell pm clear com.lostf1sh.pixelplayeross.debug` 清掉 `filesDir/album_art` →
+1. **基线**：`adb shell pm clear com.pisces312.piscesplayer.debug` 清掉 `filesDir/album_art` →
    进播放列表 tab → 录屏逐帧统计"最后一个封面出现"的时刻。
 2. **打点**：在 `ensureAlbumArtCachedFile` 临时加日志（`hit/miss` + `songId` + 耗时 + 是否走了 JAudioTagger 兜底）。
 3. **抽查**：`filesDir/album_art` 的文件数与 mtime 变化，确认冷抽取规模。

@@ -1,45 +1,42 @@
 
 <p align="center">
-  <img src="assets/PixelPlayerOSS.svg" alt="App Icon" height="250"/>
+  <img src="assets/piscesplayer-icon.png" alt="PiscesPlayer icon" height="250"/>
 </p>
 
 <p align="center">
-  <a href="https://github.com/PixelPlayerHQ/PixelPlayerOSS/releases/latest">
-    <img src="https://img.shields.io/github/v/release/PixelPlayerHQ/PixelPlayerOSS?include_prereleases&logo=github&style=for-the-badge&label=Latest%20Release" alt="Latest release">
+  <a href="https://github.com/pisces312/PixelPlayerOSS/releases/latest">
+    <img src="https://img.shields.io/github/v/release/pisces312/PixelPlayerOSS?include_prereleases&logo=github&style=for-the-badge&label=Latest%20Release" alt="Latest release">
   </a>
-  <a href="https://f-droid.org/packages/com.lostf1sh.pixelplayeross/">
-    <img src="https://img.shields.io/f-droid/v/com.lostf1sh.pixelplayeross?logo=fdroid&style=for-the-badge&label=F-Droid" alt="F-Droid version">
-  </a>
-  <a href="https://github.com/PixelPlayerHQ/PixelPlayerOSS/releases">
-    <img src="https://img.shields.io/github/downloads/PixelPlayerHQ/PixelPlayerOSS/total?logo=github&style=for-the-badge" alt="Total downloads">
+  <a href="https://github.com/pisces312/PixelPlayerOSS/releases">
+    <img src="https://img.shields.io/github/downloads/pisces312/PixelPlayerOSS/total?logo=github&style=for-the-badge" alt="Total downloads">
   </a>
   <a href="https://github.com/sponsors/lostf1sh">
-    <img src="https://img.shields.io/badge/Sponsor-GitHub%20Sponsors-EA4AAA?style=for-the-badge&logo=githubsponsors&logoColor=white" alt="Sponsor on GitHub Sponsors">
+    <img src="https://img.shields.io/badge/Sponsor-Upstream%20(GitHub%20Sponsors)-EA4AAA?style=for-the-badge&logo=githubsponsors&logoColor=white" alt="Sponsor the upstream project">
   </a>
   <img src="https://img.shields.io/badge/Android-11%2B-3DDC84?style=for-the-badge&logo=android&logoColor=white" alt="Android 11+">
   <img src="https://img.shields.io/badge/License-GPLv3-blue?style=for-the-badge" alt="GPLv3 license">
 </p>
 
 <p align="center">
-  <img src="assets/screenshot1.jpeg" alt="PixelPlayerOSS home screen" width="205"/>
-  <img src="assets/screenshot2.jpeg" alt="PixelPlayerOSS now playing screen" width="205"/>
-  <img src="assets/screenshot3.jpeg" alt="PixelPlayerOSS library screen" width="205"/>
-  <img src="assets/screenshot4.jpeg" alt="PixelPlayerOSS lyrics screen" width="205"/>
+  <img src="assets/screenshot1.jpeg" alt="PiscesPlayer home screen" width="205"/>
+  <img src="assets/screenshot2.jpeg" alt="PiscesPlayer now playing screen" width="205"/>
+  <img src="assets/screenshot-rhythm-play.jpg" alt="PiscesPlayer rhythm game" width="205"/>
+  <img src="assets/screenshot-rhythm-library.png" alt="PiscesPlayer rhythm chart library" width="205"/>
 </p>
 
 ## What It Is
 
-PixelPlayerOSS is an Android music player. This fork is maintained by [@pisces312](https://github.com/pisces312), based on the upstream FOSS release maintained by [@lostf1sh](https://github.com/lostf1sh). It focuses on local playback, self-hosted music libraries, expressive Material 3 UI, and user-controlled online lookups.
+PiscesPlayer is an Android music player with a built-in rhythm game. It is maintained by [@pisces312](https://github.com/pisces312) and is based on [PixelPlayerOSS](https://github.com/PixelPlayerHQ/PixelPlayerOSS), the upstream FOSS player maintained by [@lostf1sh](https://github.com/lostf1sh). It focuses on local playback, self-hosted music libraries, expressive Material 3 UI, user-controlled online lookups, and turning any song into a playable rhythm chart.
 
-This fork carries extra features on top of the upstream release. Fork builds keep the upstream package name but are signed with a different key, so they cannot be installed over an upstream or F-Droid build — see [Release builds](#release-builds).
+PiscesPlayer ships under its own package name (`com.pisces312.piscesplayer`) and is signed with a different key, so it installs side by side with upstream or F-Droid builds of PixelPlayerOSS — see [Release builds](#release-builds).
 
 The app works offline by default. Optional online services are disabled until you enable them in setup or settings.
 
-Package name: `com.lostf1sh.pixelplayeross`
+Package name: `com.pisces312.piscesplayer`
 
 ## Why This Exists
 
-PixelPlayerOSS keeps the player FOSS-oriented and removes integrations that are not part of that direction.
+PiscesPlayer keeps the player FOSS-oriented and removes integrations that are not part of that direction.
 
 Removed integrations include Telegram, NetEase, QQ Music, Google Drive, Gemini, Cast, Wear OS, Play Store billing, Firebase, Crashlytics, and Google Play Services runtime dependencies.
 
@@ -52,6 +49,7 @@ Cloud playback is limited to self-hosted sources: Navidrome/Subsonic and Jellyfi
 | Playback | Media3 playback engine, FFmpeg support, gapless playback, crossfade, custom transitions, queue controls, shuffle, repeat, sleep timer, external file playback |
 | Library | Local scanning for MP3, FLAC, AAC, OGG, WAV, M4A, albums, artists, genres, folders, favorites, playlists, stats, metadata editing |
 | Self-hosted | Navidrome/Subsonic and Jellyfin login, sync, streaming, artwork, and app-private offline downloads |
+| Rhythm game | One-tap master chart generation from any song, Easy/Normal/Hard derivations, latency calibration, scroll speed, note density, and play-logic presets |
 | Lyrics | Embedded lyrics, local `.lrc` files, lyrics import/editing, optional LRCLIB lookup |
 | Artwork | Local artwork, album-art palette extraction, optional Deezer artist image lookup |
 | Metadata | On-demand MusicBrainz matching for recording, release, and artist identifiers |
@@ -60,7 +58,7 @@ Cloud playback is limited to self-hosted sources: Navidrome/Subsonic and Jellyfi
 
 ## Online Services
 
-PixelPlayerOSS separates offline playback from network lookups.
+PiscesPlayer separates offline playback from network lookups.
 
 | Service | Purpose | Default |
 | --- | --- | --- |
@@ -121,13 +119,7 @@ JAVA_HOME=/usr/lib/jvm/java-21-openjdk ./gradlew :baselineprofile:generateBaseli
 
 ## Download
 
-PixelPlayerOSS is available on F-Droid:
-
-<a href="https://f-droid.org/packages/com.lostf1sh.pixelplayeross/">
-  <img src="https://fdroid.gitlab.io/artwork/badge/get-it-on.png" alt="Get it on F-Droid" height="80">
-</a>
-
-GitHub releases are available at:
+APKs are published on the GitHub releases page:
 
 ```text
 https://github.com/pisces312/PixelPlayerOSS/releases
@@ -136,14 +128,10 @@ https://github.com/pisces312/PixelPlayerOSS/releases
 Obtainium app id:
 
 ```text
-com.lostf1sh.pixelplayeross
+com.pisces312.piscesplayer
 ```
 
 Releases are cut from `main` once a batch of changes is ready, rather than on a fixed cadence.
-
-F-Droid listing metadata lives in `fastlane/metadata/android/en-US`; build/release notes for F-Droid are in [docs/FDROID.md](docs/FDROID.md).
-
-> Note: F-Droid builds and signs its own APKs from source, so they may lag behind GitHub releases while the new version works through the F-Droid build cycle. F-Droid and GitHub APK signatures differ — switching between the two requires an uninstall/reinstall.
 
 ### Release builds
 
@@ -151,16 +139,16 @@ Releases are cut by hand from `main` and published on the [releases page](https:
 
 To install one, download the APK from the release assets and sideload it: `arm64-v8a` is the only ABI built.
 
-Release builds are signed with a personal key, so they update over each other. Switching between a fork build and an official or F-Droid install requires an uninstall/reinstall, since the signatures differ.
+Release builds are signed with a personal key, so they update over each other. PiscesPlayer uses its own package name and signing key, so it cannot be installed over a PixelPlayerOSS build (upstream or F-Droid) and vice versa; moving a library between them uses the in-app backup and restore.
 
 ## Support
 
-If PixelPlayerOSS is useful to you, you can support ongoing development through [GitHub Sponsors](https://github.com/sponsors/lostf1sh).
+PiscesPlayer is a hobby fork. If the player is useful to you, the best way to support it is to support the upstream project: [GitHub Sponsors of @lostf1sh](https://github.com/sponsors/lostf1sh).
 
 ## Project Structure
 
 ```text
-app/src/main/java/com/lostf1sh/pixelplayeross/
+app/src/main/java/com/pisces312/piscesplayer/
 - data/             Room, repositories, preferences, services, workers
 - di/               Hilt modules and qualifiers
 - presentation/     Compose screens, components, navigation, ViewModels
@@ -200,7 +188,7 @@ JAVA_HOME=/usr/lib/jvm/java-21-openjdk ./gradlew :app:testDebugUnitTest
 
 Release process: [docs/RELEASE.md](docs/RELEASE.md)
 
-F-Droid notes: [docs/FDROID.md](docs/FDROID.md)
+F-Droid notes (historical, the fork is not distributed via F-Droid): [docs/FDROID.md](docs/FDROID.md)
 
 Privacy policy: [PRIVACY.md](PRIVACY.md)
 
@@ -208,11 +196,12 @@ Security policy: [SECURITY.md](SECURITY.md)
 
 ## License
 
-PixelPlayerOSS is licensed under the [GNU General Public License v3.0](LICENSE) (`SPDX-License-Identifier: GPL-3.0-or-later`).
+PiscesPlayer is licensed under the [GNU General Public License v3.0](LICENSE) (`SPDX-License-Identifier: GPL-3.0-or-later`). It is a modified version of PixelPlayerOSS by Theo Vilardo (@lostf1sh); see [NOTICE](NOTICE).
 
 ```
-PixelPlayerOSS
-Copyright (C) 2026 Theo Vilardo
+PiscesPlayer
+Copyright (C) 2026 pisces312
+Based on PixelPlayerOSS, Copyright (C) 2026 Theo Vilardo
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -231,8 +220,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 Distributed APKs include third-party components under their own licenses. In particular, the optional FFmpeg decoder dependency `org.jellyfin.media3:media3-ffmpeg-decoder` is GPL-3.0; see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
 <p align="center">
-  Maintained by <a href="https://github.com/lostf1sh">lostf1sh</a>
+  Fork maintained by <a href="https://github.com/pisces312">pisces312</a> · upstream <a href="https://github.com/lostf1sh">PixelPlayerOSS</a> maintained by <a href="https://github.com/lostf1sh">lostf1sh</a>
 </p>
 <p align="center">
-  Logo designed by <a href="https://github.com/NPSummers">Aureal</a>.
+  Original PixelPlayerOSS logo designed by <a href="https://github.com/NPSummers">Aureal</a>. PiscesPlayer icon by pisces312.
 </p>

@@ -2,7 +2,7 @@
 
 PixelPlayerOSS — Android 音乐播放器（100% Kotlin，Jetpack Compose + Material 3）。
 本仓库是 `PixelPlayerHQ/PixelPlayerOSS` 的 fork：`pisces312/PixelPlayerOSS`。Gradle 模块：`:app`、`:baselineprofile`。
-包名 `com.lostf1sh.pixelplayeross`，许可证 **GPL-3.0-or-later**。
+包名 `com.pisces312.piscesplayer`，许可证 **GPL-3.0-or-later**。
 
 ## 仓库历史关系（重要，动手前必读）
 

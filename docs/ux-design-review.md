@@ -23,7 +23,7 @@
 
 | ID | 问题 | 位置 | Status | 备注 |
 |---|---|---|---|---|
-| P0-1 | 删除任意歌曲会强制收起 full player sheet；并静默取消该曲收藏 | `PlayerViewModel.removeSong` `app/src/main/java/com/lostf1sh/pixelplayeross/presentation/viewmodel/PlayerViewModel.kt:3803-3820` | fixed | 仅 currentSong 时 collapse；收藏清理保留（删文件合理） |
+| P0-1 | 删除任意歌曲会强制收起 full player sheet；并静默取消该曲收藏 | `PlayerViewModel.removeSong` `app/src/main/java/com/pisces312/piscesplayer/presentation/viewmodel/PlayerViewModel.kt:3803-3820` | fixed | 仅 currentSong 时 collapse；收藏清理保留（删文件合理） |
 | P0-2 | 播放列表批量删除：无确认、无 toast、无 undo（**只删列表元数据，不删音频文件**；删除保护不覆盖此路径） | `LibraryScreen.kt` 批量删除确认对话框 + toast | fixed | 已加确认（error 色）+ 成功 toast；undo 未做，可作后续项 |
 | P0-3 | 批量删歌 early-out 不调 `onComplete` → 多选 sheet 卡死 | `PlayerViewModel.deleteSelectedFromDevice` `:3569-3574` | fixed | early-out 已补 clearSelection + onComplete |
 | P0-4 | Setup 完成后拒绝通知权限会强制重进 Setup | `MainActivity.kt` / `SetupViewModel.requiredPermissionsGranted` / `SetupScreen` 门控 | fixed | 仅媒体权限挡主流程；通知页可跳过 |

@@ -1,4 +1,4 @@
-PixelPlayerOSS is a FOSS Android music player focused on local playback, self-hosted music libraries, and user-controlled online lookups.
+PiscesPlayer is a FOSS Android music player focused on local playback, self-hosted music libraries, user-controlled online lookups, and a built-in rhythm game that turns any song into a playable chart. It is based on PixelPlayerOSS (GPL-3.0-or-later) by @lostf1sh.
 
 The app works offline by default. Network features are optional and must be enabled by the user.
 
@@ -9,8 +9,9 @@ Features:
 * Albums, artists, genres, folders, favorites, playlists, lyrics, and listening stats
 * Smart playlists generated from local listening history and favorites
 * Self-hosted Navidrome/Subsonic and Jellyfin library sync and streaming
+* Rhythm game: generate a master chart from any song, derive Easy/Normal/Hard difficulties, and fine-tune latency, scroll speed, and note density
 * Optional LRCLIB lyric lookup and Deezer artist artwork lookup
 * Material 3 UI, dynamic color, light/dark themes, and Glance widgets
 * Backup and restore for preferences, playlists, favorites, lyrics, stats, and app state
 
-PixelPlayerOSS does not include analytics, ads, Firebase, Crashlytics, Play Store billing, or Google Play Services runtime dependencies.
+PiscesPlayer does not include analytics, ads, Firebase, Crashlytics, Play Store billing, or Google Play Services runtime dependencies.

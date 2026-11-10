@@ -95,7 +95,7 @@ SSE chunk(data: {...})
 ### 5.1 新增 `data/ai/AiProgressEvent.kt`
 
 ```kotlin
-package com.lostf1sh.pixelplayeross.data.ai
+package com.pisces312.piscesplayer.data.ai
 
 /** SSE 期间向 UI 报告的中间进度。[full] 是截至当前的累积全文。 */
 sealed interface AiProgressEvent {

@@ -292,7 +292,7 @@ clearLocalSongs()
 .\gradlew.bat :app:assembleRelease
 .\gradlew.bat :app:testDebugUnitTest
 # 涉及 Room 事务/迁移时
-.\gradlew.bat :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.lostf1sh.pixelplayeross.data.database.XxxTest
+.\gradlew.bat :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.pisces312.piscesplayer.data.database.XxxTest
 ```
 
 手测金路径（P1a–c 各过一遍）：

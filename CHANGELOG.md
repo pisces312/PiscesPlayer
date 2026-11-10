@@ -1,19 +1,89 @@
 # Changelog
 
-All notable changes to PixelPlayerOSS will be documented in this file.
+All notable changes to PiscesPlayer will be documented in this file. PiscesPlayer is a fork of
+PixelPlayerOSS; versions up to and including 0.4.3 were published under the upstream name.
 
-## [Unreleased]
+## [1.0.0-pisces.1] - 2026-11-10
+
+First release under the PiscesPlayer name, with its own package name
+(`com.pisces312.piscesplayer`) and icon. It installs side by side with PixelPlayerOSS; moving a
+library between the two uses the in-app backup and restore. The headline feature is a rhythm
+game that turns any song in the library into a playable chart.
 
 ### Added
-- A play-logic picker on the rhythm game's Play buttons: before the run starts, a dialog offers to place the notes with the adaptive grid (current), an osu!-style single-BPM snap, the legacy piecewise estimator, or the chart exactly as stored. The run re-bakes the note times in memory — note count, lanes and the stored chart are untouched — and the run title records which logic was used, so two placements can be compared against the same song on the device.
-- AI Q&A for the current song, reachable from the sparkle action in the full player. It opens a conversation sheet with the song attached as context by default, quick prompts for the song, artist, album, style and lyrics, streamed follow-up answers, and a one-tap switch to general AI without song context. The request sends only song metadata by default; stored lyrics are opt-in per question, and the snapshot keeps the conversation tied to the song it was opened for even if playback changes. It reuses the existing AI provider settings, diagnostics and token accounting.
-- An Updates screen (Settings → Updates, also linked from Settings → About) that looks for a newer build among this fork's GitHub releases and installs it over the running one. A daily check can notify when an update is available; it is off by default. Builds that cannot replace this one — a debug install, or one signed with another key — are reported instead, with a link to the release page.
-- Simplified Chinese translation for the Updates screen.
+- A rhythm game with DSP chart generation. Any local song gets a master chart built from its
+  audio, with one master chart per song and unlimited derived difficulties. Onsets that fire
+  together become double or triple notes, and the 4-lane playfield scores osu!mania-style with
+  a stable start, a one-second lead-in, and clock-drift recovery modelled on osu!'s
+  InterpolatingFramedClock.
+- Chart derivation from the master chart. Raw-onsets derivation only selects which onsets
+  survive, so note times always match the audio; grid derivation re-places notes on a piecewise
+  beat grid that tracks the song's real tempo changes instead of one fixed BPM. The 0.4.3-era
+  grid behavior is frozen as a Classic mode, a melody-first note selection keeps melodic
+  phrases from being crowded out by percussion, and every generation and derivation method
+  explains itself behind an (i) button in English and Simplified Chinese.
+- A play-logic picker on the rhythm game's Play buttons: before the run starts, a dialog offers
+  to place the notes with the adaptive grid (current), an osu!-style single-BPM snap, the legacy
+  piecewise estimator, or the chart exactly as stored. The run re-bakes the note times in
+  memory — note count, lanes and the stored chart are untouched — and the run title records
+  which logic was used, so two placements can be compared against the same song on the device.
+- The rhythm game is reachable from a shortcut next to the lyrics chip in the full player and
+  from every song info sheet.
+- AI Q&A for the current song, reachable from the sparkle action in the full player. It opens a
+  conversation sheet with the song attached as context by default, quick prompts for the song,
+  artist, album, style and lyrics, streamed follow-up answers, and a one-tap switch to general
+  AI without song context. The request sends only song metadata by default; stored lyrics are
+  opt-in per question, and the snapshot keeps the conversation tied to the song it was opened
+  for even if playback changes. It reuses the existing AI provider settings, diagnostics and
+  token accounting.
+- AI translation of the song title and the lyrics.
+- Optional Japanese romaji reading for lyrics, with an on-demand dictionary download.
+- Search and fill song metadata from MusicBrainz: on-demand matching for recording, release,
+  and artist identifiers.
+- An Updates screen (Settings → Updates, also linked from Settings → About) that looks for a
+  newer build among this fork's GitHub releases and installs it over the running one. A daily
+  check can notify when an update is available; it is off by default. Builds that cannot
+  replace this one — a debug install, or one signed with another key — are reported instead,
+  with a link to the release page. Includes a Simplified Chinese translation.
+- The About screen shows the commit and build time of the running build.
+- An add-to-playlist action in the full player, and a playlist rename action.
+
+### Changed
+- The app is renamed to PiscesPlayer with the package name `com.pisces312.piscesplayer` and a
+  new icon, cleanly separating it from upstream PixelPlayerOSS builds; the license stays
+  GPL-3.0-or-later with upstream attribution preserved in NOTICE.
+- The rhythm game's playback delay can be stepped by ±10 ms without clamping, and notes
+  refresh after a paused delay calibration.
+- Derived charts are generated hardest-first so the easiest lands on top, and the generate and
+  derive sheets open at full height with wavy progress bars.
+- Release builds ship only the referenced material-icons-extended classes, shrinking the APK.
+- The version line restarts at 1.0.0 for the renamed app.
 
 ### Fixed
-- Navidrome/Subsonic and Jellyfin album artwork no longer gets stuck on the placeholder after a few songs. The player loaded cloud covers through the app's own artwork content provider, and concurrent loads could exhaust the image decoder slots that provider waited on, freezing every artwork load until the app restarted. Server error responses are also no longer cached as cover images, and concurrent cover downloads no longer corrupt each other's cache file ([#138](https://github.com/PixelPlayerHQ/PixelPlayerOSS/issues/138)).
-- System media controls can load album artwork through the app's artwork URI again. System UI reads that URI without connecting as a media controller, so it never received the per-track read grant and was refused on every track; privileged media surfaces (holders of `MEDIA_CONTENT_CONTROL`) may now open the artwork the session currently shows, while every other cover, and every other app, still needs the explicit grant. Stock Android fell back to the session bitmap, but System UIs without that fallback could show no artwork.
-- Pressing back with the Now Playing screen or the Next up queue open inside a folder in the Folders tab now closes the player instead of leaving the folder ([#136](https://github.com/PixelPlayerHQ/PixelPlayerOSS/issues/136)).
+- Navidrome/Subsonic and Jellyfin album artwork no longer gets stuck on the placeholder after a
+  few songs. The player loaded cloud covers through the app's own artwork content provider,
+  and concurrent loads could exhaust the image decoder slots that provider waited on, freezing
+  every artwork load until the app restarted. Server error responses are also no longer cached
+  as cover images, and concurrent cover downloads no longer corrupt each other's cache file
+  ([#138](https://github.com/PixelPlayerHQ/PixelPlayerOSS/issues/138)).
+- System media controls can load album artwork through the app's artwork URI again. System UI
+  reads that URI without connecting as a media controller, so it never received the per-track
+  read grant and was refused on every track; privileged media surfaces (holders of
+  `MEDIA_CONTENT_CONTROL`) may now open the artwork the session currently shows, while every
+  other cover, and every other app, still needs the explicit grant. Stock Android fell back to
+  the session bitmap, but System UIs without that fallback could show no artwork.
+- Pressing back with the Now Playing screen or the Next up queue open inside a folder in the
+  Folders tab now closes the player instead of leaving the folder
+  ([#136](https://github.com/PixelPlayerHQ/PixelPlayerOSS/issues/136)).
+- Car head units keep showing the track title while an instrumental placeholder lyric is
+  active, instead of dropping it.
+- ReplayGain volume survives queue edits that cancel a crossfade
+  ([#133](https://github.com/PixelPlayerHQ/PixelPlayerOSS/issues/133)); Navidrome uses the
+  server's created time for date added
+  ([#132](https://github.com/PixelPlayerHQ/PixelPlayerOSS/issues/132)); the compact library
+  title pill no longer renders black
+  ([#134](https://github.com/PixelPlayerHQ/PixelPlayerOSS/issues/134)).
+- FLAC playback works again when float output is enabled, by preferring extension decoders.
 
 ## [0.4.3-pisces.1] - 2026-09-19
 

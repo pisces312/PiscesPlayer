@@ -288,7 +288,7 @@ val songId = mediaStoreSongId?.toString() ?: "external:${uri}"
 
 ```kotlin
 // MediaItemBuilder
-const val EXTRA_QUICK_PLAY = "com.lostf1sh.pixelplayeross.QUICK_PLAY"
+const val EXTRA_QUICK_PLAY = "com.pisces312.piscesplayer.QUICK_PLAY"
 fun build(song: Song, quickPlay: Boolean = false): MediaItem { … putBoolean(EXTRA_QUICK_PLAY, quickPlay) … }
 
 // MusicService.syncLocalListeningStatsFromPlayer（:347 开头）
