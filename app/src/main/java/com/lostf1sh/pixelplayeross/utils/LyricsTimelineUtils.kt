@@ -328,3 +328,70 @@ private const val WIDE_GLYPH_COLUMNS = 3
 private const val MAX_CUT_LOOKBACK_COLUMNS = 10
 
 private const val BREAK_CHARACTERS = "、，。！？；：,.!?;:…—·’”)）】》」』"
+
+// --- instrumental placeholder lyrics -------------------------------------------------------
+
+/**
+ * Original work, GPL-3.0-or-later.
+ *
+ * Whether a synced-lyrics file contains nothing but an announcement that the track has no vocals,
+ * e.g. a single `纯音乐，请欣赏` line or `[Instrumental]`.
+ *
+ * This is a **whole-file** verdict on purpose. Such a line parses into an ordinary [SyncedLine],
+ * and the last line borrows the track duration as its end (see [lineEndMs]), so that one line
+ * becomes a cue covering the entire song: the car lyric title then sits on "纯音乐" until the
+ * track ends instead of ever handing the title back to the track.
+ *
+ * A line that merely mentions the words is not enough — as soon as any line looks like real sung
+ * text, the lyrics are kept. Failing to recognise an unusual placeholder only preserves the old
+ * behaviour, whereas a false positive would suppress a whole song's lyrics, so the recognised
+ * forms are matched against the entire normalised line instead of by substring search.
+ *
+ * Credit lines (`作词 : …`) count as non-lyric content *here only*; they remain publishable in
+ * [buildLyricCues], which deliberately does not filter them (see
+ * `docs/car-lyrics-blank-markers.md` §4).
+ */
+fun isInstrumentalPlaceholderLyrics(lines: List<SyncedLine>): Boolean {
+    val texts = lines.map { normalizePlaceholderText(it.line) }.filter { it.isNotEmpty() }
+    if (texts.isEmpty()) return false
+
+    var markerCount = 0
+    for (text in texts) {
+        when {
+            PLACEHOLDER_LINE.matches(text) -> markerCount++
+            isCreditLine(text) -> Unit
+            else -> return false
+        }
+    }
+    return markerCount > 0
+}
+
+/** Strips wrappers, whitespace and punctuation so one anchored pattern covers CJK and Latin. */
+private fun normalizePlaceholderText(raw: String): String =
+    PLACEHOLDER_NOISE.replace(raw.trim(), "").lowercase()
+
+private fun isCreditLine(text: String): Boolean =
+    text.length <= MAX_CREDIT_CHARS && CREDIT_PREFIXES.any { text.startsWith(it) }
+
+/**
+ * Anchored on purpose: `只剩纯音乐在响的夜里` is a lyric line, not an announcement, and must not
+ * match. The optional groups cover the phrasing the large Chinese LRC providers use.
+ */
+private val PLACEHOLDER_LINE = Regex(
+    """^(?:此|该)?(?:歌曲|曲目)?(?:为|是)?(?:没有填词|没有人声|无歌词|无人声)?(?:的)?""" +
+        """(?:纯音乐|純音樂|纯乐曲|纯器乐|器乐|无歌词|暂无歌词|没有歌词|instrumental|nolyrics?|novocal|インストゥルメンタル|インスト)""" +
+        """(?:版)?(?:请您|请)?(?:欣赏|聆听)?$"""
+)
+
+private val PLACEHOLDER_NOISE = Regex(
+    """[\s\[\](){}【】「」『』（）〈〉《》.,!?;:、，。！？；：…—\-~·'"`/\\|♪♫]+"""
+)
+
+private val CREDIT_PREFIXES = listOf(
+    "作词", "作曲", "编曲", "演唱", "原唱", "和声", "混音", "录音", "制作人", "监制", "出品",
+    "版权", "曲版权管理方", "词版权管理方", "lyricist", "composer", "arranger", "producer",
+    "writtenby", "musicby", "lyricsby"
+)
+
+/** Long enough for a credit line, short enough that a real lyric cannot hide behind a prefix. */
+private const val MAX_CREDIT_CHARS = 48

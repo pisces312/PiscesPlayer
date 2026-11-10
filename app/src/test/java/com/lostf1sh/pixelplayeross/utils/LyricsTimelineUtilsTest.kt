@@ -3,6 +3,7 @@ package com.lostf1sh.pixelplayeross.utils
 import com.lostf1sh.pixelplayeross.data.model.SyncedLine
 import com.lostf1sh.pixelplayeross.data.model.SyncedWord
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -472,5 +473,83 @@ class LyricsTimelineUtilsTest {
                 nextCueTimeMs(cues, index)!! > cues[index].timeMs
             }
         )
+    }
+
+    // --- instrumental placeholder lyrics (car lyric title) ---
+
+    /** Timestamps are irrelevant to the verdict, but the real model is what the controller holds. */
+    private fun List<String>.isPlaceholderOnly(): Boolean =
+        isInstrumentalPlaceholderLyrics(
+            mapIndexed { index, text -> SyncedLine(time = index * 1_000, line = text) }
+        )
+
+    @Test
+    fun placeholderLyrics_recognisesTheCommonChineseAndLatinForms() {
+        listOf(
+            "纯音乐",
+            "纯音乐，请欣赏",
+            "（純音樂）",
+            "[Instrumental]",
+            "纯音乐版",
+            "此歌曲为没有填词的纯音乐，请您欣赏",
+            "暂无歌词",
+            "No lyrics"
+        ).forEach { form ->
+            assertTrue("expected a placeholder: $form", listOf(form).isPlaceholderOnly())
+        }
+    }
+
+    @Test
+    fun placeholderLyrics_acceptsBlankMarkersAndCreditLinesAroundTheAnnouncement() {
+        assertTrue(
+            listOf(
+                "",
+                "作词 : 无",
+                "作曲 : 某某",
+                "曲版权管理方：某某工作室",
+                "纯音乐，请欣赏",
+                "   "
+            ).isPlaceholderOnly()
+        )
+    }
+
+    @Test
+    fun placeholderLyrics_keepsTheLyricsWhenAnyRealLineIsPresent() {
+        // Whole-file verdict: one stray placeholder next to real singing must not suppress it.
+        assertFalse(listOf("第一句歌词", "纯音乐，请欣赏", "第二句歌词").isPlaceholderOnly())
+    }
+
+    @Test
+    fun placeholderLyrics_doesNotMistakeALyricLineMentioningTheWordForAnAnnouncement() {
+        assertFalse(listOf("只剩纯音乐在响的夜里").isPlaceholderOnly())
+        assertFalse(listOf("只剩纯音乐在响的夜里", "纯音乐，请欣赏").isPlaceholderOnly())
+    }
+
+    @Test
+    fun placeholderLyrics_needsAtLeastOneAnnouncement() {
+        assertFalse(emptyList<String>().isPlaceholderOnly())
+        assertFalse(listOf("", "  ").isPlaceholderOnly())
+        assertFalse(listOf("作词 : 某某", "作曲 : 某某").isPlaceholderOnly())
+    }
+
+    @Test
+    fun placeholderLyrics_aRealLyricsFileIsNotAPlaceholder() {
+        // Same 105-line fixture the blank-marker suite uses; a false positive here would silence
+        // the lyrics of an ordinary song on every Bluetooth head unit.
+        val lines = LyricsUtils.parseLyrics(
+            requireNotNull(javaClass.getResourceAsStream("/lyrics/blank-marker-shape.lrc")) {
+                "missing test fixture lyrics/blank-marker-shape.lrc"
+            }.bufferedReader(Charsets.UTF_8).use { it.readText() }
+        ).synced.orEmpty()
+
+        assertEquals(105, lines.size)
+        assertFalse(isInstrumentalPlaceholderLyrics(lines))
+    }
+
+    @Test
+    fun placeholderLyrics_clearingTheLinesLeavesNoCuesToPublish() {
+        // The controller drops the lines on a positive verdict and reuses the empty-cue branch,
+        // which is what hands the title back to the track without a single scheduled wake-up.
+        assertTrue(buildLyricCues(emptyList(), trackDurationMs, maxColumnsPerCue = 30).isEmpty())
     }
 }

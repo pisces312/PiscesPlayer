@@ -6,6 +6,7 @@ import com.lostf1sh.pixelplayeross.data.preferences.UserPreferencesRepository
 import com.lostf1sh.pixelplayeross.data.repository.MusicRepository
 import com.lostf1sh.pixelplayeross.utils.LyricCue
 import com.lostf1sh.pixelplayeross.utils.buildLyricCues
+import com.lostf1sh.pixelplayeross.utils.isInstrumentalPlaceholderLyrics
 import com.lostf1sh.pixelplayeross.utils.nextCueTimeMs
 import com.lostf1sh.pixelplayeross.utils.resolveCueIndex
 import kotlinx.coroutines.CoroutineScope
@@ -63,7 +64,8 @@ import timber.log.Timber
  * Everything is gated — the real track title is kept unless all of these hold:
  * 1. the `car lyric title` toggle is on,
  * 2. the current output is a Bluetooth A2DP device,
- * 3. a song is loaded and it has synced lyrics.
+ * 3. a song is loaded and it has synced lyrics,
+ * 4. those lyrics carry real sung text, not just an instrumental-track placeholder.
  *
  * Condition 2 exists because the override is visible to *every* MediaSession consumer, not just the
  * head unit: the notification and the lock screen read the same metadata. Without it, staring at
@@ -92,6 +94,13 @@ class CarLyricTitleController(
      */
     private var lyricLines: List<SyncedLine> = emptyList()
     private var trackDurationMs = 0L
+
+    /**
+     * True when the loaded "lyrics" only announce an instrumental track. There is then nothing to
+     * publish, so [cues] stays empty and every branch that restores the real title applies for the
+     * whole song. Reset on every song change, like the lines it was derived from.
+     */
+    private var instrumentalPlaceholder = false
 
     /** Mirrors the user's "split long lines" setting; see [MAX_COLUMNS_PER_CUE]. */
     private var splitLongLines = true
@@ -245,9 +254,14 @@ class CarLyricTitleController(
         }
 
         if (cues.isEmpty()) {
-            reportState("idle: no synced lyrics for song $mediaId")
+            val reason = if (instrumentalPlaceholder) {
+                "instrumental placeholder lyrics"
+            } else {
+                "no synced lyrics"
+            }
+            reportState("idle: $reason for song $mediaId")
             stopScheduling()
-            publish(player, null, reason = "no synced lyrics")
+            publish(player, null, reason = reason)
             return@withContext
         }
 
@@ -274,6 +288,7 @@ class CarLyricTitleController(
         currentSongId = mediaId
         cues = emptyList()
         lyricLines = emptyList()
+        instrumentalPlaceholder = false
         trackDurationMs = 0L
         syncOffsetMs = 0
         stopScheduling()
@@ -306,17 +321,22 @@ class CarLyricTitleController(
         val durationMs = withContext(Dispatchers.Main.immediate) { player.duration }
 
         syncOffsetMs = offset
-        lyricLines = lyrics?.synced.orEmpty()
+        val syncedLines = lyrics?.synced.orEmpty()
+        instrumentalPlaceholder = isInstrumentalPlaceholderLyrics(syncedLines)
+        // A placeholder "line" would otherwise be the only cue, and the last cue holds until the
+        // end of the track. Keeping no lines at all reuses the existing empty-cue branch.
+        lyricLines = if (instrumentalPlaceholder) emptyList() else syncedLines
         trackDurationMs = durationMs
         rebuildCues()
         Timber.tag(TAG).d(
-            "car lyric title: loaded %d synced lines as %d cues for %s (offset %d ms, lead %d ms, split %s)",
+            "car lyric title: loaded %d synced lines as %d cues for %s (offset %d ms, lead %d ms, split %s, instrumental placeholder %s)",
             lyricLines.size,
             cues.size,
             mediaId,
             offset,
             leadMs,
-            splitLongLines
+            splitLongLines,
+            instrumentalPlaceholder
         )
     }
 
@@ -451,7 +471,7 @@ class CarLyricTitleController(
     /**
      * Replaces the exposed title with [cue]'s text, or restores the real metadata when there is no
      * cue to show (the intro before the first line, a marker line that stands for an instrumental
-     * stretch, or one of the idle branches).
+     * stretch, an instrumental-track placeholder, or one of the idle branches).
      *
      * De-duplicated on the cue's sequence rather than its text: a long line split in two can yield
      * two cues that read alike, and a text key would silently swallow the second one.
@@ -459,7 +479,7 @@ class CarLyricTitleController(
      * @param reason which decision is handing the title back to the track. Only logged, and only
      *   when there is no text to publish: this fallback is otherwise invisible — the title simply
      *   reappears — which makes a report of "it goes back to the song name" impossible to attribute
-     *   to one of the six or so paths that can do it.
+     *   to one of the several paths that can do it.
      */
     private fun publish(player: LyricTitlePlayer?, cue: LyricCue?, reason: String = "") {
         if (player == null) return
