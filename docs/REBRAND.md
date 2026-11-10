@@ -186,3 +186,26 @@ $env:JAVA_HOME='D:\dev\jdk-25'
 判据：`Verifies` + `v2 scheme: true` + `CN=pisces312`；`aapt2 dump badging` 核对 `versionName=1.0.0` / `versionCode=1000001` / `arm64-v8a`。
 
 > SHA-256 与 `docs/releases/1.0.0.md` 中的值必须一致；任何重编之后都要重算并同步两处。
+
+### 8.4 发布完成记录（2026-11-10）
+
+`v1.0.0` 已发布：<https://github.com/pisces312/PiscesPlayer/releases/tag/v1.0.0>（正文即 `docs/releases/1.0.0.md`）。
+上传的 APK 经下载回验：SHA-256 一致，`apksigner verify` = v2 + `CN=pisces312`。
+4 个旧 `v0.4.x-pisces.1` Release 已删（正文归档于 `docs/RELEASE_ARCHIVE.md`），**对应 git tag 按计划保留**；
+`dictionary-kuromoji-0.9.0` Release 保留（日语罗马音词典下载源）。
+
+### 8.5 本机发版环境速查（自原 HANDOVER 收入）
+
+```powershell
+$env:JAVA_HOME='D:\dev\jdk-25'
+$env:ANDROID_HOME='D:\dev\android_sdk'
+$env:GRADLE_USER_HOME='D:\dev\.gradle'
+# 签名变量不在 agent 进程里，从注册表读出再注入（不要打印值）
+foreach ($n in 'KEY_STORE_PASSWORD','KEY_PASSWORD','KEY_ALIAS','KEY_STORE_LOCATION','KEY_STORE') {
+  $v = (Get-ItemProperty 'HKCU:\Environment' -Name $n -ErrorAction SilentlyContinue).$n
+  if ($v) { Set-Item -Path "env:$n" -Value $v }
+}
+```
+
+git = `D:\dev\git\cmd\git.exe`，gh = `D:\dev\gh.exe`（已登录 pisces312）。
+坑：后台 gradle 命令不传 timeout 会在 120s 被杀（症状停在 `Calculating task graph`），给满 600000。
