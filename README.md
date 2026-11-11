@@ -192,7 +192,7 @@ Release builds are signed with a personal key, so they update over each other. P
 
 ## Support
 
-PiscesPlayer is a hobby fork. If the player is useful to you, the best way to support it is to support the upstream project: [GitHub Sponsors of @lostf1sh](https://github.com/sponsors/lostf1sh).
+PiscesPlayer is a hobby fork. If the player is useful to you, the best way to support it is to support the upstream project: [PixelPlayerOSS](https://github.com/PixelPlayerHQ/PixelPlayerOSS) · [GitHub Sponsors of @lostf1sh](https://github.com/sponsors/lostf1sh).
 
 ## Project Structure
 

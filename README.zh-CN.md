@@ -192,7 +192,7 @@ Release 使用个人密钥签名，可相互覆盖升级。PiscesPlayer 使用�
 
 ## 支持
 
-PiscesPlayer 是一个业余分支。如果这个播放器对你有用，最好的支持方式是支持上游项目：[@lostf1sh 的 GitHub Sponsors](https://github.com/sponsors/lostf1sh)。
+PiscesPlayer 是一个业余分支。如果这个播放器对你有用，最好的支持方式是支持上游项目：[PixelPlayerOSS](https://github.com/PixelPlayerHQ/PixelPlayerOSS) · [@lostf1sh 的 GitHub Sponsors](https://github.com/sponsors/lostf1sh)。
 
 ## 项目结构
 
