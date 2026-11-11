@@ -56,10 +56,9 @@ rather than failing** — always confirm with
 `apksigner verify --print-certs -v <apk>`. There is no fallback to a properties file, and no
 keystore is ever committed.
 
-CI does not sign anything in this fork: the build workflows in `.github/workflows/` are kept
-disabled and have never run here, so they are not a reference for how signing works — see the
-`CI` note under "签名与发布" in `AGENTS.md`. Releasing is a local build followed by a local
-`gh release create`.
+This repository has no CI: the upstream build workflows were removed when the project became
+independent, and nothing here signs or publishes automatically. Releasing is a local build
+followed by a local `gh release create`.
 
 For F-Droid-compatible unsigned verification builds, pass `-Ppixelplayer.disableReleaseSigning=true` even when the environment variables are set.
 
