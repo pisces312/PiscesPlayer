@@ -232,8 +232,8 @@ abstract class GenerateUsedIconJar : DefaultTask() {
     }
 }
 
-// Release signing credentials come from the KEY_* environment variables, and from nowhere else
-// (see AGENTS.md > 签名与发布). Refusing to read a keystore.properties file is the point: no
+// Release signing credentials come from the KEY_* environment variables, and from nowhere else.
+// Refusing to read a keystore.properties file is the point: no
 // plaintext password can be picked up off the working tree on any machine, this one or CI, and
 // nothing here is an undeclared build input. providers.environmentVariable() is used instead of
 // System.getenv() so the values stay configuration-cache inputs.
@@ -377,7 +377,7 @@ android {
             // Separate application id so debug and release can be installed side by side.
             applicationIdSuffix = ".debug"
             versionNameSuffix = "-debug"
-            // No R8 here. `release` is the default build (see AGENTS.md), so `debug` is only
+            // No R8 here. `release` is the default build, so `debug` is only
             // built on demand to chase a problem that resists diagnosis - and for that job an
             // unminified build is strictly better: every stack frame maps to a source line, and
             // nothing the instrumentation reaches for has been rewritten or deleted. Measured

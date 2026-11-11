@@ -4,7 +4,7 @@
 
     <!--
         Only values/ and values-zh-rCN/ are maintained here; the other 11 locales are filled in by
-        the translation flow (see AGENTS.md), so a key existing in English and Chinese only is the
+        the translation flow, so a key existing in English and Chinese only is the
         expected state, not a defect. Keep these as warnings rather than disabling them: the report
         still lists every gap, it just no longer fails the build.
     -->

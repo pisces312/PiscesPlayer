@@ -1,0 +1,7 @@
+PiscesPlayer 1.0.0:
+
+* First release as PiscesPlayer: new package name and icon, installs alongside PixelPlayerOSS (move your library with backup/restore).
+* Rhythm game: turn any song into a playable 4-lane chart with Easy/Normal/Hard derivations and latency calibration.
+* AI song Q&A, title and lyrics translation, Japanese romaji reading.
+* MusicBrainz metadata search and an in-app updater.
+* Fixes: cloud artwork freezes, system media-control artwork, back navigation in folders.
