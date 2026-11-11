@@ -13,6 +13,7 @@ class ChangelogParserTest {
 
         assertEquals(
             listOf(
+                "1.0.1",
                 "1.0.0",
                 "0.4.3-pisces.1",
                 "0.4.2-pisces.1",
@@ -26,6 +27,7 @@ class ChangelogParserTest {
         )
         assertEquals(
             listOf(
+                "2026-11-11",
                 "2026-11-10",
                 "2026-09-19",
                 "2026-09-16",
