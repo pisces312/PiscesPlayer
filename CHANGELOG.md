@@ -3,6 +3,17 @@
 All notable changes to PiscesPlayer will be documented in this file. PiscesPlayer is a fork of
 PixelPlayerOSS; versions up to and including 0.4.3 were published under the upstream name.
 
+## [1.0.1] - 2026-11-11
+
+### Changed
+- The derive sheet now opens with the Classic (0.4.3-pisces.1) preset selected and collapsed
+  into its summary, instead of the expanded custom controls.
+- The Classic derivation ladder sits one step easier than the 0.4.3 build: Normal reproduces
+  the old Easy (including the note-for-note 544-note legacy reproduction), Hard uses the old
+  Normal density, and Easy is a new sparser step with one slot per two beats. The frozen
+  0.4.3 replica itself is untouched — the ladder maps onto it. Beat-grid and Raw-onsets
+  derivations keep their existing ladders.
+
 ## [1.0.0] - 2026-11-10
 
 First release under the PiscesPlayer name, with its own package name
