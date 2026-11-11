@@ -92,9 +92,13 @@ internal fun RhythmDeriveSheet(
     onDismiss: () -> Unit,
     onDerive: (RhythmDeriveSettings) -> Unit,
 ) {
-    var settings by remember { mutableStateOf(RhythmDeriveSettings()) }
+    // Open on the classic preset: it is the default derive experience, collapsed into its
+    // summary; expanding switches to the fine-tuning controls like any preset tap.
+    var settings by remember {
+        mutableStateOf(RhythmDerivePreset.CLASSIC_043.applyTo(RhythmDeriveSettings()))
+    }
     // Expanded while the values are being fine-tuned; a preset tap collapses them into a summary.
-    var expanded by remember { mutableStateOf(true) }
+    var expanded by remember { mutableStateOf(false) }
     var estimates by remember { mutableStateOf<Map<Pair<DspDifficulty, RhythmDeriveMode>, Int>?>(null) }
     // Which info dialog is open, if any.
     var infoMode by remember { mutableStateOf<RhythmDeriveMode?>(null) }

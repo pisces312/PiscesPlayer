@@ -76,9 +76,10 @@ class RhythmRepositoryDeriveTest {
         master: RhythmChart,
         modes: Set<RhythmDeriveMode>,
         options: RhythmDeriveOptions = RhythmDeriveOptions(),
+        difficulties: List<DspDifficulty> = listOf(DspDifficulty.EASY),
     ): Map<Pair<DspDifficulty, RhythmDeriveMode>, Int> = repository.previewDerivedCounts(
         master = master,
-        difficulties = listOf(DspDifficulty.EASY),
+        difficulties = difficulties,
         modes = modes,
         laneStrategy = LaneStrategy.BAND_ORDER,
         maxChord = 1,
@@ -112,13 +113,16 @@ class RhythmRepositoryDeriveTest {
             rms = listOf(0.1f, 0.11f, 0.12f, 0.9f),
         )
 
+        // Normal keeps the one-beat cell, so with the filter off all four onsets survive in
+        // their own cells. (Easy now uses two-beat cells and would merge them.)
         val counts = preview(
             chart,
             modes = setOf(RhythmDeriveMode.CLASSIC),
             options = RhythmDeriveOptions(minRmsPercentile = 25),
+            difficulties = listOf(DspDifficulty.NORMAL),
         )
 
-        assertEquals(4, counts.getValue(DspDifficulty.EASY to RhythmDeriveMode.CLASSIC))
+        assertEquals(4, counts.getValue(DspDifficulty.NORMAL to RhythmDeriveMode.CLASSIC))
     }
 
     @Test

@@ -276,10 +276,10 @@ class RhythmRepository @Inject constructor(
             selection = onsetSelection,
             timing = timing,
         )
-        // Frozen replica of the 0.4.3-pisces.1-era grid quantization. Self-contained on
-        // purpose: it reads only the master and the selected timing, so nothing the live
-        // paths do can move it.
-        RhythmDeriveMode.CLASSIC -> RhythmClassicGridDeriver.derive(
+        // Frozen replica of the 0.4.3-pisces.1-era grid quantization, reached through the
+        // current (easier) classic ladder. The replica itself stays byte-identical; the
+        // ladder maps difficulties onto it and reads only the master and selected timing.
+        RhythmDeriveMode.CLASSIC -> RhythmClassicLadder.derive(
             master = master,
             difficulty = difficulty,
             laneStrategy = laneStrategy,
