@@ -197,6 +197,8 @@
     <string name="about_link_source_subtitle">github.com/pisces312/PiscesPlayer</string>
     <string name="about_link_upstream_title">Upstream project</string>
     <string name="about_link_upstream_subtitle">Based on PixelPlayerOSS · GPL-3.0-or-later</string>
+    <string name="about_link_license_title">License &amp; notices</string>
+    <string name="about_link_license_subtitle">GPL-3.0-or-later · see NOTICE</string>
     <string name="cd_about_open_link">Open %1$s</string>
     <string name="about_signal_open_source">Open source</string>
     <string name="about_signal_community_first">Community-first</string>

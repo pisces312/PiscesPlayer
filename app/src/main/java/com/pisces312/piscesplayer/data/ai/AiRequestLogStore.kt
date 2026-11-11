@@ -1,7 +1,6 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-or-later
- * Original work: request logging for the AI playlist feature, ported from
- * the proprietary PixelPlayer china-only branch by its author.
+ * Original work by pisces312: request logging for the AI playlist feature.
  */
 package com.pisces312.piscesplayer.data.ai
 

@@ -1,8 +1,8 @@
 # Media3 1.10.1 → 1.11.0 升级（含运行时回归修复）
 
 > 日期：2026-09-11
-> 来源：`D:\3rd-party-projects\PixelPlayer`（china-only 分支）
-> 上游文档：`docs/media3-1.11.0-upgrade-plan.md`（china-only 分支，2026-09-06）
+> 来源：历史参考实现（原私有派生仓库，已删除）
+> 参考文档：`docs/media3-1.11.0-upgrade-plan.md`（历史参考实现，2026-09-06）
 > 上游提交：`be37dc36`（版本号）、`d615e5f4`（onConnect 回归修复）
 
 ## 1. 结论摘要
@@ -86,7 +86,7 @@ val defaultResult =
 
 **传递依赖提示**：`org.jellyfin.media3:media3-ffmpeg-decoder:1.9.0+1` 自身声明依赖
 `media3-exoplayer:1.9.0`，被版本约束提升到 1.11.0。该 AAR 含 arm64-v8a / armeabi-v7a / x86 / x86_64
-四个 ABI 的 so。上游 china-only 分支在相同组合下已验证可正常播放。
+四个 ABI 的 so。历史参考实现在相同组合下已验证可正常播放。
 
 ## 5. 验证清单
 

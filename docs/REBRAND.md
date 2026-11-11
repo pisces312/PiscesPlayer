@@ -64,6 +64,8 @@
 - `NOTICE`（新增）：本产品包含 PixelPlayerOSS（© 2026 Theo Vilardo）的代码；列出主要修改面；
   声明上游不对修改负责；第三方组件见 `THIRD_PARTY_NOTICES.md`。
 - README 许可证块：`PiscesPlayer © 2026 pisces312, based on PixelPlayerOSS © 2026 Theo Vilardo`。
+- `PROVENANCE.md`（新增）：上游仓库链接、分叉基线 commit、修改范围与日期、源码可得性与签名说明；
+  本仓库按独立项目维护，不依赖 GitHub 的 fork 网络标记。
 
 ## 3. 版本与 CHANGELOG
 
@@ -112,7 +114,7 @@ Release 正文会写明以上步骤。旧版收不到应用内更新（包名不
 - **新增 Room 迁移**：流程不变（version 16 起），但提交 schema 时注意路径已是新包名。
 - **CHANGELOG 纪律**：合并/大改动后检查 `## [Unreleased]` 是否有条目丢失（历史上丢过节奏游戏核心）。
 - **应用内更新**：`AppReleaseSource` 的资产名前缀是 `piscesplayer-`，构建脚本输出名保持一致。
-- **版权红线**：从专有 china-only 分支搬代码的禁令继续有效（见 AGENTS.md）；`ppchina` remote 不 push。
+- **版权红线**：从专有 `PixelPlayerHQ/PixelPlayer` 或其派生实现搬代码的禁令继续有效（见 AGENTS.md）。
 
 ## 7. 验证记录（本分支）
 
@@ -156,8 +158,8 @@ Release 正文会写明以上步骤。旧版收不到应用内更新（包名不
 
 **保留**（四类，均有硬理由）：
 
-1. **其他项目名 / 仓库 URL**：`PixelPlayerHQ/PixelPlayerOSS`（上游）、`pisces312/PixelPlayer`（china-only 专有分支）—— 引用其他项目的名字；本仓库 URL 已是 `github.com/pisces312/PiscesPlayer`。
-2. **版权 / 署名 / 来源声明**：`NOTICE`、README 许可证块、`THIRD_PARTY_NOTICES.md`、各文件 SPDX 头（"Original work … china-only PixelPlayer fork"）、fastlane 简介署名、About「支持上游」区块、`metadata/com.lostf1sh.pixelplayeross.yml`（上游 F-Droid 元数据参考副本）。
+1. **上游项目名 / 仓库 URL**：`PixelPlayerHQ/PixelPlayerOSS`（上游）—— 引用上游项目的名字；本仓库 URL 已是 `github.com/pisces312/PiscesPlayer`。
+2. **版权 / 署名 / 来源声明**：`NOTICE`、`PROVENANCE.md`、README 许可证块、`THIRD_PARTY_NOTICES.md`、各文件 SPDX 头（`Original work, GPL-3.0-or-later`）、fastlane 简介署名、About「支持上游」与法律声明区块、`metadata/com.lostf1sh.pixelplayeross.yml`（上游 F-Droid 元数据参考副本）。
 3. **历史记录**（不改写）：`CHANGELOG.md` 0.1.0–0.4.3 条目、`docs/RELEASE_ARCHIVE.md`、`fastlane/changelogs/1–3.txt`、旧计划文档。
 4. **兼容 / 持久化标识**（不改名，见 §1 决策表）：`pixelplayer_database`、`pixelplayer_local_art`（含旧 scheme `pixelplay_local_art`）、`pixelplayer_music_channel`、`pixelplayer_easter_egg`、`pixelplayer_car_lyric_title_force_a2dp`、`.pixelplayer-` M3U 文件名段、`#PIXELPLAYER-PLAYLIST-ID:` 旧标记（只读兼容）、`pixelplayer.*` Gradle 属性。
 

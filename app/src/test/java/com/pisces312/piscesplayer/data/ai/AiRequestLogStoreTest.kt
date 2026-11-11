@@ -1,7 +1,6 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-or-later
- * Original work: tests for the AI request log store, ported from
- * the proprietary PixelPlayer china-only branch by its author.
+ * Original work by pisces312: tests for the AI request log store.
  */
 package com.pisces312.piscesplayer.data.ai
 

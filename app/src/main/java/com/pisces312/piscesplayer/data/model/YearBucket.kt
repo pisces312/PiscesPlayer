@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// Original work: ported from the author's china-only PixelPlayer fork.
+// Original work by pisces312.
 
 package com.pisces312.piscesplayer.data.model
 

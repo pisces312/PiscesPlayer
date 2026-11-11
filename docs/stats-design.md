@@ -129,7 +129,7 @@ flowchart TB
 2. **落盘时机只有一处**：`finalizeCurrentSession()`（切歌 / 播完 / 服务销毁）。**打开统计页与点刷新都不落盘，也没有定时落盘。** 2026-09-15 之前的 `flushCurrentSession()`（开页 / 刷新时落盘）已整体删除 —— 它把「一次连续播放」切成多段，而聚合是「区间取并集 + 次数求和」，于是时长正确、播放次数每刷一次 +1（JSON 与 Room 双端虚高）。根因与修法见 `listening-stats-load-plan.md` §10。
 3. **首屏不为空**：播放中打开统计页时，未落盘的当前片段由 `ListeningStatsTracker.pendingFragment()`（只读、幂等，不改 session 状态）作为内存事件叠加进本次聚合 —— 返回的总是「本 session 从开始至今的整段」，与最终落盘的那条事件区间严格相等。旧实现走的是 `StatsViewModel.init` 里的 `flushCurrentSession()`，代价是整文件读 ×2 + 全量解析 + 全量序列化 + `fsync`，这也是「播放中切到统计页出现爆音」最可疑的来源。
 4. **聚合结果按周期缓存**：键为「日历周期身份」（`StatsPeriod.range` + 起止日期，见 `PlaybackStatsRepository.summaryCache`）。打开页面与来回切换周期都只算一次；播放产生的新事件不会主动清缓存，只有刷新按钮 / 导入 / 恢复备份 / 排序上限变更（`invalidateSummaryCache()`）才丢弃结果。刷新按钮因此只做「丢缓存 + 重查歌曲表 + 重算当前周期」。
-5. china-only 分支是同一套实现（无 `pendingFragment` / 无结果缓存），因此以上都是 OSS 侧改进，不是移植。
+5. 历史参考实现是同一套实现（无 `pendingFragment` / 无结果缓存），因此以上都是 OSS 侧改进，不是移植。
 
 ---
 
@@ -167,5 +167,5 @@ res/values*/strings_presentation_batch_g.xml               # 中文字符串
 ## 7. 版权说明
 
 - 界面布局参考用户提供的线框稿，Compose 实现在 OSS 侧重写。
-- china-only（`com.theveloper.pixelplay`）为专有仓库，其 glue 层（ViewModel / DI / UI 接线 / strings）不做复制；本设计中的实现均为 OSS 侧独立编写，许可证 GPL-3.0-or-later。
-- 数据层与 china-only 同源于上游 OSS 实现（`AtomicFile` + `playback_history.json`），非专有代码。
+- 历史参考实现（`com.theveloper.pixelplay`，原私有派生仓库，已删除）为专有代码的派生，其 glue 层（ViewModel / DI / UI 接线 / strings）不做复制；本设计中的实现均为本仓库独立编写，许可证 GPL-3.0-or-later。
+- 数据层与历史参考实现同源于上游 OSS 实现（`AtomicFile` + `playback_history.json`），非专有代码。

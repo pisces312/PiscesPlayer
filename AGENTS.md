@@ -1,7 +1,7 @@
 # AGENTS.md
 
 PiscesPlayer — Android 音乐播放器（100% Kotlin，Jetpack Compose + Material 3）。
-本仓库是 `PixelPlayerHQ/PixelPlayerOSS` 的 fork：`pisces312/PiscesPlayer`。Gradle 模块：`:app`、`:baselineprofile`。
+本仓库是 `PixelPlayerHQ/PixelPlayerOSS` 的**独立维护分支**：`pisces312/PiscesPlayer`（上游链接见 `README.md` 与 `PROVENANCE.md`）。Gradle 模块：`:app`、`:baselineprofile`。
 包名 `com.pisces312.piscesplayer`，许可证 **GPL-3.0-or-later**。
 
 ## 仓库历史关系（重要，动手前必读）
@@ -9,12 +9,11 @@ PiscesPlayer — Android 音乐播放器（100% Kotlin，Jetpack Compose + Mater
 | 仓库 | 许可 | 关系 |
 |---|---|---|
 | `PixelPlayerHQ/PixelPlayer` | **专有**（禁止再分发源码/二进制及衍生作品） | 上游闭源版，含 Telegram / QQ 音乐 / Gemini / GMS 等集成 |
-| `PixelPlayerHQ/PixelPlayerOSS` | GPL-3.0-or-later | 官方开源版，**已剥离** Telegram、NetEase、QQ 音乐、Google Drive、Gemini、Cast、Wear OS、Play 计费、Firebase、Crashlytics、GMS；云端仅保留自建 Navidrome/Subsonic 与 Jellyfin |
-| `pisces312/PixelPlayer`（`china-only` 分支，本地 `D:\3rd-party-projects\PixelPlayer`） | 专有代码的派生 | 我自己的 fork，包名 `com.theveloper.pixelplay`，在上面开发了一批新功能 |
+| `PixelPlayerHQ/PixelPlayerOSS` | GPL-3.0-or-later | 官方开源版，**已剥离** Telegram、NetEase、QQ 音乐、Google Drive、Gemini、Cast、Wear OS、Play 计费、Firebase、Crashlytics、GMS；云端仅保留自建 Navidrome/Subsonic 与 Jellyfin。**本仓库的直接上游**，基线见 `PROVENANCE.md` |
 
-- **三者 git 历史完全独立**：`git merge-base` 为空 → **不能 cherry-pick / merge**，跨仓库只能手工重新落地。
+- **专有 PixelPlayer 与 OSS 的 git 历史完全独立**：`git merge-base` 为空 → **不能 cherry-pick / merge**，跨仓库只能手工重新落地。本仓库与 OSS 有共同历史，可按需 merge upstream。
 - **无 AI 子系统**：OSS 用本地 NLP（`data/playlist/nlp/PlaylistIntentEngine`）替代云端 AI 生成播放列表。
-- **版权红线**：把 china-only 的功能搬进来时，**原创算法/解析层**（parser、matcher、分桶、日志收集等）可搬，提交注明 `Original work, GPL-3.0-or-later`；**glue 层**（ViewModel / DI / DAO / 设置项 / UI 接线 / strings）必须在 OSS 侧重写；**禁止整文件复制专有 PixelPlayer 的实现**。
+- **版权红线**：从**专有 `PixelPlayerHQ/PixelPlayer`** 或其派生实现搬功能时，**原创算法/解析层**（parser、matcher、分桶、日志收集等）可搬，提交注明 `Original work, GPL-3.0-or-later`；**glue 层**（ViewModel / DI / DAO / 设置项 / UI 接线 / strings）必须在本仓库重写；**禁止整文件复制专有 PixelPlayer 的实现**。
 
 ## 节奏游戏文档
 
@@ -226,7 +225,7 @@ OSS 有**设置搜索**，开关不注册就搜不到：
 - **应用内更新器**：`data/update/` —— 只认本 fork 的 GitHub releases：`AppReleaseSource.parseLatestRelease()` 按 ABI 整段匹配 asset（`-x86` 不能命中 `-x86_64`），`AppUpdateManager` 下载后走 `PackageInstaller` 安装。
   **没有 F-Droid/Stable 通道**（2026-10-11 移除）：本 fork 没上架 F-Droid、国内也访问不到，所以 `UpdateChannel`、`update_channel` 偏好、跨签名「备份→下载→卸载」引导与 `REQUEST_DELETE_PACKAGES` 都已删除，**不要从上游恢复**。无法覆盖安装的场景（debug 包 / 异签名）只提示并打开发布页。
 - **性能诊断**：`data/diagnostics/`（`AdvancedPerformanceDiagnostics`、`MainThreadStallMonitor`）。
-- 提示统一走 `PlayerViewModel._toastEvents`；脚本 `run-tests.bat` / `test_summary.py` 尚未移植（china-only 有）。
+- 提示统一走 `PlayerViewModel._toastEvents`；脚本 `run-tests.bat` / `test_summary.py` 尚未移植（历史参考实现有）。
 
 ## 约定
 

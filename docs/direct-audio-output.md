@@ -263,11 +263,11 @@ adb logcat -s AudioTrack AudioFlinger AudioPolicyManager
 
 ---
 
-## 7. 与 china-only 分支 "32 位精度输出" 的关系
+## 7. 与历史参考实现 "32 位精度输出" 的关系
 
-`D:\3rd-party-projects\PixelPlayer`（china-only）的 **Hi-Fi Mode**（文案 "Float 32-bit audio output"，布尔开关 `hiFiModeEnabled`）就是 **32 位浮点输出**，其实现与 OSS 的 **`PCM_FLOAT`** 逐项等价，**与 `DIRECT` 不是一回事**：
+历史参考实现（原私有派生仓库，已删除）的 **Hi-Fi Mode**（文案 "Float 32-bit audio output"，布尔开关 `hiFiModeEnabled`）就是 **32 位浮点输出**，其实现与 OSS 的 **`PCM_FLOAT`** 逐项等价，**与 `DIRECT` 不是一回事**：
 
-| 对比项 | china-only Hi-Fi Mode | OSS PCM_FLOAT | OSS DIRECT |
+| 对比项 | 历史参考实现 Hi-Fi Mode | OSS PCM_FLOAT | OSS DIRECT |
 | --- | --- | --- | --- |
 | 本质 | 32-bit float 输出（处理余量） | 32-bit float 输出（处理余量） | 整数 PCM 原样直通（保采样率） |
 | `setEnableFloatOutput` | `hiFiModeEnabled` | `usesFloatOutput`（=true） | false |
@@ -276,7 +276,7 @@ adb logcat -s AudioTrack AudioFlinger AudioPolicyManager
 | PCM_FLOAT 能力检测 | 有（不支持禁用） | 有（不支持回退默认） | — |
 | 采样率是否原样 | 否（>192 kHz 被封顶） | 否（>192 kHz 被封顶） | 是（含 352.8/384 kHz） |
 
-- china-only 的 Hi-Fi 关闭态 = OSS 的 `SYSTEM_DEFAULT`（float 关 + 同样自定义链）；
+- 历史参考实现的 Hi-Fi 关闭态 = OSS 的 `SYSTEM_DEFAULT`（float 关 + 同样自定义链）；
 - `HiFiCapabilityChecker` 两份文件仅包名/注释不同，两段式检测逻辑完全一致；
 - 两个维度要分清：**DIRECT 优化"采样率不被重采样"，PCM_FLOAT/32 位浮点优化"中间处理精度"**，二者并不互斥，但 OSS 目前是单选模式。
 
@@ -290,7 +290,7 @@ adb logcat -s AudioTrack AudioFlinger AudioPolicyManager
   - `DefaultAudioSink.DefaultAudioProcessorChain` 字段含 `ChannelMappingAudioProcessor`、`TrimmingAudioProcessor`、PCM 16/float 转换器（**无面向主采样率对齐的 SRC**；Sonic 仅在 playback params 需要时生效）；
   - `DefaultAudioTrackProvider` 用 `AudioTrack.Builder` + `MODE_STREAM` 构建，未显式设置 direct flag 或 performance mode，直通与否完全由系统策略按格式匹配决定。
 - Media3 1.11.0：`buildAudioSink` / `DefaultAudioProcessorChain` / `AudioProcessor` 接口与 1.10.1 一致（见 `media3-1.11.0-upgrade.md` §4）。
-- china-only 对比：`PixelPlayer`（分支 `china-only`）`DualPlayerEngine.kt` 的 `buildAudioSink` 与 `HiFiCapabilityChecker.kt`，与 OSS 逐项比对。
+- 历史参考实现对比：`DualPlayerEngine.kt` 的 `buildAudioSink` 与 `HiFiCapabilityChecker.kt`，与 OSS 逐项比对。
 
 ---
 

@@ -3,7 +3,7 @@
 > 状态：**计划已定稿，待实现**
 > 更新：2026-09-09
 > 分支：`pisces/port`（`pisces312/PixelPlayerOSS`，GPL-3.0 fork）
-> 参考源：`D:\3rd-party-projects\PixelPlayer`（china-only 分支，`com.theveloper.pixelplay`）
+> 参考源：历史参考实现（原私有派生仓库，已删除；包名 `com.theveloper.pixelplay`）
 
 ---
 
@@ -11,7 +11,7 @@
 
 1. **不做细粒度模型参数**：temperature / top_p / top_k / max_tokens / presence_penalty /
    frequency_penalty 等一律不要。只保留 provider、api_key、model、base_url。
-2. **数据库参考 china-only**，已做合规评估（见 §2，结论：可参考）。
+2. **数据库参考历史实现**，已做合规评估（见 §2，结论：可参考）。
 3. **UI 两处入口**：
    - 设置页新增一个「AI 配置」选项/分类；
    - 主页在**原有推荐区块之前**加一个 AI 入口。
@@ -38,13 +38,13 @@
 
 | 项 | 结论 | 依据 |
 |---|---|---|
-| `ai_cache` 表结构 | ✅ 可参考 | china-only **原创** schema（上游 OSS 无此表）；schema 不受版权保护 |
+| `ai_cache` 表结构 | ✅ 可参考 | 历史参考实现的**原创** schema（上游 OSS 无此表）；schema 不受版权保护 |
 | `ai_usage` 表结构 | ✅ 可参考 | 同上 |
 | DAO / Entity 代码 | ⚠️ clean-room 重写 | 包名 `com.theveloper` → `com.pisces312.piscesplayer`；只保留 Room 注解语义，不逐行复制 |
 | `AiHandler` / 网络层 / UI | ⚠️ clean-room 重写 | 原代码深度耦合 Gemini + 13 provider + 细粒度参数；直接搬会引入 Google SDK，违反版权红线 |
 | GEMINI provider | ❌ 排除 | 需 Google SDK / 非 OpenAI 兼容 |
 
-**china-only 表结构参考**（原封不动抄录为 schema 依据）：
+**历史参考实现的表结构**（原封不动抄录为 schema 依据）：
 
 ```text
 ai_cache:  promptHash TEXT PK (SHA-256), responseJson TEXT, timestamp INTEGER
@@ -53,7 +53,7 @@ ai_usage:  id INTEGER PK AUTO, timestamp INTEGER, provider TEXT, model TEXT,
 ```
 
 > OSS 当前 `PiscesPlayerDatabase` version = **7**，新增两表需 **MIGRATION_7_8**。
-> 注：china-only 分支「Room schema 恒 v43」的限制**不适用** OSS（v7 独立演进），直接升 v8 即可。
+> 注：历史参考实现「Room schema 恒 v43」的限制**不适用** OSS（v7 独立演进），直接升 v8 即可。
 
 ---
 
@@ -75,7 +75,7 @@ ai_usage:  id INTEGER PK AUTO, timestamp INTEGER, provider TEXT, model TEXT,
 ## 4. 偏好实现（精简版）
 
 **新增文件** `data/preferences/AiPreferencesRepository.kt`（clean-room，独立于 UserPreferencesRepository，
-与 china-only 结构对齐但大幅裁剪）：
+与历史参考实现结构对齐但大幅裁剪）：
 
 仅保留键：
 - `ai_provider`（String，默认 `"MIMO"`）
@@ -88,7 +88,7 @@ ai_usage:  id INTEGER PK AUTO, timestamp INTEGER, provider TEXT, model TEXT,
 （doubao thinking 系列）均支持该字段，语义统一。**默认关闭**：推理 token 额外计费且增加延迟，
 而生成歌单只需要最终结果。
 
-**删除**（china-only 有、本次不做）：`safe_token_limit` / `ai_temperature` / `ai_top_p` / `ai_top_k` /
+**删除**（历史参考实现有、本次不做）：`safe_token_limit` / `ai_temperature` / `ai_top_p` / `ai_top_k` /
 `ai_max_tokens` / `ai_presence_penalty` / `ai_frequency_penalty` / `ai_sample_size` / `ai_digest_mode` /
 `ai_include_extended_fields`。
 
@@ -208,7 +208,7 @@ EQUALIZER/DEVICE_CAPABILITIES/ABOUT）新增 **`AI`** 分类（置于 PLAYBACK �
 
 ### 6.3 AI 生成歌单 Sheet
 
-`AiPlaylistSheet.kt`（新组件，参考 china-only 交互但 clean-room 重写）：
+`AiPlaylistSheet.kt`（新组件，参考历史实现的交互但 clean-room 重写）：
 - 底部弹窗：标题「AI 生成歌单」+ 多行输入框（自然语言描述）+ 「生成」按钮。
 - 生成中：进度指示；成功后：展示匹配到的歌单，点「加入播放队列」或「保存为歌单」。
 - 失败：展示 `AiProviderException` 摘要（如 401 未授权 / 402 配额不足 / 404 模型不存在）。
@@ -295,7 +295,7 @@ di/ 相关模块（AppModule 等，注册 client/dao/handler/repo）
 **调试方式**：`adb shell run-as <pkg> ls cache/ai_logs` 或直接 `adb pull`，单文件即完整
 prompt + response + token 用量。
 
-**合规**：`AiRequestLog` / `AiRequestLogStore` 为原作者原创实现，从 china-only 分支移植，
+**合规**：`AiRequestLog` / `AiRequestLogStore` 为原作者原创实现，从历史参考实现移植，
 文件头注明 `Original work, GPL-3.0-or-later`；Screen/ViewModel/设置接线在 OSS 侧重写。
 
 ---
@@ -303,8 +303,8 @@ prompt + response + token 用量。
 ## 9. 恢复上下文速查（压缩后重建用）
 
 - OSS 根：`D:\3rd-party-projects\PixelPlayerOSS`，分支 `pisces/port`，包 `com.pisces312.piscesplayer`。
-- china-only 根：`D:\3rd-party-projects\PixelPlayer`，分支 `china-only`，包 `com.theveloper.pixelplay`。
-- 参考文件（china-only，只读参考 schema/交互，不复制）：
+- 参考实现：历史参考实现（原私有派生仓库，已删除），包 `com.theveloper.pixelplay`。
+- 参考文件（历史参考实现，只读参考 schema/交互，不复制）：
   - `data/database/AiCacheEntity.kt`、`AiCacheDao.kt`、`AiUsageEntity.kt`、`AiUsageDao.kt`
   - `data/preferences/AiPreferencesRepository.kt`
   - `data/ai/AiHandler.kt`、`AiPlaylistGenerator.kt`、`AiSystemPromptEngine.kt`

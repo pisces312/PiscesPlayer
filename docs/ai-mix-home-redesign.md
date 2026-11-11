@@ -36,7 +36,7 @@
 
 问题：结果不可点、不可听、不可改、不可再生成；AI 的价值在最后一步断掉。
 
-### china-only 的做法（参照，仅借鉴思想）
+### 历史参考实现的做法（参照，仅借鉴思想）
 
 `AiStateHolder.generateAiPlaylist()`（`AiStateHolder.kt:119`）一条管线两个出口：
 
@@ -46,7 +46,7 @@
      "Workout Mix"/"Chill Vibes"），重名加序号 → `createPlaylist(..., isAiGenerated = true)` → toast → 关。
    - `saveAsPlaylist = false`：`setDailyMixSongs()` → `playSongs(songs, first(), "AI: $prompt")` → 开播放页 → 关。
 
-**核心：生成即消费，中间没有「给你看个清单」这一步。** 但 china-only 的结果是只读的，不可编辑 —— 我们比它多一层（§2 结果层）。
+**核心：生成即消费，中间没有「给你看个清单」这一步。** 但历史参考实现的结果是只读的，不可编辑 —— 我们比它多一层（§2 结果层）。
 
 ---
 

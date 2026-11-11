@@ -1,11 +1,11 @@
-# 播放历史 / 听歌统计与 china-only 完全对齐方案
+# 播放历史 / 听歌统计与历史参考实现完全对齐方案
 
 > 状态：**已实施并在 emulator-5554 验证通过（待提交）**
 > 更新：2026-09-10
 > 分支：`pisces/port`（`pisces312/PixelPlayerOSS`，GPL-3.0-or-later fork）
-> 参照：china-only 分支 `PowerampBackupImporter` + `PlaybackStatsRepository`
+> 参照：历史参考实现的 `PowerampBackupImporter` + `PlaybackStatsRepository`
 >
-> 用户决策：① 接受时长膨胀与时间线尖峰；②③ **播放历史条数不设上限**（不引入 china-only 的 `MAX_HISTORY_EVENT_COUNT=20_000`），与「永久保留历史」一致。
+> 用户决策：① 接受时长膨胀与时间线尖峰；②③ **播放历史条数不设上限**（不引入历史参考实现的 `MAX_HISTORY_EVENT_COUNT=20_000`），与「永久保留历史」一致。
 
 ---
 
@@ -24,7 +24,7 @@
 
 ---
 
-## 1. 权威口径：china-only「方案 A v2（时长也 ×N）」
+## 1. 权威口径：历史参考实现「方案 A v2（时长也 ×N）」
 
 ⚠️ **文档与代码不一致，以代码为准**：
 
@@ -40,7 +40,7 @@
 | 时长还原 | 统计时按 `N × 歌曲时长` **回溯**成 `[t − N×d, t]` |
 | 一致性理由 | 与本地「播 N 次累加 N 次时长」口径一致；否则零时长事件会被过滤，统计页看不到导入数据 |
 
-### 1.2 完整清单（china-only 现状）
+### 1.2 完整清单（历史参考实现现状）
 
 1. `PlaybackEvent` / `PlaybackSegment` / `PlaybackSpan` 均带 `playCount`；`PlaybackEvent.weight` 对非法值兜底为 1。
 2. `recordPlayback(songId, durationMs, timestamp, playCount = 1)`，`playCount.coerceAtLeast(1)`。
@@ -79,7 +79,7 @@
 
 **A. 条数上限：不做（用户选择无上限）**
 
-china-only 有 `MAX_HISTORY_EVENT_COUNT = 20_000` 与 `enforceHistoryCountCap()`。本实现选择无上限，
+历史参考实现有 `MAX_HISTORY_EVENT_COUNT = 20_000` 与 `enforceHistoryCountCap()`。本实现选择无上限，
 与「永久保留历史」一致。`recordPlayback` / `importEventsFromBackup` 均不做裁剪。
 
 **B. 新增 `expandImportedSpan()`**（自写实现，不复制专有代码；属可搬的原创聚合算法，注明 `Original work, GPL-3.0-or-later`）
@@ -108,7 +108,7 @@ val (startBound, endBound) = period.resolveBounds(expandedEvents, nowMillis, zon
 val filteredEvents = expandedEvents.mapNotNull { ... }   // 后续逻辑不变
 ```
 
-> 坑（china-only 实测踩过）：若先 `resolveBounds` 再展开，`StatsTimeRange.ALL` 的起点会取原始 `played_at`，
+> 坑（历史参考实现实测踩过）：若先 `resolveBounds` 再展开，`StatsTimeRange.ALL` 的起点会取原始 `played_at`，
 > 回溯出的 `[t − N×d, t]` 整条落在起点之前被裁掉，展开等于白做。
 
 **D. `importEventsFromBackup()` 去重改为保留权重最大**
@@ -128,7 +128,7 @@ val filteredEvents = expandedEvents.mapNotNull { ... }   // 后续逻辑不变
 
 ### 3.3 单元测试（`PlaybackStatsRepositoryTest.kt`）
 
-新增 4 个用例，与 china-only 对齐：
+新增 4 个用例，与历史参考实现对齐：
 
 1. **权重展开**：零时长 + `playCount = N` → ALL 范围下 `totalDuration == N × 歌曲时长`、`totalPlayCount == N`。
 2. **展开先于边界**：构造 `played_at` 远早于 `N × d` 的事件，断言 ALL 范围仍计入（防回归）。
@@ -147,8 +147,8 @@ val filteredEvents = expandedEvents.mapNotNull { ... }   // 后续逻辑不变
 
 | 项 | 说明 |
 |---|---|
-| **总时长膨胀** | 「全部」范围总时长约放大 4.76 倍（china-only 实测口径）。这是**预期结果**，为与本地「播 N 次累加 N 次时长」口径一致而刻意为之，不是 bug。 |
-| **时间线尖峰** | 单曲高播放次数（实测最高 76 次）会回溯出 5 小时级别的区间，在日/周视图形成尖峰。china-only 已接受此代价。 |
+| **总时长膨胀** | 「全部」范围总时长约放大 4.76 倍（历史参考实现实测口径）。这是**预期结果**，为与本地「播 N 次累加 N 次时长」口径一致而刻意为之，不是 bug。 |
+| **时间线尖峰** | 单曲高播放次数（实测最高 76 次）会回溯出 5 小时级别的区间，在日/周视图形成尖峰。历史参考实现已接受此代价。 |
 | **无界增长** | 补齐 D13 条数上限后才安全。当前 OSS 无上限，重度使用会导致 `playback_history.json` 持续膨胀，且每次 `recordPlayback` 全量读写 `AtomicFile`。 |
 | **`songMap` 未命中** | 歌曲已从曲库移除、或 `Song.duration <= 0` → 事件仍被丢弃。无时长参照无法还原，属预期边界。 |
 | **版权** | `expandImportedSpan` 属聚合 / 分桶算法层（可搬的原创算法），在 OSS 侧自写实现 + 注明 `Original work, GPL-3.0-or-later`；不复制专有 `PowerampBackupImporter` / UI / DI / strings。 |
@@ -157,7 +157,7 @@ val filteredEvents = expandedEvents.mapNotNull { ... }   // 后续逻辑不变
 
 ## 5. 用户决策（已定）
 
-1. ✅ **接受**「总时长膨胀 + 时间线尖峰」这一 china-only 口径（自写实现，不复制专有代码）。
+1. ✅ **接受**「总时长膨胀 + 时间线尖峰」这一历史参考实现口径（自写实现，不复制专有代码）。
 2. ✅ 条数上限：**不设上限**（不引入 `enforceHistoryCountCap`），与「永久保留历史」一致。
 3. ✅ `MAX_PLAYBACK_HISTORY_LIMIT`（最近播放单次读取上限，当前 5,000）：**保持不动**。
    该上限仅约束「最近播放」列表一次反序列化/渲染的条数，与统计聚合无关；统计 `loadSummary` 走全量 `readEvents()`，不受其限。

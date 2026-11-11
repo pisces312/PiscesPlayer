@@ -34,7 +34,7 @@
 
 PiscesPlayer is an Android music player with a **built-in rhythm game** and **AI music tools**. It is maintained by [@pisces312](https://github.com/pisces312) and is based on [PixelPlayerOSS](https://github.com/PixelPlayerHQ/PixelPlayerOSS), the upstream FOSS player maintained by [@lostf1sh](https://github.com/lostf1sh). It focuses on local playback, self-hosted music libraries, expressive Material 3 UI, user-controlled online lookups, and turning any song into a playable rhythm chart.
 
-PiscesPlayer ships under its own package name (`com.pisces312.piscesplayer`) and is signed with a different key, so it installs side by side with upstream or F-Droid builds of PixelPlayerOSS — see [Release builds](#release-builds).
+PiscesPlayer ships under its own package name (`com.pisces312.piscesplayer`) and is signed with a different key, so it installs side by side with upstream or F-Droid builds of PixelPlayerOSS — see [Release builds](#release-builds). It is developed as an independent project rather than a tracking fork of upstream; the upstream relationship and fork baseline are documented in [PROVENANCE.md](PROVENANCE.md).
 
 The app works offline by default. Optional online services are disabled until you enable them in setup or settings.
 
@@ -245,7 +245,7 @@ Security policy: [SECURITY.md](SECURITY.md)
 
 ## License
 
-PiscesPlayer is licensed under the [GNU General Public License v3.0](LICENSE) (`SPDX-License-Identifier: GPL-3.0-or-later`). It is a modified version of PixelPlayerOSS by Theo Vilardo (@lostf1sh); see [NOTICE](NOTICE).
+PiscesPlayer is licensed under the [GNU General Public License v3.0](LICENSE) (`SPDX-License-Identifier: GPL-3.0-or-later`). It is a modified version of [PixelPlayerOSS](https://github.com/PixelPlayerHQ/PixelPlayerOSS) by Theo Vilardo (@lostf1sh); see [NOTICE](NOTICE) and [PROVENANCE.md](PROVENANCE.md).
 
 ```
 PiscesPlayer
@@ -269,7 +269,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 Distributed APKs include third-party components under their own licenses. In particular, the optional FFmpeg decoder dependency `org.jellyfin.media3:media3-ffmpeg-decoder` is GPL-3.0; see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
 <p align="center">
-  Fork maintained by <a href="https://github.com/pisces312">pisces312</a> · upstream <a href="https://github.com/lostf1sh">PixelPlayerOSS</a> maintained by <a href="https://github.com/lostf1sh">lostf1sh</a>
+  PiscesPlayer maintained by <a href="https://github.com/pisces312">pisces312</a> · upstream <a href="https://github.com/PixelPlayerHQ/PixelPlayerOSS">PixelPlayerOSS</a> maintained by <a href="https://github.com/lostf1sh">lostf1sh</a>
 </p>
 <p align="center">
   Original PixelPlayerOSS logo designed by <a href="https://github.com/NPSummers">Aureal</a>. PiscesPlayer icon by pisces312.

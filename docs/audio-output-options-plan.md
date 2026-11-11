@@ -3,7 +3,7 @@
 > 状态：**方案已收敛，待实施**（v3）
 > 更新：2026-09-12（v3：纠错 + SAFE_DIRECT 保留降混 + 蓝牙/Type-C/文件体积 + 分阶段落地）
 > 分支：`main`（`pisces312/PixelPlayerOSS`，GPL-3.0-or-later fork）
-> 背景：`docs/direct-audio-output.md` 已分析 DIRECT 直通原理、验证方法、china-only 对比与听音场景定位（§9）
+> 背景：`docs/direct-audio-output.md` 已分析 DIRECT 直通原理、验证方法、历史参考实现对比与听音场景定位（§9）
 > 结论：**主入口 = 两个正交选项（采样率策略 × 输出精度），"档位"降级为预设快捷**；**日常蓝牙听歌以 SYSTEM_DEFAULT 为默认**；Type-C 数字有线才有机会吃到直通收益，详见 §3 / §4.3–4.4
 
 ---
@@ -297,6 +297,6 @@
 
 ## 8. 参考
 
-- `docs/direct-audio-output.md`：直通原理、三模式现状、验证方法（§6）、china-only 对比（§7）、**听音场景定位（§9）**。
+- `docs/direct-audio-output.md`：直通原理、三模式现状、验证方法（§6）、历史参考实现对比（§7）、**听音场景定位（§9）**。
 - `docs/media3-1.11.0-upgrade.md`：当前 Media3 1.11.0 音频 API 兼容结论。
 - Media3 字节码核查结果见 `direct-audio-output.md` §8。

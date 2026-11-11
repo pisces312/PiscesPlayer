@@ -196,6 +196,8 @@
     <string name="about_link_source_subtitle">github.com/pisces312/PiscesPlayer</string>
     <string name="about_link_upstream_title">上游项目</string>
     <string name="about_link_upstream_subtitle">基于 PixelPlayerOSS · GPL-3.0-or-later</string>
+    <string name="about_link_license_title">许可证与声明</string>
+    <string name="about_link_license_subtitle">GPL-3.0-or-later · 详见 NOTICE</string>
     <string name="cd_about_open_link">打开 %1$s</string>
     <string name="about_signal_open_source">开源</string>
     <string name="about_signal_community_first">社区驱动</string>

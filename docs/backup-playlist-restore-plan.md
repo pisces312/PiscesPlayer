@@ -160,7 +160,7 @@
 | `SettingsViewModel.kt` | 无需改动（恢复成功后已有 `syncManager.sync()`，resolver 会接住） |
 
 约束：
-- glue 层全部在 OSS 侧重写；不搬 china-only 专有实现。
+- glue 层全部在本仓库重写；不搬专有 PixelPlayer 实现。
 - 不新增用户可见文案则不动 strings；若加"等待本地扫描"提示，只加英文 `values/`。
 - 不改 Room schema、不加 migration。
 

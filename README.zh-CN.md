@@ -34,7 +34,7 @@
 
 PiscesPlayer 是一款带**内置节奏游戏**和 **AI 音乐工具**的 Android 音乐播放器，由 [@pisces312](https://github.com/pisces312) 维护，基于 [@lostf1sh](https://github.com/lostf1sh) 维护的上游开源播放器 [PixelPlayerOSS](https://github.com/PixelPlayerHQ/PixelPlayerOSS)。它专注本地播放、自建音乐库、富有表现力的 Material 3 界面、用户可控的在线查询，并能把任意歌曲变成可玩的节奏谱面。
 
-PiscesPlayer 使用独立包名（`com.pisces312.piscesplayer`）与独立签名，可与上游或 F-Droid 版本的 PixelPlayerOSS 共存安装——见 [Release 构建](#release-构建)。
+PiscesPlayer 使用独立包名（`com.pisces312.piscesplayer`）与独立签名，可与上游或 F-Droid 版本的 PixelPlayerOSS 共存安装——见 [Release 构建](#release-构建)。本项目作为独立项目维护，而非持续跟随上游的 fork；与上游的关系及分叉基线见 [PROVENANCE.md](PROVENANCE.md)。
 
 应用默认离线可用；可选在线服务在你于初始设置或设置中开启前保持关闭。
 
@@ -245,7 +245,7 @@ F-Droid 说明（历史文档，本分支不经 F-Droid 分发）：[docs/FDROID
 
 ## 许可证
 
-PiscesPlayer 以 [GNU General Public License v3.0](LICENSE) 许可发布（`SPDX-License-Identifier: GPL-3.0-or-later`），是 Theo Vilardo（@lostf1sh）的 PixelPlayerOSS 的修改版本；详见 [NOTICE](NOTICE)。
+PiscesPlayer 以 [GNU General Public License v3.0](LICENSE) 许可发布（`SPDX-License-Identifier: GPL-3.0-or-later`），是 Theo Vilardo（@lostf1sh）的 [PixelPlayerOSS](https://github.com/PixelPlayerHQ/PixelPlayerOSS) 的修改版本；详见 [NOTICE](NOTICE) 与 [PROVENANCE.md](PROVENANCE.md)。
 
 ```
 PiscesPlayer
@@ -269,7 +269,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 分发的 APK 包含按各自许可证发布的第三方组件。其中可选 FFmpeg 解码依赖 `org.jellyfin.media3:media3-ffmpeg-decoder` 为 GPL-3.0；详见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
 
 <p align="center">
-  分支由 <a href="https://github.com/pisces312">pisces312</a> 维护 · 上游 <a href="https://github.com/lostf1sh">PixelPlayerOSS</a> 由 <a href="https://github.com/lostf1sh">lostf1sh</a> 维护
+  PiscesPlayer 由 <a href="https://github.com/pisces312">pisces312</a> 独立维护 · 上游 <a href="https://github.com/PixelPlayerHQ/PixelPlayerOSS">PixelPlayerOSS</a> 由 <a href="https://github.com/lostf1sh">lostf1sh</a> 维护
 </p>
 <p align="center">
   PixelPlayerOSS 原始 logo 由 <a href="https://github.com/NPSummers">Aureal</a> 设计；PiscesPlayer 图标由 pisces312 设计。
