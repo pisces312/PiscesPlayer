@@ -74,8 +74,10 @@ import com.pisces312.piscesplayer.presentation.viewmodel.StatsViewModel
 import com.pisces312.piscesplayer.presentation.viewmodel.PlaylistViewModel
 import kotlinx.coroutines.flow.first
 import com.pisces312.piscesplayer.presentation.components.ScreenWrapper
+import com.pisces312.piscesplayer.presentation.rhythm.MusicGameHubScreen
 import com.pisces312.piscesplayer.presentation.rhythm.RhythmGameScreen
 import com.pisces312.piscesplayer.presentation.rhythm.RhythmSetupScreen
+import com.pisces312.piscesplayer.presentation.rhythm.RhythmSongPickerScreen
 
 @OptIn(UnstableApi::class)
 @SuppressLint("UnrememberedGetBackStackEntry")
@@ -790,6 +792,39 @@ fun AppNavigation(
                 ScreenWrapper(navController = navController, playerViewModel = playerViewModel) {
                     UpdatesScreen(
                         onBack = { navController.popBackStack() }
+                    )
+                }
+            }
+            composable(
+                Screen.MusicGameHub.route,
+                enterTransition = { enterTransition() },
+                exitTransition = { exitTransition() },
+                popEnterTransition = { popEnterTransition() },
+                popExitTransition = { popExitTransition() },
+            ) {
+                ScreenWrapper(navController = navController, playerViewModel = playerViewModel) {
+                    MusicGameHubScreen(
+                        onBack = { navController.popBackStack() },
+                        onOpenRhythm = {
+                            navController.navigateSafely(Screen.RhythmSongPicker.route)
+                        },
+                    )
+                }
+            }
+            composable(
+                Screen.RhythmSongPicker.route,
+                enterTransition = { enterTransition() },
+                exitTransition = { exitTransition() },
+                popEnterTransition = { popEnterTransition() },
+                popExitTransition = { popExitTransition() },
+            ) {
+                ScreenWrapper(navController = navController, playerViewModel = playerViewModel) {
+                    RhythmSongPickerScreen(
+                        playerViewModel = playerViewModel,
+                        onBack = { navController.popBackStack() },
+                        onSongSelected = { songId ->
+                            navController.navigateSafely(Screen.RhythmSetup.createRoute(songId))
+                        },
                     )
                 }
             }

@@ -318,6 +318,9 @@ fun HomeScreen(
                     onStreamingClick = {
                           showStreamingProviderSheet = true
                     },
+                    onGamesClick = {
+                        navController.navigateSafely(Screen.MusicGameHub.route)
+                    },
                     onMenuClick = {
                     },
                     isScrolled = isScrolledPastThreshold.value

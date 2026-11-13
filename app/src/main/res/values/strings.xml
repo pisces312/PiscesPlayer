@@ -316,6 +316,37 @@
     <!-- Rhythm game -->
     <string name="song_info_rhythm_game">Rhythm game</string>
     <string name="rhythm_setup_title">Rhythm game</string>
+    <string name="music_games_title">Music games</string>
+    <string name="music_games_rhythm_subtitle">4K falling notes · pick a song to play</string>
+    <string name="rhythm_picker_search_hint">Search songs or artists</string>
+    <string name="rhythm_picker_clear_search">Clear search</string>
+    <string name="rhythm_picker_search_all">Search all songs</string>
+    <string name="rhythm_picker_scope_recent">Recent</string>
+    <string name="rhythm_picker_scope_all">All</string>
+    <string name="rhythm_picker_difficulty_chip">Difficulty: %1$s</string>
+    <string name="rhythm_picker_charts_chip">Charts: %1$s</string>
+    <string name="rhythm_picker_difficulty_all">All</string>
+    <string name="rhythm_picker_difficulty_ungraded">Ungraded</string>
+    <string name="rhythm_picker_charts_all">All</string>
+    <string name="rhythm_picker_charts_present">Has charts</string>
+    <string name="rhythm_picker_charts_missing">No charts</string>
+    <string name="rhythm_picker_current_song">Now playing</string>
+    <plurals name="rhythm_picker_result_count">
+        <item quantity="one">%1$s · %2$d song</item>
+        <item quantity="other">%1$s · %2$d songs</item>
+    </plurals>
+    <string name="rhythm_picker_reset">Reset</string>
+    <string name="rhythm_picker_show_all">Show all songs</string>
+    <string name="rhythm_picker_empty_local">No playable local songs</string>
+    <string name="rhythm_picker_empty_search">No matching songs</string>
+    <string name="rhythm_picker_empty_recent">No recently played local songs yet</string>
+    <string name="rhythm_picker_empty_filters">No songs match these filters</string>
+    <string name="rhythm_picker_no_charts">No charts · tap to generate or import</string>
+    <plurals name="rhythm_picker_chart_summary">
+        <item quantity="one">%1$d chart · %2$s</item>
+        <item quantity="other">%1$d charts · %2$s</item>
+    </plurals>
+    <string name="rhythm_picker_difficulty_chart_count">%1$s charts · %2$d</string>
     <string name="rhythm_import_osu">Import .osu chart</string>
     <string name="rhythm_import_failed">Import failed: %1$s</string>
     <string name="rhythm_empty_hint">Import an osu!mania 4-key tap chart for this song, then play it here. Hold notes and other key modes are not supported yet.</string>

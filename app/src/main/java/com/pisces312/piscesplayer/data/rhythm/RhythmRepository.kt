@@ -53,6 +53,10 @@ class RhythmRepository @Inject constructor(
         store().chartsForSong(songId)
     }
 
+    suspend fun chartCatalog(): Map<String, List<RhythmChartMeta>> = withContext(Dispatchers.IO) {
+        store().chartCatalog()
+    }
+
     suspend fun loadChart(chartId: String): RhythmChart? = withContext(Dispatchers.IO) {
         store().readChart(chartId)
     }

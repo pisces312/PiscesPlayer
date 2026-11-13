@@ -163,6 +163,10 @@ internal class RhythmLibraryStore(private val rootDir: File) {
     fun chartsForSong(songId: String): List<RhythmChartMeta> =
         readLibrary().songs[songId].orEmpty().sortedBy { it.importedAtMs }
 
+    /** Lightweight metadata for song pickers; chart bodies stay on disk. */
+    fun chartCatalog(): Map<String, List<RhythmChartMeta>> =
+        readLibrary().songs.mapValues { (_, charts) -> charts.toList() }
+
     fun readChart(chartId: String): RhythmChart? {
         val file = File(chartsDir, "$chartId.json")
         if (!file.isFile) return null

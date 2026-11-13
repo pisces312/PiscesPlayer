@@ -95,6 +95,10 @@ sealed class Screen(val route: String) {
         fun createRoute(songId: String) = "audio_bookmarks/${Uri.encode(songId)}"
     }
 
+    object MusicGameHub : Screen("music_games")
+
+    object RhythmSongPicker : Screen("rhythm_song_picker")
+
     object RhythmSetup : Screen("rhythm_setup/{songId}") {
         fun createRoute(songId: String) = "rhythm_setup/${Uri.encode(songId)}"
     }

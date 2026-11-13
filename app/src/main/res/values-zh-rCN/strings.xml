@@ -317,6 +317,35 @@
     <!-- Rhythm game -->
     <string name="song_info_rhythm_game">节奏游戏</string>
     <string name="rhythm_setup_title">节奏游戏</string>
+    <string name="music_games_title">音乐游戏</string>
+    <string name="music_games_rhythm_subtitle">4K 下落式 · 选择歌曲游玩</string>
+    <string name="rhythm_picker_search_hint">搜索歌曲或艺术家</string>
+    <string name="rhythm_picker_clear_search">清除搜索</string>
+    <string name="rhythm_picker_search_all">在全部歌曲中搜索</string>
+    <string name="rhythm_picker_scope_recent">最近</string>
+    <string name="rhythm_picker_scope_all">全部</string>
+    <string name="rhythm_picker_difficulty_chip">难度：%1$s</string>
+    <string name="rhythm_picker_charts_chip">谱面：%1$s</string>
+    <string name="rhythm_picker_difficulty_all">全部</string>
+    <string name="rhythm_picker_difficulty_ungraded">未分级</string>
+    <string name="rhythm_picker_charts_all">全部</string>
+    <string name="rhythm_picker_charts_present">有谱</string>
+    <string name="rhythm_picker_charts_missing">无谱</string>
+    <string name="rhythm_picker_current_song">当前歌曲</string>
+    <plurals name="rhythm_picker_result_count">
+        <item quantity="other">%1$s · %2$d 首</item>
+    </plurals>
+    <string name="rhythm_picker_reset">重置</string>
+    <string name="rhythm_picker_show_all">查看全部歌曲</string>
+    <string name="rhythm_picker_empty_local">暂无可游玩的本地歌曲</string>
+    <string name="rhythm_picker_empty_search">未找到相关歌曲</string>
+    <string name="rhythm_picker_empty_recent">还没有最近播放的本地歌曲</string>
+    <string name="rhythm_picker_empty_filters">没有符合筛选条件的歌曲</string>
+    <string name="rhythm_picker_no_charts">暂无谱面 · 点击生成或导入</string>
+    <plurals name="rhythm_picker_chart_summary">
+        <item quantity="other">%1$d 个谱面 · %2$s</item>
+    </plurals>
+    <string name="rhythm_picker_difficulty_chart_count">%1$s谱面 · %2$d 个</string>
     <string name="rhythm_import_osu">导入 .osu 谱面</string>
     <string name="rhythm_import_failed">导入失败：%1$s</string>
     <string name="rhythm_empty_hint">为这首歌导入 osu!mania 4K 单点谱面后即可游玩。暂不支持长按谱面和其他键数。</string>
