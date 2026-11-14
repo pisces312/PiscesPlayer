@@ -60,7 +60,7 @@ This repository has no CI: the upstream build workflows were removed when the pr
 independent, and nothing here signs or publishes automatically. Releasing is a local build
 followed by a local `gh release create`.
 
-For F-Droid-compatible unsigned verification builds, pass `-Ppixelplayer.disableReleaseSigning=true` even when the environment variables are set.
+For unsigned local verification builds, pass `-Ppixelplayer.disableReleaseSigning=true` even when the environment variables are set.
 
 ## Device Smoke Test
 

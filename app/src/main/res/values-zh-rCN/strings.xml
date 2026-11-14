@@ -146,7 +146,7 @@
 <string name="export_failed_format">导出失败：%1$s</string>
 <string name="data_restored_successfully">数据恢复成功</string>
 <string name="restore_partial_unresolved_format">恢复完成，部分项目处理失败：%1$s</string>
-<string name="dev_test_crash_message">开发者选项触发测试崩溃，用于崩溃上报功能测试，属于预期行为。</string>
+<string name="dev_test_crash_message">开发者选项触发测试崩溃，用于测试本地崩溃日志收集，属于预期行为。</string>
 
 <string name="player_song_not_found_in_list">当前列表中找不到该歌曲</string>
 <string name="player_could_not_locate_song">无法定位歌曲</string>

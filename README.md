@@ -9,7 +9,7 @@
 
 <p align="center">
   <a href="https://github.com/pisces312/PiscesPlayer/releases/latest">
-    <img src="https://img.shields.io/github/v/release/pisces312/PiscesPlayer?include_prereleases&logo=github&style=for-the-badge&label=Latest%20Release" alt="Latest release">
+    <img src="https://img.shields.io/github/v/release/pisces312/PiscesPlayer?logo=github&style=for-the-badge&label=Latest%20Release" alt="Latest release">
   </a>
   <a href="https://github.com/pisces312/PiscesPlayer/releases">
     <img src="https://img.shields.io/github/downloads/pisces312/PiscesPlayer/total?logo=github&style=for-the-badge" alt="Total downloads">
@@ -148,7 +148,7 @@ Build one universal debug APK for local installation:
 JAVA_HOME=/usr/lib/jvm/java-21-openjdk ./gradlew :app:assembleDebug -Ppixelplayer.enableAbiSplits=false
 ```
 
-Build a universal unsigned release APK suitable for F-Droid verification:
+Build a universal unsigned release APK for local verification:
 
 ```sh
 JAVA_HOME=/usr/lib/jvm/java-21-openjdk ./gradlew :app:assembleRelease -Ppixelplayer.enableAbiSplits=false -Ppixelplayer.disableReleaseSigning=true

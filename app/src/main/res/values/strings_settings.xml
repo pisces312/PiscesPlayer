@@ -235,7 +235,7 @@
     <string name="setcat_force_palette_title">Force Album Palette Regeneration</string>
     <string name="setcat_diagnostics">Diagnostics</string>
     <string name="setcat_trigger_crash_title">Trigger Test Crash</string>
-    <string name="setcat_trigger_crash_subtitle">Simulate a crash to test the crash reporting system.</string>
+    <string name="setcat_trigger_crash_subtitle">Simulate a crash to test local crash log capture.</string>
     <string name="setcat_application">Application</string>
     <string name="setcat_about_piscesplayer_title">About PiscesPlayer</string>
     <string name="setcat_about_piscesplayer_subtitle">App version, credits, and more.</string>

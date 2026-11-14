@@ -146,7 +146,7 @@
     <string name="export_failed_format">Export failed: %1$s</string>
     <string name="data_restored_successfully">Data restored successfully</string>
     <string name="restore_partial_unresolved_format">Restore completed with unresolved issues. Failed: %1$s</string>
-    <string name="dev_test_crash_message">Test crash triggered from Developer Options - This is intentional for testing the crash reporting system</string>
+    <string name="dev_test_crash_message">Test crash triggered from Developer Options - This is intentional for testing local crash log capture</string>
 
     <string name="player_song_not_found_in_list">Song not found in current list</string>
     <string name="player_could_not_locate_song">Could not locate song</string>

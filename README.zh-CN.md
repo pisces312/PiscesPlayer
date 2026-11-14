@@ -9,7 +9,7 @@
 
 <p align="center">
   <a href="https://github.com/pisces312/PiscesPlayer/releases/latest">
-    <img src="https://img.shields.io/github/v/release/pisces312/PiscesPlayer?include_prereleases&logo=github&style=for-the-badge&label=Latest%20Release" alt="最新版本">
+    <img src="https://img.shields.io/github/v/release/pisces312/PiscesPlayer?logo=github&style=for-the-badge&label=Latest%20Release" alt="最新版本">
   </a>
   <a href="https://github.com/pisces312/PiscesPlayer/releases">
     <img src="https://img.shields.io/github/downloads/pisces312/PiscesPlayer/total?logo=github&style=for-the-badge" alt="累计下载">
@@ -148,7 +148,7 @@ JAVA_HOME=/usr/lib/jvm/java-21-openjdk ./gradlew :app:assembleDebug
 JAVA_HOME=/usr/lib/jvm/java-21-openjdk ./gradlew :app:assembleDebug -Ppixelplayer.enableAbiSplits=false
 ```
 
-构建 universal 未签名 release APK（可用于 F-Droid 校验）：
+构建 universal 未签名 release APK（用于本地校验）：
 
 ```sh
 JAVA_HOME=/usr/lib/jvm/java-21-openjdk ./gradlew :app:assembleRelease -Ppixelplayer.enableAbiSplits=false -Ppixelplayer.disableReleaseSigning=true

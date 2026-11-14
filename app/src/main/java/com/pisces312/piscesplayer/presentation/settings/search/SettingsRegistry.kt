@@ -762,7 +762,7 @@ object SettingsRegistry {
                 category = SettingsCategory.ABOUT,
                 subscreenRoute = Screen.Updates.route,
                 type = SettingType.NAVIGABLE_CARD,
-                keywordsStatic = listOf("update", "upgrade", "version", "alpha", "stable", "f-droid", "github", "channel")
+                keywordsStatic = listOf("update", "upgrade", "version", "github")
             )
         )
     }
