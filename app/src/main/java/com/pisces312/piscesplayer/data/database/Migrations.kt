@@ -755,3 +755,31 @@ val MIGRATION_14_15 = object : Migration(14, 15) {
         }
     }
 }
+
+/**
+ * v15 -> v16: FTS index over cached lyrics (`lyrics_fts`), powering lyrics-content search.
+ *
+ * The raw LRC text (including `[mm:ss.xx]` timestamps) is indexed as-is: timestamp
+ * fragments become harmless numeric tokens, and keeping the migration pure SQL avoids a
+ * Kotlin rewrite pass over every cached lyric. Rows are kept in sync afterwards by the
+ * `LyricsDao` chokepoint (see `LyricsSearchFtsEntity`).
+ */
+val MIGRATION_15_16 = object : Migration(15, 16) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            """
+                CREATE VIRTUAL TABLE IF NOT EXISTS lyrics_fts
+                USING fts4(
+                    content,
+                    tokenize=unicode61
+                )
+            """.trimIndent()
+        )
+        db.execSQL(
+            """
+                INSERT INTO lyrics_fts(rowid, content)
+                SELECT song_id, content FROM lyrics WHERE content != ''
+            """.trimIndent()
+        )
+    }
+}

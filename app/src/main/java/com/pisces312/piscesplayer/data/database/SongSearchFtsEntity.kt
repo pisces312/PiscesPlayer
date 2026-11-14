@@ -16,3 +16,21 @@ data class SongSearchFtsEntity(
     @ColumnInfo(name = "artist_name")
     val artistName: String
 )
+
+/**
+ * FTS index over `lyrics.content`, keyed by `lyrics.song_id`, powering lyrics-content
+ * search (`SearchMode.LYRICS`).
+ *
+ * Unlike `songs_fts` (kept in sync by triggers), this table is maintained in the
+ * `LyricsDao` chokepoint so every writer — repository, `.lrc` bulk scan, backup restore —
+ * keeps the index consistent, and empty lyrics are removed from the index.
+ */
+@Fts4(tokenizer = "unicode61")
+@Entity(tableName = "lyrics_fts")
+data class LyricsSearchFtsEntity(
+    @PrimaryKey
+    @ColumnInfo(name = "rowid")
+    val rowId: Long,
+    @ColumnInfo(name = "content")
+    val content: String
+)

@@ -75,6 +75,7 @@ import com.pisces312.piscesplayer.data.model.Album
 import com.pisces312.piscesplayer.data.model.Artist
 import com.pisces312.piscesplayer.data.model.Playlist
 import com.pisces312.piscesplayer.data.model.SearchFilterType
+import com.pisces312.piscesplayer.data.model.SearchMode
 import com.pisces312.piscesplayer.data.model.SearchHistoryItem
 import com.pisces312.piscesplayer.data.model.SearchResultItem
 import com.pisces312.piscesplayer.data.model.Song
@@ -85,6 +86,7 @@ import com.pisces312.piscesplayer.presentation.viewmodel.PlayerViewModel
 import com.pisces312.piscesplayer.ui.theme.LocalPiscesPlayerDarkTheme
 import androidx.compose.material.icons.rounded.DeleteForever
 import androidx.compose.material.icons.rounded.History
+import androidx.compose.material.icons.rounded.Lyrics
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.withFrameNanos
@@ -134,7 +136,8 @@ import androidx.compose.ui.res.stringResource
 private data class SearchUiSlice(
     val selectedSearchFilter: SearchFilterType = SearchFilterType.ALL,
     val searchResults: ImmutableList<SearchResultItem> = persistentListOf(),
-    val searchHistory: ImmutableList<SearchHistoryItem> = persistentListOf()
+    val searchHistory: ImmutableList<SearchHistoryItem> = persistentListOf(),
+    val searchMode: SearchMode = SearchMode.GENERAL
 )
 
 @androidx.annotation.OptIn(UnstableApi::class)
@@ -162,12 +165,15 @@ fun SearchScreen(
                 SearchUiSlice(
                     selectedSearchFilter = uiState.selectedSearchFilter,
                     searchResults = uiState.searchResults,
-                    searchHistory = uiState.searchHistory
+                    searchHistory = uiState.searchHistory,
+                    searchMode = uiState.searchMode
                 )
             }
             .distinctUntilChanged()
     }.collectAsStateWithLifecycle(initialValue = SearchUiSlice())
     val currentFilter = searchUiState.selectedSearchFilter
+    val currentSearchMode = searchUiState.searchMode
+    val isLyricsSearch = currentSearchMode == SearchMode.LYRICS
     val stablePlayerState by playerViewModel.stablePlayerState.collectAsStateWithLifecycle()
     val favoriteSongIds by playerViewModel.favoriteSongIds.collectAsStateWithLifecycle()
     val selectedSongForInfo by playerViewModel.selectedSongForInfo.collectAsStateWithLifecycle()
@@ -203,7 +209,7 @@ fun SearchScreen(
             }
     }
 
-    LaunchedEffect(searchQuery, currentFilter) {
+    LaunchedEffect(searchQuery, currentFilter, currentSearchMode) {
         playerViewModel.performSearch(searchQuery)
     }
     val searchResults = searchUiState.searchResults
@@ -296,7 +302,10 @@ fun SearchScreen(
                                 onExpandedChange = {},
                                 placeholder = {
                                     Text(
-                                        stringResource(R.string.search_placeholder),
+                                        stringResource(
+                                            if (isLyricsSearch) R.string.search_placeholder_lyrics
+                                            else R.string.search_placeholder
+                                        ),
                                         style = MaterialTheme.typography.bodyLarge,
                                         color = MaterialTheme.colorScheme.primary
                                     )
@@ -310,24 +319,55 @@ fun SearchScreen(
                                     )
                                 },
                                 trailingIcon = {
-                                    if (searchQuery.isNotBlank()) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        // Search-mode toggle: metadata vs lyrics content.
                                         IconButton(
                                             onClick = {
-                                                searchQuery = ""
-                                                playerViewModel.updateSearchQuery("")
+                                                playerViewModel.updateSearchMode(
+                                                    if (isLyricsSearch) SearchMode.GENERAL
+                                                    else SearchMode.LYRICS
+                                                )
                                             },
                                             modifier = Modifier
                                                 .size(48.dp)
                                                 .clip(CircleShape)
                                                 .background(
-                                                    MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f)
+                                                    if (isLyricsSearch) MaterialTheme.colorScheme.primary
+                                                    else MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f)
                                                 )
                                         ) {
                                             Icon(
-                                                imageVector = Icons.Rounded.Close,
-                                                contentDescription = stringResource(R.string.cd_clear_search_query),
-                                                tint = MaterialTheme.colorScheme.primary
+                                                imageVector = Icons.Rounded.Lyrics,
+                                                contentDescription = stringResource(
+                                                    if (isLyricsSearch) R.string.cd_switch_to_general_search
+                                                    else R.string.cd_switch_to_lyrics_search
+                                                ),
+                                                tint = if (isLyricsSearch) MaterialTheme.colorScheme.onPrimary
+                                                else MaterialTheme.colorScheme.primary
                                             )
+                                        }
+                                        if (searchQuery.isNotBlank()) {
+                                            IconButton(
+                                                onClick = {
+                                                    searchQuery = ""
+                                                    playerViewModel.updateSearchQuery("")
+                                                },
+                                                modifier = Modifier
+                                                    .size(48.dp)
+                                                    .clip(CircleShape)
+                                                    .background(
+                                                        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f)
+                                                    )
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Rounded.Close,
+                                                    contentDescription = stringResource(R.string.cd_clear_search_query),
+                                                    tint = MaterialTheme.colorScheme.primary
+                                                )
+                                            }
                                         }
                                     }
                                 },
@@ -402,18 +442,22 @@ fun SearchScreen(
                             .fillMaxSize()
                             .padding(horizontal = 16.dp)
                     ) {
-                        FlowRow(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 8.dp, horizontal = 8.dp),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalArrangement = Arrangement.spacedBy(0.dp)
-                        ) {
-                            SearchFilterChip(SearchFilterType.ALL, currentFilter, playerViewModel)
-                            SearchFilterChip(SearchFilterType.SONGS, currentFilter, playerViewModel)
-                            SearchFilterChip(SearchFilterType.ALBUMS, currentFilter, playerViewModel)
-                            SearchFilterChip(SearchFilterType.ARTISTS, currentFilter, playerViewModel)
-                            SearchFilterChip(SearchFilterType.PLAYLISTS, currentFilter, playerViewModel)
+                        // Lyrics mode returns songs only, so the result-kind filter chips
+                        // (which conflict with that semantics) are hidden while it is active.
+                        if (!isLyricsSearch) {
+                            FlowRow(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 8.dp, horizontal = 8.dp),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalArrangement = Arrangement.spacedBy(0.dp)
+                            ) {
+                                SearchFilterChip(SearchFilterType.ALL, currentFilter, playerViewModel)
+                                SearchFilterChip(SearchFilterType.SONGS, currentFilter, playerViewModel)
+                                SearchFilterChip(SearchFilterType.ALBUMS, currentFilter, playerViewModel)
+                                SearchFilterChip(SearchFilterType.ARTISTS, currentFilter, playerViewModel)
+                                SearchFilterChip(SearchFilterType.PLAYLISTS, currentFilter, playerViewModel)
+                            }
                         }
                         Crossfade(
                             targetState = searchResults.isEmpty(),
@@ -423,7 +467,8 @@ fun SearchScreen(
                             if (isEmpty) {
                                 EmptySearchResults(
                                     searchQuery = searchQuery,
-                                    colorScheme = colorScheme
+                                    colorScheme = colorScheme,
+                                    lyricsMode = isLyricsSearch
                                 )
                             } else {
                                 SearchResultsList(
@@ -712,7 +757,7 @@ fun SearchHistoryListItem(
 
 
 @Composable
-fun EmptySearchResults(searchQuery: String, colorScheme: ColorScheme) {
+fun EmptySearchResults(searchQuery: String, colorScheme: ColorScheme, lyricsMode: Boolean = false) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -729,10 +774,10 @@ fun EmptySearchResults(searchQuery: String, colorScheme: ColorScheme) {
         )
 
         Text(
-            text = if (searchQuery.isNotBlank()) {
-                stringResource(R.string.search_no_results_for_query, searchQuery)
-            } else {
-                stringResource(R.string.search_nothing_found)
+            text = when {
+                searchQuery.isBlank() -> stringResource(R.string.search_nothing_found)
+                lyricsMode -> stringResource(R.string.search_no_results_for_lyrics_query, searchQuery)
+                else -> stringResource(R.string.search_no_results_for_query, searchQuery)
             },
             style = MaterialTheme.typography.titleLarge,
             textAlign = TextAlign.Center,
@@ -742,7 +787,10 @@ fun EmptySearchResults(searchQuery: String, colorScheme: ColorScheme) {
         Spacer(modifier = Modifier.height(8.dp))
 
         Text(
-            text = stringResource(R.string.search_try_different_or_filters),
+            text = stringResource(
+                if (lyricsMode) R.string.search_try_different_lyrics
+                else R.string.search_try_different_or_filters
+            ),
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
             textAlign = TextAlign.Center

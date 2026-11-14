@@ -579,6 +579,29 @@ class MusicRepositoryImpl @Inject constructor(
     }
 
 
+    override fun searchSongsByLyrics(query: String): Flow<List<Song>> {
+        if (query.isBlank()) return flowOf(emptyList())
+        return combine(
+            userPreferencesRepository.allowedDirectoriesFlow,
+            userPreferencesRepository.blockedDirectoriesFlow
+        ) { allowedDirs, blockedDirs ->
+            allowedDirs to blockedDirs
+        }.flatMapLatest { (allowedDirs, blockedDirs) ->
+            flow {
+                val (allowedParentDirs, applyDirectoryFilter) =
+                    computeAllowedDirs(allowedDirs, blockedDirs)
+                emit(
+                    musicDao.searchSongsByLyricsLimited(
+                        query = query,
+                        allowedParentDirs = allowedParentDirs,
+                        applyDirectoryFilter = applyDirectoryFilter,
+                        limit = SEARCH_RESULTS_LIMIT
+                    )
+                )
+            }.flatMapLatest { it }
+        }.toSongsWithFavoriteState().flowOn(Dispatchers.IO)
+    }
+
     override fun searchAlbums(query: String, minTracks: Int): Flow<List<Album>> {
         if (query.isBlank()) return flowOf(emptyList())
         return musicDao.searchAlbums(query, emptyList(), false, minTracks).map { entities ->

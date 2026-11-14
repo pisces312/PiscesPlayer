@@ -164,8 +164,11 @@
     <string name="action_share">Share</string>
 
     <string name="search_placeholder">Search…</string>
+    <string name="search_placeholder_lyrics">Search lyrics…</string>
     <string name="cd_search_icon">Search</string>
     <string name="cd_clear_search_query">Clear search</string>
+    <string name="cd_switch_to_lyrics_search">Search by lyrics</string>
+    <string name="cd_switch_to_general_search">Search titles, artists, albums and playlists</string>
     <string name="recent_searches">Recent searches</string>
     <string name="search_history_empty">No recent searches yet</string>
     <string name="search_history_clear_title">Clear search history?</string>
@@ -175,8 +178,10 @@
     <string name="cd_delete_search_history_item">Delete search history item</string>
     <string name="cd_no_search_results">No results</string>
     <string name="search_no_results_for_query">No results for \"%1$s\"</string>
+    <string name="search_no_results_for_lyrics_query">No songs contain the lyrics \"%1$s\"</string>
     <string name="search_nothing_found">Nothing found</string>
     <string name="search_try_different_or_filters">Try a different search term or check your filters.</string>
+    <string name="search_try_different_lyrics">Lyrics search only covers lyrics already saved in your library. Try a different line.</string>
     <string name="search_no_results_found">No results found.</string>
 
     <string name="browse_by_genre">Browse by genre</string>

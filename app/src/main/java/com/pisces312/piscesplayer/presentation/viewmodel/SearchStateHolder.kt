@@ -1,6 +1,7 @@
 package com.pisces312.piscesplayer.presentation.viewmodel
 
 import com.pisces312.piscesplayer.data.model.SearchFilterType
+import com.pisces312.piscesplayer.data.model.SearchMode
 import com.pisces312.piscesplayer.data.model.SearchHistoryItem
 import com.pisces312.piscesplayer.data.model.SearchResultItem
 import com.pisces312.piscesplayer.data.repository.MusicRepository
@@ -17,6 +18,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import timber.log.Timber
@@ -52,6 +54,9 @@ class SearchStateHolder @Inject constructor(
 
     private val _selectedSearchFilter = MutableStateFlow(SearchFilterType.ALL)
     val selectedSearchFilter = _selectedSearchFilter.asStateFlow()
+
+    private val _searchMode = MutableStateFlow(SearchMode.GENERAL)
+    val searchMode = _searchMode.asStateFlow()
 
     private val _searchHistory = MutableStateFlow<ImmutableList<SearchHistoryItem>>(persistentListOf())
     val searchHistory = _searchHistory.asStateFlow()
@@ -110,8 +115,15 @@ class SearchStateHolder @Inject constructor(
                     }
 
                     try {
-                        val currentFilter = _selectedSearchFilter.value
-                        musicRepository.searchAll(normalizedQuery, currentFilter).collect { resultsList ->
+                        val resultsFlow = when (_searchMode.value) {
+                            SearchMode.GENERAL ->
+                                musicRepository.searchAll(normalizedQuery, _selectedSearchFilter.value)
+                            SearchMode.LYRICS ->
+                                musicRepository.searchSongsByLyrics(normalizedQuery).map { songs ->
+                                    songs.map { SearchResultItem.SongItem(it) }
+                                }
+                        }
+                        resultsFlow.collect { resultsList ->
                             val sortedResults = resultsList.sortedWith(
                                 compareBy { result ->
                                     when (result) {
@@ -145,6 +157,14 @@ class SearchStateHolder @Inject constructor(
 
     fun updateSearchFilter(filterType: SearchFilterType) {
         _selectedSearchFilter.value = filterType
+    }
+
+    /**
+     * Switch the matching target (metadata vs lyrics content). The screen re-triggers
+     * [performSearch] when this flow changes, so no search is launched here.
+     */
+    fun updateSearchMode(mode: SearchMode) {
+        _searchMode.value = mode
     }
 
     fun loadSearchHistory(limit: Int = 15) {

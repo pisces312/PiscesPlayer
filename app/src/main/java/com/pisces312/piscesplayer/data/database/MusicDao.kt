@@ -1093,6 +1093,71 @@ interface MusicDao {
     }
 
     /**
+     * FTS path of lyrics-content search, joining `lyrics_fts` (kept in sync by the
+     * LyricsDao chokepoint) back to songs.
+     */
+    @Query("""
+        SELECT songs.* FROM songs
+        INNER JOIN lyrics_fts ON lyrics_fts.rowid = songs.id
+        WHERE (:applyDirectoryFilter = 0 OR songs.id < 0 OR songs.parent_directory_path IN (:allowedParentDirs))
+        AND lyrics_fts MATCH :matchQuery
+        ORDER BY songs.title ASC
+        LIMIT :limit
+    """)
+    fun searchSongsByLyricsMatch(
+        matchQuery: String,
+        allowedParentDirs: List<String>,
+        applyDirectoryFilter: Boolean,
+        limit: Int
+    ): Flow<List<SongEntity>>
+
+    /**
+     * LIKE fallback for lyrics-content search. FTS tokenizes a contiguous CJK run into a
+     * single token (prefix-only), so "remembered fragment from the middle of a line"
+     * — the core lyrics-search scenario — is only reachable through this path.
+     */
+    @Query("""
+        SELECT songs.* FROM songs
+        INNER JOIN lyrics ON lyrics.song_id = songs.id
+        WHERE (:applyDirectoryFilter = 0 OR songs.id < 0 OR songs.parent_directory_path IN (:allowedParentDirs))
+        AND lyrics.content LIKE '%' || :query || '%'
+        ORDER BY songs.title ASC
+        LIMIT :limit
+    """)
+    fun searchSongsByLyricsLike(
+        query: String,
+        allowedParentDirs: List<String>,
+        applyDirectoryFilter: Boolean,
+        limit: Int
+    ): Flow<List<SongEntity>>
+
+    fun searchSongsByLyricsLimited(
+        query: String,
+        allowedParentDirs: List<String>,
+        applyDirectoryFilter: Boolean,
+        limit: Int
+    ): Flow<List<SongEntity>> {
+        val ftsFlow = searchSongsByLyricsMatch(
+            matchQuery = buildSongSearchMatchQuery(query),
+            allowedParentDirs = allowedParentDirs,
+            applyDirectoryFilter = applyDirectoryFilter,
+            limit = limit
+        )
+        val likeFlow = searchSongsByLyricsLike(
+            query = query.trim(),
+            allowedParentDirs = allowedParentDirs,
+            applyDirectoryFilter = applyDirectoryFilter,
+            limit = limit
+        )
+        return ftsFlow.combine(likeFlow) { ftsResults, likeResults ->
+            val seen = LinkedHashMap<Long, SongEntity>(ftsResults.size + likeResults.size)
+            ftsResults.forEach { seen.putIfAbsent(it.id, it) }
+            likeResults.forEach { seen.putIfAbsent(it.id, it) }
+            seen.values.toList().take(limit)
+        }
+    }
+
+    /**
      * Returns a PagingSource for songs in a specific genre.
      */
     @Query("""

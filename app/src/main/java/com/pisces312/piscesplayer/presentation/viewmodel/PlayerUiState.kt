@@ -10,6 +10,7 @@ import com.pisces312.piscesplayer.data.model.SearchResultItem
 import com.pisces312.piscesplayer.data.model.SortOption
 import com.pisces312.piscesplayer.data.model.SearchFilterType
 import com.pisces312.piscesplayer.data.model.SearchHistoryItem
+import com.pisces312.piscesplayer.data.model.SearchMode
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
 
@@ -53,6 +54,7 @@ data class PlayerUiState(
     val searchQuery: String = "",
     val isSyncingLibrary: Boolean = false,
     val selectedSearchFilter: SearchFilterType = SearchFilterType.ALL,
+    val searchMode: SearchMode = SearchMode.GENERAL,
     val currentStorageFilter: com.pisces312.piscesplayer.data.model.StorageFilter = com.pisces312.piscesplayer.data.model.StorageFilter.ALL,
     val hideLocalMedia: Boolean = false,
     val showQueueItemUndoBar: Boolean = false,

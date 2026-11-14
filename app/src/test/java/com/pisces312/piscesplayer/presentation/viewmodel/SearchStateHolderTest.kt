@@ -1,6 +1,7 @@
 package com.pisces312.piscesplayer.presentation.viewmodel
 
 import com.pisces312.piscesplayer.data.model.SearchFilterType
+import com.pisces312.piscesplayer.data.model.SearchMode
 import com.pisces312.piscesplayer.data.model.SearchResultItem
 import com.pisces312.piscesplayer.data.repository.MusicRepository
 import io.mockk.every
@@ -37,6 +38,9 @@ class SearchStateHolderTest {
     private val owner = Any()
 
     private fun stubRepository() {
+        // The holder is shared across tests; reset the mode so a previously run
+        // lyrics-mode test cannot leak into the general-mode assertions below.
+        holder.updateSearchMode(SearchMode.GENERAL)
         every { musicRepository.searchAll(any(), any()) } returns
             flowOf(emptyList<SearchResultItem>())
     }
@@ -102,5 +106,34 @@ class SearchStateHolderTest {
             runCurrent()
 
             verify(exactly = 0) { musicRepository.searchAll(any(), any()) }
+        }
+
+    @Test
+    fun `lyrics mode routes the search to searchSongsByLyrics`() =
+        runTest(UnconfinedTestDispatcher()) {
+            every { musicRepository.searchSongsByLyrics(any()) } returns flowOf(emptyList())
+            holder.initialize(owner, backgroundScope)
+
+            holder.updateSearchMode(SearchMode.LYRICS)
+            holder.performSearch("海阔天空")
+            advanceTimeBy(PAST_DEBOUNCE_MS)
+            runCurrent()
+
+            verify(exactly = 1) { musicRepository.searchSongsByLyrics("海阔天空") }
+            verify(exactly = 0) { musicRepository.searchAll(any(), any()) }
+        }
+
+    @Test
+    fun `general mode never queries lyrics`() =
+        runTest(UnconfinedTestDispatcher()) {
+            stubRepository()
+            holder.initialize(owner, backgroundScope)
+
+            holder.performSearch("tone")
+            advanceTimeBy(PAST_DEBOUNCE_MS)
+            runCurrent()
+
+            verify(exactly = 1) { musicRepository.searchAll("tone", SearchFilterType.ALL) }
+            verify(exactly = 0) { musicRepository.searchSongsByLyrics(any()) }
         }
 }

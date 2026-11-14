@@ -163,8 +163,11 @@
     <string name="action_share">分享</string>
 
     <string name="search_placeholder">搜索…</string>
+    <string name="search_placeholder_lyrics">搜索歌词…</string>
     <string name="cd_search_icon">搜索</string>
     <string name="cd_clear_search_query">清空搜索</string>
+    <string name="cd_switch_to_lyrics_search">按歌词搜索</string>
+    <string name="cd_switch_to_general_search">搜索标题、艺人、专辑与歌单</string>
     <string name="recent_searches">最近搜索</string>
     <string name="search_history_empty">暂无搜索记录</string>
     <string name="search_history_clear_title">清空搜索历史？</string>
@@ -174,8 +177,10 @@
     <string name="cd_delete_search_history_item">删除该项搜索记录</string>
     <string name="cd_no_search_results">无搜索结果</string>
     <string name="search_no_results_for_query">未找到“%1$s”相关内容</string>
+    <string name="search_no_results_for_lyrics_query">没有找到包含歌词“%1$s”的歌曲</string>
     <string name="search_nothing_found">什么都没找到</string>
     <string name="search_try_different_or_filters">尝试更换关键词，或检查筛选条件。</string>
+    <string name="search_try_different_lyrics">歌词搜索仅覆盖曲库中已保存的歌词，试试换一句歌词。</string>
     <string name="search_no_results_found">没有匹配结果。</string>
 
     <string name="browse_by_genre">按流派浏览</string>

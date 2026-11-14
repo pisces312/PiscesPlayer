@@ -10,6 +10,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         SearchHistoryEntity::class,
         SongEntity::class,
         SongSearchFtsEntity::class,
+        LyricsSearchFtsEntity::class,
         AlbumEntity::class,
         ArtistEntity::class,
         TransitionRuleEntity::class,
@@ -29,7 +30,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         AiCacheEntity::class,
         AiUsageEntity::class
     ],
-    version = 15,
+    version = 16,
     exportSchema = true
 )
 abstract class PiscesPlayerDatabase : RoomDatabase() {
@@ -63,8 +64,25 @@ abstract class PiscesPlayerDatabase : RoomDatabase() {
             )
         }
 
+        private fun createLyricsSearchVirtualTable(db: SupportSQLiteDatabase) {
+            // Idempotent drift guard, mirroring createSongsSearchVirtualTable: Room validates
+            // the entity on every open, so a dropped table must be recreated here. Rows are
+            // (re)populated by the LyricsDao chokepoint on the next lyrics write; MIGRATION_15_16
+            // backfills existing rows on upgrade.
+            db.execSQL(
+                """
+                    CREATE VIRTUAL TABLE IF NOT EXISTS lyrics_fts
+                    USING fts4(
+                        content,
+                        tokenize=unicode61
+                    )
+                """.trimIndent()
+            )
+        }
+
         fun installSongsSearchSyncTriggers(db: SupportSQLiteDatabase) {
             createSongsSearchVirtualTable(db)
+            createLyricsSearchVirtualTable(db)
 
             db.execSQL("DROP TRIGGER IF EXISTS trg_songs_fts_insert")
             db.execSQL("DROP TRIGGER IF EXISTS trg_songs_fts_update")

@@ -48,6 +48,9 @@ import com.pisces312.piscesplayer.data.model.Genre
 import com.pisces312.piscesplayer.data.model.Lyrics
 import com.pisces312.piscesplayer.data.model.LyricsSourcePreference
 import com.pisces312.piscesplayer.data.model.SearchFilterType
+import com.pisces312.piscesplayer.data.model.SearchHistoryItem
+import com.pisces312.piscesplayer.data.model.SearchMode
+import com.pisces312.piscesplayer.data.model.SearchResultItem
 import com.pisces312.piscesplayer.data.model.Song
 import com.pisces312.piscesplayer.data.model.SortOption
 import com.pisces312.piscesplayer.data.model.toLibraryTabIdOrNull
@@ -242,6 +245,13 @@ private data class PendingLyricsSave(
     val song: Song,
     val lyrics: Lyrics,
     val preferSynced: Boolean
+)
+
+private data class SearchStateSlice(
+    val results: ImmutableList<SearchResultItem>,
+    val filter: SearchFilterType,
+    val history: ImmutableList<SearchHistoryItem>,
+    val mode: SearchMode,
 )
 
 private data class ResolvedAlbumSelection(
@@ -1728,14 +1738,16 @@ class PlayerViewModel @Inject constructor(
                     searchStateHolder.searchResults,
                     searchStateHolder.selectedSearchFilter,
                     searchStateHolder.searchHistory,
-                ) { results, filter, history ->
-                    Triple(results, filter, history)
-                }.collect { (results, filter, history) ->
+                    searchStateHolder.searchMode,
+                ) { results, filter, history, mode ->
+                    SearchStateSlice(results, filter, history, mode)
+                }.collect { (results, filter, history, mode) ->
                     _playerUiState.update {
                         it.copy(
                             searchResults = results,
                             selectedSearchFilter = filter,
                             searchHistory = history,
+                            searchMode = mode,
                         )
                     }
                 }
@@ -4097,6 +4109,10 @@ class PlayerViewModel @Inject constructor(
 
     fun updateSearchFilter(filterType: SearchFilterType) {
         searchStateHolder.updateSearchFilter(filterType)
+    }
+
+    fun updateSearchMode(mode: SearchMode) {
+        searchStateHolder.updateSearchMode(mode)
     }
 
     fun loadSearchHistory(limit: Int = 15) {

@@ -8,6 +8,7 @@ import com.pisces312.piscesplayer.data.database.AlbumArtThemeDao
 import com.google.common.util.concurrent.ListenableFuture
 import com.pisces312.piscesplayer.data.model.SearchFilterType
 import com.pisces312.piscesplayer.data.model.SearchHistoryItem
+import com.pisces312.piscesplayer.data.model.SearchMode
 import com.pisces312.piscesplayer.data.model.SearchResultItem
 import com.pisces312.piscesplayer.data.model.Album
 import com.pisces312.piscesplayer.data.model.Artist
@@ -98,6 +99,7 @@ class PlayerViewModelTest {
     private val _searchHistoryFlow = MutableStateFlow<ImmutableList<SearchHistoryItem>>(persistentListOf())
     private val _searchResultsFlow = MutableStateFlow<ImmutableList<SearchResultItem>>(persistentListOf())
     private val _selectedSearchFilterFlow = MutableStateFlow(SearchFilterType.ALL)
+    private val _searchModeFlow = MutableStateFlow(SearchMode.GENERAL)
     private val _repeatModeFlow = MutableStateFlow(Player.REPEAT_MODE_OFF)
     private val _favoriteIdsFlow = MutableStateFlow<Set<String>>(emptySet())
     private lateinit var stablePlayerStateFlow: MutableStateFlow<StablePlayerState>
@@ -151,6 +153,7 @@ class PlayerViewModelTest {
         every { mockSearchStateHolder.searchHistory } returns _searchHistoryFlow
         every { mockSearchStateHolder.searchResults } returns _searchResultsFlow
         every { mockSearchStateHolder.selectedSearchFilter } returns _selectedSearchFilterFlow
+        every { mockSearchStateHolder.searchMode } returns _searchModeFlow
         every { mockSearchStateHolder.loadSearchHistory(any()) } just runs
         every { mockSearchStateHolder.clearSearchHistory() } just runs
         every { mockSearchStateHolder.deleteSearchHistoryItem(any()) } just runs
