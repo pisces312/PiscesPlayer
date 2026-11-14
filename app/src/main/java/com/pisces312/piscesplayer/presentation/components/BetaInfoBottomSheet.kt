@@ -22,13 +22,11 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.BugReport
 import androidx.compose.material.icons.rounded.CheckCircle
-import androidx.compose.material.icons.rounded.Cloud
 import androidx.compose.material.icons.rounded.ExpandLess
 import androidx.compose.material.icons.rounded.ExpandMore
 import androidx.compose.material.icons.rounded.Gavel
 import androidx.compose.material.icons.rounded.Highlight
 import androidx.compose.material.icons.rounded.Info
-import androidx.compose.material.icons.rounded.NightsStay
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Shield
 import androidx.compose.material.icons.rounded.Warning
@@ -321,41 +319,6 @@ fun BetaInfoBottomSheet(modifier: Modifier = Modifier) {
                     )
                     Text(
                         text = stringResource(R.string.presentation_batch_g_beta_sheet_privacy_body),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                }
-            }
-
-            item(key = "section-nightly") {
-                BetaFaqSection(
-                    title = stringResource(R.string.presentation_batch_g_beta_sheet_nightly_title),
-                    summary = stringResource(R.string.presentation_batch_g_beta_sheet_nightly_summary),
-                    icon = Icons.Rounded.NightsStay,
-                    iconTint = MaterialTheme.colorScheme.secondary,
-                    containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.42f)
-                ) {
-                    BetaSubsectionHeader(
-                        icon = Icons.Rounded.NightsStay,
-                        title = stringResource(R.string.presentation_batch_g_beta_sheet_nightly_title)
-                    )
-                    Text(
-                        text = stringResource(R.string.presentation_batch_g_beta_sheet_nightly_body),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    Text(
-                        text = stringResource(R.string.presentation_batch_g_beta_sheet_nightly_access),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    BetaSectionDivider()
-                    BetaSubsectionHeader(
-                        icon = Icons.Rounded.Cloud,
-                        title = stringResource(R.string.presentation_batch_g_beta_sheet_nightly_report_title)
-                    )
-                    Text(
-                        text = stringResource(R.string.presentation_batch_g_beta_sheet_nightly_report_body),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurface
                     )

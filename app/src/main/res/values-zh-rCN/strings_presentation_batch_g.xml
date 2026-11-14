@@ -350,12 +350,6 @@
     <string name="presentation_batch_g_beta_sheet_avoid_3">日志、截图中保留未打码的个人隐私信息。</string>
     <string name="presentation_batch_g_beta_sheet_privacy_title">隐私提醒</string>
     <string name="presentation_batch_g_beta_sheet_privacy_body">上传日志、截图、视频前，请抹除个人隐私信息。</string>
-    <string name="presentation_batch_g_beta_sheet_nightly_title">每日构建版本</string>
-    <string name="presentation_batch_g_beta_sheet_nightly_summary">每日构建与正式版区别，以及故障反馈注意事项。</string>
-    <string name="presentation_batch_g_beta_sheet_nightly_body">每日构建来自最新提交，包含尚未完工的改动，会引入临时漏洞或者功能回退，实验性高于正式发布包。</string>
-    <string name="presentation_batch_g_beta_sheet_nightly_access">如可用，可以在仓库GitHub Actions产物中获取。</string>
-    <string name="presentation_batch_g_beta_sheet_nightly_report_title">反馈每日构建版本的问题</string>
-    <string name="presentation_batch_g_beta_sheet_nightly_report_body">反馈每日构建的故障时，务必注明是每日构建而非正式版本；尽可能附带构建日期、工作流编号或者提交哈希，同时确认该问题在正式版是否同样存在。</string>
     <string name="presentation_batch_g_album_sel_count">%1$d 张专辑</string>
     <string name="presentation_batch_g_album_sel_selected">已选择</string>
     <string name="presentation_batch_g_album_sel_queue_hint">加入队列并播放将严格遵循你的选中顺序。</string>

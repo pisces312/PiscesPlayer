@@ -9,12 +9,6 @@
     <string name="about_signal_community_first">Community first</string>
     <string name="about_signal_material3">Material 3 Expressiv</string>
     <string name="about_signal_open_source">Open Source</string>
-    <string name="about_support_body">Hilf mit, die FOSS-Version gepflegt, geprüft und auf echten Android-Geräten getestet zu halten.</string>
-    <string name="about_support_chip_ci">CI und Releases</string>
-    <string name="about_support_chip_foss">FOSS-Pflege</string>
-    <string name="about_support_chip_streaming">Selbst gehostete Musik</string>
-    <string name="about_support_cta">Auf GitHub sponsern</string>
-    <string name="about_support_eyebrow">GitHub Sponsors</string>
     <string name="about_tagline">Lokale Musik zuerst, selbst gehostetes Streaming und Material-3-Handwerk in einem FOSS-Player.</string>
     <string name="about_version_format">Version v%1$s</string>
     <string name="accounts_unable_open_screen">Dieser Bildschirm ist gerade nicht verfügbar.</string>
@@ -48,7 +42,6 @@
     <string name="cd_next_step">Weiter</string>
     <string name="cd_no_search_results">Keine Ergebnisse</string>
     <string name="cd_open_github_profile">GitHub-Profil öffnen</string>
-    <string name="cd_open_telegram_profile">Telegram-Profil öffnen</string>
     <string name="cd_options">Optionen</string>
     <string name="cd_play_album">Album abspielen</string>
     <string name="cd_play_artist">Künstler abspielen</string>

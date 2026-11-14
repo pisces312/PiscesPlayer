@@ -155,12 +155,6 @@
     <string name="presentation_batch_g_beta_sheet_issue_type_feature">기능 요청: 새로운 기능이나 개선 사항 추가.</string>
     <string name="presentation_batch_g_beta_sheet_issue_type_question">질문: 활성화된 경우 토론(Discussions)을 사용하거나 질문 라벨이 있는 이슈를 작성하세요.</string>
     <string name="presentation_batch_g_beta_sheet_issue_type_title">어떤 이슈 유형인가요?</string>
-    <string name="presentation_batch_g_beta_sheet_nightly_access">가능한 경우 레포지토리의 GitHub Actions 워크플로 아티팩트에서 다운로드할 수 있습니다.</string>
-    <string name="presentation_batch_g_beta_sheet_nightly_body">나이틀리 빌드는 최신 커밋에서 자동으로 생성되므로 미완성된 변경 사항, 일시적인 버그 또는 회귀 오류가 포함되어 있을 수 있습니다. 공식 릴리스보다 훨씬 실험적입니다.</string>
-    <string name="presentation_batch_g_beta_sheet_nightly_report_body">나이틀리 빌드에서 발생한 문제를 보고할 때는 항상 공식 릴리스가 아닌 나이틀리 빌드에서 발생했음을 언급해 주세요. 가능하면 빌드 날짜, 워크플로 실행 이름 또는 번호, 커밋 SHA를 포함해 주세요. 또한 최신 공식 릴리스에서도 동일한 문제가 발생하는지 확인해 보세요.</string>
-    <string name="presentation_batch_g_beta_sheet_nightly_report_title">나이틀리 문제 보고</string>
-    <string name="presentation_batch_g_beta_sheet_nightly_summary">나이틀리 빌드와 정식 릴리스의 차이점 및 문제 발생 시 포함할 정보.</string>
-    <string name="presentation_batch_g_beta_sheet_nightly_title">나이틀리 빌드</string>
     <string name="presentation_batch_g_beta_sheet_open_issues">기존 이슈 열기</string>
     <string name="presentation_batch_g_beta_sheet_privacy_body">로그, 스크린샷 또는 동영상을 게시하기 전에 개인 또는 민감한 정보를 삭제하세요.</string>
     <string name="presentation_batch_g_beta_sheet_privacy_title">개인정보 보호 안내</string>

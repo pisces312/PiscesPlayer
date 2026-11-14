@@ -155,12 +155,6 @@
     <string name="presentation_batch_g_beta_sheet_issue_type_feature">Funksjonsforespørsel: Legg til en ny funksjon eller forbedring.</string>
     <string name="presentation_batch_g_beta_sheet_issue_type_question">Spørsmål: Bruk Diskusjoner hvis aktivert, eller åpne en issue med spørsmålsetikett.</string>
     <string name="presentation_batch_g_beta_sheet_issue_type_title">Hvilken type issue?</string>
-    <string name="presentation_batch_g_beta_sheet_nightly_access">Få tilgang til dem fra repositoriets GitHub Actions workflow-artefakter hvis tilgjengelig.</string>
-    <string name="presentation_batch_g_beta_sheet_nightly_body">Nightly-bygg genereres fra siste commit og kan inneholde uferdige endringer, midlertidige feil eller regresjoner. De er mer eksperimentelle enn offisielle utgivelser.</string>
-    <string name="presentation_batch_g_beta_sheet_nightly_report_body">Når du rapporterer et problem fra en nightly-bygg, nevn alltid at det skjedde på en nightly-bygg, ikke på den offisielle utgivelsen. Inkluder byggdato, workflow-kjøringsnavn eller -nummer, eller commit-SHA hvis mulig. Sjekk også om samme problem oppstår på den siste offisielle utgivelsen.</string>
-    <string name="presentation_batch_g_beta_sheet_nightly_report_title">Rapportering av nightly-problemer</string>
-    <string name="presentation_batch_g_beta_sheet_nightly_summary">Hvordan nightlies skiller seg fra utgivelser, og hva du bør inkludere når de feiler.</string>
-    <string name="presentation_batch_g_beta_sheet_nightly_title">Nightly-bygg</string>
     <string name="presentation_batch_g_beta_sheet_open_issues">Vis GitHub-issues</string>
     <string name="presentation_batch_g_beta_sheet_privacy_body">Fjern personlig eller privat informasjon før du legger ut logger, skjermbilder eller videoer.</string>
     <string name="presentation_batch_g_beta_sheet_privacy_title">Personvernmerknad</string>

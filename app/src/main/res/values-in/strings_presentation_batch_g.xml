@@ -155,12 +155,6 @@
     <string name="presentation_batch_g_beta_sheet_issue_type_feature">Permintaan fitur: Tambahkan fitur atau peningkatan baru.</string>
     <string name="presentation_batch_g_beta_sheet_issue_type_question">Pertanyaan: Gunakan Discussions jika tersedia, atau buat issue dengan label pertanyaan.</string>
     <string name="presentation_batch_g_beta_sheet_issue_type_title">Jenis issue apa?</string>
-    <string name="presentation_batch_g_beta_sheet_nightly_access">Akses build tersebut melalui artifact workflow GitHub Actions repositori jika tersedia.</string>
-    <string name="presentation_batch_g_beta_sheet_nightly_body">Build nightly dibuat dari commit terbaru dan mungkin berisi perubahan yang belum selesai, bug sementara, atau regresi. Build ini lebih eksperimental dibanding rilis resmi.</string>
-    <string name="presentation_batch_g_beta_sheet_nightly_report_body">Saat melaporkan masalah dari build nightly, selalu sebutkan bahwa masalah terjadi pada build nightly, bukan rilis resmi. Sertakan tanggal build, nama atau nomor workflow run, atau commit SHA jika memungkinkan. Periksa juga apakah masalah yang sama terjadi pada rilis resmi terbaru.</string>
-    <string name="presentation_batch_g_beta_sheet_nightly_report_title">Melaporkan masalah nightly</string>
-    <string name="presentation_batch_g_beta_sheet_nightly_summary">Perbedaan nightly dengan rilis resmi, serta apa yang perlu disertakan saat terjadi masalah.</string>
-    <string name="presentation_batch_g_beta_sheet_nightly_title">Build nightly</string>
     <string name="presentation_batch_g_beta_sheet_open_issues">Buka issue yang ada</string>
     <string name="presentation_batch_g_beta_sheet_privacy_body">Sebelum mengunggah log, screenshot, atau video, hapus informasi pribadi atau sensitif.</string>
     <string name="presentation_batch_g_beta_sheet_privacy_title">Catatan privasi</string>

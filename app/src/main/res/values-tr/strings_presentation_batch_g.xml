@@ -155,12 +155,6 @@
     <string name="presentation_batch_g_beta_sheet_issue_type_feature">Özellik isteği: Yeni bir özellik veya iyileştirme ekle.</string>
     <string name="presentation_batch_g_beta_sheet_issue_type_question">Soru: Etkinse Tartışmalar\'ı kullanın veya soru etiketiyle bir sorun açın.</string>
     <string name="presentation_batch_g_beta_sheet_issue_type_title">Hangi sorun türü?</string>
-    <string name="presentation_batch_g_beta_sheet_nightly_access">Mevcutsa deponun GitHub Actions iş akışı artifacts bölümünden erişin.</string>
-    <string name="presentation_batch_g_beta_sheet_nightly_body">Gecelik yapılar en son commit\'ten oluşturulur ve tamamlanmamış değişiklikler, geçici hatalar veya gerilimler içerebilir. Resmi sürümlerden daha deneyseldir.</string>
-    <string name="presentation_batch_g_beta_sheet_nightly_report_body">Gecelik bir yapıdan sorun bildirirken, bunun resmi sürümde değil gecelik bir yapıda gerçekleştiğini her zaman belirtin. Mümkünse yapı tarihi, iş akışı çalıştırma adı veya numarası ya da commit SHA ekleyin. Aynı sorunun en son resmi sürümde de oluşup oluşmadığını da kontrol edin.</string>
-    <string name="presentation_batch_g_beta_sheet_nightly_report_title">Gecelik sorunları bildirme</string>
-    <string name="presentation_batch_g_beta_sheet_nightly_summary">Geceliklerin sürümlerden farkı ve bozulduğunda ne eklenmeli.</string>
-    <string name="presentation_batch_g_beta_sheet_nightly_title">Gecelik yapılar</string>
     <string name="presentation_batch_g_beta_sheet_open_issues">Mevcut sorunları aç</string>
     <string name="presentation_batch_g_beta_sheet_privacy_body">Günlük, ekran görüntüsü veya video paylaşmadan önce kişisel veya özel bilgileri kaldırın.</string>
     <string name="presentation_batch_g_beta_sheet_privacy_title">Gizlilik notu</string>

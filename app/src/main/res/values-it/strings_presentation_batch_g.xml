@@ -155,12 +155,6 @@
     <string name="presentation_batch_g_beta_sheet_issue_type_feature">Richiesta funzionalità: Aggiungi una nuova funzionalità o miglioramento.</string>
     <string name="presentation_batch_g_beta_sheet_issue_type_question">Domanda: Usa Discussioni se abilitate, o apri una segnalazione con l\'etichetta domanda.</string>
     <string name="presentation_batch_g_beta_sheet_issue_type_title">Quale tipo di segnalazione?</string>
-    <string name="presentation_batch_g_beta_sheet_nightly_access">Accedi ad esse dagli artefatti del workflow di GitHub Actions del repository, se disponibili.</string>
-    <string name="presentation_batch_g_beta_sheet_nightly_body">Le build nightly sono generate dall\'ultimo commit e potrebbero contenere modifiche incomplete, bug temporanei o regressioni. Sono più sperimentali delle release ufficiali.</string>
-    <string name="presentation_batch_g_beta_sheet_nightly_report_body">Quando segnali un problema da una build nightly, menziona sempre che si è verificato su una nightly, non sulla release ufficiale. Includi la data della build, il nome o numero di esecuzione del workflow, o il commit SHA se possibile. Controlla anche se lo stesso problema si verifica sull\'ultima release ufficiale.</string>
-    <string name="presentation_batch_g_beta_sheet_nightly_report_title">Segnalazione problemi delle nightly</string>
-    <string name="presentation_batch_g_beta_sheet_nightly_summary">Come le nightly differiscono dalle release, e cosa includere quando si interrompono.</string>
-    <string name="presentation_batch_g_beta_sheet_nightly_title">Build nightly</string>
     <string name="presentation_batch_g_beta_sheet_open_issues">Apri segnalazioni esistenti</string>
     <string name="presentation_batch_g_beta_sheet_privacy_body">Prima di pubblicare log, screenshot o video, rimuovi le informazioni personali o private.</string>
     <string name="presentation_batch_g_beta_sheet_privacy_title">Nota sulla privacy</string>

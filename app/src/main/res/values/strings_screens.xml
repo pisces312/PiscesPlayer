@@ -203,15 +203,7 @@
     <string name="about_signal_open_source">Open source</string>
     <string name="about_signal_community_first">Community-first</string>
     <string name="about_signal_material3">Material 3 expressive</string>
-    <string name="about_support_eyebrow">GitHub Sponsors</string>
-    <string name="about_support_title">Support upstream PixelPlayerOSS</string>
-    <string name="about_support_body">PiscesPlayer is built on PixelPlayerOSS. Sponsoring @lostf1sh supports the upstream FOSS project this fork is based on.</string>
-    <string name="about_support_chip_foss">FOSS maintenance</string>
-    <string name="about_support_chip_ci">CI and releases</string>
-    <string name="about_support_chip_streaming">Self-hosted music</string>
-    <string name="about_support_cta">Sponsor on GitHub</string>
     <string name="cd_open_github_profile">Open GitHub profile</string>
-    <string name="cd_open_telegram_profile">Open Telegram profile</string>
     <string name="cd_contributor_avatar">Avatar of %1$s</string>
     <string name="cd_contributor_icon">Icon of %1$s</string>
 

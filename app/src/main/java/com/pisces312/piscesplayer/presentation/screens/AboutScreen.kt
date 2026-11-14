@@ -126,7 +126,6 @@ private data class Contributor(
     val avatarUrl: String? = null,
     @DrawableRes val iconRes: Int? = null,
     val githubUrl: String? = null,
-    val telegramUrl: String? = null,
     val contributions: Int? = null,
 )
 
@@ -149,7 +148,6 @@ private val CoreMaintainer = Contributor(
     avatarUrl = "https://github.com/lostf1sh.png",
     iconRes = R.drawable.round_developer_board_24,
     githubUrl = "https://github.com/lostf1sh",
-    telegramUrl = "https://t.me/lostf1sh",
 )
 
 private val NonFossMaintainer = Contributor(
@@ -172,7 +170,6 @@ private val AboutMaintainers = listOf(
 private const val SourceRepoUrl = "https://github.com/pisces312/PiscesPlayer"
 private const val UpstreamRepoUrl = "https://github.com/PixelPlayerHQ/PixelPlayerOSS"
 private const val LicenseNoticesUrl = "https://github.com/pisces312/PiscesPlayer/blob/main/NOTICE"
-private const val SponsorUrl = "https://github.com/sponsors/lostf1sh"
 
 private val BuildTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
 
@@ -402,16 +399,6 @@ fun AboutScreen(
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp)
                         .padding(top = 8.dp),
-                )
-            }
-
-            item(key = "support_card") {
-                AboutSupportCard(
-                    onSponsorClick = { openUrl(context, SponsorUrl) },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp)
-                        .padding(top = 12.dp),
                 )
             }
 
@@ -669,113 +656,6 @@ private fun CommunitySignalsRow() {
     }
 }
 
-@OptIn(ExperimentalLayoutApi::class)
-@Composable
-private fun AboutSupportCard(
-    onSponsorClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    val shape = AbsoluteSmoothCornerShape(30.dp, 60)
-
-    Surface(
-        modifier = modifier,
-        shape = shape,
-        color = MaterialTheme.colorScheme.primaryContainer,
-        tonalElevation = 4.dp,
-    ) {
-        Column(
-            modifier = Modifier.padding(18.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Surface(
-                    shape = CircleShape,
-                    color = MaterialTheme.colorScheme.primary,
-                ) {
-                    Icon(
-                        painter = painterResource(R.drawable.rounded_favorite_24),
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onPrimary,
-                        modifier = Modifier.padding(12.dp).size(24.dp),
-                    )
-                }
-
-                Spacer(Modifier.width(12.dp))
-
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = stringResource(R.string.about_support_eyebrow),
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.78f),
-                        fontWeight = FontWeight.SemiBold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    Text(
-                        text = stringResource(R.string.about_support_title),
-                        style = MaterialTheme.typography.titleLarge,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer,
-                        fontWeight = FontWeight.Bold,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
-            }
-
-            Text(
-                text = stringResource(R.string.about_support_body),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.86f),
-            )
-
-            FlowRow(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                listOf(
-                    stringResource(R.string.about_support_chip_foss),
-                    stringResource(R.string.about_support_chip_ci),
-                    stringResource(R.string.about_support_chip_streaming),
-                ).forEach { label ->
-                    Surface(
-                        shape = AbsoluteSmoothCornerShape(16.dp, 60),
-                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.10f),
-                    ) {
-                        Text(
-                            text = label,
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                    }
-                }
-            }
-
-            FilledTonalButton(
-                onClick = onSponsorClick,
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Icon(
-                    painter = painterResource(R.drawable.github),
-                    contentDescription = null,
-                    modifier = Modifier.size(18.dp),
-                )
-                Spacer(Modifier.width(8.dp))
-                Text(
-                    text = stringResource(R.string.about_support_cta),
-                    fontWeight = FontWeight.SemiBold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-        }
-    }
-}
-
 @Composable
 private fun AboutSectionHeader(
     title: String,
@@ -973,11 +853,6 @@ private fun ContributorCard(
                 painterRes = R.drawable.github,
                 contentDescription = stringResource(R.string.cd_open_github_profile),
                 url = contributor.githubUrl,
-            )
-            SocialIconButton(
-                painterRes = R.drawable.telegram,
-                contentDescription = stringResource(R.string.cd_open_telegram_profile),
-                url = contributor.telegramUrl,
             )
         }
     }

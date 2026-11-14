@@ -14,9 +14,6 @@
   <a href="https://github.com/pisces312/PiscesPlayer/releases">
     <img src="https://img.shields.io/github/downloads/pisces312/PiscesPlayer/total?logo=github&style=for-the-badge" alt="累计下载">
   </a>
-  <a href="https://github.com/sponsors/lostf1sh">
-    <img src="https://img.shields.io/badge/Sponsor-Upstream%20(GitHub%20Sponsors)-EA4AAA?style=for-the-badge&logo=githubsponsors&logoColor=white" alt="赞助上游项目">
-  </a>
   <img src="https://img.shields.io/badge/Android-11%2B-3DDC84?style=for-the-badge&logo=android&logoColor=white" alt="Android 11+">
   <img src="https://img.shields.io/badge/License-GPLv3-blue?style=for-the-badge" alt="GPLv3 许可证">
 </p>
@@ -192,7 +189,7 @@ Release 使用个人密钥签名，可相互覆盖升级。PiscesPlayer 使用�
 
 ## 支持
 
-PiscesPlayer 是一个业余分支。如果这个播放器对你有用，最好的支持方式是支持上游项目：[PixelPlayerOSS](https://github.com/PixelPlayerHQ/PixelPlayerOSS) · [@lostf1sh 的 GitHub Sponsors](https://github.com/sponsors/lostf1sh)。
+PiscesPlayer 是独立维护的业余分支。支持方式：给仓库点 Star、反馈问题或提交 PR。本项目基于 @lostf1sh 的 [PixelPlayerOSS](https://github.com/PixelPlayerHQ/PixelPlayerOSS)，署名与来源见 [NOTICE](NOTICE) 与 [PROVENANCE.md](PROVENANCE.md)。
 
 ## 项目结构
 

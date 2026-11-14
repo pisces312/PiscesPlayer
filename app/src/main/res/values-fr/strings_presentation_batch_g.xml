@@ -155,12 +155,6 @@
     <string name="presentation_batch_g_beta_sheet_issue_type_feature">Demande de fonctionnalité : Ajouter une nouvelle fonctionnalité ou amélioration.</string>
     <string name="presentation_batch_g_beta_sheet_issue_type_question">Question : Utilisez Discussions si activé, ou ouvrez un ticket avec le label question.</string>
     <string name="presentation_batch_g_beta_sheet_issue_type_title">Quel type de ticket ?</string>
-    <string name="presentation_batch_g_beta_sheet_nightly_access">Accédez-y depuis les artefacts de workflow GitHub Actions du dépôt si disponibles.</string>
-    <string name="presentation_batch_g_beta_sheet_nightly_body">Les builds nightly sont générées à partir du dernier commit et peuvent contenir des modifications inachevées, des bugs temporaires ou des régressions. Elles sont plus expérimentales que les releases officielles.</string>
-    <string name="presentation_batch_g_beta_sheet_nightly_report_body">Lorsque vous signalez un problème à partir d\'une build nightly, mentionnez toujours qu\'il s\'est produit sur une build nightly, et non sur la release officielle. Incluez la date de build, le nom ou le numéro d\'exécution du workflow, ou le commit SHA si possible. Vérifiez également si le même problème se produit sur la dernière release officielle.</string>
-    <string name="presentation_batch_g_beta_sheet_nightly_report_title">Signaler des problèmes sur les nightlies</string>
-    <string name="presentation_batch_g_beta_sheet_nightly_summary">En quoi les nightlies diffèrent des releases, et quoi inclure quand elles plantent.</string>
-    <string name="presentation_batch_g_beta_sheet_nightly_title">Builds nightly</string>
     <string name="presentation_batch_g_beta_sheet_open_issues">Ouvrir les tickets existants</string>
     <string name="presentation_batch_g_beta_sheet_privacy_body">Avant de publier des journaux, des captures d\'écran ou des vidéos, supprimez les informations personnelles ou privées.</string>
     <string name="presentation_batch_g_beta_sheet_privacy_title">Note sur la confidentialité</string>

@@ -9,12 +9,6 @@
     <string name="about_signal_community_first">Samfunnet først</string>
     <string name="about_signal_material3">Material 3 ekspressiv</string>
     <string name="about_signal_open_source">Åpen kildekode</string>
-    <string name="about_support_body">Bidra til at FOSS-utgaven blir vedlikeholdt, gjennomgått og testet på ekte Android-enheter.</string>
-    <string name="about_support_chip_ci">CI og utgivelser</string>
-    <string name="about_support_chip_foss">FOSS-vedlikehold</string>
-    <string name="about_support_chip_streaming">Selvhostet musikk</string>
-    <string name="about_support_cta">Støtt på GitHub</string>
-    <string name="about_support_eyebrow">GitHub Sponsors</string>
     <string name="about_tagline">Lokal musikk først, selvhostet strømming og Material 3-håndverk i én FOSS-spiller.</string>
     <string name="about_version_format">Versjon v%1$s</string>
     <string name="accounts_unable_open_screen">Kan ikke åpne denne skjermen akkurat nå.</string>
@@ -48,7 +42,6 @@
     <string name="cd_next_step">Neste</string>
     <string name="cd_no_search_results">Ingen resultater</string>
     <string name="cd_open_github_profile">Åpne GitHub-profil</string>
-    <string name="cd_open_telegram_profile">Åpne Telegram-profil</string>
     <string name="cd_options">Alternativer</string>
     <string name="cd_play_album">Spill album</string>
     <string name="cd_play_artist">Spill artist</string>

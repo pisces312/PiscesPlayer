@@ -9,12 +9,6 @@
     <string name="about_signal_community_first">Önce topluluk</string>
     <string name="about_signal_material3">Etkileyici Material 3</string>
     <string name="about_signal_open_source">Açık kaynak</string>
-    <string name="about_support_body">FOSS sürümünün bakımının yapılmasına, gözden geçirilmesine ve gerçek Android cihazlarda test edilmesine destek olun.</string>
-    <string name="about_support_chip_ci">CI ve sürümler</string>
-    <string name="about_support_chip_foss">FOSS bakımı</string>
-    <string name="about_support_chip_streaming">Kendi barındırdığınız müzik</string>
-    <string name="about_support_cta">GitHub\'da sponsor ol</string>
-    <string name="about_support_eyebrow">GitHub Sponsors</string>
     <string name="about_tagline">Yerel öncelikli müzik, kendi barındırdığınız akış ve Material 3 işçiliği tek bir FOSS oynatıcıda.</string>
     <string name="about_version_format">Sürüm v%1$s</string>
     <string name="accounts_unable_open_screen">Bu ekran şu anda açılamıyor.</string>
@@ -48,7 +42,6 @@
     <string name="cd_next_step">İleri</string>
     <string name="cd_no_search_results">Sonuç yok</string>
     <string name="cd_open_github_profile">GitHub profilini aç</string>
-    <string name="cd_open_telegram_profile">Telegram profilini aç</string>
     <string name="cd_options">Seçenekler</string>
     <string name="cd_play_album">Albümü oynat</string>
     <string name="cd_play_artist">Sanatçıyı oynat</string>

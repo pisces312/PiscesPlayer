@@ -155,12 +155,6 @@
     <string name="presentation_batch_g_beta_sheet_issue_type_feature">Запрос функции: добавить новую возможность или улучшение.</string>
     <string name="presentation_batch_g_beta_sheet_issue_type_question">Вопрос: используйте Discussions, если они включены, либо создайте задачу с меткой вопроса.</string>
     <string name="presentation_batch_g_beta_sheet_issue_type_title">Какой тип задачи?</string>
-    <string name="presentation_batch_g_beta_sheet_nightly_access">Получить их можно через артефакты GitHub Actions репозитория, если они доступны.</string>
-    <string name="presentation_batch_g_beta_sheet_nightly_body">Nightly-сборки создаются из последнего коммита и могут содержать незавершённые изменения, временные ошибки или регрессии. Они более экспериментальны, чем официальные релизы.</string>
-    <string name="presentation_batch_g_beta_sheet_nightly_report_body">При сообщении о проблеме в nightly-сборке обязательно укажите, что она возникла именно в nightly, а не в официальном релизе. По возможности приложите дату сборки, название или номер workflow, либо SHA коммита. Также проверьте, возникает ли проблема в последнем официальном релизе.</string>
-    <string name="presentation_batch_g_beta_sheet_nightly_report_title">Сообщение о проблемах в nightly</string>
-    <string name="presentation_batch_g_beta_sheet_nightly_summary">Чем nightly отличаются от релизов и что указывать при сообщении о проблемах.</string>
-    <string name="presentation_batch_g_beta_sheet_nightly_title">Nightly-сборки</string>
     <string name="presentation_batch_g_beta_sheet_open_issues">Открыть существующие задачи</string>
     <string name="presentation_batch_g_beta_sheet_privacy_body">Перед публикацией логов, скриншотов или видео удалите личную и конфиденциальную информацию.</string>
     <string name="presentation_batch_g_beta_sheet_privacy_title">Примечание о конфиденциальности</string>

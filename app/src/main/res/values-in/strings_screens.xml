@@ -9,12 +9,6 @@
     <string name="about_signal_community_first">Community-first</string>
     <string name="about_signal_material3">Material 3 expressive</string>
     <string name="about_signal_open_source">Open source</string>
-    <string name="about_support_body">Bantu agar edisi FOSS tetap dipelihara, ditinjau, dan diuji di perangkat Android sungguhan.</string>
-    <string name="about_support_chip_ci">CI dan rilis</string>
-    <string name="about_support_chip_foss">Pemeliharaan FOSS</string>
-    <string name="about_support_chip_streaming">Musik mandiri</string>
-    <string name="about_support_cta">Dukung di GitHub</string>
-    <string name="about_support_eyebrow">GitHub Sponsors</string>
     <string name="about_tagline">Musik lokal lebih dulu, streaming mandiri, dan sentuhan Material 3 dalam satu pemutar FOSS.</string>
     <string name="about_version_format">Versi v%1$s</string>
     <string name="accounts_unable_open_screen">Tidak dapat membuka layar ini sekarang.</string>
@@ -48,7 +42,6 @@
     <string name="cd_next_step">Berikutnya</string>
     <string name="cd_no_search_results">Tidak ada hasil</string>
     <string name="cd_open_github_profile">Buka profil GitHub</string>
-    <string name="cd_open_telegram_profile">Buka profil Telegram</string>
     <string name="cd_options">Opsi</string>
     <string name="cd_play_album">Putar album</string>
     <string name="cd_play_artist">Putar artis</string>

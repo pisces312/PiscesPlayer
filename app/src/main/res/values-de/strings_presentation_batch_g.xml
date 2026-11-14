@@ -155,12 +155,6 @@
     <string name="presentation_batch_g_beta_sheet_issue_type_feature">Feature-Anfrage: Füge eine neue Funktion oder Verbesserung hinzu.</string>
     <string name="presentation_batch_g_beta_sheet_issue_type_question">Frage: Nutze Diskussionen (Discussions), falls aktiviert, oder öffne ein Issue mit einem Frage-Label.</string>
     <string name="presentation_batch_g_beta_sheet_issue_type_title">Welcher Issue-Typ?</string>
-    <string name="presentation_batch_g_beta_sheet_nightly_access">Greife darauf über die GitHub Actions-Workflow-Artefakte des Repositories zu, falls verfügbar.</string>
-    <string name="presentation_batch_g_beta_sheet_nightly_body">Nightly-Builds werden aus dem neuesten Commit generiert und können unfertige Änderungen, temporäre Fehler oder Regressionen enthalten. Sie sind experimenteller als offizielle Releases.</string>
-    <string name="presentation_batch_g_beta_sheet_nightly_report_body">Wenn du ein Problem aus einem Nightly-Build meldest, erwähne immer, dass es in einem Nightly-Build und nicht im offiziellen Release aufgetreten ist. Gib nach Möglichkeit das Erstellungsdatum, den Namen oder die Nummer des Workflow-Runs oder den Commit-SHA an. Überprüfe auch, ob dasselbe Problem in der neuesten offiziellen Version auftritt.</string>
-    <string name="presentation_batch_g_beta_sheet_nightly_report_title">Probleme in Nightlies melden</string>
-    <string name="presentation_batch_g_beta_sheet_nightly_summary">Wie sich Nightlies von Releases unterscheiden und was anzugeben ist, wenn sie fehlerhaft sind.</string>
-    <string name="presentation_batch_g_beta_sheet_nightly_title">Nightly-Builds</string>
     <string name="presentation_batch_g_beta_sheet_open_issues">GitHub Issues öffnen</string>
     <string name="presentation_batch_g_beta_sheet_privacy_body">Entferne persönliche oder private Informationen, bevor du Protokolle, Screenshots oder Videos veröffentlichst.</string>
     <string name="presentation_batch_g_beta_sheet_privacy_title">Datenschutzhinweis</string>

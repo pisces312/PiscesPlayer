@@ -155,12 +155,6 @@
     <string name="presentation_batch_g_beta_sheet_issue_type_feature">طلب ميزة: إضافة ميزة جديدة أو تحسين.</string>
     <string name="presentation_batch_g_beta_sheet_issue_type_question">سؤال: استخدم قسم المناقشات إذا كان مفعلاً، أو افتح تذكرة بعلامة سؤال.</string>
     <string name="presentation_batch_g_beta_sheet_issue_type_title">ما هو نوع المشكلة؟</string>
-    <string name="presentation_batch_g_beta_sheet_nightly_access">يمكنك الوصول إليها من ملحقات سير عمل GitHub Actions الخاصة بالمستودع إن وجدت.</string>
-    <string name="presentation_batch_g_beta_sheet_nightly_body">يتم إنشاء البناءات الليلية من آخر التزامات برمجية (Commit)، وقد تحتوي على تغييرات غير مكتملة، أخطاء مؤقتة، أو تراجعات في الأداء. إنها تجريبية أكثر من الإصدارات الرسمية.</string>
-    <string name="presentation_batch_g_beta_sheet_nightly_report_body">عند الإبلاغ عن مشكلة من بناء ليلي، اذكر دائماً أن ذلك حدث في نسخة ليلية وليس في إصدار رسمي. يرجى تضمين تاريخ البناء، اسم أو رقم تشغيل سير العمل، أو معرف الالتزام (Commit SHA) إن أمكن. وتحقق أيضاً مما إذا كانت نفس المشكلة تحدث في أحدث إصدار رسمي.</string>
-    <string name="presentation_batch_g_beta_sheet_nightly_report_title">الإبلاغ عن مشكلات البناء الليلي</string>
-    <string name="presentation_batch_g_beta_sheet_nightly_summary">كيف تختلف البناءات الليلية عن الإصدارات الرسمية، وماذا تضمن عندما تتعطل.</string>
-    <string name="presentation_batch_g_beta_sheet_nightly_title">البناء الليلي (Nightly builds)</string>
     <string name="presentation_batch_g_beta_sheet_open_issues">فتح المشكلات الحالية</string>
     <string name="presentation_batch_g_beta_sheet_privacy_body">قبل نشر السجلات، لقطات الشاشة، أو الفيديوهات، قم بإزالة أي معلومات شخصية أو خاصة.</string>
     <string name="presentation_batch_g_beta_sheet_privacy_title">ملاحظة الخصوصية</string>

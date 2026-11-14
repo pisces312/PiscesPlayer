@@ -155,12 +155,6 @@
     <string name="presentation_batch_g_beta_sheet_issue_type_feature">Solicitud de función: Añadir una nueva función o mejora.</string>
     <string name="presentation_batch_g_beta_sheet_issue_type_question">Pregunta: Usa Discusiones si está habilitado, o abre un problema con la etiqueta de pregunta.</string>
     <string name="presentation_batch_g_beta_sheet_issue_type_title">¿Qué tipo de problema?</string>
-    <string name="presentation_batch_g_beta_sheet_nightly_access">Accede a ellas desde los artefactos del flujo de trabajo de GitHub Actions del repositorio si están disponibles.</string>
-    <string name="presentation_batch_g_beta_sheet_nightly_body">Las compilaciones nocturnas se generan a partir del último commit y pueden contener cambios inacabados, errores temporales o regresiones. Son más experimentales que los lanzamientos oficiales.</string>
-    <string name="presentation_batch_g_beta_sheet_nightly_report_body">Al informar de un problema desde una compilación nocturna, menciona siempre que ocurrió en una compilación nocturna, no en el lanzamiento oficial. Incluye la fecha de la compilación, el nombre o número de ejecución del flujo de trabajo o el SHA del commit si es posible. También comprueba si el mismo problema ocurre en el último lanzamiento oficial.</string>
-    <string name="presentation_batch_g_beta_sheet_nightly_report_title">Informar de problemas de compilaciones nocturnas</string>
-    <string name="presentation_batch_g_beta_sheet_nightly_summary">Cómo se diferencian las nocturnas de las versiones finales y qué incluir cuando fallan.</string>
-    <string name="presentation_batch_g_beta_sheet_nightly_title">Compilaciones nocturnas (nightly)</string>
     <string name="presentation_batch_g_beta_sheet_open_issues">Ver problemas abiertos</string>
     <string name="presentation_batch_g_beta_sheet_privacy_body">Antes de publicar registros, capturas de pantalla o vídeos, elimina la información personal o privada.</string>
     <string name="presentation_batch_g_beta_sheet_privacy_title">Nota de privacidad</string>
