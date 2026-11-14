@@ -444,6 +444,23 @@ constructor(
                                                 )
                                         )
                                     }
+                            // Same phase: index embedded lyrics tags for the songs the .lrc
+                            // scan left without persisted lyrics, so lyrics-content search
+                            // covers the whole library without replaying every track.
+                            lyricsRepository.scanAndPersistEmbeddedLyrics(batchSongs) {
+                                    current,
+                                    total ->
+                                val overallCurrent = totalScannedCount + current
+                                setProgress(
+                                        workDataOf(
+                                                PROGRESS_CURRENT to overallCurrent,
+                                                PROGRESS_TOTAL to totalToScan,
+                                                PROGRESS_PHASE to
+                                                        SyncProgress.SyncPhase.SCANNING_LRC
+                                                                .ordinal
+                                        )
+                                )
+                            }
                             totalScannedCount += idBatch.size
                             Timber.tag(TAG).d(
                                     "LRC Scan: Processed batch of ${idBatch.size}, total assigned so far: $batchScannedCount"

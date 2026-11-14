@@ -70,4 +70,23 @@ interface LyricsRepository {
         songs: List<Song>,
         onProgress: suspend (current: Int, total: Int) -> Unit
     ): Int
+
+    /**
+     * Reads embedded lyrics tags for the provided songs and persists them into the
+     * `lyrics` table (source = "embedded") when present. Songs that already have any
+     * persisted lyrics content are skipped, so this is safe to run after
+     * [scanAndAssignLocalLrcFiles].
+     *
+     * Backfills what play-time persistence misses: before this existed, embedded and
+     * local-file lyrics were display-only and never entered the DB, which left
+     * lyrics-content search with almost no rows to match.
+     *
+     * @param songs List of songs to scan
+     * @param onProgress Callback for progress updates (current, total)
+     * @return Number of songs updated
+     */
+    suspend fun scanAndPersistEmbeddedLyrics(
+        songs: List<Song>,
+        onProgress: suspend (current: Int, total: Int) -> Unit
+    ): Int
 }

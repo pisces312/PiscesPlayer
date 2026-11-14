@@ -384,13 +384,22 @@ class LyricsRepositoryImpl @Inject constructor(
                 val lyrics = fetcher()
                 if (lyrics != null && lyrics.isValid()) {
                     Timber.tag(TAG).d("Found lyrics from $sourceName for: ${song.displayArtist} - ${song.title}")
-                    
+
                     lyricsCache.put(cacheKey, lyrics)
-                    
+
                     if (sourceName == "API") {
                         saveLocalLyricsJson(song, lyrics)
+                    } else {
+                        // Embedded / local-file hits were display-only before: persist them
+                        // into the `lyrics` table so lyrics-content search can match them.
+                        // Idempotent (REPLACE on song_id) — cheap when already stored.
+                        persistFetchedLyrics(
+                            song = song,
+                            lyrics = lyrics,
+                            source = if (sourceName == "Embedded") "embedded" else "local_file"
+                        )
                     }
-                    
+
                     return@withContext lyrics
                 }
             } catch (e: Exception) {
@@ -959,36 +968,55 @@ class LyricsRepositoryImpl @Inject constructor(
     }
 
     /**
-     * Load embedded lyrics from audio file metadata
+     * Load embedded lyrics from audio file metadata.
+     *
+     * Fast path: when the song has a readable real file path, open it directly —
+     * no copying. Fallback: copy the content URI to a temp file (SAF-only files).
      */
     private suspend fun loadEmbeddedLyricsFromMetadata(song: Song): Lyrics? = withContext(Dispatchers.IO) {
         if (song.contentUriString.isEmpty()) {
             return@withContext null
         }
 
-        return@withContext try {
+        val parsed = readEmbeddedLyricsInternal(song)
+        if (parsed != null) {
+            Timber.tag(TAG).d("===== FOUND EMBEDDED LYRICS =====")
+        }
+        return@withContext parsed
+    }
+
+    private fun readEmbeddedLyricsInternal(song: Song): Lyrics? {
+        val directFile = song.path.takeIf { it.isNotBlank() }?.let(::File)?.takeIf { it.isFile && it.canRead() }
+        if (directFile != null) {
+            return try {
+                ParcelFileDescriptor.open(directFile, ParcelFileDescriptor.MODE_READ_ONLY).use { fd ->
+                    val metadata = TagLib.getMetadata(fd.detachFd())
+                    parseBestEmbeddedLyricsField(metadata?.propertyMap)
+                }
+            } catch (e: Exception) {
+                LogUtils.w(this, "Direct embedded-lyrics read failed for ${song.path}, falling back to temp copy: ${e.message}")
+                null
+            }
+        }
+
+        return try {
             val uri = song.contentUriString.toUri()
             val tempFile = createTempFileFromUri(uri)
             if (tempFile == null) {
-                LogUtils.w(this@LyricsRepositoryImpl, "Could not create temp file from URI: ${song.contentUriString}")
-                return@withContext null
+                LogUtils.w(this, "Could not create temp file from URI: ${song.contentUriString}")
+                return null
             }
 
             try {
                 ParcelFileDescriptor.open(tempFile, ParcelFileDescriptor.MODE_READ_ONLY).use { fd ->
                     val metadata = TagLib.getMetadata(fd.detachFd())
-                    val propertyMap = metadata?.propertyMap
-                    val parsedLyrics = parseBestEmbeddedLyricsField(propertyMap)
-                    if (parsedLyrics != null) {
-                        Timber.tag(TAG).d("===== FOUND EMBEDDED LYRICS =====")
-                    }
-                    parsedLyrics
+                    parseBestEmbeddedLyricsField(metadata?.propertyMap)
                 }
             } finally {
                 tempFile.delete()
             }
         } catch (e: Exception) {
-            LogUtils.e(this@LyricsRepositoryImpl, e, "Error reading lyrics from file metadata")
+            LogUtils.e(this, e, "Error reading lyrics from file metadata")
             null
         }
     }
@@ -1017,7 +1045,12 @@ class LyricsRepositoryImpl @Inject constructor(
             ?.let { data ->
                 val rawLyrics = data.wordByWordLyrics ?: data.syncedLyrics ?: data.plainLyrics
                 if (!rawLyrics.isNullOrBlank()) {
-                    parseStoredLyrics(rawLyrics)?.let { return@withContext it to rawLyrics }
+                    parseStoredLyrics(rawLyrics)?.let { parsed ->
+                        // Self-heal: JSON-disk-cache hits from before DB persistence existed
+                        // are copied into the `lyrics` table so lyrics search can see them.
+                        persistRawLyricsToDb(song, rawLyrics, source = "remote")
+                        return@withContext parsed to rawLyrics
+                    }
                 }
             }
 
@@ -1037,6 +1070,32 @@ class LyricsRepositoryImpl @Inject constructor(
         return parsedLyrics
             .takeIf { it.isValid() }
             ?.copy(areFromRemote = false)
+    }
+
+    private suspend fun persistFetchedLyrics(song: Song, lyrics: Lyrics, source: String) {
+        val rawLyrics = lyricsToRawContent(lyrics) ?: return
+        persistRawLyricsToDb(song, rawLyrics, source = source, isSynced = !lyrics.synced.isNullOrEmpty())
+    }
+
+    private suspend fun persistRawLyricsToDb(
+        song: Song,
+        rawLyrics: String,
+        source: String,
+        isSynced: Boolean = false
+    ) {
+        val songId = song.id.toLongOrNull() ?: return
+        try {
+            lyricsDao.insert(
+                com.pisces312.piscesplayer.data.database.LyricsEntity(
+                    songId = songId,
+                    content = rawLyrics,
+                    isSynced = isSynced,
+                    source = source
+                )
+            )
+        } catch (e: Exception) {
+            Timber.tag(TAG).w("Could not persist $source lyrics for ${song.id}: ${e.message}")
+        }
     }
 
     private fun lyricsToRawContent(lyrics: Lyrics): String? {
@@ -1456,6 +1515,65 @@ class LyricsRepositoryImpl @Inject constructor(
         }
         
         LogUtils.d(this@LyricsRepositoryImpl, "Bulk scan complete. Updated ${updatedCount.get()} songs.")
+        return@withContext updatedCount.get()
+    }
+
+    override suspend fun scanAndPersistEmbeddedLyrics(
+        songs: List<Song>,
+        onProgress: suspend (current: Int, total: Int) -> Unit
+    ): Int = withContext(Dispatchers.IO) {
+        LogUtils.d(this@LyricsRepositoryImpl, "Starting embedded-lyrics scan for ${songs.size} songs")
+        val updatedCount = AtomicInteger(0)
+        val processedCount = AtomicInteger(0)
+        val total = songs.size
+
+        val idsWithPersistedLyrics = songs
+            .mapNotNull { it.id.toLongOrNull() }
+            .chunked(900)
+            .flatMap { chunk -> lyricsDao.getSongIdsWithLyrics(chunk) }
+            .toHashSet()
+
+        // Skip songs that already have any persisted lyrics content (remote / .lrc /
+        // manual / embedded-from-a-previous-run) — sources earlier in the priority
+        // order win and re-reading tags would be wasted IO.
+        val songsToScan = songs.filter { song ->
+            val songId = song.id.toLongOrNull()
+            songId == null || songId !in idsWithPersistedLyrics
+        }
+        processedCount.addAndGet(total - songsToScan.size)
+        onProgress(processedCount.get(), total)
+
+        if (songsToScan.isEmpty()) {
+            return@withContext 0
+        }
+
+        // fd-heavy (TagLib reads); keep concurrency lower than the .lrc directory scan.
+        val semaphore = Semaphore(4)
+
+        coroutineScope {
+            songsToScan.map { song ->
+                async {
+                    semaphore.withPermit {
+                        try {
+                            val parsed = readEmbeddedLyricsInternal(song)
+                            if (parsed != null) {
+                                persistFetchedLyrics(song, parsed, source = "embedded")
+                                updatedCount.incrementAndGet()
+                            }
+                        } catch (e: Exception) {
+                            Timber.tag(TAG).w("Error reading embedded lyrics for ${song.title}: ${e.message}")
+                        }
+
+                        val current = processedCount.incrementAndGet()
+                        if (current % 20 == 0 || current == total) {
+                            onProgress(current, total)
+                        }
+                    }
+                }
+            }.awaitAll()
+        }
+
+        LogUtils.d(this@LyricsRepositoryImpl, "Embedded scan complete. Updated ${updatedCount.get()} songs.")
         return@withContext updatedCount.get()
     }
 
