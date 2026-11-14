@@ -3,6 +3,28 @@
 All notable changes to PiscesPlayer will be documented in this file. PiscesPlayer is a fork of
 PixelPlayerOSS; versions up to and including 0.4.3 were published under the upstream name.
 
+## [1.0.2] - 2026-11-14
+
+### Added
+- A Music Quiz game under the music games hub: listen to a 10-second clip taken from a random
+  position in one of your local songs and pick the correct title from five choices. Ten rounds
+  per run, one answer per round, with a shared 10-second clip and answer timer.
+- Scoring rewards speed: a correct answer earns 100 to 1000 points depending on the time left,
+  a wrong answer or a timeout earns 0, and only a completed run can set a new best score and
+  best streak. The results screen shows accuracy, longest streak, average answer time and a
+  per-round review; review rows preview the full song with the quiz's own player, and selected
+  songs can be collected into a new playlist.
+- Distractors are chosen by title language, release decade and genre, so the five options stay
+  plausible instead of giving the answer away. The library needs at least 10 playable local
+  songs and 5 distinct titles, and the setup screen explains the reason when a run cannot start.
+- Quiz playback is isolated from the main player: the mini player is hidden, the clip is never
+  exposed as a media session title or notification, and cover art, artist and full title are
+  revealed only after answering. Pausing stops both the clip and the timer; leaving a run
+  discards it.
+- A music games hub and a song picker for the rhythm game: browse the library with recent,
+  difficulty and saved-chart filters before opening the setup screen, and reach the hub from
+  the home screen's game button.
+
 ## [1.0.1] - 2026-11-11
 
 ### Changed
@@ -76,7 +98,7 @@ game that turns any song in the library into a playable chart.
   and concurrent loads could exhaust the image decoder slots that provider waited on, freezing
   every artwork load until the app restarted. Server error responses are also no longer cached
   as cover images, and concurrent cover downloads no longer corrupt each other's cache file
-  ([#138](https://github.com/PixelPlayerHQ/PixelPlayerOSS/issues/138)).
+  (#138).
 - System media controls can load album artwork through the app's artwork URI again. System UI
   reads that URI without connecting as a media controller, so it never received the per-track
   read grant and was refused on every track; privileged media surfaces (holders of
@@ -85,15 +107,15 @@ game that turns any song in the library into a playable chart.
   the session bitmap, but System UIs without that fallback could show no artwork.
 - Pressing back with the Now Playing screen or the Next up queue open inside a folder in the
   Folders tab now closes the player instead of leaving the folder
-  ([#136](https://github.com/PixelPlayerHQ/PixelPlayerOSS/issues/136)).
+  (#136).
 - Car head units keep showing the track title while an instrumental placeholder lyric is
   active, instead of dropping it.
 - ReplayGain volume survives queue edits that cancel a crossfade
-  ([#133](https://github.com/PixelPlayerHQ/PixelPlayerOSS/issues/133)); Navidrome uses the
+  (#133); Navidrome uses the
   server's created time for date added
-  ([#132](https://github.com/PixelPlayerHQ/PixelPlayerOSS/issues/132)); the compact library
+  (#132); the compact library
   title pill no longer renders black
-  ([#134](https://github.com/PixelPlayerHQ/PixelPlayerOSS/issues/134)).
+  (#134).
 - FLAC playback works again when float output is enabled, by preferring extension decoders.
 
 ## [0.4.3-pisces.1] - 2026-09-19

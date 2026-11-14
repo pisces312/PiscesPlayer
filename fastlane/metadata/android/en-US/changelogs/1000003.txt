@@ -1,0 +1,4 @@
+PiscesPlayer 1.0.2:
+
+* Music Quiz: hear a 10-second clip from your local library and pick the right title from five choices, with speed-based scoring, high scores and an answer review.
+* Music games hub and a rhythm-game song picker with recent, difficulty and saved-chart filters.
