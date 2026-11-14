@@ -97,6 +97,8 @@ sealed class Screen(val route: String) {
 
     object MusicGameHub : Screen("music_games")
 
+    object MusicQuiz : Screen("music_quiz")
+
     object RhythmSongPicker : Screen("rhythm_song_picker")
 
     object RhythmSetup : Screen("rhythm_setup/{songId}") {

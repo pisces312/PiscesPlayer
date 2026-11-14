@@ -1,0 +1,804 @@
+package com.pisces312.piscesplayer.presentation.musicquiz
+
+import android.app.Activity
+import android.content.pm.ActivityInfo
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.EmojiEvents
+import androidx.compose.material.icons.rounded.MusicNote
+import androidx.compose.material.icons.rounded.Pause
+import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.material.icons.rounded.Quiz
+import androidx.compose.material.icons.rounded.Refresh
+import androidx.compose.material.icons.rounded.Timer
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.pisces312.piscesplayer.R
+import com.pisces312.piscesplayer.data.musicquiz.MusicQuizAnswerRecord
+import com.pisces312.piscesplayer.data.musicquiz.MusicQuizOption
+import com.pisces312.piscesplayer.presentation.components.SmartImage
+import com.pisces312.piscesplayer.presentation.components.SmartImageListTargetSize
+import com.pisces312.piscesplayer.presentation.viewmodel.PlayerViewModel
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun MusicQuizScreen(
+    playerViewModel: PlayerViewModel,
+    onBack: () -> Unit,
+    quizViewModel: MusicQuizViewModel = hiltViewModel(),
+) {
+    val allSongs by playerViewModel.allSongsFlow.collectAsStateWithLifecycle()
+    val uiState by quizViewModel.uiState.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+    val view = LocalView.current
+    val lifecycleOwner = LocalLifecycleOwner.current
+    var shouldResumeMainPlayer by rememberSaveable { mutableStateOf(false) }
+    var mainPlayerCaptured by rememberSaveable { mutableStateOf(false) }
+
+    LaunchedEffect(allSongs) {
+        quizViewModel.updateLibrary(allSongs)
+    }
+    LaunchedEffect(Unit) {
+        if (!mainPlayerCaptured) {
+            mainPlayerCaptured = true
+            val stableState = playerViewModel.stablePlayerState.value
+            shouldResumeMainPlayer = stableState.isPlaying || stableState.playWhenReady
+            if (shouldResumeMainPlayer) playerViewModel.playPause()
+        }
+    }
+    DisposableEffect(Unit) {
+        onDispose {
+            // The route ViewModel survives configuration changes; keep the run but freeze audio/time.
+            // Do NOT restore the main player here — config change would incorrectly resume it.
+            quizViewModel.pauseGame()
+        }
+    }
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_PAUSE) quizViewModel.pauseGame()
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+    DisposableEffect(view, uiState.phase) {
+        view.keepScreenOn = uiState.phase == MusicQuizPhase.PREPARING ||
+            uiState.phase == MusicQuizPhase.PLAYING
+        onDispose { view.keepScreenOn = false }
+    }
+    DisposableEffect(context) {
+        val activity = context as? Activity
+        activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+        onDispose { activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED }
+    }
+
+    fun restoreMainPlayer() {
+        if (shouldResumeMainPlayer) {
+            val currentState = playerViewModel.stablePlayerState.value
+            if (!currentState.isPlaying && !currentState.playWhenReady) {
+                playerViewModel.playPause()
+            }
+        }
+    }
+
+    fun handleBack() {
+        when (uiState.phase) {
+            MusicQuizPhase.IDLE,
+            MusicQuizPhase.FINISHED,
+            MusicQuizPhase.ERROR,
+            -> {
+                quizViewModel.stopGame()
+                restoreMainPlayer()
+                onBack()
+            }
+            else -> quizViewModel.requestExit()
+        }
+    }
+
+    BackHandler { handleBack() }
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = {
+                    Text(
+                        if (uiState.phase == MusicQuizPhase.PLAYING ||
+                            uiState.phase == MusicQuizPhase.REVEALING ||
+                            uiState.phase == MusicQuizPhase.PREPARING
+                        ) {
+                            stringResource(
+                                R.string.music_quiz_round,
+                                uiState.roundIndex + 1,
+                                uiState.totalRounds,
+                            )
+                        } else {
+                            stringResource(R.string.music_games_quiz_title)
+                        },
+                    )
+                },
+                navigationIcon = {
+                    IconButton(onClick = ::handleBack) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
+                            contentDescription = stringResource(R.string.auth_cd_back),
+                        )
+                    }
+                },
+                actions = {
+                    if (uiState.phase == MusicQuizPhase.PREPARING ||
+                        uiState.phase == MusicQuizPhase.PLAYING
+                    ) {
+                        IconButton(onClick = { quizViewModel.pauseGame() }) {
+                            Icon(
+                                imageVector = Icons.Rounded.Pause,
+                                contentDescription = stringResource(R.string.music_quiz_pause),
+                            )
+                        }
+                    }
+                },
+            )
+        },
+    ) { innerPadding ->
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding),
+        ) {
+            when (uiState.phase) {
+                MusicQuizPhase.IDLE -> MusicQuizIdleContent(
+                    state = uiState,
+                    onStart = quizViewModel::startGame,
+                )
+                MusicQuizPhase.PREPARING -> MusicQuizPreparingContent()
+                MusicQuizPhase.PLAYING,
+                MusicQuizPhase.REVEALING,
+                -> MusicQuizRoundContent(
+                    state = uiState,
+                    onAnswer = quizViewModel::answer,
+                    onNext = quizViewModel::nextRound,
+                )
+                MusicQuizPhase.PAUSED -> MusicQuizPausedContent(
+                    onResume = quizViewModel::resumeGame,
+                    onExit = quizViewModel::requestExit,
+                )
+                MusicQuizPhase.FINISHED -> MusicQuizResultContent(
+                    state = uiState,
+                    onReplay = quizViewModel::startGame,
+                    onBack = onBack,
+                )
+                MusicQuizPhase.ERROR -> MusicQuizErrorContent(
+                    onRetry = quizViewModel::startGame,
+                    onBack = onBack,
+                )
+            }
+        }
+    }
+
+    if (uiState.showExitConfirmation) {
+        AlertDialog(
+            onDismissRequest = quizViewModel::dismissExitConfirmation,
+            title = { Text(stringResource(R.string.music_quiz_exit_title)) },
+            text = { Text(stringResource(R.string.music_quiz_exit_message)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        quizViewModel.stopGame()
+                        restoreMainPlayer()
+                        onBack()
+                    },
+                ) {
+                    Text(stringResource(R.string.music_quiz_exit))
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        quizViewModel.dismissExitConfirmation()
+                        quizViewModel.resumeGame()
+                    },
+                ) {
+                    Text(stringResource(R.string.music_quiz_keep_playing))
+                }
+            },
+        )
+    }
+}
+
+@Composable
+private fun MusicQuizIdleContent(
+    state: MusicQuizUiState,
+    onStart: () -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Spacer(Modifier.weight(1f))
+        Icon(
+            imageVector = Icons.Rounded.Quiz,
+            contentDescription = null,
+            modifier = Modifier.size(72.dp),
+            tint = MaterialTheme.colorScheme.primary,
+        )
+        Spacer(Modifier.height(16.dp))
+        Text(
+            text = stringResource(R.string.music_games_quiz_title),
+            style = MaterialTheme.typography.headlineMedium,
+            fontWeight = FontWeight.Bold,
+        )
+        Spacer(Modifier.height(8.dp))
+        Text(
+            text = stringResource(R.string.music_quiz_rule_summary),
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
+        )
+        Spacer(Modifier.height(24.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            MusicQuizStatCard(
+                text = stringResource(R.string.music_quiz_best_score, state.stats.bestScore),
+                modifier = Modifier.weight(1f),
+            )
+            MusicQuizStatCard(
+                text = stringResource(R.string.music_quiz_best_streak, state.stats.bestStreak),
+                modifier = Modifier.weight(1f),
+            )
+        }
+        Spacer(Modifier.height(24.dp))
+        when {
+            !state.hasLibrarySnapshot -> {
+                CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                Spacer(Modifier.height(8.dp))
+                Text(stringResource(R.string.music_quiz_loading_library))
+            }
+            state.libraryIssue != null -> {
+                Text(
+                    text = if (state.libraryIssue == MusicQuizLibraryIssue.NOT_ENOUGH_SONGS) {
+                        stringResource(
+                            R.string.music_quiz_not_enough_songs,
+                            state.eligibleTrackCount,
+                        )
+                    } else {
+                        stringResource(R.string.music_quiz_not_enough_titles)
+                    },
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                )
+            }
+        }
+        Spacer(Modifier.height(16.dp))
+        Button(
+            onClick = onStart,
+            enabled = state.canStart,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Icon(Icons.Rounded.PlayArrow, contentDescription = null)
+            Spacer(Modifier.width(8.dp))
+            Text(stringResource(R.string.music_quiz_start))
+        }
+        Spacer(Modifier.weight(1f))
+    }
+}
+
+@Composable
+private fun MusicQuizStatCard(text: String, modifier: Modifier = Modifier) {
+    Card(
+        modifier = modifier,
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+    ) {
+        Text(
+            text = text,
+            modifier = Modifier.padding(16.dp),
+            style = MaterialTheme.typography.labelLarge,
+            textAlign = TextAlign.Center,
+        )
+    }
+}
+
+@Composable
+private fun MusicQuizPreparingContent() {
+    Column(
+        modifier = Modifier.fillMaxSize(),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+    ) {
+        CircularProgressIndicator()
+        Spacer(Modifier.height(16.dp))
+        Text(
+            text = stringResource(R.string.music_quiz_preparing),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+@Composable
+private fun MusicQuizRoundContent(
+    state: MusicQuizUiState,
+    onAnswer: (String) -> Unit,
+    onNext: () -> Unit,
+) {
+    val question = state.currentQuestion ?: return
+    val resolution = state.resolution
+    val revealing = state.phase == MusicQuizPhase.REVEALING && resolution != null
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Row(modifier = Modifier.fillMaxWidth()) {
+            Text(
+                text = stringResource(R.string.music_quiz_score, state.score),
+                modifier = Modifier.weight(1f),
+                style = MaterialTheme.typography.titleSmall,
+            )
+            Text(
+                text = stringResource(R.string.music_quiz_streak, state.currentStreak),
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.primary,
+            )
+        }
+        if (!revealing) {
+            val progress = (state.remainingMs / 10_000f).coerceIn(0f, 1f)
+            LinearProgressIndicator(
+                progress = { progress },
+                modifier = Modifier.fillMaxWidth(),
+                color = if (state.remainingMs <= 3_000L) {
+                    MaterialTheme.colorScheme.error
+                } else {
+                    MaterialTheme.colorScheme.primary
+                },
+            )
+            Row(
+                modifier = Modifier.align(Alignment.End),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.Timer,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp),
+                )
+                Spacer(Modifier.width(4.dp))
+                Text(
+                    text = stringResource(
+                        R.string.music_quiz_time_remaining,
+                        (state.remainingMs + 999L) / 1_000L,
+                    ),
+                    style = MaterialTheme.typography.labelLarge,
+                )
+            }
+        }
+
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f),
+            contentAlignment = Alignment.Center,
+        ) {
+            if (revealing) {
+                val record = resolution.record
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    SmartImage(
+                        model = question.track.albumArtUriString,
+                        contentDescription = null,
+                        modifier = Modifier.size(88.dp),
+                        shape = RoundedCornerShape(20.dp),
+                        targetSize = SmartImageListTargetSize,
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        text = stringResource(
+                            when {
+                                record.timedOut -> R.string.music_quiz_timeout
+                                record.isCorrect -> R.string.music_quiz_correct
+                                else -> R.string.music_quiz_wrong
+                            },
+                        ),
+                        style = MaterialTheme.typography.titleMedium,
+                        color = if (record.isCorrect) CORRECT_COLOR else MaterialTheme.colorScheme.error,
+                        fontWeight = FontWeight.Bold,
+                    )
+                    Text(
+                        text = question.track.title,
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        textAlign = TextAlign.Center,
+                    )
+                    Text(
+                        text = question.track.artist,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Text(
+                        text = if (record.isCorrect) {
+                            stringResource(R.string.music_quiz_points, record.scoreAwarded)
+                        } else {
+                            stringResource(R.string.music_quiz_no_points)
+                        },
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                }
+            } else {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Icon(
+                        imageVector = Icons.Rounded.MusicNote,
+                        contentDescription = null,
+                        modifier = Modifier.size(72.dp),
+                        tint = MaterialTheme.colorScheme.primary,
+                    )
+                    Spacer(Modifier.height(12.dp))
+                    Text(
+                        text = stringResource(R.string.music_quiz_listen),
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Bold,
+                    )
+                    Text(
+                        text = stringResource(R.string.music_quiz_clip_hint),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center,
+                    )
+                }
+            }
+        }
+
+        question.options.forEach { option ->
+            MusicQuizAnswerButton(
+                option = option,
+                correctOptionId = question.track.id,
+                selectedOptionId = resolution?.record?.selectedOptionId,
+                revealing = revealing,
+                onClick = { onAnswer(option.songId) },
+            )
+        }
+        if (revealing) {
+            Button(onClick = onNext, modifier = Modifier.fillMaxWidth()) {
+                Text(
+                    stringResource(
+                        if (state.roundIndex == state.totalRounds - 1) {
+                            R.string.music_quiz_finish
+                        } else {
+                            R.string.music_quiz_next
+                        },
+                    ),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun MusicQuizAnswerButton(
+    option: MusicQuizOption,
+    correctOptionId: String,
+    selectedOptionId: String?,
+    revealing: Boolean,
+    onClick: () -> Unit,
+) {
+    val isCorrect = revealing && option.songId == correctOptionId
+    val isWrongSelection = revealing && option.songId == selectedOptionId && !isCorrect
+    val containerColor = when {
+        isCorrect -> CORRECT_COLOR
+        isWrongSelection -> MaterialTheme.colorScheme.errorContainer
+        else -> MaterialTheme.colorScheme.surfaceContainerHigh
+    }
+    val contentColor = when {
+        isCorrect -> Color.White
+        isWrongSelection -> MaterialTheme.colorScheme.onErrorContainer
+        else -> MaterialTheme.colorScheme.onSurface
+    }
+    Button(
+        onClick = onClick,
+        enabled = !revealing,
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 54.dp),
+        shape = RoundedCornerShape(16.dp),
+        contentPadding = PaddingValues(horizontal = 18.dp, vertical = 10.dp),
+        colors = ButtonDefaults.buttonColors(
+            containerColor = containerColor,
+            contentColor = contentColor,
+            disabledContainerColor = containerColor,
+            disabledContentColor = contentColor,
+        ),
+    ) {
+        Text(
+            text = option.title,
+            modifier = Modifier.weight(1f),
+            style = MaterialTheme.typography.bodyLarge,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+            textAlign = TextAlign.Start,
+        )
+        if (isCorrect || isWrongSelection) {
+            Spacer(Modifier.width(8.dp))
+            Icon(
+                imageVector = if (isCorrect) Icons.Rounded.Check else Icons.Rounded.Close,
+                contentDescription = null,
+            )
+        }
+    }
+}
+
+@Composable
+private fun MusicQuizPausedContent(
+    onResume: () -> Unit,
+    onExit: () -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+    ) {
+        Icon(
+            imageVector = Icons.Rounded.Pause,
+            contentDescription = null,
+            modifier = Modifier.size(64.dp),
+            tint = MaterialTheme.colorScheme.primary,
+        )
+        Spacer(Modifier.height(16.dp))
+        Text(
+            text = stringResource(R.string.music_quiz_paused_title),
+            style = MaterialTheme.typography.headlineMedium,
+        )
+        Text(
+            text = stringResource(R.string.music_quiz_paused_message),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Spacer(Modifier.height(24.dp))
+        Button(onClick = onResume, modifier = Modifier.fillMaxWidth()) {
+            Icon(Icons.Rounded.PlayArrow, contentDescription = null)
+            Spacer(Modifier.width(8.dp))
+            Text(stringResource(R.string.music_quiz_resume))
+        }
+        Spacer(Modifier.height(8.dp))
+        OutlinedButton(onClick = onExit, modifier = Modifier.fillMaxWidth()) {
+            Text(stringResource(R.string.music_quiz_exit))
+        }
+    }
+}
+
+@Composable
+private fun MusicQuizResultContent(
+    state: MusicQuizUiState,
+    onReplay: () -> Unit,
+    onBack: () -> Unit,
+) {
+    val summary = state.summary ?: return
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        item {
+            Icon(
+                imageVector = Icons.Rounded.EmojiEvents,
+                contentDescription = null,
+                modifier = Modifier.size(64.dp),
+                tint = MaterialTheme.colorScheme.primary,
+            )
+            Text(
+                text = stringResource(R.string.music_quiz_result_title),
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Bold,
+            )
+            if (state.isNewBestScore) {
+                Text(
+                    text = stringResource(R.string.music_quiz_new_record),
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.Bold,
+                )
+            }
+            if (state.isNewBestStreak) {
+                Text(
+                    text = stringResource(R.string.music_quiz_new_streak_record),
+                    color = MaterialTheme.colorScheme.primary,
+                )
+            }
+            Text(
+                text = stringResource(R.string.music_quiz_result_score, summary.score),
+                style = MaterialTheme.typography.displaySmall,
+                color = MaterialTheme.colorScheme.primary,
+                fontWeight = FontWeight.Bold,
+            )
+            Text(
+                text = stringResource(
+                    R.string.music_quiz_accuracy,
+                    summary.correctCount,
+                    summary.totalRounds,
+                ),
+                style = MaterialTheme.typography.titleMedium,
+            )
+            Text(
+                text = stringResource(R.string.music_quiz_best_streak, summary.maxStreak),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
+                text = if (summary.correctCount > 0) {
+                    stringResource(
+                        R.string.music_quiz_average_time,
+                        summary.averageCorrectAnswerMs / 1_000f,
+                    )
+                } else {
+                    stringResource(R.string.music_quiz_average_time_empty)
+                },
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.height(8.dp))
+            Text(
+                text = stringResource(R.string.music_quiz_review),
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.SemiBold,
+            )
+        }
+        items(summary.records, key = { it.roundIndex }) { record ->
+            MusicQuizReviewRow(record)
+        }
+        item {
+            Button(onClick = onReplay, modifier = Modifier.fillMaxWidth()) {
+                Icon(Icons.Rounded.Refresh, contentDescription = null)
+                Spacer(Modifier.width(8.dp))
+                Text(stringResource(R.string.music_quiz_replay))
+            }
+            Spacer(Modifier.height(8.dp))
+            OutlinedButton(onClick = onBack, modifier = Modifier.fillMaxWidth()) {
+                Text(stringResource(R.string.music_quiz_back_to_hub))
+            }
+        }
+    }
+}
+
+@Composable
+private fun MusicQuizReviewRow(record: MusicQuizAnswerRecord) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+    ) {
+        Row(
+            modifier = Modifier.padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = "${record.roundIndex + 1}",
+                modifier = Modifier.width(28.dp),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = record.question.track.title,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Text(
+                    text = record.question.track.artist,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            Spacer(Modifier.width(8.dp))
+            Text(
+                text = when {
+                    record.timedOut -> stringResource(R.string.music_quiz_timeout)
+                    record.isCorrect -> stringResource(
+                        R.string.music_quiz_review_correct,
+                        record.scoreAwarded,
+                        record.activeElapsedMs / 1_000f,
+                    )
+                    else -> stringResource(R.string.music_quiz_wrong)
+                },
+                style = MaterialTheme.typography.labelMedium,
+                color = if (record.isCorrect) CORRECT_COLOR else MaterialTheme.colorScheme.error,
+            )
+        }
+    }
+}
+
+@Composable
+private fun MusicQuizErrorContent(
+    onRetry: () -> Unit,
+    onBack: () -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+    ) {
+        Icon(
+            imageVector = Icons.Rounded.MusicNote,
+            contentDescription = null,
+            modifier = Modifier.size(64.dp),
+            tint = MaterialTheme.colorScheme.error,
+        )
+        Spacer(Modifier.height(16.dp))
+        Text(
+            text = stringResource(R.string.music_quiz_playback_error),
+            textAlign = TextAlign.Center,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Spacer(Modifier.height(24.dp))
+        Button(onClick = onRetry, modifier = Modifier.fillMaxWidth()) {
+            Icon(Icons.Rounded.Refresh, contentDescription = null)
+            Spacer(Modifier.width(8.dp))
+            Text(stringResource(R.string.music_quiz_retry))
+        }
+        Spacer(Modifier.height(8.dp))
+        OutlinedButton(onClick = onBack, modifier = Modifier.fillMaxWidth()) {
+            Text(stringResource(R.string.music_quiz_back_to_hub))
+        }
+    }
+}
+
+private val CORRECT_COLOR = Color(0xFF2E7D32)

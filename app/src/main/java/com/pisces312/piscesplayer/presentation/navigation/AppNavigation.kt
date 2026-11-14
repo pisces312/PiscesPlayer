@@ -74,6 +74,7 @@ import com.pisces312.piscesplayer.presentation.viewmodel.StatsViewModel
 import com.pisces312.piscesplayer.presentation.viewmodel.PlaylistViewModel
 import kotlinx.coroutines.flow.first
 import com.pisces312.piscesplayer.presentation.components.ScreenWrapper
+import com.pisces312.piscesplayer.presentation.musicquiz.MusicQuizScreen
 import com.pisces312.piscesplayer.presentation.rhythm.MusicGameHubScreen
 import com.pisces312.piscesplayer.presentation.rhythm.RhythmGameScreen
 import com.pisces312.piscesplayer.presentation.rhythm.RhythmSetupScreen
@@ -808,8 +809,23 @@ fun AppNavigation(
                         onOpenRhythm = {
                             navController.navigateSafely(Screen.RhythmSongPicker.route)
                         },
+                        onOpenMusicQuiz = {
+                            navController.navigateSafely(Screen.MusicQuiz.route)
+                        },
                     )
                 }
+            }
+            composable(
+                Screen.MusicQuiz.route,
+                enterTransition = { enterTransition() },
+                exitTransition = { exitTransition() },
+                popEnterTransition = { popEnterTransition() },
+                popExitTransition = { popExitTransition() },
+            ) {
+                MusicQuizScreen(
+                    playerViewModel = playerViewModel,
+                    onBack = { navController.popBackStack() },
+                )
             }
             composable(
                 Screen.RhythmSongPicker.route,
