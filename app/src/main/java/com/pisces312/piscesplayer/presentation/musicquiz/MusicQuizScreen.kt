@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -69,7 +70,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.rememberGraphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
@@ -308,9 +308,9 @@ fun MusicQuizScreen(
 
             if (uiState.phase == MusicQuizPhase.FINISHED) {
                 uiState.summary?.let { summary ->
-                    // Composed and drawn with alpha 0: the share card stays recordable for
-                    // screenshot sharing without ever being visible on screen.
-                    Box(modifier = Modifier.graphicsLayer { alpha = 0f }) {
+                    // Composed offscreen (far right) so the share card stays recordable for
+                    // screenshot sharing without ever being visible or intercepting touches.
+                    Box(modifier = Modifier.offset(x = 2000.dp)) {
                         MusicQuizShareCard(
                             summary = summary,
                             isNewBestScore = uiState.isNewBestScore,
