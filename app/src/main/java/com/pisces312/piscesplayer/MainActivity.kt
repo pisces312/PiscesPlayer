@@ -943,7 +943,7 @@ class MainActivity : ComponentActivity() {
                                 .distinctUntilChanged()
                         }.collectAsStateWithLifecycle(initialValue = false)
                         val routesWithHiddenMiniPlayer = remember {
-                            setOf(Screen.NavBarCrRad.route, Screen.RhythmGame.route)
+                            setOf(Screen.NavBarCrRad.route, Screen.RhythmGame.route, Screen.MusicQuiz.route)
                         }
                         val shouldHideMiniPlayer by remember(currentRoute) {
                             derivedStateOf { currentRoute in routesWithHiddenMiniPlayer }
