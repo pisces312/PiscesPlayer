@@ -232,9 +232,58 @@ val results = when (_searchMode.value) {
 
 ## 6. 可选优化（后续迭代）
 
+1. **匹配片段预览**：SQL 用 `instr(lyrics.content, :query)` 取出命中行，
+   `SearchResultItem.SongItem` 增加可选 snippet 字段，在结果列表副标题展示命中歌词行。
+2. **写入侧清洗**：`LyricsDao` 收口处用 Kotlin 正则剥掉 `[mm:ss.xx]` / `[ti:…]` 后再入
+   FTS，索引更干净；迁移回填需配一次性重建。
+3. **bm25 排序**：`ORDER BY bm25(lyrics_fts)` 按相关度排，命中多的歌靠前。
+4. **模式持久化**：若用户反馈希望记住上次的模式，再按「新增设置开关」流程落
+   `UserPreferencesRepository`（本方案默认不做）。
+
 ## 7. 实施记录（2026-11-14）
 
-与本文设计的差异与补充：
+### 7.1 真机缺陷修复：DB 覆盖缺口（同日）
+
+症状：歌词模式搜"爱情"只命中一首歌。排查结论：**查询链路本身没问题**（FTS + LIKE
+双路能完整覆盖子串匹配），是 `lyrics` 表行数远少于"播放器能显示歌词"的歌曲数——
+
+- 歌词**只有四类来源会入库**：LRCLIB 远程抓取、手动保存、`.lrc` 批量扫描（SyncWorker，
+  受"自动扫描歌词文件"开关控制）、备份恢复；
+- **内嵌标签歌词**与**播放时即时找到的 `.lrc`** 走的是 `getLyrics` 的 Embedded/Local
+  fetcher，命中后只进内存缓存（+ API 源写 JSON 磁盘缓存），**从不写 DB**；
+- 另有历史遗留：早期远程抓取只写 JSON 磁盘缓存（`files/lyrics/<id>.json`）的歌词，
+  DB 里也没有。
+
+修复（`LyricsRepositoryImpl` + `SyncWorker`）：
+
+1. **播放时持久化**：`getLyrics` fetcher 循环中 Embedded/Local 命中后
+   `persistFetchedLyrics()` 写入 DB（source = `embedded` / `local_file`，REPLACE 幂等）；
+2. **JSON 缓存自愈**：`loadStoredLyrics` 命中 JSON 磁盘缓存时顺手回填 DB
+   （source = `remote`），老缓存渐进转正；
+3. **全库内嵌回填**：新增 `LyricsRepository.scanAndPersistEmbeddedLyrics()`，在
+   SyncWorker 的 `.lrc` 扫描阶段之后对同批歌曲执行——跳过已有歌词的行
+   （优先级高的来源不被覆盖），信号量 4 并发读内嵌标签；
+4. **直读快路径**：`loadEmbeddedLyricsFromMetadata` 抽出 `readEmbeddedLyricsInternal`，
+   `song.path` 可读时直接 open fd 读标签，不再整文件拷贝到临时文件（原实现每个
+   文件全量 copy，全库回填不可行）；SAF 文件回退原拷贝逻辑。
+
+注意：内嵌回填挂在既有"自动扫描歌词文件"（`autoScanLrc`）开关与 SCANNING_LRC
+进度阶段下，未新增设置项；开关关闭的用户依赖播放时持久化（1）渐进覆盖。
+
+**手动回填入口（同日按用户要求补）**：设置 → 曲库 → 歌词管理 →「回填歌词索引」。
+
+- 新增 `LyricsBackfillWorker`（@HiltWorker）：先扫 `.lrc` 再扫内嵌标签（复用上述两个
+  扫描函数，每批 1000 首），低优先级前台通知（专用 channel `lyrics_backfill`）+
+  WorkManager progress 双路进度，unique work KEEP（运行中重复点击忽略）、
+  `requiresStorageNotLow`、指数退避重试 3 次；
+- **中断语义**：取消（设置项点按 → 确认框 → `cancelUniqueWork`）后已入库行保留，
+  下次运行由 `getSongIdsWithLyrics` 预过滤天然续跑；每首歌单行 REPLACE 原子写入；
+- 设置项运行中显示转圈 + 「点按取消」，注册进 `SettingsRegistry`（ACTION 类型，
+  `item_library_lyrics_backfill`），确认/取消对话框文案中英双语；
+- Manifest 已有 `FOREGROUND_SERVICE_DATA_SYNC` 与 SystemForegroundService 声明，
+  `setForeground` 零改动可用。
+
+### 7.2 初版实施与本文设计的差异
 
 1. **`LyricsDao` 的具体收口形态**：原抽象方法改名为 `insertEntity` / `insertAllEntities` /
    `deleteLyricsEntity` / `deleteAllEntities`（保持 @Insert/@Query 抽象），公开入口
@@ -255,11 +304,3 @@ val results = when (_searchMode.value) {
 5. **新增字符串**：`search_placeholder_lyrics`、`cd_switch_to_lyrics_search`、
    `cd_switch_to_general_search`、`search_no_results_for_lyrics_query`、
    `search_try_different_lyrics`（`strings_screens.xml` 中英双语）。
-
-1. **匹配片段预览**：SQL 用 `instr(lyrics.content, :query)` 取出命中行，
-   `SearchResultItem.SongItem` 增加可选 snippet 字段，在结果列表副标题展示命中歌词行。
-2. **写入侧清洗**：`LyricsDao` 收口处用 Kotlin 正则剥掉 `[mm:ss.xx]` / `[ti:…]` 后再入
-   FTS，索引更干净；迁移回填需配一次性重建。
-3. **bm25 排序**：`ORDER BY bm25(lyrics_fts)` 按相关度排，命中多的歌靠前。
-4. **模式持久化**：若用户反馈希望记住上次的模式，再按「新增设置开关」流程落
-   `UserPreferencesRepository`（本方案默认不做）。
