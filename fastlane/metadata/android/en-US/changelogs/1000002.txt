@@ -1,0 +1,4 @@
+PiscesPlayer 1.0.1:
+
+* The derive sheet now opens with the Classic (0.4.3-pisces.1) preset selected and collapsed into its summary.
+* The Classic derivation ladder is one step easier: Normal matches the old Easy, Hard matches the old Normal, Easy is a new sparser step; the frozen 0.4.3 replica itself is unchanged.

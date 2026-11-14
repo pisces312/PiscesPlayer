@@ -2,6 +2,10 @@
 
 日期：2026-11-10 · 分支：`rebrand/piscesplayer` · 版本：`1.0.0`（versionCode `1000001`）
 
+> **状态提示（2026-11-14）**：本文是 2026-11-10 的决策快照。现行版本规则与发版流程以
+> `gradle.properties`、`docs/RELEASE.md` 为准；§2.2 的赞助策略与 §8.2 的保留清单已按
+> 后续决策调整，见文末「§9 后续调整」。
+
 本文记录本 fork 从 PixelPlayerOSS 更名为 PiscesPlayer 的完整决策、改动范围、验证方式与发版计划，
 供后续维护者（以及未来的自己）追溯「为什么这么改、改了哪些地方、漏改会怎样」。
 
@@ -40,7 +44,9 @@
 
 - `app_name`：默认、`values-zh-rCN`、`debug`（`PiscesPlayer [D]`）。
 - About 页：新增 `ForkMaintainer`（@pisces312）卡片置顶，原维护者标注为 Upstream FOSS Maintainer；
-  链接区分 Source repo（本 fork）与 Upstream project；赞助文案指向 @lostf1sh。
+  链接区分 Source repo（本 fork）与 Upstream project。**2026-11-14 调整**：赞助卡与 Telegram 联系
+  入口已移除（本 fork 维护者未开通 GitHub Sponsors，Telegram 也不是本 fork 支持的渠道）；
+  上游署名、UpstreamRepoUrl 与法律声明保留，见 §9。
 - MusicBrainz / CoverArtArchive 的 User-Agent 品牌段改为 `PiscesPlayer/<version>`（URL 仍指向上游仓库主页）。
 - Beta 反馈、Changelog 弹窗的 GitHub 链接指向 `pisces312/PiscesPlayer`。
 - fastlane：`title.txt` → `PiscesPlayer`；`full_description.txt` 重写（注明基于上游 + 新增节奏游戏条目）；
@@ -159,7 +165,7 @@ Release 正文会写明以上步骤。旧版收不到应用内更新（包名不
 **保留**（四类，均有硬理由）：
 
 1. **上游项目名 / 仓库 URL**：`PixelPlayerHQ/PixelPlayerOSS`（上游）—— 引用上游项目的名字；本仓库 URL 已是 `github.com/pisces312/PiscesPlayer`。
-2. **版权 / 署名 / 来源声明**：`NOTICE`、`PROVENANCE.md`、README 许可证块、`THIRD_PARTY_NOTICES.md`、各文件 SPDX 头（`Original work, GPL-3.0-or-later`）、fastlane 简介署名、About「支持上游」与法律声明区块、`metadata/com.lostf1sh.pixelplayeross.yml`（上游 F-Droid 元数据参考副本）。
+2. **版权 / 署名 / 来源声明**：`NOTICE`、`PROVENANCE.md`、README 许可证块、`THIRD_PARTY_NOTICES.md`、各文件 SPDX 头（`Original work, GPL-3.0-or-later`）、fastlane 简介署名、About 法律声明区块与上游链接。（About 赞助卡、Telegram 联系按钮、上游 F-Droid 配方副本已于 2026-11-14 移除，见 §9；它们不承担署名义务。）
 3. **历史记录**（不改写）：`CHANGELOG.md` 0.1.0–0.4.3 条目、`docs/RELEASE_ARCHIVE.md`、`fastlane/changelogs/1–3.txt`、旧计划文档。
 4. **兼容 / 持久化标识**（不改名，见 §1 决策表）：`pixelplayer_database`、`pixelplayer_local_art`（含旧 scheme `pixelplay_local_art`）、`pixelplayer_music_channel`、`pixelplayer_easter_egg`、`pixelplayer_car_lyric_title_force_a2dp`、`.pixelplayer-` M3U 文件名段、`#PIXELPLAYER-PLAYLIST-ID:` 旧标记（只读兼容）、`pixelplayer.*` Gradle 属性。
 
@@ -211,3 +217,16 @@ foreach ($n in 'KEY_STORE_PASSWORD','KEY_PASSWORD','KEY_ALIAS','KEY_STORE_LOCATI
 
 git = `D:\dev\git\cmd\git.exe`，gh = `D:\dev\gh.exe`（已登录 pisces312）。
 坑：后台 gradle 命令不传 timeout 会在 120s 被杀（症状停在 `Calculating task graph`），给满 600000。
+
+## 9. 后续调整（2026-11-14）
+
+- **版本规则**：改为按序号递增（1.0.0=1000001、1.0.1=1000002、1.0.2=1000003）。§3 的
+  `major×1,000,000` 公式与 §5 的「待用户确认」状态都是 2026-11-10 当时的快照，不再适用。
+- **上游导流清理**：删除 `.github/FUNDING.yml`（`pisces312` 未开通 GitHub Sponsors，改成
+  `github: [pisces312]` 不会产生有效按钮）、About 赞助卡与 Telegram 联系按钮（含 12 语言文案、
+  `R.drawable.telegram`）、README 双语赞助徽章与「支持上游」段落中的赞助链接、
+  `metadata/com.lostf1sh.pixelplayeross.yml`（上游 F-Droid 可执行配方副本，包名/版本码/URL 全冲突）。
+- **保留不变**：`NOTICE`、`LICENSE`、`PROVENANCE.md`、`THIRD_PARTY_NOTICES.md`、README 许可证双署名、
+  SPDX 头、fastlane 简介署名、About 的 `UpstreamRepoUrl` 与法律声明、`CoreMaintainer` /
+  `NonFossMaintainer` 卡片、CHANGELOG 0.1–0.4.3 历史段、`pixelplayer_*` 兼容标识。
+- `docs/FDROID.md` 已冻结为纯历史叙述；§8.2 的保留清单以本节为准。
