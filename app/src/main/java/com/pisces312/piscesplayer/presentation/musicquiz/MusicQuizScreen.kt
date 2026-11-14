@@ -17,7 +17,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -29,7 +28,6 @@ import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.PlaylistAdd
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Close
-import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.EmojiEvents
 import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.MusicNote
@@ -37,10 +35,8 @@ import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Quiz
 import androidx.compose.material.icons.rounded.Refresh
-import androidx.compose.material.icons.rounded.Share
 import androidx.compose.material.icons.rounded.Timer
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -51,7 +47,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -63,22 +58,17 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.rememberGraphicsLayer
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
@@ -89,17 +79,16 @@ import com.pisces312.piscesplayer.R
 import com.pisces312.piscesplayer.data.model.Song
 import com.pisces312.piscesplayer.data.musicquiz.MusicQuizAnswerRecord
 import com.pisces312.piscesplayer.data.musicquiz.MusicQuizOption
-import com.pisces312.piscesplayer.data.musicquiz.MusicQuizShareText
 import com.pisces312.piscesplayer.data.musicquiz.MusicQuizTrack
 import com.pisces312.piscesplayer.presentation.components.PlaylistBottomSheet
 import com.pisces312.piscesplayer.presentation.components.SmartImage
 import com.pisces312.piscesplayer.presentation.components.SmartImageListTargetSize
-import com.pisces312.piscesplayer.presentation.components.rememberModalSheetState
 import com.pisces312.piscesplayer.presentation.viewmodel.PlayerViewModel
 import com.pisces312.piscesplayer.presentation.viewmodel.PlaylistViewModel
+import java.text.SimpleDateFormat
 import java.util.Date
+import java.util.Locale
 import kotlinx.collections.immutable.toImmutableList
-import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -115,11 +104,8 @@ fun MusicQuizScreen(
     val lifecycleOwner = LocalLifecycleOwner.current
     var shouldResumeMainPlayer by rememberSaveable { mutableStateOf(false) }
     var mainPlayerCaptured by rememberSaveable { mutableStateOf(false) }
-    val scope = rememberCoroutineScope()
-    val shareGraphicsLayer = rememberGraphicsLayer()
     val playlistViewModel: PlaylistViewModel = hiltViewModel()
     val playlistUiState by playlistViewModel.uiState.collectAsStateWithLifecycle()
-    var showShareSheet by remember { mutableStateOf(false) }
     var showSongSelectSheet by remember { mutableStateOf(false) }
     var showPlaylistSheet by remember { mutableStateOf(false) }
     var playlistSongs by remember { mutableStateOf<List<Song>>(emptyList()) }
@@ -196,32 +182,11 @@ fun MusicQuizScreen(
         }
     }
 
-    fun shareResultImage() {
-        val summary = uiState.summary ?: return
-        scope.launch {
-            val text = MusicQuizShare.buildText(context, summary, uiState.isNewBestScore)
-            val png = MusicQuizShare.capturePng(context, shareGraphicsLayer)
-            if (png == null) {
-                playerViewModel.sendToast(context.getString(R.string.music_quiz_share_failed))
-            } else {
-                MusicQuizShare.shareImage(context, png, text)
-            }
-        }
-    }
-
-    fun copyResultText() {
-        val summary = uiState.summary ?: return
-        MusicQuizShare.copyText(
-            context,
-            MusicQuizShare.buildText(context, summary, uiState.isNewBestScore),
-        )
-        playerViewModel.sendToast(context.getString(R.string.music_quiz_copied))
-    }
-
     fun openPlaylistFlow() {
+        val timestamp = SimpleDateFormat("yyyyMMdd-HHmm", Locale.US).format(Date())
         pendingPlaylistName = context.getString(
             R.string.music_quiz_playlist_default_name,
-            MusicQuizShareText.timestampSuffix(Date()),
+            timestamp,
         )
         showSongSelectSheet = true
     }
@@ -298,51 +263,13 @@ fun MusicQuizScreen(
                     onBack = ::handleBack,
                     onTogglePreview = quizViewModel::togglePreview,
                     onAddToPlaylist = ::openPlaylistFlow,
-                    onShare = { showShareSheet = true },
                 )
                 MusicQuizPhase.ERROR -> MusicQuizErrorContent(
                     onRetry = quizViewModel::startGame,
                     onBack = ::handleBack,
                 )
             }
-
-            if (uiState.phase == MusicQuizPhase.FINISHED) {
-                uiState.summary?.let { summary ->
-                    // Composed offscreen (far right) so the share card stays recordable for
-                    // screenshot sharing without ever being visible or intercepting touches.
-                    Box(modifier = Modifier.offset(x = 2000.dp)) {
-                        MusicQuizShareCard(
-                            summary = summary,
-                            isNewBestScore = uiState.isNewBestScore,
-                            modifier = Modifier.drawWithContent {
-                                shareGraphicsLayer.record(
-                                    density = this,
-                                    layoutDirection = layoutDirection,
-                                    size = IntSize(size.width.toInt(), size.height.toInt()),
-                                ) {
-                                    this@drawWithContent.drawContent()
-                                }
-                                drawContent()
-                            },
-                        )
-                    }
-                }
-            }
         }
-    }
-
-    if (showShareSheet) {
-        MusicQuizShareSheet(
-            onShareImage = {
-                showShareSheet = false
-                shareResultImage()
-            },
-            onCopyText = {
-                showShareSheet = false
-                copyResultText()
-            },
-            onDismiss = { showShareSheet = false },
-        )
     }
 
     val summary = uiState.summary
@@ -785,7 +712,6 @@ private fun MusicQuizResultContent(
     onBack: () -> Unit,
     onTogglePreview: (String) -> Unit,
     onAddToPlaylist: () -> Unit,
-    onShare: () -> Unit,
 ) {
     val summary = state.summary ?: return
     LazyColumn(
@@ -880,20 +806,10 @@ private fun MusicQuizResultContent(
                 }
             }
             Spacer(Modifier.height(4.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                OutlinedButton(onClick = onAddToPlaylist, modifier = Modifier.weight(1f)) {
-                    Icon(Icons.AutoMirrored.Rounded.PlaylistAdd, contentDescription = null)
-                    Spacer(Modifier.width(4.dp))
-                    Text(stringResource(R.string.music_quiz_add_to_playlist))
-                }
-                OutlinedButton(onClick = onShare, modifier = Modifier.weight(1f)) {
-                    Icon(Icons.Rounded.Share, contentDescription = null)
-                    Spacer(Modifier.width(4.dp))
-                    Text(stringResource(R.string.music_quiz_share))
-                }
+            OutlinedButton(onClick = onAddToPlaylist, modifier = Modifier.fillMaxWidth()) {
+                Icon(Icons.AutoMirrored.Rounded.PlaylistAdd, contentDescription = null)
+                Spacer(Modifier.width(4.dp))
+                Text(stringResource(R.string.music_quiz_add_to_playlist))
             }
         }
     }
@@ -1028,82 +944,3 @@ private val MUSIC_QUIZ_NEXT_BUTTON_SLOT_HEIGHT = 48.dp
 /** Minimal [Song] stand-in: playlist operations only consume the library id and labels. */
 private fun MusicQuizTrack.toPlaylistSong(): Song =
     Song.emptySong().copy(id = id, title = title, artist = artist)
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun MusicQuizShareSheet(
-    onShareImage: () -> Unit,
-    onCopyText: () -> Unit,
-    onDismiss: () -> Unit,
-) {
-    val sheetState = rememberModalSheetState(
-        skipPartiallyExpanded = true,
-        confirmValueChange = { true },
-    )
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = sheetState,
-        contentWindowInsets = { BottomSheetDefaults.modalWindowInsets },
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 24.dp),
-        ) {
-            Text(
-                text = stringResource(R.string.music_quiz_share_sheet_title),
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.SemiBold,
-                modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
-            )
-            MusicQuizShareOption(
-                icon = Icons.Rounded.Share,
-                title = stringResource(R.string.music_quiz_share_image),
-                description = stringResource(R.string.music_quiz_share_image_desc),
-                onClick = onShareImage,
-            )
-            MusicQuizShareOption(
-                icon = Icons.Rounded.ContentCopy,
-                title = stringResource(R.string.music_quiz_copy_text),
-                description = stringResource(R.string.music_quiz_copy_text_desc),
-                onClick = onCopyText,
-            )
-        }
-    }
-}
-
-@Composable
-private fun MusicQuizShareOption(
-    icon: ImageVector,
-    title: String,
-    description: String,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(horizontal = 24.dp, vertical = 14.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.primary,
-        )
-        Spacer(Modifier.width(16.dp))
-        Column {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.SemiBold,
-            )
-            Text(
-                text = description,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-    }
-}
