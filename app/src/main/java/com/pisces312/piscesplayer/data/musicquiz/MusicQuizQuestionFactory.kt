@@ -41,10 +41,23 @@ internal class MusicQuizQuestionFactory(
         pool: List<MusicQuizTrack>,
     ): MusicQuizQuestion {
         val correctTitle = normalizedTitle(correctTrack.title)
-        val distractors = pool
+        val correctLang = languageKey(correctTrack.title)
+        val correctEra = eraKey(correctTrack.year)
+        val correctGenre = normalizedGenre(correctTrack.genre)
+
+        // Difficulty: distractors should read as plausible alternatives, so prefer the same
+        // language, then the same era, then the same genre. Lower-ranked candidates only
+        // fill in when the library lacks enough close matches.
+        val ranked = pool
             .filter { it.id != correctTrack.id && normalizedTitle(it.title) != correctTitle }
-            .shuffled(random)
-            .asSequence()
+            .groupBy { candidate ->
+                (if (languageKey(candidate.title) == correctLang) 4 else 0) +
+                    (if (eraKey(candidate.year) == correctEra) 2 else 0) +
+                    (if (normalizedGenre(candidate.genre) == correctGenre) 1 else 0)
+            }
+        val distractors = ranked.entries
+            .sortedByDescending { it.key }
+            .flatMap { (_, candidates) -> candidates.shuffled(random) }
             .distinctBy { normalizedTitle(it.title) }
             .take(MUSIC_QUIZ_OPTION_COUNT - 1)
             .toList()
@@ -91,5 +104,25 @@ internal class MusicQuizQuestionFactory(
             .trim()
             .replace(WHITESPACE, " ")
             .lowercase(Locale.ROOT)
+
+        /** Script-based language bucket for the title; coarse on purpose. */
+        internal fun languageKey(title: String): String {
+            for (ch in title) {
+                when (ch) {
+                    in '぀'..'ヿ' -> return "ja"
+                    in '가'..'힯' -> return "ko"
+                    in '一'..'鿿', in '㐀'..'䶿', in '豈'..'﫿' -> return "cjk"
+                    in 'Ѐ'..'ӿ' -> return "ru"
+                }
+                if (ch.isLetter() && ch > 'ɏ') return "other"
+            }
+            return "latin"
+        }
+
+        /** Decade bucket of the release year; -1 = unknown year. */
+        internal fun eraKey(year: Int): Int = if (year > 0) year / 10 else -1
+
+        internal fun normalizedGenre(genre: String?): String =
+            genre?.trim()?.lowercase(Locale.ROOT).orEmpty()
     }
 }

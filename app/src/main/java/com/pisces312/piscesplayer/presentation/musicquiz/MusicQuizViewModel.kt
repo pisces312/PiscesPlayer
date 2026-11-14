@@ -604,6 +604,8 @@ class MusicQuizViewModel @Inject constructor(
             albumArtUriString = albumArtUriString,
             durationMs = duration,
             playbackUri = playbackUri,
+            year = year,
+            genre = genre,
         )
     }
 

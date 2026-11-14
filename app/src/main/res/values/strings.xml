@@ -359,7 +359,7 @@
     <string name="music_quiz_review">Answer review</string>
     <string name="music_quiz_review_correct">+%1$d · %2$.1f s</string>
     <string name="music_quiz_replay">Play again</string>
-    <string name="music_quiz_back_to_hub">Back</string>
+    <string name="music_quiz_back_to_hub">Back to games</string>
     <string name="music_quiz_playback_error">Some clips could not be played. Check your local files and try again.</string>
     <string name="music_quiz_retry">Retry</string>
     <string name="music_quiz_preview_play_failed">Unable to play this song</string>

@@ -82,6 +82,62 @@ class MusicQuizQuestionFactoryTest {
         assertFalse(replacement.question.track.id in replacement.remainingReserveTracks.map { it.id })
     }
 
+    @Test
+    fun distractorsMatchCorrectTrackLanguageWhenPoolAllows() {
+        val zh = (1..8).map {
+            track("zh-$it").copy(title = "中文歌曲 $it", year = 2000 + it, genre = "Pop")
+        }
+        val en = (1..6).map {
+            track("en-$it").copy(title = "English Song $it", year = 2000 + it, genre = "Pop")
+        }
+
+        val run = MusicQuizQuestionFactory(Random(3)).createRun(zh + en)
+
+        run.questions.forEach { question ->
+            val lang = MusicQuizQuestionFactory.languageKey(question.track.title)
+            question.options
+                .filter { it.songId != question.track.id }
+                .forEach { option ->
+                    assertEquals(lang, MusicQuizQuestionFactory.languageKey(option.title))
+                }
+        }
+    }
+
+    @Test
+    fun distractorsPreferSameEra() {
+        val sameEra = (1..4).map {
+            track("new-$it").copy(title = "新歌 $it", year = 2010 + it, genre = "Rock")
+        }
+        val oldEra = (1..5).map {
+            track("old-$it").copy(title = "老歌 $it", year = 1990 + it, genre = "Jazz")
+        }
+        val target = track("target").copy(title = "目标歌曲", year = 2015, genre = "Rock")
+
+        val run = MusicQuizQuestionFactory(Random(11)).createRun(listOf(target) + sameEra + oldEra)
+        val question = run.questions.first { it.track.id == "target" }
+
+        val distractorEras = question.options
+            .filter { it.songId != question.track.id }
+            .map { option ->
+                MusicQuizQuestionFactory.eraKey(
+                    (listOf(target) + sameEra + oldEra).first { it.title.trim() == option.title.trim() }.year,
+                )
+            }
+        assertEquals(setOf(201), distractorEras.toSet())
+    }
+
+    @Test
+    fun distractorsFallBackAcrossLanguagesWhenPoolExhausted() {
+        val zh = (1..9).map { track("zh-$it").copy(title = "中文歌曲 $it") }
+        val en = track("en-1").copy(title = "English One")
+
+        val run = MusicQuizQuestionFactory(Random(5)).createRun(zh + en)
+        val enQuestion = run.questions.first { it.track.id == "en-1" }
+
+        assertEquals(5, enQuestion.options.size)
+        assertEquals(1, enQuestion.options.count { it.songId == "en-1" })
+    }
+
     private fun tracks(count: Int): List<MusicQuizTrack> = List(count, ::trackFromIndex)
 
     private fun trackFromIndex(index: Int): MusicQuizTrack = track("song-$index")

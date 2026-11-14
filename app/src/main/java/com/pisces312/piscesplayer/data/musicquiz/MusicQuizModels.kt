@@ -12,6 +12,10 @@ data class MusicQuizTrack(
     val albumArtUriString: String?,
     val durationMs: Long,
     val playbackUri: String,
+    /** Release year; 0 = unknown. Buckets distractor candidates by era. */
+    val year: Int = 0,
+    /** Genre label; null/blank treated as unknown for matching. */
+    val genre: String? = null,
 )
 
 data class MusicQuizOption(
