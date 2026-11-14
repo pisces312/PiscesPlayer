@@ -80,6 +80,9 @@
     <string name="setcat_lyrics_local_first">Local (.lrc) First</string>
     <string name="setcat_reset_imported_lyrics_title">Reset Imported Lyrics</string>
     <string name="setcat_reset_imported_lyrics_subtitle">Remove all imported lyrics from the database.</string>
+    <string name="setcat_lyrics_backfill_title">Backfill Lyrics Index</string>
+    <string name="setcat_lyrics_backfill_subtitle">Scan local .lrc files and embedded lyrics tags (read-only) to build the lyrics search index. Songs already indexed are skipped, and the scan can be interrupted and resumed anytime.</string>
+    <string name="setcat_lyrics_backfill_running_subtitle">Backfilling lyrics index… Tap to cancel. Songs already indexed are kept and will be skipped next time.</string>
     <string name="setcat_japanese_romanization_title">Japanese lyrics romanization</string>
     <string name="setcat_japanese_romanization_subtitle">Show romaji above Japanese lyrics. Uses an optional dictionary downloaded on first use (about 13 MB).</string>
     <string name="setcat_japanese_dictionary_title">Japanese dictionary</string>
@@ -279,7 +282,14 @@
     <string name="toast_regenerated_palettes_partial">Regenerated %1$d of %2$d album art palettes</string>
 
     <string name="dialog_reset_lyrics_title">Reset imported lyrics?</string>
+    <string name="dialog_lyrics_backfill_title">Backfill lyrics index?</string>
+    <string name="dialog_lyrics_backfill_message">This scans your local .lrc files and embedded lyrics tags (read-only, your audio files are not modified) to make lyrics-content search work across your library. Songs that already have lyrics are skipped, and you can cancel anytime — completed progress is kept and continues next time.</string>
+    <string name="dialog_lyrics_backfill_cancel_title">Cancel lyrics backfill?</string>
+    <string name="dialog_lyrics_backfill_cancel_message">Songs already indexed are kept. The remaining songs will be picked up next time you run the backfill.</string>
     <string name="dialog_cannot_undo">This action cannot be undone.</string>
+    <string name="lyrics_backfill_notification_channel">Lyrics backfill</string>
+    <string name="lyrics_backfill_notification_title">Building lyrics index</string>
+    <string name="lyrics_backfill_notification_progress">Indexed lyrics: %1$d / %2$d songs</string>
     <string name="confirm">Confirm</string>
     <string name="dialog_rebuild_database_title">Rebuild database?</string>
     <string name="dialog_rebuild_database_message">This will rebuild local files from MediaStore and remove local imported lyrics, favorites, and custom metadata for those songs. Navidrome and Jellyfin songs are preserved. This action cannot be undone.</string>

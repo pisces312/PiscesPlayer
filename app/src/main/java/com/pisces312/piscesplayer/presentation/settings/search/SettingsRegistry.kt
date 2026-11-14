@@ -68,6 +68,16 @@ object SettingsRegistry {
                 keywordsStatic = listOf("scan", "rescan", "sync", "refresh", "rebuild", "database")
             ),
             SettingSpec(
+                id = "library_lyrics_backfill",
+                itemKey = "item_library_lyrics_backfill",
+                titleRes = R.string.setcat_lyrics_backfill_title,
+                subtitleRes = R.string.setcat_lyrics_backfill_subtitle,
+                category = SettingsCategory.LIBRARY,
+                subscreenRoute = Screen.SettingsCategory.createRoute("library"),
+                type = SettingType.ACTION,
+                keywordsStatic = listOf("lyrics", "backfill", "index", "embedded", "lrc", "scan", "歌词", "索引", "回填")
+            ),
+            SettingSpec(
                 id = "library_m3u_sync",
                 itemKey = "item_library_m3u_sync",
                 titleRes = R.string.setcat_m3u_sync_title,

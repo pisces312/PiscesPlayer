@@ -69,6 +69,9 @@
     <string name="setcat_lyrics_local_first">优先本地(.lrc)歌词</string>
     <string name="setcat_reset_imported_lyrics_title">重置导入的歌词</string>
     <string name="setcat_reset_imported_lyrics_subtitle">清除数据库内全部导入的歌词</string>
+    <string name="setcat_lyrics_backfill_title">回填歌词索引</string>
+    <string name="setcat_lyrics_backfill_subtitle">扫描本地 .lrc 文件与内嵌歌词标签（只读，不修改音频文件），建立歌词搜索索引。已入库的歌曲自动跳过，可随时中断并在下次继续。</string>
+    <string name="setcat_lyrics_backfill_running_subtitle">正在回填歌词索引…点按可取消。已完成的歌曲会保留，下次自动跳过。</string>
     <string name="setcat_japanese_romanization_title">日文歌词罗马音</string>
     <string name="setcat_japanese_romanization_subtitle">在日文歌词上方显示罗马音。首次使用时下载可选词典（约 13 MB）。</string>
     <string name="setcat_japanese_dictionary_title">日文词典</string>
@@ -249,7 +252,14 @@
     <string name="toast_regenerated_palettes_partial">已重建%1$d / %2$d个专辑封面配色</string>
 
     <string name="dialog_reset_lyrics_title">确定重置导入歌词？</string>
+    <string name="dialog_lyrics_backfill_title">回填歌词索引？</string>
+    <string name="dialog_lyrics_backfill_message">将扫描本地 .lrc 文件与内嵌歌词标签（只读，不修改音频文件），让歌词搜索覆盖整个曲库。已有歌词的歌曲自动跳过，可随时取消——已完成的进度会保留，下次继续。</string>
+    <string name="dialog_lyrics_backfill_cancel_title">取消歌词回填？</string>
+    <string name="dialog_lyrics_backfill_cancel_message">已建立索引的歌曲会保留，剩余歌曲可在下次回填时继续。</string>
     <string name="dialog_cannot_undo">此操作无法撤销。</string>
+    <string name="lyrics_backfill_notification_channel">歌词回填</string>
+    <string name="lyrics_backfill_notification_title">正在建立歌词索引</string>
+    <string name="lyrics_backfill_notification_progress">已索引歌词：%1$d / %2$d 首</string>
     <string name="confirm">确认</string>
     <string name="dialog_rebuild_database_title">重建数据库？</string>
     <string name="dialog_rebuild_database_message">将从系统媒体库重建本地歌曲记录，会删除本地导入歌词、收藏、自定义元数据；Navidrome/Jellyfin云端歌曲不受影响。该操作不可撤销。</string>

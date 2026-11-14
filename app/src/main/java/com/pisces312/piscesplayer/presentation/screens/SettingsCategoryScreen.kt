@@ -125,6 +125,9 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.work.WorkInfo
+import androidx.work.WorkManager
+import com.pisces312.piscesplayer.data.worker.LyricsBackfillWorker
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -244,6 +247,15 @@ fun SettingsCategoryScreen(
     var syncRequestObservedRunning by remember { mutableStateOf(false) }
     var syncIndicatorLabel by remember { mutableStateOf<String?>(null) }
     var showClearLyricsDialog by remember { mutableStateOf(false) }
+    var showLyricsBackfillDialog by remember { mutableStateOf(false) }
+    var showCancelLyricsBackfillDialog by remember { mutableStateOf(false) }
+    val lyricsBackfillWorkInfos by remember(context) {
+        WorkManager.getInstance(context)
+            .getWorkInfosForUniqueWorkFlow(LyricsBackfillWorker.WORK_NAME)
+    }.collectAsStateWithLifecycle(initialValue = emptyList())
+    val isLyricsBackfillRunning = lyricsBackfillWorkInfos.any {
+        it.state == WorkInfo.State.RUNNING || it.state == WorkInfo.State.ENQUEUED
+    }
     var showRebuildDatabaseWarning by remember { mutableStateOf(false) }
     var showRegenerateDailyMixDialog by remember { mutableStateOf(false) }
     var showRegenerateStatsDialog by remember { mutableStateOf(false) }
@@ -758,6 +770,24 @@ fun SettingsCategoryScreen(
                                         }
                                     )
                                 }
+                                SettingsItem(
+                                    title = stringResource(R.string.setcat_lyrics_backfill_title),
+                                    subtitle = stringResource(
+                                        if (isLyricsBackfillRunning) R.string.setcat_lyrics_backfill_running_subtitle
+                                        else R.string.setcat_lyrics_backfill_subtitle
+                                    ),
+                                    leadingIcon = { Icon(painterResource(R.drawable.rounded_lyrics_24), null, tint = MaterialTheme.colorScheme.secondary) },
+                                    trailingIcon = {
+                                        if (isLyricsBackfillRunning) {
+                                            CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                                        }
+                                    },
+                                    modifier = Modifier.settingHighlight("item_library_lyrics_backfill", highlightKey),
+                                    onClick = {
+                                        if (isLyricsBackfillRunning) showCancelLyricsBackfillDialog = true
+                                        else showLyricsBackfillDialog = true
+                                    }
+                                )
                                 SettingsItem(
                                     title = stringResource(R.string.setcat_reset_imported_lyrics_title),
                                     subtitle = stringResource(R.string.setcat_reset_imported_lyrics_subtitle),
@@ -1682,7 +1712,42 @@ fun SettingsCategoryScreen(
         )
     }
 
-    
+    if (showLyricsBackfillDialog) {
+        AlertDialog(
+            icon = { Icon(painterResource(R.drawable.rounded_lyrics_24), null) },
+            title = { Text(stringResource(R.string.dialog_lyrics_backfill_title)) },
+            text = { Text(stringResource(R.string.dialog_lyrics_backfill_message)) },
+            onDismissRequest = { showLyricsBackfillDialog = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    showLyricsBackfillDialog = false
+                    LyricsBackfillWorker.enqueue(context)
+                }) { Text(stringResource(R.string.confirm), maxLines = 1, overflow = TextOverflow.Ellipsis) }
+            },
+            dismissButton = { TextButton(onClick = { showLyricsBackfillDialog = false }) { Text(stringResource(R.string.cancel), maxLines = 1, overflow = TextOverflow.Ellipsis) } }
+        )
+    }
+
+    if (showCancelLyricsBackfillDialog) {
+        AlertDialog(
+            title = { Text(stringResource(R.string.dialog_lyrics_backfill_cancel_title)) },
+            text = { Text(stringResource(R.string.dialog_lyrics_backfill_cancel_message)) },
+            onDismissRequest = { showCancelLyricsBackfillDialog = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    showCancelLyricsBackfillDialog = false
+                    LyricsBackfillWorker.cancel(context)
+                }) { Text(stringResource(R.string.cancel), maxLines = 1, overflow = TextOverflow.Ellipsis) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showCancelLyricsBackfillDialog = false }) {
+                    Text(stringResource(R.string.action_done), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+            }
+        )
+    }
+
+
     if (showRebuildDatabaseWarning) {
         AlertDialog(
             icon = { Icon(Icons.Outlined.Warning, null, tint = MaterialTheme.colorScheme.error) },
