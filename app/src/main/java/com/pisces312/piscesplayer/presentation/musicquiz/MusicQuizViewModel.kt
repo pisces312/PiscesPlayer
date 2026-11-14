@@ -26,8 +26,11 @@ import kotlin.random.Random
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
@@ -50,6 +53,11 @@ enum class MusicQuizLibraryIssue {
     NOT_ENOUGH_TITLES,
 }
 
+sealed interface MusicQuizEvent {
+    /** The result-screen preview could not play the tapped song. */
+    data object PreviewPlayFailed : MusicQuizEvent
+}
+
 data class MusicQuizUiState(
     val phase: MusicQuizPhase = MusicQuizPhase.IDLE,
     val hasLibrarySnapshot: Boolean = false,
@@ -67,6 +75,8 @@ data class MusicQuizUiState(
     val isNewBestScore: Boolean = false,
     val isNewBestStreak: Boolean = false,
     val showExitConfirmation: Boolean = false,
+    val previewTrackId: String? = null,
+    val previewPaused: Boolean = false,
 ) {
     val canStart: Boolean
         get() = phase == MusicQuizPhase.IDLE && hasLibrarySnapshot && libraryIssue == null
@@ -80,6 +90,9 @@ class MusicQuizViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(MusicQuizUiState())
     val uiState: StateFlow<MusicQuizUiState> = _uiState.asStateFlow()
 
+    private val _events = MutableSharedFlow<MusicQuizEvent>(extraBufferCapacity = 8)
+    val events: SharedFlow<MusicQuizEvent> = _events.asSharedFlow()
+
     private var libraryTracks: List<MusicQuizTrack> = emptyList()
     private var runPool: List<MusicQuizTrack> = emptyList()
     private var reserveTracks: List<MusicQuizTrack> = emptyList()
@@ -87,6 +100,9 @@ class MusicQuizViewModel @Inject constructor(
     private var engine: MusicQuizGameEngine? = null
     private var playbackToken = 0L
     private var tickerJob: Job? = null
+    private var revealAutoAdvanceJob: Job? = null
+    private var previewToken = 0L
+    private var previewActive = false
     private var consecutivePlaybackFailures = 0
     private var resultRecorded = false
 
@@ -94,13 +110,39 @@ class MusicQuizViewModel @Inject constructor(
         MusicQuizAudioPlayer(
             context = context,
             callbacks = object : MusicQuizAudioPlayer.Callbacks {
-                override fun onPlaybackStarted(token: Long) = handlePlaybackStarted(token)
-                override fun onClipEnded(token: Long) = handleClipEnded(token)
-                override fun onPlaybackInterrupted(token: Long) = handlePlaybackInterrupted(token)
-                override fun onPlaybackError(token: Long) = handlePlaybackError(token)
+                override fun onPlaybackStarted(token: Long) {
+                    if (isPreviewToken(token)) return
+                    handlePlaybackStarted(token)
+                }
+
+                override fun onClipEnded(token: Long) {
+                    if (isPreviewToken(token)) {
+                        handlePreviewEnded()
+                        return
+                    }
+                    handleClipEnded(token)
+                }
+
+                override fun onPlaybackInterrupted(token: Long) {
+                    if (isPreviewToken(token)) {
+                        handlePreviewEnded()
+                        return
+                    }
+                    handlePlaybackInterrupted(token)
+                }
+
+                override fun onPlaybackError(token: Long) {
+                    if (isPreviewToken(token)) {
+                        handlePreviewError()
+                        return
+                    }
+                    handlePlaybackError(token)
+                }
             },
         )
     }
+
+    private fun isPreviewToken(token: Long): Boolean = previewActive && token == previewToken
 
     init {
         viewModelScope.launch {
@@ -146,6 +188,8 @@ class MusicQuizViewModel @Inject constructor(
         }
 
         stopPlayback()
+        stopPreview()
+        cancelAutoAdvance()
         questionFactory = MusicQuizQuestionFactory(Random(System.nanoTime()))
         runPool = libraryTracks
         val blueprint = questionFactory.createRun(runPool)
@@ -180,6 +224,7 @@ class MusicQuizViewModel @Inject constructor(
 
     fun nextRound() {
         if (_uiState.value.phase != MusicQuizPhase.REVEALING) return
+        cancelAutoAdvance()
         val currentEngine = engine ?: return
         if (!currentEngine.advance()) return
         if (currentEngine.state == MusicQuizEngineState.FINISHED) {
@@ -201,6 +246,8 @@ class MusicQuizViewModel @Inject constructor(
     }
 
     fun pauseGame(showExitConfirmation: Boolean = false) {
+        if (previewActive) pausePreview()
+        cancelAutoAdvance()
         val currentEngine = engine ?: return
         when (currentEngine.state) {
             MusicQuizEngineState.PLAYING -> {
@@ -269,8 +316,10 @@ class MusicQuizViewModel @Inject constructor(
             MusicQuizPhase.PLAYING,
             MusicQuizPhase.PAUSED,
             -> pauseGame(showExitConfirmation = true)
-            MusicQuizPhase.REVEALING ->
+            MusicQuizPhase.REVEALING -> {
+                cancelAutoAdvance()
                 _uiState.update { it.copy(showExitConfirmation = true) }
+            }
             MusicQuizPhase.IDLE,
             MusicQuizPhase.FINISHED,
             MusicQuizPhase.ERROR,
@@ -280,12 +329,20 @@ class MusicQuizViewModel @Inject constructor(
 
     fun dismissExitConfirmation() {
         _uiState.update { it.copy(showExitConfirmation = false) }
+        maybeScheduleAutoAdvance()
     }
 
     fun stopGame() {
+        cancelAutoAdvance()
+        stopPreview()
         stopPlayback()
         engine = null
         _uiState.update { it.copy(showExitConfirmation = false) }
+    }
+
+    /** Re-arms the reveal auto-advance after backgrounding or configuration changes. */
+    fun onScreenResumed() {
+        maybeScheduleAutoAdvance()
     }
 
     private fun loadCurrentQuestion(autoplay: Boolean = true) {
@@ -382,6 +439,92 @@ class MusicQuizViewModel @Inject constructor(
                 showExitConfirmation = false,
             )
         }
+        if (resolution.record.isCorrect) scheduleAutoAdvance()
+    }
+
+    private fun scheduleAutoAdvance() {
+        revealAutoAdvanceJob?.cancel()
+        revealAutoAdvanceJob = viewModelScope.launch {
+            delay(REVEAL_AUTO_ADVANCE_DELAY_MS)
+            nextRound()
+        }
+    }
+
+    private fun cancelAutoAdvance() {
+        revealAutoAdvanceJob?.cancel()
+        revealAutoAdvanceJob = null
+    }
+
+    private fun maybeScheduleAutoAdvance() {
+        val state = _uiState.value
+        if (state.phase == MusicQuizPhase.REVEALING &&
+            state.resolution?.record?.isCorrect == true &&
+            !state.showExitConfirmation
+        ) {
+            scheduleAutoAdvance()
+        }
+    }
+
+    /** Toggles the result-screen full-song preview for one of the finished run's tracks. */
+    fun togglePreview(trackId: String) {
+        val state = _uiState.value
+        if (state.phase != MusicQuizPhase.FINISHED) return
+        if (state.previewTrackId == trackId) {
+            if (state.previewPaused) resumePreview() else pausePreview()
+            return
+        }
+        val track = state.summary?.records
+            ?.firstOrNull { it.question.track.id == trackId }
+            ?.question?.track ?: return
+        startPreview(track)
+    }
+
+    fun stopPreview() {
+        if (previewActive && audioPlayer.isInitialized()) {
+            audioPlayer.value.stop()
+        }
+        previewActive = false
+        previewToken = 0L
+        if (_uiState.value.previewTrackId != null) {
+            _uiState.update { it.copy(previewTrackId = null, previewPaused = false) }
+        }
+    }
+
+    private fun startPreview(track: MusicQuizTrack) {
+        val token = ++playbackToken
+        previewActive = true
+        previewToken = token
+        try {
+            audioPlayer.value.playFull(track, token)
+        } catch (error: Exception) {
+            Timber.e(error, "Unable to start music quiz preview")
+            handlePreviewError()
+            return
+        }
+        _uiState.update { it.copy(previewTrackId = track.id, previewPaused = false) }
+    }
+
+    private fun pausePreview() {
+        if (!previewActive) return
+        audioPlayer.value.pause()
+        _uiState.update { it.copy(previewPaused = true) }
+    }
+
+    private fun resumePreview() {
+        if (!previewActive) return
+        audioPlayer.value.resume()
+        _uiState.update { it.copy(previewPaused = false) }
+    }
+
+    private fun handlePreviewEnded() {
+        previewActive = false
+        previewToken = 0L
+        _uiState.update { it.copy(previewTrackId = null, previewPaused = false) }
+    }
+
+    private fun handlePreviewError() {
+        handlePreviewEnded()
+        _events.tryEmit(MusicQuizEvent.PreviewPlayFailed)
     }
 
     private fun finishRun(currentEngine: MusicQuizGameEngine) {
@@ -468,5 +611,8 @@ class MusicQuizViewModel @Inject constructor(
         const val TICK_INTERVAL_MS = 50L
         const val NANOS_PER_MILLISECOND = 1_000_000L
         const val MAX_CONSECUTIVE_PLAYBACK_FAILURES = 3
+
+        /** Correct-answer reveal auto-advances after this delay; the button still skips early. */
+        const val REVEAL_AUTO_ADVANCE_DELAY_MS = 1_200L
     }
 }

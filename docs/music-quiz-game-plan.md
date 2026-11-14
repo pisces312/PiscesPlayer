@@ -260,3 +260,216 @@ presentation/musicquiz/
 - 恢复进程死亡后的半局游戏。
 
 这些能力可在核心玩法验证后再扩展。
+
+## 12. 第二期：结算页增强（2026-11-14 方案，待实现）
+
+结算页目前只是成绩单：十行回顾不可点，底部只有「再来一局 / 返回大厅」。第二期把它升级为
+**成果处置入口**——试听歌曲、分享成绩、归档进播放列表。三项需求与关键决策：
+
+| # | 需求 | 决策 | 关键理由 |
+|---|---|---|---|
+| 1 | 点击回顾行播放歌曲 | 整曲试听走**游戏自己的 ExoPlayer**，不进主播放器 | 不替换用户原队列、不混入听歌统计、与退出恢复逻辑零冲突（§7 隔离原则） |
+| 2 | 分享成绩 | 「分享截图」（成绩卡片 PNG 走系统分享面板）+「复制成绩文字」（剪贴板），两者都带项目链接 | 系统分享面板覆盖微信/QQ 等一切目标，无需平台 SDK |
+| 3 | 创建/加入播放列表 | 两步：选歌 Sheet → 复用现有 `PlaylistBottomSheet`；新建列表名默认「猜歌游戏 + 时间戳」 | 复用 14 处调用的成熟组件，交互与曲库页一致 |
+| 4 | 揭晓跳版 / 流转优化 | 「下一题」按钮常驻预留槽位（防跳版）；答对约 1.2s 自动下一题，答错/超时停留手动 | 动量与消化错误的平衡（Duolingo 同款模式） |
+
+### 12.1 结算页布局
+
+底部操作区 **2×2 网格**：每行两个半宽按钮，**每个按钮都带图标**（图标 + 文字）：
+
+```
+[↻  再来一局]        [⌂  返回大厅]        ← 再来一局 filled 主色，其余 outlined
+[⊕  加入播放列表]    [↗  分享]            ← 页面最底部一行
+```
+
+- 再来一局：`Refresh` 图标，filled 主按钮（本行视觉重心）；
+- 返回大厅：`Home` 图标，outlined；
+- 加入播放列表：`PlaylistAdd` 图标，outlined；
+- 分享：`Share` 图标，outlined，位于页面最底部（按需求原话「最下方」）。
+
+回顾列表仍在操作区上方，行为见 12.2。
+
+### 12.2 功能一：回顾行点击试听
+
+**交互**
+
+- 点击回顾行 = 从头播放该曲**整曲**（不限于 10 秒片段）；
+- 再点正在播放的行 = 暂停 / 继续；
+- 点其他行 = 立即切换到该曲（从头播），旧行指示复位；
+- 播放到结尾自动复位，行指示消失；
+- 试听只在结算态（`FINISHED`）可用，不影响答题、揭晓等状态。
+
+**视觉**（与曲库歌曲行风格统一）
+
+- 行左侧新增 40dp 圆角专辑封面（`albumArtUriString`，无封面回退音符图标占位）；
+- 原轮次序号列（28dp）保留在封面左侧；
+- 正在播放的行：封面上叠半透明遮罩 + `Pause` 图标；其余行封面无遮罩；
+- 歌名 / 歌手 / 右侧结果文案（得分、用时、答错、超时）布局不变。
+
+**播放通道决策**
+
+试听复用游戏的独立 `MusicQuizAudioPlayer`（第二个 `playFull(track, token)` 入口，
+不设 `ClippingConfiguration`），主播放器完全不参与：
+
+- 不替换用户进入游戏前的播放队列（进主播放器播是破坏性操作）；
+- 不与「退出时恢复主播放器」逻辑冲突（否则恢复动作会误停刚点的歌）；
+- 不混入听歌统计与最近播放（试听≠听歌，与 §7 一致）；
+- 无媒体通知、不泄露歌名（游戏结束后不再有防剧透需求，但保持行为一致）。
+
+**实现要点**
+
+- `MusicQuizAudioPlayer.playFull(track, token)`：全曲 MediaItem，无 clip 配置；
+  现有 token 防串台机制照用；`onPlayerError` 回调区分预览与游戏场景；
+- `MusicQuizViewModel` 新增 `togglePreview(trackId)` / `stopPreview()`，
+  `MusicQuizUiState` 增加 `previewTrackId: String?` 与 `previewPaused: Boolean`；
+- 停止时机：「再来一局」（`startGame`）、退出（`handleBack` / 确认退出 / `stopGame`）、
+  `onDispose`、`onCleared`；
+- 预览音频出错（文件被删/移动）：toast 提示无法播放，预览复位，不影响其他功能。
+
+### 12.3 功能二：分享
+
+**入口**：底部「分享」按钮 → `ModalBottomSheet`（与应用其他面板风格一致），两个选项：
+
+| 选项 | 行为 |
+|---|---|
+| 分享截图 | 生成成绩卡片 PNG → 系统分享面板（`ACTION_SEND image/png`） |
+| 复制成绩文字 | 成绩文案写入剪贴板 → toast「已复制成绩文字」 |
+
+点按遮罩关闭，无其他按钮。
+
+**成绩卡片（截图内容）**
+
+专门的 `MusicQuizShareCard` composable，约 360dp 宽，内容自上而下：
+
+1. 标题行：🏆 + 「PiscesPlayer · 猜歌挑战」；
+2. 大号分数 + 「答对 8/10 · 最长连击 5 · 平均用时 3.2 秒」；新纪录时加「（新纪录！）」徽标；
+3. 十首歌曲紧凑单行：✓/✗ + 「歌名 - 歌手」；
+4. 页脚小字：`github.com/pisces312/PiscesPlayer`。
+
+**截图实现**
+
+- Compose `rememberGraphicsLayer` + `drawWithContent { record() }` 捕获；
+  卡片组合在可视区外（横向 offset，不放进 `LazyColumn`，避免懒加载裁剪），
+  `GraphicsLayer.toImageBitmap()` → PNG；
+- 写入 `cacheDir/music_quiz_share/share-<时间戳>.png`（`cache-path` 已在 FileProvider 声明，
+  节奏游戏诊断导出同款机制）；
+- `FileProvider.getUriForFile(ctx, "${ctx.packageName}.provider", file)` +
+  `ACTION_SEND` + `FLAG_GRANT_READ_URI_PERMISSION` + 系统分享面板；
+- `EXTRA_TEXT` 附分享文案（含链接）；失败（IO/OOM/无接收方）toast 提示，不崩溃。
+
+**文字分享内容（含链接）**
+
+```
+🎵 PiscesPlayer 猜歌挑战
+得分 8650 · 答对 8/10 · 最长连击 5 · 平均用时 3.2s
+来试试你能拿多少分！
+https://github.com/pisces312/PiscesPlayer
+```
+
+新纪录时第一行追加「（新纪录！）」。文案构造抽成纯函数（`MusicQuizShareText`）便于单测。
+
+**项目链接的三处落点**：卡片页脚、截图分享的 `EXTRA_TEXT`、复制文案末行。
+链接统一取 `https://github.com/pisces312/PiscesPlayer`（与 About 页 `SourceRepoUrl` 一致）。
+
+### 12.4 功能三：加入播放列表
+
+**两步流程**
+
+1. **选歌 Sheet**（新增 `MusicQuizSongSelectSheet`）：
+   - 标题「选择歌曲」+ 副标题「已选 N/10」，右上「全选 / 清空」文字按钮；
+   - 10 行 checkbox（40dp 封面 + 歌名/歌手 + Checkbox），**默认全选**；
+   - FAB「下一步」，选中 ≥1 才可用；
+2. **PlaylistBottomSheet**（现有组件，全仓 14 处调用不变）：
+   - `songs` 传选中歌曲（`MusicQuizTrack → Song.emptySong().copy(id, title, artist)` 最小映射，
+     播放列表操作只用 `id`，与曲库同 id 空间）；
+   - 既有能力直接复用：多选目标列表、搜索过滤、智能列表排除、保存 FAB、完成 toast。
+
+**新建列表默认名**
+
+- 「猜歌游戏 yyyyMMdd-HHmm」（打开选歌 Sheet 时刻），如 `猜歌游戏 20261114-0913`；
+- 落点：`CreatePlaylistDialogRedesigned` 加可选参数 `initialName: String = ""`，
+  `PlaylistBottomSheet` 加可选参数 `createDialogInitialName: String = ""` 透传——
+  默认值保证现有调用零改动。
+
+**完成反馈**：沿用 `playlist_created_songs_added_toast` / `playlist_songs_added_toast`
+（走 `playerViewModel.sendToast` 统一 toast 通道）。
+
+### 12.5 功能四：作答流转优化（答题页）
+
+两个独立改动，都发生在答题页：
+
+**（a）揭晓按钮预留槽位（防跳版）**
+
+现在「下一题 / 完成」按钮在揭晓后才追加到选项列表下方（`if (revealing)`），整个界面会跳一下。
+改为：底部**常驻**一个整宽按钮槽位（固定高度 = 按钮高度 + 间距），未揭晓时槽位透明，
+揭晓时按钮原地淡入（`AnimatedVisibility` / alpha 过渡）。无论是否揭晓，选项区位置不动。
+
+**（b）答对自动进入下一题**
+
+| 揭晓结果 | 流转 | 理由 |
+|---|---|---|
+| 答对 | 高亮正确项 + 得分提示，**约 1.2 秒后自动进入下一题** | 此时揭晓页信息价值低，动量感最重要（Duolingo 同款模式） |
+| 答错 / 超时 | **停留揭晓**（正确项绿色 + 所选项红色），等用户点「下一题」 | 用户需要时间消化「原来是这首」，自动跳有惩罚感；按钮已在预留槽位内，不跳版 |
+
+- 「下一题」按钮在自动跳的 1.2 秒内仍可点，点击立即前进并取消自动计时；
+- 第 10 题同规则：答对自动 / 答错手动，之后进入结算页；
+- 实现：ViewModel 侧 `revealAutoAdvanceJob`（`viewModelScope` 延时调 `nextRound()`），
+  在 `nextRound()` / `startGame()` / `stopGame()` 中取消；确认退出必走 `stopGame()`，
+  不会残留计时；
+- 延时抽成常量（暂定 1200ms，真机试玩后可调）。
+
+> 备选：答错 / 超时也自动跳（如 3 秒），按钮仅作提前跳过——完全免按键，但答错时观感偏惩罚，
+> 不作默认。若想要「全程自动」，改一处延时分支即可。
+
+### 12.6 边界与异常
+
+- 预览播放中打开分享 / 播放列表面板：**不打断**，试听继续；「再来一局」和退出才停止；
+- 试听到结尾：预览复位，行指示消失；
+- 歌曲文件失效：toast「无法播放该歌曲」，预览复位；
+- 截图失败（IO/OOM）：toast 失败文案，可改用文字分享兜底；
+- 播放列表目标为空：`PlaylistBottomSheet` 现有行为（仍可走新建列表），不加新兜底；
+- 屏幕旋转锁定竖屏；`onDispose` 停预览（配置变更下预览不恢复，可接受）。
+
+### 12.7 代码落点
+
+| 文件 | 改动 |
+|---|---|
+| `data/musicquiz/MusicQuizAudioPlayer.kt` | 新增 `playFull(track, token)` 全曲入口 |
+| `data/musicquiz/MusicQuizShareText.kt`（新增） | 分享文案纯函数构造 |
+| `presentation/musicquiz/MusicQuizViewModel.kt` | `togglePreview` / `stopPreview`、UI 状态加预览字段、`revealAutoAdvanceJob` 自动跳 |
+| `presentation/musicquiz/MusicQuizScreen.kt` | 结算页 2×2 图标按钮组、行点击、分享面板、截图捕获、答题页按钮预留槽位 |
+| `presentation/musicquiz/MusicQuizSongSelectSheet.kt`（新增） | 选歌 Sheet |
+| `presentation/musicquiz/MusicQuizShareCard.kt`（新增） | 成绩卡片 composable |
+| `presentation/components/PlaylistBottomSheet.kt` | 加可选 `createDialogInitialName` |
+| `presentation/components/PlaylistContainer.kt` | `CreatePlaylistDialogRedesigned` 加可选 `initialName` |
+| `res/values/strings.xml` + `values-zh-rCN/strings.xml` | `music_quiz_share_*` / `music_quiz_playlist_*` 双语 |
+
+### 12.8 测试与验收
+
+**JVM 单元测试**
+
+- `MusicQuizShareText`：得分文案含链接、新纪录措辞、平均用时为 0 的措辞；
+- 默认名格式：`猜歌游戏 yyyyMMdd-HHmm`；
+- ViewModel 预览状态机：切换 / 暂停 / `startGame` 与 `stopGame` 时停止；
+- 自动跳计时：答对延时后进下一题、`nextRound()` 提前触发时取消计时（`kotlinx-coroutines-test`）。
+
+**构建**：`assembleRelease` + `testDebugUnitTest`；`lintDebug` 不引入新错误（既有 8 个不计）。
+
+**真机验收**
+
+- 答题页揭晓不跳版（按钮原地淡入，选项区不动）；
+- 答对自动进入下一题，答错 / 超时停留等待手动；
+- 回顾行点击试听、暂停、切歌正常；退出 / 再来一局后无残留声音；
+- 试听不进听歌统计与最近播放，主队列不变；
+- 截图分享：出图完整（分数 + 十首歌 + 页脚链接），能发到微信等目标；
+- 复制文字：粘贴内容含项目链接；
+- 播放列表：新建默认名正确、加歌数量正确；加入已有列表正确；智能列表不出现在目标里；
+- 底部按钮完整可点（配合 mini player 隐藏修复）。
+
+### 12.9 第二期非目标
+
+- 分享图自定义水印 / 昵称 / 皮肤；
+- 微信、QQ 等平台 SDK 一键直发（系统分享面板已覆盖）；
+- 试听带进度条、通知栏控制（试听定位为快速回放）；
+- 写入云端歌单（Navidrome / Jellyfin），仅本地播放列表；
+- 结算页内直接跳转主播放器播放整曲。

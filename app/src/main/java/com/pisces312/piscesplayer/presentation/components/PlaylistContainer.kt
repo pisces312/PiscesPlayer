@@ -522,9 +522,10 @@ fun PlaylistItem(
 @Composable
 fun CreatePlaylistDialogRedesigned(
     onDismiss: () -> Unit,
-    onCreate: (String) -> Unit
+    onCreate: (String) -> Unit,
+    initialName: String = "",
 ) {
-    var playlistName by remember { mutableStateOf("") }
+    var playlistName by remember { mutableStateOf(initialName) }
 
     BasicAlertDialog(
         onDismissRequest = onDismiss,

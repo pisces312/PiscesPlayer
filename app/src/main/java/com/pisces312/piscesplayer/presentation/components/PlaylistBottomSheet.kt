@@ -62,7 +62,8 @@ fun PlaylistBottomSheet(
     bottomBarHeight: Dp,
     playerViewModel: PlayerViewModel,
     playlistViewModel: PlaylistViewModel = hiltViewModel(),
-    currentPlaylistId: String? = null
+    currentPlaylistId: String? = null,
+    createDialogInitialName: String = "",
 ) {
     var showCreatePlaylistDialog by remember { mutableStateOf(false) }
 
@@ -198,6 +199,7 @@ fun PlaylistBottomSheet(
                 if (showCreatePlaylistDialog) {
                     CreatePlaylistDialogRedesigned(
                         onDismiss = { showCreatePlaylistDialog = false },
+                        initialName = createDialogInitialName,
                         onCreate = { name ->
                             playlistViewModel.createPlaylist(name, songIds = songs.map { it.id })
                             showCreatePlaylistDialog = false

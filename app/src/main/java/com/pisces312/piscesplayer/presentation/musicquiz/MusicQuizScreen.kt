@@ -3,6 +3,10 @@ package com.pisces312.piscesplayer.presentation.musicquiz
 import android.app.Activity
 import android.content.pm.ActivityInfo
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -21,16 +25,21 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.automirrored.rounded.PlaylistAdd
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.EmojiEvents
+import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.MusicNote
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Quiz
 import androidx.compose.material.icons.rounded.Refresh
+import androidx.compose.material.icons.rounded.Share
 import androidx.compose.material.icons.rounded.Timer
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -41,6 +50,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -52,17 +62,23 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.rememberGraphicsLayer
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
@@ -70,11 +86,20 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.pisces312.piscesplayer.R
+import com.pisces312.piscesplayer.data.model.Song
 import com.pisces312.piscesplayer.data.musicquiz.MusicQuizAnswerRecord
 import com.pisces312.piscesplayer.data.musicquiz.MusicQuizOption
+import com.pisces312.piscesplayer.data.musicquiz.MusicQuizShareText
+import com.pisces312.piscesplayer.data.musicquiz.MusicQuizTrack
+import com.pisces312.piscesplayer.presentation.components.PlaylistBottomSheet
 import com.pisces312.piscesplayer.presentation.components.SmartImage
 import com.pisces312.piscesplayer.presentation.components.SmartImageListTargetSize
+import com.pisces312.piscesplayer.presentation.components.rememberModalSheetState
 import com.pisces312.piscesplayer.presentation.viewmodel.PlayerViewModel
+import com.pisces312.piscesplayer.presentation.viewmodel.PlaylistViewModel
+import java.util.Date
+import kotlinx.collections.immutable.toImmutableList
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -90,6 +115,15 @@ fun MusicQuizScreen(
     val lifecycleOwner = LocalLifecycleOwner.current
     var shouldResumeMainPlayer by rememberSaveable { mutableStateOf(false) }
     var mainPlayerCaptured by rememberSaveable { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+    val shareGraphicsLayer = rememberGraphicsLayer()
+    val playlistViewModel: PlaylistViewModel = hiltViewModel()
+    val playlistUiState by playlistViewModel.uiState.collectAsStateWithLifecycle()
+    var showShareSheet by remember { mutableStateOf(false) }
+    var showSongSelectSheet by remember { mutableStateOf(false) }
+    var showPlaylistSheet by remember { mutableStateOf(false) }
+    var playlistSongs by remember { mutableStateOf<List<Song>>(emptyList()) }
+    var pendingPlaylistName by remember { mutableStateOf("") }
 
     LaunchedEffect(allSongs) {
         quizViewModel.updateLibrary(allSongs)
@@ -109,9 +143,21 @@ fun MusicQuizScreen(
             quizViewModel.pauseGame()
         }
     }
+    LaunchedEffect(quizViewModel) {
+        quizViewModel.events.collect { event ->
+            when (event) {
+                MusicQuizEvent.PreviewPlayFailed ->
+                    playerViewModel.sendToast(context.getString(R.string.music_quiz_preview_play_failed))
+            }
+        }
+    }
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_PAUSE) quizViewModel.pauseGame()
+            when (event) {
+                Lifecycle.Event.ON_PAUSE -> quizViewModel.pauseGame()
+                Lifecycle.Event.ON_RESUME -> quizViewModel.onScreenResumed()
+                else -> Unit
+            }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
@@ -148,6 +194,36 @@ fun MusicQuizScreen(
             }
             else -> quizViewModel.requestExit()
         }
+    }
+
+    fun shareResultImage() {
+        val summary = uiState.summary ?: return
+        scope.launch {
+            val text = MusicQuizShare.buildText(context, summary, uiState.isNewBestScore)
+            val png = MusicQuizShare.capturePng(context, shareGraphicsLayer)
+            if (png == null) {
+                playerViewModel.sendToast(context.getString(R.string.music_quiz_share_failed))
+            } else {
+                MusicQuizShare.shareImage(context, png, text)
+            }
+        }
+    }
+
+    fun copyResultText() {
+        val summary = uiState.summary ?: return
+        MusicQuizShare.copyText(
+            context,
+            MusicQuizShare.buildText(context, summary, uiState.isNewBestScore),
+        )
+        playerViewModel.sendToast(context.getString(R.string.music_quiz_copied))
+    }
+
+    fun openPlaylistFlow() {
+        pendingPlaylistName = context.getString(
+            R.string.music_quiz_playlist_default_name,
+            MusicQuizShareText.timestampSuffix(Date()),
+        )
+        showSongSelectSheet = true
     }
 
     BackHandler { handleBack() }
@@ -219,14 +295,79 @@ fun MusicQuizScreen(
                 MusicQuizPhase.FINISHED -> MusicQuizResultContent(
                     state = uiState,
                     onReplay = quizViewModel::startGame,
-                    onBack = onBack,
+                    onBack = ::handleBack,
+                    onTogglePreview = quizViewModel::togglePreview,
+                    onAddToPlaylist = ::openPlaylistFlow,
+                    onShare = { showShareSheet = true },
                 )
                 MusicQuizPhase.ERROR -> MusicQuizErrorContent(
                     onRetry = quizViewModel::startGame,
-                    onBack = onBack,
+                    onBack = ::handleBack,
                 )
             }
+
+            if (uiState.phase == MusicQuizPhase.FINISHED) {
+                uiState.summary?.let { summary ->
+                    // Composed and drawn with alpha 0: the share card stays recordable for
+                    // screenshot sharing without ever being visible on screen.
+                    Box(modifier = Modifier.graphicsLayer { alpha = 0f }) {
+                        MusicQuizShareCard(
+                            summary = summary,
+                            isNewBestScore = uiState.isNewBestScore,
+                            modifier = Modifier.drawWithContent {
+                                shareGraphicsLayer.record(
+                                    density = this,
+                                    layoutDirection = layoutDirection,
+                                    size = IntSize(size.width.toInt(), size.height.toInt()),
+                                ) {
+                                    this@drawWithContent.drawContent()
+                                }
+                                drawContent()
+                            },
+                        )
+                    }
+                }
+            }
         }
+    }
+
+    if (showShareSheet) {
+        MusicQuizShareSheet(
+            onShareImage = {
+                showShareSheet = false
+                shareResultImage()
+            },
+            onCopyText = {
+                showShareSheet = false
+                copyResultText()
+            },
+            onDismiss = { showShareSheet = false },
+        )
+    }
+
+    val summary = uiState.summary
+    if (showSongSelectSheet && summary != null) {
+        MusicQuizSongSelectSheet(
+            tracks = summary.records.map { it.question.track },
+            onConfirm = { selected ->
+                showSongSelectSheet = false
+                playlistSongs = selected.map { it.toPlaylistSong() }
+                showPlaylistSheet = true
+            },
+            onDismiss = { showSongSelectSheet = false },
+        )
+    }
+
+    if (showPlaylistSheet) {
+        PlaylistBottomSheet(
+            playlistUiState = playlistUiState,
+            songs = playlistSongs.toImmutableList(),
+            onDismiss = { showPlaylistSheet = false },
+            bottomBarHeight = 0.dp,
+            playerViewModel = playerViewModel,
+            playlistViewModel = playlistViewModel,
+            createDialogInitialName = pendingPlaylistName,
+        )
     }
 
     if (uiState.showExitConfirmation) {
@@ -516,17 +657,29 @@ private fun MusicQuizRoundContent(
                 onClick = { onAnswer(option.songId) },
             )
         }
-        if (revealing) {
-            Button(onClick = onNext, modifier = Modifier.fillMaxWidth()) {
-                Text(
-                    stringResource(
-                        if (state.roundIndex == state.totalRounds - 1) {
-                            R.string.music_quiz_finish
-                        } else {
-                            R.string.music_quiz_next
-                        },
-                    ),
-                )
+        // The slot is reserved up front so revealing never shifts the options above it.
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(MUSIC_QUIZ_NEXT_BUTTON_SLOT_HEIGHT),
+            contentAlignment = Alignment.Center,
+        ) {
+            androidx.compose.animation.AnimatedVisibility(
+                visible = revealing,
+                enter = fadeIn(),
+                exit = fadeOut(),
+            ) {
+                Button(onClick = onNext, modifier = Modifier.fillMaxWidth()) {
+                    Text(
+                        stringResource(
+                            if (state.roundIndex == state.totalRounds - 1) {
+                                R.string.music_quiz_finish
+                            } else {
+                                R.string.music_quiz_next
+                            },
+                        ),
+                    )
+                }
             }
         }
     }
@@ -630,6 +783,9 @@ private fun MusicQuizResultContent(
     state: MusicQuizUiState,
     onReplay: () -> Unit,
     onBack: () -> Unit,
+    onTogglePreview: (String) -> Unit,
+    onAddToPlaylist: () -> Unit,
+    onShare: () -> Unit,
 ) {
     val summary = state.summary ?: return
     LazyColumn(
@@ -700,26 +856,60 @@ private fun MusicQuizResultContent(
             )
         }
         items(summary.records, key = { it.roundIndex }) { record ->
-            MusicQuizReviewRow(record)
+            MusicQuizReviewRow(
+                record = record,
+                isPreviewing = state.previewTrackId == record.question.track.id,
+                previewPaused = state.previewPaused,
+                onClick = { onTogglePreview(record.question.track.id) },
+            )
         }
         item {
-            Button(onClick = onReplay, modifier = Modifier.fillMaxWidth()) {
-                Icon(Icons.Rounded.Refresh, contentDescription = null)
-                Spacer(Modifier.width(8.dp))
-                Text(stringResource(R.string.music_quiz_replay))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Button(onClick = onReplay, modifier = Modifier.weight(1f)) {
+                    Icon(Icons.Rounded.Refresh, contentDescription = null)
+                    Spacer(Modifier.width(4.dp))
+                    Text(stringResource(R.string.music_quiz_replay))
+                }
+                OutlinedButton(onClick = onBack, modifier = Modifier.weight(1f)) {
+                    Icon(Icons.Rounded.Home, contentDescription = null)
+                    Spacer(Modifier.width(4.dp))
+                    Text(stringResource(R.string.music_quiz_back_to_hub))
+                }
             }
-            Spacer(Modifier.height(8.dp))
-            OutlinedButton(onClick = onBack, modifier = Modifier.fillMaxWidth()) {
-                Text(stringResource(R.string.music_quiz_back_to_hub))
+            Spacer(Modifier.height(4.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                OutlinedButton(onClick = onAddToPlaylist, modifier = Modifier.weight(1f)) {
+                    Icon(Icons.AutoMirrored.Rounded.PlaylistAdd, contentDescription = null)
+                    Spacer(Modifier.width(4.dp))
+                    Text(stringResource(R.string.music_quiz_add_to_playlist))
+                }
+                OutlinedButton(onClick = onShare, modifier = Modifier.weight(1f)) {
+                    Icon(Icons.Rounded.Share, contentDescription = null)
+                    Spacer(Modifier.width(4.dp))
+                    Text(stringResource(R.string.music_quiz_share))
+                }
             }
         }
     }
 }
 
 @Composable
-private fun MusicQuizReviewRow(record: MusicQuizAnswerRecord) {
+private fun MusicQuizReviewRow(
+    record: MusicQuizAnswerRecord,
+    isPreviewing: Boolean,
+    previewPaused: Boolean,
+    onClick: () -> Unit,
+) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
     ) {
         Row(
@@ -731,6 +921,35 @@ private fun MusicQuizReviewRow(record: MusicQuizAnswerRecord) {
                 modifier = Modifier.width(28.dp),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            Box(contentAlignment = Alignment.Center) {
+                SmartImage(
+                    model = record.question.track.albumArtUriString,
+                    contentDescription = null,
+                    modifier = Modifier.size(40.dp),
+                    shape = RoundedCornerShape(8.dp),
+                    targetSize = SmartImageListTargetSize,
+                )
+                if (isPreviewing) {
+                    Box(
+                        modifier = Modifier
+                            .matchParentSize()
+                            .background(Color.Black.copy(alpha = 0.45f), RoundedCornerShape(8.dp)),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(
+                            imageVector = if (previewPaused) {
+                                Icons.Rounded.PlayArrow
+                            } else {
+                                Icons.Rounded.Pause
+                            },
+                            contentDescription = null,
+                            modifier = Modifier.size(20.dp),
+                            tint = Color.White,
+                        )
+                    }
+                }
+            }
+            Spacer(Modifier.width(8.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = record.question.track.title,
@@ -802,3 +1021,89 @@ private fun MusicQuizErrorContent(
 }
 
 private val CORRECT_COLOR = Color(0xFF2E7D32)
+
+/** Height of the reserved reveal-button slot on the round screen; keeps reveal from shifting options. */
+private val MUSIC_QUIZ_NEXT_BUTTON_SLOT_HEIGHT = 48.dp
+
+/** Minimal [Song] stand-in: playlist operations only consume the library id and labels. */
+private fun MusicQuizTrack.toPlaylistSong(): Song =
+    Song.emptySong().copy(id = id, title = title, artist = artist)
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun MusicQuizShareSheet(
+    onShareImage: () -> Unit,
+    onCopyText: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val sheetState = rememberModalSheetState(
+        skipPartiallyExpanded = true,
+        confirmValueChange = { true },
+    )
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        contentWindowInsets = { BottomSheetDefaults.modalWindowInsets },
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 24.dp),
+        ) {
+            Text(
+                text = stringResource(R.string.music_quiz_share_sheet_title),
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
+            )
+            MusicQuizShareOption(
+                icon = Icons.Rounded.Share,
+                title = stringResource(R.string.music_quiz_share_image),
+                description = stringResource(R.string.music_quiz_share_image_desc),
+                onClick = onShareImage,
+            )
+            MusicQuizShareOption(
+                icon = Icons.Rounded.ContentCopy,
+                title = stringResource(R.string.music_quiz_copy_text),
+                description = stringResource(R.string.music_quiz_copy_text_desc),
+                onClick = onCopyText,
+            )
+        }
+    }
+}
+
+@Composable
+private fun MusicQuizShareOption(
+    icon: ImageVector,
+    title: String,
+    description: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(horizontal = 24.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.primary,
+        )
+        Spacer(Modifier.width(16.dp))
+        Column {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Text(
+                text = description,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}

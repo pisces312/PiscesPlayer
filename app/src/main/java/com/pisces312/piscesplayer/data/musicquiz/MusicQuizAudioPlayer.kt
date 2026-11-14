@@ -109,6 +109,22 @@ internal class MusicQuizAudioPlayer(
         player.pause()
     }
 
+    /** Plays a whole track (result-screen preview): no clipping; end/error keep the token flow. */
+    fun playFull(track: MusicQuizTrack, token: Long) {
+        if (released) return
+        stop()
+        activeToken = token
+        hasStarted = false
+        intentionalPause = false
+        val mediaItem = MediaItem.Builder()
+            .setUri(Uri.parse(track.playbackUri))
+            .setMediaId("music_quiz_preview_$token")
+            .build()
+        player.setMediaItem(mediaItem)
+        player.prepare()
+        player.play()
+    }
+
     fun resume() {
         if (released || activeToken == null) return
         intentionalPause = false
