@@ -28,9 +28,15 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         AudioBookmarkEntity::class,
         OfflineTrackEntity::class,
         AiCacheEntity::class,
-        AiUsageEntity::class
+        AiUsageEntity::class,
+        PostcardProfileEntity::class,
+        PostcardAttemptEntity::class,
+        PostcardSongProfileEntity::class,
+        PostcardJourneyEntity::class,
+        PostcardCardEntity::class,
+        PostcardVisitEntity::class
     ],
-    version = 16,
+    version = 17,
     exportSchema = true
 )
 abstract class PiscesPlayerDatabase : RoomDatabase() {
@@ -49,6 +55,12 @@ abstract class PiscesPlayerDatabase : RoomDatabase() {
     abstract fun offlineTrackDao(): OfflineTrackDao
     abstract fun aiCacheDao(): AiCacheDao
     abstract fun aiUsageDao(): AiUsageDao
+    abstract fun postcardProfileDao(): PostcardProfileDao
+    abstract fun postcardAttemptDao(): PostcardAttemptDao
+    abstract fun postcardSongProfileDao(): PostcardSongProfileDao
+    abstract fun postcardJourneyDao(): PostcardJourneyDao
+    abstract fun postcardCardDao(): PostcardCardDao
+    abstract fun postcardVisitDao(): PostcardVisitDao
 
     companion object {
         private fun createSongsSearchVirtualTable(db: SupportSQLiteDatabase) {

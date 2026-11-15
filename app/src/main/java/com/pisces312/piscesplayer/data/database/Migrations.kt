@@ -783,3 +783,154 @@ val MIGRATION_15_16 = object : Migration(15, 16) {
         )
     }
 }
+
+/**
+ * v16 -> v17: sound_postcard M0 tables (design §10.3, tracking doc
+ * RhythmChartLab docs/implementation/sound-postcard-progress.md).
+ *
+ * Six tables: profile (single row), attempt (listening state machine),
+ * song_profile (frozen per-song travel identity), journey (one per natural
+ * completion, attempt_id unique), card (logical unique key
+ * `(stable_song_key, spot_id, condition_key)` as primary key) and visit
+ * (append-only history). Inventory / offline ledger / claimed rewards arrive
+ * with M1/M2 migrations. Statements are copied verbatim from the exported
+ * schema 17.json so Room's runtime validation cannot drift.
+ */
+val MIGRATION_16_17 = object : Migration(16, 17) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            """
+                CREATE TABLE IF NOT EXISTS `postcard_profile` (
+                    `id` INTEGER NOT NULL,
+                    `traveler_name` TEXT NOT NULL,
+                    `world_version` INTEGER NOT NULL,
+                    `total_distance_km` REAL NOT NULL,
+                    `total_journeys` INTEGER NOT NULL,
+                    `created_at_epoch_ms` INTEGER NOT NULL,
+                    PRIMARY KEY(`id`)
+                )
+            """.trimIndent()
+        )
+        db.execSQL(
+            """
+                CREATE TABLE IF NOT EXISTS `postcard_attempt` (
+                    `attempt_id` TEXT NOT NULL,
+                    `stable_song_key` TEXT NOT NULL,
+                    `library_song_id` INTEGER,
+                    `started_at_epoch_ms` INTEGER NOT NULL,
+                    `started_position_ms` INTEGER NOT NULL,
+                    `accumulated_play_ms` INTEGER NOT NULL,
+                    `song_duration_ms` INTEGER NOT NULL,
+                    `status` TEXT NOT NULL,
+                    `end_reason` TEXT,
+                    PRIMARY KEY(`attempt_id`)
+                )
+            """.trimIndent()
+        )
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS `index_postcard_attempt_status` ON `postcard_attempt` (`status`)"
+        )
+        db.execSQL(
+            """
+                CREATE TABLE IF NOT EXISTS `postcard_song_profile` (
+                    `stable_song_key` TEXT NOT NULL,
+                    `uri_hash_alias` TEXT NOT NULL,
+                    `library_song_id` INTEGER,
+                    `duration_ms` INTEGER NOT NULL,
+                    `bpm` REAL,
+                    `genre_key` TEXT,
+                    `energy` REAL,
+                    `low_ratio` REAL,
+                    `mid_ratio` REAL,
+                    `high_ratio` REAL,
+                    `artwork_palette_json` TEXT,
+                    `generator_version` INTEGER NOT NULL,
+                    `region_id` TEXT NOT NULL,
+                    `route_json` TEXT NOT NULL,
+                    `master_generated_at_ms` INTEGER,
+                    `frozen_at_epoch_ms` INTEGER NOT NULL,
+                    PRIMARY KEY(`stable_song_key`)
+                )
+            """.trimIndent()
+        )
+        db.execSQL(
+            """
+                CREATE TABLE IF NOT EXISTS `postcard_journey` (
+                    `journey_id` TEXT NOT NULL,
+                    `attempt_id` TEXT NOT NULL,
+                    `stable_song_key` TEXT NOT NULL,
+                    `completed_at_epoch_ms` INTEGER NOT NULL,
+                    `completed_at_zone_id` TEXT NOT NULL,
+                    `distance_km` REAL NOT NULL,
+                    `card_count` INTEGER NOT NULL,
+                    `deliver_at_epoch_ms` INTEGER NOT NULL,
+                    `status` TEXT NOT NULL,
+                    `created_at_epoch_ms` INTEGER NOT NULL,
+                    PRIMARY KEY(`journey_id`)
+                )
+            """.trimIndent()
+        )
+        db.execSQL(
+            "CREATE UNIQUE INDEX IF NOT EXISTS `index_postcard_journey_attempt_id` ON `postcard_journey` (`attempt_id`)"
+        )
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS `index_postcard_journey_deliver_at_epoch_ms_status` ON `postcard_journey` (`deliver_at_epoch_ms`, `status`)"
+        )
+        db.execSQL(
+            """
+                CREATE TABLE IF NOT EXISTS `postcard_card` (
+                    `card_key` TEXT NOT NULL,
+                    `stable_song_key` TEXT NOT NULL,
+                    `library_song_id` INTEGER,
+                    `song_title_snapshot` TEXT NOT NULL,
+                    `artist_snapshot` TEXT NOT NULL,
+                    `spot_id` TEXT NOT NULL,
+                    `region_id` TEXT NOT NULL,
+                    `condition_key` TEXT NOT NULL,
+                    `season_key` TEXT NOT NULL,
+                    `generator_version` INTEGER NOT NULL,
+                    `spec_json` TEXT NOT NULL,
+                    `distance_km` REAL NOT NULL,
+                    `first_visited_at_epoch_ms` INTEGER NOT NULL,
+                    `first_visited_at_zone_id` TEXT NOT NULL,
+                    `last_visited_at_epoch_ms` INTEGER NOT NULL,
+                    `visit_count` INTEGER NOT NULL,
+                    PRIMARY KEY(`card_key`)
+                )
+            """.trimIndent()
+        )
+        db.execSQL(
+            "CREATE UNIQUE INDEX IF NOT EXISTS `index_postcard_card_stable_song_key_spot_id_condition_key` ON `postcard_card` (`stable_song_key`, `spot_id`, `condition_key`)"
+        )
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS `index_postcard_card_spot_id_condition_key` ON `postcard_card` (`spot_id`, `condition_key`)"
+        )
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS `index_postcard_card_first_visited_at_epoch_ms` ON `postcard_card` (`first_visited_at_epoch_ms`)"
+        )
+        db.execSQL(
+            """
+                CREATE TABLE IF NOT EXISTS `postcard_visit` (
+                    `visit_id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                    `card_key` TEXT NOT NULL,
+                    `journey_id` TEXT NOT NULL,
+                    `visited_at_epoch_ms` INTEGER NOT NULL,
+                    `time_of_day_key` TEXT NOT NULL,
+                    `weather_key` TEXT NOT NULL,
+                    `season_key` TEXT NOT NULL,
+                    `distance_km` REAL NOT NULL,
+                    FOREIGN KEY(`card_key`) REFERENCES `postcard_card`(`card_key`) ON UPDATE NO ACTION ON DELETE CASCADE
+                )
+            """.trimIndent()
+        )
+        db.execSQL(
+            "CREATE UNIQUE INDEX IF NOT EXISTS `index_postcard_visit_card_key_journey_id` ON `postcard_visit` (`card_key`, `journey_id`)"
+        )
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS `index_postcard_visit_journey_id` ON `postcard_visit` (`journey_id`)"
+        )
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS `index_postcard_visit_visited_at_epoch_ms` ON `postcard_visit` (`visited_at_epoch_ms`)"
+        )
+    }
+}

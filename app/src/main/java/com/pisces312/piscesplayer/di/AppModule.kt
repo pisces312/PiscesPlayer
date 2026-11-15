@@ -42,6 +42,13 @@ import com.pisces312.piscesplayer.data.database.MIGRATION_12_13
 import com.pisces312.piscesplayer.data.database.MIGRATION_13_14
 import com.pisces312.piscesplayer.data.database.MIGRATION_14_15
 import com.pisces312.piscesplayer.data.database.MIGRATION_15_16
+import com.pisces312.piscesplayer.data.database.MIGRATION_16_17
+import com.pisces312.piscesplayer.data.database.PostcardAttemptDao
+import com.pisces312.piscesplayer.data.database.PostcardCardDao
+import com.pisces312.piscesplayer.data.database.PostcardJourneyDao
+import com.pisces312.piscesplayer.data.database.PostcardProfileDao
+import com.pisces312.piscesplayer.data.database.PostcardSongProfileDao
+import com.pisces312.piscesplayer.data.database.PostcardVisitDao
 import com.pisces312.piscesplayer.data.database.MusicDao
 import com.pisces312.piscesplayer.data.database.OfflineTrackDao
 import com.pisces312.piscesplayer.data.database.PiscesPlayerDatabase
@@ -163,6 +170,7 @@ object AppModule {
                 MIGRATION_13_14,
                 MIGRATION_14_15,
                 MIGRATION_15_16,
+                MIGRATION_16_17,
             )
             .setJournalMode(RoomDatabase.JournalMode.WRITE_AHEAD_LOGGING)
 
@@ -257,6 +265,42 @@ object AppModule {
     @Provides
     fun provideAiUsageDao(database: PiscesPlayerDatabase): AiUsageDao {
         return database.aiUsageDao()
+    }
+
+    @Singleton
+    @Provides
+    fun providePostcardProfileDao(database: PiscesPlayerDatabase): PostcardProfileDao {
+        return database.postcardProfileDao()
+    }
+
+    @Singleton
+    @Provides
+    fun providePostcardAttemptDao(database: PiscesPlayerDatabase): PostcardAttemptDao {
+        return database.postcardAttemptDao()
+    }
+
+    @Singleton
+    @Provides
+    fun providePostcardSongProfileDao(database: PiscesPlayerDatabase): PostcardSongProfileDao {
+        return database.postcardSongProfileDao()
+    }
+
+    @Singleton
+    @Provides
+    fun providePostcardJourneyDao(database: PiscesPlayerDatabase): PostcardJourneyDao {
+        return database.postcardJourneyDao()
+    }
+
+    @Singleton
+    @Provides
+    fun providePostcardCardDao(database: PiscesPlayerDatabase): PostcardCardDao {
+        return database.postcardCardDao()
+    }
+
+    @Singleton
+    @Provides
+    fun providePostcardVisitDao(database: PiscesPlayerDatabase): PostcardVisitDao {
+        return database.postcardVisitDao()
     }
 
     @Singleton
