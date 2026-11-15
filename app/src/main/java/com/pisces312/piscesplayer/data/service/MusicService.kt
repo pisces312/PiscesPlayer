@@ -85,6 +85,7 @@ import com.pisces312.piscesplayer.presentation.viewmodel.ColorSchemePair
 import com.pisces312.piscesplayer.utils.ArtworkTransportSanitizer
 import com.pisces312.piscesplayer.utils.MediaItemBuilder
 import com.pisces312.piscesplayer.data.navidrome.NavidromeRepository
+import com.pisces312.piscesplayer.data.postcard.JourneyPlaybackObserver
 import com.pisces312.piscesplayer.di.AppScope
 import com.pisces312.piscesplayer.presentation.viewmodel.ListeningStatsTracker
 import kotlin.math.abs
@@ -177,6 +178,8 @@ class MusicService : MediaSessionService() {
     lateinit var navidromeRepository: NavidromeRepository
     @Inject
     lateinit var listeningStatsTracker: ListeningStatsTracker
+    @Inject
+    lateinit var postcardJourneyObserver: JourneyPlaybackObserver
     @Inject
     @AppScope
     lateinit var appScope: CoroutineScope
@@ -424,7 +427,10 @@ class MusicService : MediaSessionService() {
 
         super.onCreate()
         listeningStatsTracker.initialize(this, appScope)
-        
+        // sound_postcard: unresolved attempts from a previous process can never be resumed,
+        // so they are cancelled here (design §4.2.2 — better to miss one than to pay twice).
+        postcardJourneyObserver.recoverAfterProcessDeath()
+
         engine.initialize()
         replayGainProcessor.captureUserVolume(engine.masterPlayer.volume)
         syncLocalListeningStatsFromPlayer(engine.masterPlayer)
@@ -1100,6 +1106,7 @@ class MusicService : MediaSessionService() {
             Timber.tag(TAG).d("onIsPlayingChanged: $isPlaying. Duration: ${player.duration}, Seekable: ${player.isCurrentMediaItemSeekable}")
             PlaybackActivityTracker.setPlaybackActive(isPlaying)
             syncLocalListeningStatsFromPlayer(player)
+            postcardJourneyObserver.onIsPlayingChanged(player, isPlaying)
 
             if (isPlaying) {
                 reportNavidromePlayback("playing")
@@ -1142,6 +1149,7 @@ class MusicService : MediaSessionService() {
 
         override fun onPlaybackStateChanged(playbackState: Int) {
             Timber.tag(TAG).d("Playback state changed: $playbackState")
+            postcardJourneyObserver.onPlaybackStateChanged(engine.masterPlayer, playbackState)
             if (playbackState == Player.STATE_READY) {
                 consecutivePlaybackErrors = 0
             }
@@ -1185,6 +1193,7 @@ class MusicService : MediaSessionService() {
             newPosition: Player.PositionInfo,
             reason: Int
         ) {
+            postcardJourneyObserver.onPositionDiscontinuity(engine.masterPlayer, oldPosition, reason)
             if (reason == Player.DISCONTINUITY_REASON_SEEK) {
                 val state = if (engine.masterPlayer.isPlaying) "playing" else "paused"
                 reportNavidromePlayback(state)
@@ -1225,6 +1234,7 @@ class MusicService : MediaSessionService() {
                 mapOf("reason" to reason.toString())
             }
             mediaItem?.let(::grantArtworkUriPermissionsToConnectedControllers)
+            postcardJourneyObserver.onMediaItemTransition(engine.masterPlayer, mediaItem, reason)
             syncLocalListeningStatsFromPlayer(mediaSession?.player ?: engine.masterPlayer, forceNewSession = true)
             if (isNavidromeMediaItem(mediaItem)) {
                 reportNavidromePlayback("starting")
@@ -1274,6 +1284,7 @@ class MusicService : MediaSessionService() {
         override fun onPlayerError(error: PlaybackException) {
             val player = mediaSession?.player ?: engine.masterPlayer
             Timber.tag(TAG).e(error, "Player error on item %s", player.currentMediaItem?.mediaId)
+            postcardJourneyObserver.onPlayerError(player, error)
             AdvancedPerformanceDiagnostics.recordEventIfEnabled(
                 type = AdvancedPerformanceDiagnostics.EventTypes.PLAYBACK,
                 name = "player_error"

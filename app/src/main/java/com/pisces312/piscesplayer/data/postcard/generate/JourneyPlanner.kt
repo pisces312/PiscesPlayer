@@ -49,6 +49,36 @@ class JourneyPlanner(
         )
     }
 
+    /**
+     * Re-plan a song whose travel identity is already frozen in `postcard_song_profile`
+     * (design §5.1: the region and the full ordered route never move afterwards).
+     *
+     * Only the per-listen axes are recomputed here — time-of-day and season come from the new
+     * completion time, distance from the stored duration and BPM — and [regionId] / [route] are
+     * taken verbatim from the profile. A generator upgrade therefore never relocates a familiar
+     * song; it only affects songs that have no profile yet.
+     */
+    fun planWithFrozenRoute(
+        facts: SongFacts,
+        regionId: String,
+        route: List<String>,
+        completedAtEpochMs: Long,
+        zone: ZoneId,
+    ): TripPlan {
+        val songSeed = StableHash.songSeed(generatorVersion, facts.stableSongKey)
+        val tier = distanceTier(songSeed, facts.bpm)
+        val local = Instant.ofEpochMilli(completedAtEpochMs).atZone(zone)
+        return TripPlan(
+            songSeedHex = StableHash.hex(songSeed),
+            regionId = regionId,
+            routeSpotIds = route.take(PostcardContent.routeLengthFor(facts.durationMs)),
+            distanceTier = tier,
+            baseKm = baseKm(facts.durationMs, tier),
+            timeOfDay = timeOfDayAt(local.hour),
+            season = seasonAt(local.monthValue),
+        )
+    }
+
     // ------------------------------------------------------------------ region scoring
 
     private fun pickRegion(songSeed: ByteArray, facts: SongFacts): PostcardRegionConfig =

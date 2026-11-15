@@ -73,8 +73,12 @@ interface PostcardJourneyDao {
     @Query("SELECT * FROM postcard_journey WHERE attempt_id = :attemptId")
     suspend fun byAttemptId(attemptId: String): PostcardJourneyEntity?
 
-    @Query("SELECT * FROM postcard_journey WHERE deliver_at_epoch_ms <= :now AND status = 'DELIVERED' ORDER BY completed_at_epoch_ms DESC")
+    @Query("SELECT * FROM postcard_journey WHERE deliver_at_epoch_ms <= :now ORDER BY completed_at_epoch_ms DESC")
     fun deliveredFeed(now: Long): Flow<List<PostcardJourneyEntity>>
+
+    /** Delivery sweep for cold start / entering the inbox (design §4.3): flips due rows only. */
+    @Query("UPDATE postcard_journey SET status = 'DELIVERED' WHERE status = 'PENDING' AND deliver_at_epoch_ms <= :now")
+    suspend fun deliverDue(now: Long): Int
 
     @Query("UPDATE postcard_journey SET status = 'OPENED' WHERE journey_id = :journeyId")
     suspend fun markOpened(journeyId: String)
@@ -115,6 +119,9 @@ interface PostcardVisitDao {
 
     @Query("SELECT * FROM postcard_visit WHERE card_key = :cardKey ORDER BY visited_at_epoch_ms DESC")
     suspend fun byCard(cardKey: String): List<PostcardVisitEntity>
+
+    @Query("SELECT * FROM postcard_visit WHERE journey_id = :journeyId ORDER BY visited_at_epoch_ms DESC")
+    suspend fun byJourney(journeyId: String): List<PostcardVisitEntity>
 
     @Query("SELECT COUNT(*) FROM postcard_visit WHERE journey_id = :journeyId")
     suspend fun countByJourney(journeyId: String): Int
