@@ -5,12 +5,13 @@
  */
 package com.pisces312.piscesplayer.presentation.postcard
 
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.withTransform
@@ -36,7 +37,8 @@ enum class PostcardSide { FRONT, BACK }
  * carry the component ids the art set will be keyed by.
  *
  * Logical canvas is fixed at 1536 × 1024 (3:2, design §6.1) and all geometry below is expressed
- * in that space, so every output size is a pure scale.
+ * in that space, so every output size is a pure scale. Every placement is a fixed lattice or a
+ * pure function of the spec — no Random() (design §10.2).
  */
 object PostcardRenderer {
 
@@ -57,12 +59,36 @@ object PostcardRenderer {
             scale(scale, scale, pivot = Offset.Zero)
         }) {
             // Paper base first, so any transparent primitive composites onto card stock.
-            drawRect(color = PAPER, size = Size(LOGICAL_WIDTH, LOGICAL_HEIGHT))
+            drawPaperBase()
             when (side) {
                 PostcardSide.FRONT -> drawFront(spec)
                 PostcardSide.BACK -> drawBack(spec)
             }
         }
+    }
+
+    // ------------------------------------------------------------------ paper
+
+    /** Card stock: warm paper, a soft corner vignette and a thin inner frame line. */
+    private fun DrawScope.drawPaperBase() {
+        drawRect(color = PAPER, size = Size(LOGICAL_WIDTH, LOGICAL_HEIGHT))
+        // Vignette: transparent center fading to a warm shadow at the corners.
+        drawRect(
+            brush = Brush.radialGradient(
+                colors = listOf(Color.Transparent, Color(0xFF4A3F33).copy(alpha = 0.10f)),
+                center = Offset(LOGICAL_WIDTH / 2f, LOGICAL_HEIGHT / 2f),
+                radius = LOGICAL_WIDTH * 0.72f,
+            ),
+            size = Size(LOGICAL_WIDTH, LOGICAL_HEIGHT),
+        )
+        // Hairline inner frame, like the printed border of real card stock.
+        drawRoundRect(
+            color = Color(0xFF6B5B4B).copy(alpha = 0.16f),
+            topLeft = Offset(26f, 26f),
+            size = Size(LOGICAL_WIDTH - 52f, LOGICAL_HEIGHT - 52f),
+            cornerRadius = CornerRadius(20f, 20f),
+            style = Stroke(width = 2.5f),
+        )
     }
 
     // ------------------------------------------------------------------ front
@@ -74,7 +100,7 @@ object PostcardRenderer {
         val mid = palette.getOrElse(0) { DEFAULT_MID }
         val near = palette.getOrElse(2) { DEFAULT_NEAR }
 
-        drawSky(spec, skyTop = sky, skyBottom = PAPER)
+        drawSky(spec, skyTop = sky)
         drawFar(spec, far)
         drawMid(spec, mid)
         drawNear(spec, near)
@@ -83,34 +109,70 @@ object PostcardRenderer {
         drawCaption(spec)
     }
 
-    /** Sky gradient from the condition plus cloud bands scaled by `sky.cloudLevel`. */
-    private fun DrawScope.drawSky(spec: PostcardSpec, skyTop: Color, skyBottom: Color) {
+    /** Sky gradient, sun or moon, stars at night, cloud puffs and weather particles. */
+    private fun DrawScope.drawSky(spec: PostcardSpec, skyTop: Color) {
         val horizon = LOGICAL_HEIGHT * 0.62f
         drawRect(
             brush = Brush.verticalGradient(
-                colors = listOf(skyTop, lerp(skyTop, skyBottom, 0.55f), skyBottom),
+                colors = listOf(
+                    skyTop,
+                    lerp(skyTop, PAPER, 0.45f),
+                    lerp(skyTop, PAPER, 0.75f),
+                    PAPER,
+                ),
                 startY = 0f,
                 endY = horizon,
             ),
             size = Size(LOGICAL_WIDTH, horizon),
         )
-        // Cloud bands: 0..3 horizontal bands, evenly spread, subtly translucent.
-        val bands = spec.sky.cloudLevel.coerceIn(0, 2) + 1
-        for (index in 0 until bands) {
-            val y = horizon * (0.18f + 0.22f * index)
-            val height = horizon * 0.045f
+
+        val night = spec.conditionKey.startsWith("night")
+        if (night) {
+            drawStars(horizon)
+        } else if (spec.conditionKey.endsWith("sunny")) {
+            drawSun(horizon)
+        }
+
+        // Cloud puffs: `cloudLevel + 1` clusters, each three overlapping ellipses.
+        val clusters = spec.sky.cloudLevel.coerceIn(0, 2) + 1
+        for (index in 0 until clusters) {
+            val alpha = 0.14f + 0.05f * index
+            val baseY = horizon * (0.16f + 0.20f * index)
+            val centerX = LOGICAL_WIDTH * (0.16f + 0.14f * index)
+            val height = horizon * 0.05f
             drawOval(
-                color = Color.White.copy(alpha = 0.16f + 0.06f * index),
-                topLeft = Offset(LOGICAL_WIDTH * (0.04f + 0.12f * index), y),
-                size = Size(LOGICAL_WIDTH * 0.52f, height),
+                color = Color.White.copy(alpha = alpha),
+                topLeft = Offset(centerX - LOGICAL_WIDTH * 0.16f, baseY),
+                size = Size(LOGICAL_WIDTH * 0.32f, height),
+            )
+            drawOval(
+                color = Color.White.copy(alpha = alpha),
+                topLeft = Offset(centerX - LOGICAL_WIDTH * 0.05f, baseY - height * 0.35f),
+                size = Size(LOGICAL_WIDTH * 0.26f, height * 1.3f),
+            )
+            drawOval(
+                color = Color.White.copy(alpha = alpha),
+                topLeft = Offset(centerX + LOGICAL_WIDTH * 0.06f, baseY + height * 0.15f),
+                size = Size(LOGICAL_WIDTH * 0.22f, height * 0.8f),
             )
         }
+
         // Night moon: a disc plus a shadow disc for the phase.
         val moonPhase = spec.sky.moonPhase
         if (moonPhase != null) {
             val center = Offset(LOGICAL_WIDTH * 0.78f, horizon * 0.3f)
             val radius = LOGICAL_WIDTH * 0.035f
-            drawCircle(color = Color(0xFFF3F0DC).copy(alpha = 0.92f), radius = radius, center = center)
+            // Soft halo so the moon reads as light, not a cut-out.
+            drawCircle(
+                brush = Brush.radialGradient(
+                    colors = listOf(Color(0xFFF3F0DC).copy(alpha = 0.35f), Color.Transparent),
+                    center = center,
+                    radius = radius * 3.2f,
+                ),
+                radius = radius * 3.2f,
+                center = center,
+            )
+            drawCircle(color = Color(0xFFF3F0DC).copy(alpha = 0.95f), radius = radius, center = center)
             val shift = radius * 2f * (moonPhase / 8f)
             drawCircle(
                 color = skyTop.copy(alpha = 0.95f),
@@ -118,10 +180,44 @@ object PostcardRenderer {
                 center = Offset(center.x + shift, center.y),
             )
         }
+
         // Weather particles: rain streaks above the ground, snow dots everywhere.
         when {
             spec.conditionKey.endsWith("_rainy") -> drawRain()
             spec.conditionKey.endsWith("_snowy") -> drawSnow()
+        }
+    }
+
+    /** Daytime sun: a warm radial glow with a crisp disc. */
+    private fun DrawScope.drawSun(horizon: Float) {
+        val center = Offset(LOGICAL_WIDTH * 0.22f, horizon * 0.26f)
+        drawCircle(
+            brush = Brush.radialGradient(
+                colors = listOf(Color(0xFFFFF2D0).copy(alpha = 0.55f), Color.Transparent),
+                center = center,
+                radius = LOGICAL_WIDTH * 0.16f,
+            ),
+            radius = LOGICAL_WIDTH * 0.16f,
+            center = center,
+        )
+        drawCircle(
+            color = Color(0xFFFFF6DE).copy(alpha = 0.95f),
+            radius = LOGICAL_WIDTH * 0.028f,
+            center = center,
+        )
+    }
+
+    /** Night stars: a fixed lattice, denser toward the top of the sky. */
+    private fun DrawScope.drawStars(horizon: Float) {
+        val count = 46
+        for (i in 0 until count) {
+            val x = LOGICAL_WIDTH * (0.04f + 0.92f * ((i * 37 % 43) / 43f))
+            val y = horizon * (0.04f + 0.82f * ((i * 53 % 41) / 41f))
+            drawCircle(
+                color = Color.White.copy(alpha = 0.30f + 0.38f * ((i % 5) / 5f)),
+                radius = 1.8f + (i % 3),
+                center = Offset(x, y),
+            )
         }
     }
 
@@ -157,13 +253,32 @@ object PostcardRenderer {
         }
     }
 
-    /** Far layer: a low mountain / skyline silhouette hugging the horizon. */
+    /** Far layer: two mountain ridges hugging the horizon for aerial perspective. */
     private fun DrawScope.drawFar(spec: PostcardSpec, color: Color) {
-        val horizon = LOGICAL_HEIGHT * 0.66f
+        // Back ridge: lighter and lower, so the front ridge reads against it.
+        drawRidge(
+            peaks = regionPeaks(spec.regionId).asReversed().map { it * 0.55f },
+            horizon = LOGICAL_HEIGHT * 0.66f + 8f,
+            color = lerp(color, PAPER, 0.30f),
+            alpha = 0.35f,
+        )
+        drawRidge(
+            peaks = regionPeaks(spec.regionId),
+            horizon = LOGICAL_HEIGHT * 0.66f,
+            color = color,
+            alpha = 0.55f,
+        )
+    }
+
+    /** One silhouette ridge across the full width; [peaks] is a fixed per-region lattice. */
+    private fun DrawScope.drawRidge(
+        peaks: List<Float>,
+        horizon: Float,
+        color: Color,
+        alpha: Float,
+    ) {
         val path = Path().apply {
             moveTo(0f, horizon)
-            // Peaks are a fixed lattice keyed by the region so different regions read differently.
-            val peaks = regionPeaks(spec.regionId)
             for ((index, height) in peaks.withIndex()) {
                 val x = LOGICAL_WIDTH * index / (peaks.size - 1)
                 lineTo(x, horizon - height)
@@ -171,7 +286,7 @@ object PostcardRenderer {
             lineTo(LOGICAL_WIDTH, horizon)
             close()
         }
-        drawPath(path, color.copy(alpha = 0.55f))
+        drawPath(path, color.copy(alpha = alpha))
     }
 
     /** Mid layer: the region's landmark block shape; M1 swaps in the art-set vector. */
@@ -193,6 +308,16 @@ object PostcardRenderer {
                     color = color.copy(alpha = 0.75f),
                     topLeft = Offset(cx - 44f, base - 348f),
                     size = Size(88f, 52f),
+                )
+                // A warm lamp glow at the gallery: the lighthouse is lit.
+                drawCircle(
+                    brush = Brush.radialGradient(
+                        colors = listOf(Color(0xFFFFE9B0).copy(alpha = 0.8f), Color.Transparent),
+                        center = Offset(cx, base - 322f),
+                        radius = 60f,
+                    ),
+                    radius = 60f,
+                    center = Offset(cx, base - 322f),
                 )
             }
             "white_field" -> {
@@ -226,6 +351,12 @@ object PostcardRenderer {
                 drawTriangleMarker(base - 300f, LOGICAL_WIDTH * 0.3f + 45f, color, width = 120f, height = 60f)
                 drawRect(color.copy(alpha = 0.7f), Offset(LOGICAL_WIDTH * 0.46f, base - 190f), Size(150f, 190f))
                 drawTriangleMarker(base - 190f, LOGICAL_WIDTH * 0.46f + 75f, color, width = 170f, height = 70f)
+                // A lit clock face.
+                drawCircle(
+                    color = Color(0xFFF6E7C1).copy(alpha = 0.85f),
+                    radius = 22f,
+                    center = Offset(LOGICAL_WIDTH * 0.3f + 45f, base - 250f),
+                )
             }
             "lamp_harbor" -> {
                 // Container stacks plus a crane mast.
@@ -238,6 +369,14 @@ object PostcardRenderer {
                 }
                 drawRect(color.copy(alpha = 0.8f), Offset(LOGICAL_WIDTH * 0.62f, base - 380f), Size(20f, 380f))
                 drawRect(color.copy(alpha = 0.8f), Offset(LOGICAL_WIDTH * 0.62f, base - 380f), Size(160f, 18f))
+                // String lights along the crane arm: small warm dots.
+                for (i in 0 until 5) {
+                    drawCircle(
+                        color = Color(0xFFFFD9A0).copy(alpha = 0.8f),
+                        radius = 6f,
+                        center = Offset(LOGICAL_WIDTH * 0.62f + 28f + i * 28f, base - 368f),
+                    )
+                }
             }
             else -> {
                 // Wild road / unknown: a mesa plus a dead tree.
@@ -303,7 +442,7 @@ object PostcardRenderer {
             color = ink,
             topLeft = Offset(cx - 22f, bodyTop + 34f),
             size = Size(44f, 74f),
-            cornerRadius = androidx.compose.ui.geometry.CornerRadius(16f, 16f),
+            cornerRadius = CornerRadius(16f, 16f),
         )
         // Head.
         drawCircle(color = ink, radius = 19f, center = Offset(cx, bodyTop + 18f))
@@ -349,55 +488,88 @@ object PostcardRenderer {
         val boxHeight = LOGICAL_HEIGHT * 0.15f
         val left = LOGICAL_WIDTH - boxWidth - LOGICAL_WIDTH * 0.05f
         val top = LOGICAL_HEIGHT * 0.055f
-        drawRoundRect(
-            color = Color.White.copy(alpha = 0.72f),
-            topLeft = Offset(left, top),
-            size = Size(boxWidth, boxHeight),
-            cornerRadius = androidx.compose.ui.geometry.CornerRadius(10f, 10f),
-        )
-        drawRoundRect(
-            color = Color(0xFF6B5B4B).copy(alpha = 0.6f),
-            topLeft = Offset(left, top),
-            size = Size(boxWidth, boxHeight),
-            cornerRadius = androidx.compose.ui.geometry.CornerRadius(10f, 10f),
-            style = Stroke(width = 3f),
-        )
-        // Wavy cancellation lines: the "postmark" gesture, fixed lattice.
-        for (i in 0 until 3) {
-            val y = top + boxHeight * (0.62f + 0.09f * i)
-            drawLine(
-                color = Color(0xFF6B5B4B).copy(alpha = 0.45f),
-                start = Offset(left + 18f, y),
-                end = Offset(left + boxWidth - 18f, y),
-                strokeWidth = 2f,
+        // The whole stamp sits at a slight angle, like a hand-applied postmark.
+        withTransform({
+            rotate(degrees = -2.2f, pivot = Offset(left + boxWidth / 2f, top + boxHeight / 2f))
+        }) {
+            drawRoundRect(
+                color = Color.White.copy(alpha = 0.78f),
+                topLeft = Offset(left, top),
+                size = Size(boxWidth, boxHeight),
+                cornerRadius = CornerRadius(10f, 10f),
+            )
+            // Perforation: a dashed border reads as the punched edge of a stamp.
+            drawRoundRect(
+                color = Color(0xFF6B5B4B).copy(alpha = 0.55f),
+                topLeft = Offset(left, top),
+                size = Size(boxWidth, boxHeight),
+                cornerRadius = CornerRadius(10f, 10f),
+                style = Stroke(
+                    width = 3f,
+                    pathEffect = PathEffect.dashPathEffect(floatArrayOf(14f, 10f)),
+                ),
+            )
+            // Wavy cancellation lines: the "postmark" gesture, fixed lattice.
+            for (i in 0 until 3) {
+                val y = top + boxHeight * (0.62f + 0.09f * i)
+                drawLine(
+                    color = Color(0xFF6B5B4B).copy(alpha = 0.45f),
+                    start = Offset(left + 18f, y),
+                    end = Offset(left + boxWidth - 18f, y),
+                    strokeWidth = 2f,
+                )
+            }
+            drawTextBlock(
+                lines = listOf(spec.stamp.date, spec.stamp.spotName, "#${spec.stamp.serial}"),
+                left = left + 16f,
+                top = top + 12f,
+                maxWidth = boxWidth - 32f,
+                color = Color(0xFF3A332C),
+            )
+            // Circular date-stamp overlapping the lower-left corner, half off the stamp.
+            drawCircle(
+                color = Color(0xFF6B5B4B).copy(alpha = 0.35f),
+                radius = boxHeight * 0.42f,
+                center = Offset(left + 6f, top + boxHeight - 4f),
+                style = Stroke(width = 3f),
             )
         }
-        drawTextBlock(
-            lines = listOf(spec.stamp.date, spec.stamp.spotName, "#${spec.stamp.serial}"),
-            left = left + 16f,
-            top = top + 12f,
-            maxWidth = boxWidth - 32f,
-            color = Color(0xFF3A332C),
-        )
     }
 
-    /** Caption block at the bottom: title, artist, distance. */
+    /** Caption block at the bottom: divider, title, artist, distance. */
     private fun DrawScope.drawCaption(spec: PostcardSpec) {
         val left = LOGICAL_WIDTH * 0.055f
         val top = LOGICAL_HEIGHT * 0.855f
+        drawLine(
+            color = Color(0xFF2B2723).copy(alpha = 0.22f),
+            start = Offset(left, top - 16f),
+            end = Offset(left + LOGICAL_WIDTH * 0.5f, top - 16f),
+            strokeWidth = 2f,
+        )
         drawTextBlock(
-            lines = listOf(spec.songTitleSnapshot, spec.artistSnapshot),
+            lines = listOf(spec.songTitleSnapshot),
             left = left,
             top = top,
             maxWidth = LOGICAL_WIDTH * 0.55f,
             color = Color(0xFF2B2723),
+            sizePx = 40f,
+            bold = true,
+        )
+        drawTextBlock(
+            lines = listOf(spec.artistSnapshot),
+            left = left,
+            top = top + 52f,
+            maxWidth = LOGICAL_WIDTH * 0.55f,
+            color = Color(0xFF5A524A),
+            sizePx = 28f,
         )
         drawTextBlock(
             lines = listOf(formatDistance(spec.distanceKm)),
             left = left,
-            top = top + 74f,
+            top = top + 94f,
             maxWidth = LOGICAL_WIDTH * 0.4f,
             color = Color(0xFF5A524A),
+            sizePx = 26f,
         )
     }
 
@@ -405,23 +577,41 @@ object PostcardRenderer {
 
     private fun DrawScope.drawBack(spec: PostcardSpec) {
         val ink = Color(0xFF2B2723)
-        // Ruled lines first, so the message reads as written on card stock.
+        // Classic postcard back: message on the left, address side on the right.
+        val dividerX = LOGICAL_WIDTH * 0.62f
+        drawLine(
+            color = Color(0xFF9A9186).copy(alpha = 0.45f),
+            start = Offset(dividerX, LOGICAL_HEIGHT * 0.09f),
+            end = Offset(dividerX, LOGICAL_HEIGHT * 0.91f),
+            strokeWidth = 2.5f,
+        )
+        // Dashed stamp box on the address side, upper-right.
+        drawRect(
+            color = Color(0xFF6B5B4B).copy(alpha = 0.45f),
+            topLeft = Offset(LOGICAL_WIDTH * 0.68f, LOGICAL_HEIGHT * 0.085f),
+            size = Size(LOGICAL_WIDTH * 0.24f, LOGICAL_HEIGHT * 0.14f),
+            style = Stroke(
+                width = 3f,
+                pathEffect = PathEffect.dashPathEffect(floatArrayOf(14f, 10f)),
+            ),
+        )
+        // Ruled lines on the left (message) side only.
         val lineCount = 7
         val lineTop = LOGICAL_HEIGHT * 0.34f
         val lineGap = LOGICAL_HEIGHT * 0.072f
         for (i in 0 until lineCount) {
             drawLine(
                 color = Color(0xFF9A9186).copy(alpha = 0.4f),
-                start = Offset(LOGICAL_WIDTH * 0.11f, lineTop + i * lineGap),
-                end = Offset(LOGICAL_WIDTH * 0.89f, lineTop + i * lineGap),
+                start = Offset(LOGICAL_WIDTH * 0.09f, lineTop + i * lineGap),
+                end = Offset(LOGICAL_WIDTH * 0.57f, lineTop + i * lineGap),
                 strokeWidth = 2f,
             )
         }
         drawTextBlock(
             lines = listOf(spec.stamp.spotName, spec.stamp.date),
-            left = LOGICAL_WIDTH * 0.11f,
+            left = LOGICAL_WIDTH * 0.09f,
             top = LOGICAL_HEIGHT * 0.13f,
-            maxWidth = LOGICAL_WIDTH * 0.6f,
+            maxWidth = LOGICAL_WIDTH * 0.5f,
             color = ink,
         )
         drawMessageBlock(spec)
@@ -429,7 +619,7 @@ object PostcardRenderer {
 
     /** Word-wraps the message snapshot over the ruled area. CJK-aware: breaks on any char. */
     private fun DrawScope.drawMessageBlock(spec: PostcardSpec) {
-        val maxWidth = LOGICAL_WIDTH * 0.78f
+        val maxWidth = LOGICAL_WIDTH * 0.46f
         val charWidth = 26f
         val charsPerLine = max(1, (maxWidth / charWidth).roundToInt())
         val lines = mutableListOf<String>()
@@ -443,7 +633,7 @@ object PostcardRenderer {
         }
         if (buffer.isNotEmpty()) lines += buffer.toString()
 
-        val left = LOGICAL_WIDTH * 0.11f
+        val left = LOGICAL_WIDTH * 0.09f
         val top = LOGICAL_HEIGHT * 0.30f
         val gap = LOGICAL_HEIGHT * 0.072f
         val color = Color(0xFF2B2723)
@@ -483,12 +673,17 @@ object PostcardRenderer {
         color: Color,
         sizePx: Float = 34f,
         lineGap: Float = 40f,
+        bold: Boolean = false,
     ) {
         val androidPaint = android.graphics.Paint().apply {
             this.color = color.toArgb()
             isAntiAlias = true
             textSize = sizePx
-            typeface = android.graphics.Typeface.DEFAULT
+            typeface = if (bold) {
+                android.graphics.Typeface.DEFAULT_BOLD
+            } else {
+                android.graphics.Typeface.DEFAULT
+            }
         }
         for ((index, line) in lines.withIndex()) {
             // Truncate rather than shrink: the art set fixes the type scale in M1.

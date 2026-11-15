@@ -52,6 +52,24 @@
     <string name="postcard_visit_row">%1$s km · %2$s</string>
     <string name="postcard_privacy_note">本功能不读取真实位置与天气；地点与天气来自虚构邮路。</string>
 
+    <!-- 玩法帮助（信箱右上角入口） -->
+    <string name="postcard_help_cd">玩法帮助</string>
+    <string name="postcard_help_title">怎么玩</string>
+    <string name="postcard_help_step1">播放一首歌，点「为当前歌曲带上行李」，它就成为随行的旅伴。</string>
+    <string name="postcard_help_step2">自然听完（至少 90 秒、播完 60% 以上）就会寄出一封来信，明信片收进相册。</string>
+    <string name="postcard_help_step3">同一首歌在同一取景点、同一段时光再次自然听完，会在旧明信片上记一次「故地重游」。</string>
+    <string name="postcard_help_step4">暂停随时可以继续；中途切歌或快进到结尾都不算数。</string>
+    <string name="postcard_help_examples_title">明信片长这样</string>
+    <string name="postcard_help_examples_hint">示例为示意画面；真实的明信片来自你听的歌、它去的虚构地点与听完时的时段和天气。</string>
+
+    <!-- 帮助里的示例曲目（虚构） -->
+    <string name="postcard_demo_song_1">《潮间带》</string>
+    <string name="postcard_demo_artist_1">远岸电台</string>
+    <string name="postcard_demo_song_2">《夜航船》</string>
+    <string name="postcard_demo_artist_2">灯河乐队</string>
+    <string name="postcard_demo_song_3">《雾中慢板》</string>
+    <string name="postcard_demo_artist_3">松针与信</string>
+
     <!-- 条件标签 -->
     <string name="postcard_time_morning">晨</string>
     <string name="postcard_time_evening">暮</string>

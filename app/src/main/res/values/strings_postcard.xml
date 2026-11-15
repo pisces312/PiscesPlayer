@@ -52,6 +52,24 @@
     <string name="postcard_visit_row">%1$s km · %2$s</string>
     <string name="postcard_privacy_note">This feature never reads your real location or weather. Places and weather come from a fictional postal route.</string>
 
+    <!-- How-to-play help (mailbox top-bar entry) -->
+    <string name="postcard_help_cd">How to play</string>
+    <string name="postcard_help_title">How it works</string>
+    <string name="postcard_help_step1">Play a song and tap "Take this song along" — it becomes your travel companion.</string>
+    <string name="postcard_help_step2">Let it finish naturally (at least 90 seconds and over 60% played) and a letter is sent; the postcard lands in your album.</string>
+    <string name="postcard_help_step3">Finish the same song again at the same spot in the same time of day, and the old postcard gains a revisit mark.</string>
+    <string name="postcard_help_step4">Pausing is always fine. Skipping to another song or fast-forwarding to the end does not count.</string>
+    <string name="postcard_help_examples_title">What postcards look like</string>
+    <string name="postcard_help_examples_hint">Samples shown for illustration — real postcards come from the songs you hear, the fictional places they travel to, and the time and weather when they finish.</string>
+
+    <!-- Sample tracks in the help sheet (fictional) -->
+    <string name="postcard_demo_song_1">"Intertidal"</string>
+    <string name="postcard_demo_artist_1">Offshore Radio</string>
+    <string name="postcard_demo_song_2">"Night Ferry"</string>
+    <string name="postcard_demo_artist_2">Lamp River Band</string>
+    <string name="postcard_demo_song_3">"Adagio in Fog"</string>
+    <string name="postcard_demo_artist_3">Pine &amp; Post</string>
+
     <!-- Condition labels -->
     <string name="postcard_time_morning">Morning</string>
     <string name="postcard_time_evening">Dusk</string>
