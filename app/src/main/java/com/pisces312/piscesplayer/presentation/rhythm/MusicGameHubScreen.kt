@@ -12,7 +12,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.rounded.Quiz
-import androidx.compose.material.icons.rounded.SportsEsports
+import androidx.compose.material.icons.rounded.Piano
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -65,7 +65,7 @@ fun MusicGameHubScreen(
                 MusicGameCard(
                     title = stringResource(R.string.rhythm_setup_title),
                     subtitle = stringResource(R.string.music_games_rhythm_subtitle),
-                    icon = Icons.Rounded.SportsEsports,
+                    icon = Icons.Rounded.Piano,
                     onClick = onOpenRhythm,
                 )
             }

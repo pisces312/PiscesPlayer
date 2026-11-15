@@ -103,7 +103,7 @@ import androidx.compose.material.icons.automirrored.rounded.PlaylistAdd
 import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.Bookmark
 import androidx.compose.material.icons.rounded.Cloud
-import androidx.compose.material.icons.rounded.SportsEsports
+import androidx.compose.material.icons.rounded.Piano
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.pisces312.piscesplayer.presentation.viewmodel.AudioBookmarksViewModel
 import androidx.compose.material3.Slider
@@ -1522,7 +1522,7 @@ private fun SongMetadataDisplaySection(
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
-                        imageVector = Icons.Rounded.SportsEsports,
+                        imageVector = Icons.Rounded.Piano,
                         contentDescription = stringResource(R.string.song_info_rhythm_game),
                         tint = chipContentColor
                     )
@@ -1578,7 +1578,7 @@ private fun SongMetadataDisplaySection(
                     onClick = onClickRhythmGame,
                 ) {
                     Icon(
-                        imageVector = Icons.Rounded.SportsEsports,
+                        imageVector = Icons.Rounded.Piano,
                         contentDescription = stringResource(R.string.song_info_rhythm_game)
                     )
                 }
