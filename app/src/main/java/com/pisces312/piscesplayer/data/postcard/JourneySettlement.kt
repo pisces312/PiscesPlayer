@@ -70,6 +70,12 @@ class JourneySettlement @Inject constructor(
     )
 
     suspend fun settle(request: SettlementRequest): SettlementResult? = withContext(Dispatchers.IO) {
+        // Resolve the content-URI alias OUTSIDE the transaction: its loader switches threads,
+        // and a Room transaction is bound to the thread that opened it.
+        val profileAlias = request.facts.librarySongId
+            ?.let { factsLoader.contentUriAliasForSong(it) }
+            ?: factsLoader.uriHashAlias(request.facts.stableSongKey)
+
         database.withTransaction {
             val attemptDao = database.postcardAttemptDao()
             val attempt = attemptDao.byAttemptId(request.attemptId) ?: return@withTransaction null
@@ -105,9 +111,9 @@ class JourneySettlement @Inject constructor(
                 songProfileDao.insertIfAbsent(
                     PostcardSongProfileEntity(
                         stableSongKey = facts.stableSongKey,
-                        // M0 has no library rescan yet, so the alias hashes the stable key itself;
-                        // M1 replaces it with the content-URI hash from the song row.
-                        uriHashAlias = factsLoader.uriHashAlias(facts.stableSongKey),
+                        // SHA-256 of contentUriString (design §5.1), so an M1 library rescan
+                        // can remap identities. Never a plaintext path or URI.
+                        uriHashAlias = profileAlias,
                         librarySongId = facts.librarySongId,
                         durationMs = facts.durationMs,
                         bpm = facts.bpm,

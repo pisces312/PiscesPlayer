@@ -69,9 +69,19 @@ class SongFactsLoader @Inject constructor(
         )
     }
 
-    /** SHA-256 alias of the content URI, persisted for the M1 media-library rescan remap. */
+    /** SHA-256 alias of a content URI string, persisted for the M1 media-library rescan remap. */
     fun uriHashAlias(contentUriString: String): String =
         StableHash.hex(StableHash.sha256(contentUriString))
+
+    /**
+     * Resolves the alias at freeze time from the still-present library row (design §5.1:
+     * `contentUriString` SHA-256). Returns null when the row disappeared between loading the
+     * facts and freezing — the caller then stores a neutral marker instead of a fake hash.
+     */
+    suspend fun contentUriAliasForSong(songId: Long): String? = withContext(Dispatchers.IO) {
+        val uri = runCatching { musicDao.getSongByIdOnce(songId) }.getOrNull()?.contentUriString
+        uri?.takeIf { it.isNotBlank() }?.let(::uriHashAlias)
+    }
 
     fun stableSongKeyFor(songId: Long): String = "local:$songId"
 
