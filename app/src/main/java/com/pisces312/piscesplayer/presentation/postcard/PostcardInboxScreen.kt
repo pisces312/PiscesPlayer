@@ -170,7 +170,7 @@ private fun TakeAlongCard(
             if (status == com.pisces312.piscesplayer.data.postcard.PostcardTrackingBridge.Status.UNAVAILABLE) {
                 Spacer(Modifier.height(6.dp))
                 Text(
-                    text = "当前歌曲无法随行（云端 / 试听 / 已在随行中）",
+                    text = "当前歌曲无法随行（云端 / 试听曲目不参与行程）",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.error,
                 )

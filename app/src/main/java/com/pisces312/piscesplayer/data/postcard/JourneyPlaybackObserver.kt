@@ -58,13 +58,14 @@ class JourneyPlaybackObserver @Inject constructor(
 
     /**
      * Manual registration: start tracking the song currently loaded in [player], from its
-     * current position. Returns false when the song cannot travel (cloud / quick play /
-     * unknown row) or a valid attempt already covers it — the caller shows the reason.
+     * current position. The outcome is three-valued so the caller's status machine can tell
+     * "cannot travel" (cloud / quick play / unknown row / feature off) from "another song is
+     * already travelling" — those must not look the same in the UI.
      */
-    fun register(player: Player, enabled: Boolean): Boolean {
-        if (!enabled) return false
-        val item = player.currentMediaItem ?: return false
-        if (current != null) return false
+    fun register(player: Player, enabled: Boolean): RegisterOutcome {
+        if (!enabled) return RegisterOutcome.UNAVAILABLE
+        val item = player.currentMediaItem ?: return RegisterOutcome.UNAVAILABLE
+        if (current != null) return RegisterOutcome.ALREADY_TRACKING
         val snapshot = AttemptSnapshot(
             attemptId = UUID.randomUUID().toString(),
             mediaItem = item,
@@ -78,28 +79,40 @@ class JourneyPlaybackObserver @Inject constructor(
 
         ioScope.launch {
             val facts = runCatching { factsLoader.load(item) }.getOrNull()
-            if (facts == null) {
-                // Cannot travel; drop the attempt before it ever reaches the database.
-                mutex.withLock { if (current?.attemptId == snapshot.attemptId) current = null }
-                return@launch
+            var droppedUnresolvable = false
+            // All attempt-row writes (insert here, cancel/settle updates) serialize on [mutex]:
+            // a cancel that wins the race must not be silently overwritten by a late insert.
+            mutex.withLock {
+                if (current?.attemptId != snapshot.attemptId) {
+                    // Cancelled or settled while facts were loading: never resurrect it.
+                    return@withLock
+                }
+                if (facts == null) {
+                    // Cannot travel; drop the attempt before it ever reaches the database.
+                    current = null
+                    droppedUnresolvable = true
+                    return@withLock
+                }
+                snapshot.facts = facts
+                runCatching {
+                    attemptDao.insert(
+                        PostcardAttemptEntity(
+                            attemptId = snapshot.attemptId,
+                            stableSongKey = facts.stableSongKey,
+                            librarySongId = facts.librarySongId,
+                            startedAtEpochMs = snapshot.startedAtEpochMs,
+                            startedPositionMs = snapshot.startedPositionMs,
+                            accumulatedPlayMs = 0L,
+                            songDurationMs = facts.durationMs,
+                            status = PostcardAttemptStatus.TRACKING,
+                        ),
+                    )
+                }.onFailure { Log.w(TAG, "attempt insert failed", it) }
             }
-            snapshot.facts = facts
-            runCatching {
-                attemptDao.insert(
-                    PostcardAttemptEntity(
-                        attemptId = snapshot.attemptId,
-                        stableSongKey = facts.stableSongKey,
-                        librarySongId = facts.librarySongId,
-                        startedAtEpochMs = snapshot.startedAtEpochMs,
-                        startedPositionMs = snapshot.startedPositionMs,
-                        accumulatedPlayMs = 0L,
-                        songDurationMs = facts.durationMs,
-                        status = PostcardAttemptStatus.TRACKING,
-                    ),
-                )
-            }.onFailure { Log.w(TAG, "attempt insert failed", it) }
+            // Outside the lock: the bridge only owns a StateFlow, no deadlock risk.
+            if (droppedUnresolvable) PostcardTrackingBridge.markIdle()
         }
-        return true
+        return RegisterOutcome.STARTED
     }
 
     /** Drops the live attempt without reward (user pressed "取消随行"). */
@@ -108,11 +121,7 @@ class JourneyPlaybackObserver @Inject constructor(
         current = null
         PostcardTrackingBridge.markIdle()
         snapshot.finishPlayClock(SystemClock.elapsedRealtime())
-        ioScope.launch {
-            runCatching {
-                attemptDao.updateStatus(snapshot.attemptId, PostcardAttemptStatus.CANCELLED, reason)
-            }
-        }
+        cancelAsync(snapshot, reason)
     }
 
     /** Process start: unresolved TRACKING rows cannot be resumed, so they are cancelled. */
@@ -169,7 +178,9 @@ class JourneyPlaybackObserver @Inject constructor(
                 settle(snapshot, REASON_NATURAL_FALLBACK)
             }
             Player.MEDIA_ITEM_TRANSITION_REASON_REPEAT -> {
-                // Single-track loop: the same item ends and restarts; settle, then track again.
+                // Single-track loop: the same item ends and restarts. M0 registration is
+                // manual, so we settle this attempt and do NOT open a new one — design
+                // §4.2.2's "every loop completion forms a journey" arrives with M1 auto-follow.
                 val snapshot = current ?: return
                 if (!snapshot.matches(mediaItem)) return
                 settle(snapshot, REASON_NATURAL_REPEAT)
@@ -232,25 +243,31 @@ class JourneyPlaybackObserver @Inject constructor(
         }
         val completedAt = System.currentTimeMillis()
         ioScope.launch {
-            runCatching {
-                attemptDao.updateAccumulated(snapshot.attemptId, snapshot.accumulatedMs)
-                settlement.settle(
-                    SettlementRequest(
-                        attemptId = snapshot.attemptId,
-                        facts = facts,
-                        completedAtEpochMs = completedAt,
-                        zoneId = java.time.ZoneId.systemDefault(),
-                    )
-                )
-            }.onFailure { error ->
-                Log.w(TAG, "settlement failed for ${snapshot.attemptId}", error)
-                // Keep the attempt retryable per design §10.1 (retry on next start, no re-charge).
+            // Serialize with the register-time insert on [mutex]: if registration's facts
+            // load has not inserted the row yet, the transaction below finds no attempt and
+            // returns null, and the insert's liveness re-check then skips — both orders are
+            // consistent and can never leave a phantom TRACKING row behind.
+            mutex.withLock {
                 runCatching {
-                    attemptDao.updateStatus(
-                        snapshot.attemptId,
-                        PostcardAttemptStatus.SETTLEMENT_FAILED,
-                        reason,
+                    attemptDao.updateAccumulated(snapshot.attemptId, snapshot.accumulatedMs)
+                    settlement.settle(
+                        SettlementRequest(
+                            attemptId = snapshot.attemptId,
+                            facts = facts,
+                            completedAtEpochMs = completedAt,
+                            zoneId = java.time.ZoneId.systemDefault(),
+                        )
                     )
+                }.onFailure { error ->
+                    Log.w(TAG, "settlement failed for ${snapshot.attemptId}", error)
+                    // Keep the attempt retryable per design §10.1 (retry on next start, no re-charge).
+                    runCatching {
+                        attemptDao.updateStatus(
+                            snapshot.attemptId,
+                            PostcardAttemptStatus.SETTLEMENT_FAILED,
+                            reason,
+                        )
+                    }
                 }
             }
         }
@@ -266,10 +283,14 @@ class JourneyPlaybackObserver @Inject constructor(
 
     private fun cancelAsync(snapshot: AttemptSnapshot, reason: String) {
         ioScope.launch {
-            runCatching {
-                attemptDao.updateAccumulated(snapshot.attemptId, snapshot.accumulatedMs)
-                attemptDao.updateStatus(snapshot.attemptId, PostcardAttemptStatus.CANCELLED, reason)
-            }.onFailure { Log.w(TAG, "cancel update failed for ${snapshot.attemptId}", it) }
+            // Serialize with the register-time insert on [mutex]; the caller already cleared
+            // `current` on the main thread, so a late insert sees a dead attempt and skips.
+            mutex.withLock {
+                runCatching {
+                    attemptDao.updateAccumulated(snapshot.attemptId, snapshot.accumulatedMs)
+                    attemptDao.updateStatus(snapshot.attemptId, PostcardAttemptStatus.CANCELLED, reason)
+                }.onFailure { Log.w(TAG, "cancel update failed for ${snapshot.attemptId}", it) }
+            }
         }
     }
 
@@ -327,6 +348,9 @@ class JourneyPlaybackObserver @Inject constructor(
 
     companion object {
         private const val TAG = "PostcardJourney"
+
+        /** Result of [register], consumed by `PostcardTrackingBridge`'s status machine. */
+        enum class RegisterOutcome { STARTED, ALREADY_TRACKING, UNAVAILABLE }
 
         /** Seeking forward by more than this invalidates the attempt (design §4.2). */
         const val FORWARD_SEEK_TOLERANCE_MS = JourneyValidity.FORWARD_SEEK_TOLERANCE_MS

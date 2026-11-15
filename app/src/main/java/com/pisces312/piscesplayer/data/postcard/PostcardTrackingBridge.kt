@@ -18,15 +18,16 @@ import kotlinx.coroutines.flow.asStateFlow
  * business path (design §4.2.1 forbids that). So `MusicService` installs the callback once, the
  * UI only asks for it and reports the outcome.
  *
- * [status] backs the "带上它" chip state: IDLE (nothing travelling), TRACKING (this song is
- * travelling), UNAVAILABLE (cloud / quick play / already tracking something else).
+ * [status] backs the "带上它" chip state: IDLE (nothing travelling), TRACKING (an attempt is
+ * live), UNAVAILABLE (cloud / quick play / no current item). "Already tracking another song"
+ * deliberately maps to TRACKING, not UNAVAILABLE — the live attempt must stay visible.
  */
 object PostcardTrackingBridge {
 
     enum class Status { IDLE, TRACKING, UNAVAILABLE }
 
-    /** Installed by `MusicService`; returns true when an attempt actually started. */
-    private var register: (() -> Boolean)? = null
+    /** Installed by `MusicService`; reports the observer's three-valued registration result. */
+    private var register: (() -> JourneyPlaybackObserver.Companion.RegisterOutcome)? = null
 
     /** Installed by `MusicService`; cancels the live attempt without a reward. */
     private var cancel: (() -> Unit)? = null
@@ -34,7 +35,10 @@ object PostcardTrackingBridge {
     private val _status = MutableStateFlow(Status.IDLE)
     val status: StateFlow<Status> = _status.asStateFlow()
 
-    fun install(register: () -> Boolean, cancel: () -> Unit) {
+    fun install(
+        register: () -> JourneyPlaybackObserver.Companion.RegisterOutcome,
+        cancel: () -> Unit,
+    ) {
         this.register = register
         this.cancel = cancel
     }
@@ -45,11 +49,21 @@ object PostcardTrackingBridge {
         _status.value = Status.IDLE
     }
 
-    /** Manual "带上它": registers the currently playing local song, never touches playback. */
+    /**
+     * Manual "带上它": registers the currently playing local song, never touches playback.
+     *
+     * ALREADY_TRACKING keeps (or restores) TRACKING instead of downgrading to UNAVAILABLE:
+     * another song is still travelling and will still settle — the chip must keep saying so.
+     */
     fun register(): Boolean {
-        val result = register?.invoke() ?: false
-        _status.value = if (result) Status.TRACKING else Status.UNAVAILABLE
-        return result
+        val outcome = register?.invoke()
+        when (outcome) {
+            JourneyPlaybackObserver.Companion.RegisterOutcome.STARTED,
+            JourneyPlaybackObserver.Companion.RegisterOutcome.ALREADY_TRACKING,
+            -> _status.value = Status.TRACKING
+            else -> _status.value = Status.UNAVAILABLE
+        }
+        return outcome == JourneyPlaybackObserver.Companion.RegisterOutcome.STARTED
     }
 
     /** "取消随行": drops the live attempt; the song keeps playing untouched. */
