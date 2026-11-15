@@ -99,6 +99,14 @@ sealed class Screen(val route: String) {
 
     object MusicQuiz : Screen("music_quiz")
 
+    object PostcardInbox : Screen("postcard_inbox")
+
+    object PostcardAlbum : Screen("postcard_album")
+
+    object PostcardCard : Screen("postcard_card/{cardKey}") {
+        fun createRoute(cardKey: String) = "postcard_card/${Uri.encode(cardKey)}"
+    }
+
     object RhythmSongPicker : Screen("rhythm_song_picker")
 
     object RhythmSetup : Screen("rhythm_setup/{songId}") {

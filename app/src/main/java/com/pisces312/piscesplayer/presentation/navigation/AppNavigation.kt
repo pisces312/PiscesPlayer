@@ -75,6 +75,9 @@ import com.pisces312.piscesplayer.presentation.viewmodel.PlaylistViewModel
 import kotlinx.coroutines.flow.first
 import com.pisces312.piscesplayer.presentation.components.ScreenWrapper
 import com.pisces312.piscesplayer.presentation.musicquiz.MusicQuizScreen
+import com.pisces312.piscesplayer.presentation.postcard.PostcardAlbumRoute
+import com.pisces312.piscesplayer.presentation.postcard.PostcardDetailRoute
+import com.pisces312.piscesplayer.presentation.postcard.PostcardInboxRoute
 import com.pisces312.piscesplayer.presentation.rhythm.MusicGameHubScreen
 import com.pisces312.piscesplayer.presentation.rhythm.RhythmGameScreen
 import com.pisces312.piscesplayer.presentation.rhythm.RhythmSetupScreen
@@ -812,6 +815,9 @@ fun AppNavigation(
                         onOpenMusicQuiz = {
                             navController.navigateSafely(Screen.MusicQuiz.route)
                         },
+                        onOpenPostcard = {
+                            navController.navigateSafely(Screen.PostcardInbox.route)
+                        },
                     )
                 }
             }
@@ -824,6 +830,49 @@ fun AppNavigation(
             ) {
                 MusicQuizScreen(
                     playerViewModel = playerViewModel,
+                    onBack = { navController.popBackStack() },
+                )
+            }
+            composable(
+                Screen.PostcardInbox.route,
+                enterTransition = { enterTransition() },
+                exitTransition = { exitTransition() },
+                popEnterTransition = { popEnterTransition() },
+                popExitTransition = { popExitTransition() },
+            ) {
+                PostcardInboxRoute(
+                    onBack = { navController.popBackStack() },
+                    onOpenAlbum = {
+                        navController.navigateSafely(Screen.PostcardAlbum.route)
+                    },
+                    onOpenCard = { cardKey ->
+                        navController.navigateSafely(Screen.PostcardCard.createRoute(cardKey))
+                    },
+                )
+            }
+            composable(
+                Screen.PostcardAlbum.route,
+                enterTransition = { enterTransition() },
+                exitTransition = { exitTransition() },
+                popEnterTransition = { popEnterTransition() },
+                popExitTransition = { popExitTransition() },
+            ) {
+                PostcardAlbumRoute(
+                    onBack = { navController.popBackStack() },
+                    onOpenCard = { cardKey ->
+                        navController.navigateSafely(Screen.PostcardCard.createRoute(cardKey))
+                    },
+                )
+            }
+            composable(
+                Screen.PostcardCard.route,
+                enterTransition = { enterTransition() },
+                exitTransition = { exitTransition() },
+                popEnterTransition = { popEnterTransition() },
+                popExitTransition = { popExitTransition() },
+            ) { backStackEntry ->
+                PostcardDetailRoute(
+                    cardKey = backStackEntry.arguments?.getString("cardKey").orEmpty(),
                     onBack = { navController.popBackStack() },
                 )
             }

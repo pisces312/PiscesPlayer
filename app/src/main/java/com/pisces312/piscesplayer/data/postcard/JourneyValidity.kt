@@ -37,4 +37,13 @@ object JourneyValidity {
         if (durationMs <= 0L) return false
         return accumulatedMs >= requiredPlayMs(durationMs)
     }
+
+    /**
+     * Whether a seek from [oldPositionMs] to [newPositionMs] invalidates the attempt.
+     * Only a forward jump of more than 2 s does; backward seeks are allowed (design §4.2).
+     * Comparing the two discontinuity positions (not the registration position) is what makes
+     * "played 100 s, dragged back to 50 s" stay valid.
+     */
+    fun isInvalidatingSeek(oldPositionMs: Long, newPositionMs: Long): Boolean =
+        newPositionMs - oldPositionMs > FORWARD_SEEK_TOLERANCE_MS
 }

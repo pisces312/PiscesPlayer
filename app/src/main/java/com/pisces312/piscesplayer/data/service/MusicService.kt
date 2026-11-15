@@ -86,6 +86,7 @@ import com.pisces312.piscesplayer.utils.ArtworkTransportSanitizer
 import com.pisces312.piscesplayer.utils.MediaItemBuilder
 import com.pisces312.piscesplayer.data.navidrome.NavidromeRepository
 import com.pisces312.piscesplayer.data.postcard.JourneyPlaybackObserver
+import com.pisces312.piscesplayer.data.postcard.PostcardTrackingBridge
 import com.pisces312.piscesplayer.di.AppScope
 import com.pisces312.piscesplayer.presentation.viewmodel.ListeningStatsTracker
 import kotlin.math.abs
@@ -430,6 +431,13 @@ class MusicService : MediaSessionService() {
         // sound_postcard: unresolved attempts from a previous process can never be resumed,
         // so they are cancelled here (design §4.2.2 — better to miss one than to pay twice).
         postcardJourneyObserver.recoverAfterProcessDeath()
+        // The player UI registers journeys through this bridge; it never holds a Player.
+        PostcardTrackingBridge.install(
+            register = {
+                postcardJourneyObserver.register(engine.masterPlayer, enabled = true)
+            },
+            cancel = { postcardJourneyObserver.cancelCurrent() },
+        )
 
         engine.initialize()
         replayGainProcessor.captureUserVolume(engine.masterPlayer.volume)
@@ -1020,6 +1028,7 @@ class MusicService : MediaSessionService() {
         engine.removePlayerSwapListener(playerSwapListener)
         engine.removeTransitionDisplayPlayerListener(transitionDisplayPlayerListener)
         engine.removeTransitionFinishedListener(transitionFinishedListener)
+        PostcardTrackingBridge.uninstall()
         engine.setOnPlayerAboutToBeReleasedListener {}
         mediaSession?.player?.removeListener(playerListener)
         engine.masterPlayer.removeListener(playerListener)
@@ -1193,7 +1202,9 @@ class MusicService : MediaSessionService() {
             newPosition: Player.PositionInfo,
             reason: Int
         ) {
-            postcardJourneyObserver.onPositionDiscontinuity(engine.masterPlayer, oldPosition, reason)
+            postcardJourneyObserver.onPositionDiscontinuity(
+                engine.masterPlayer, oldPosition, newPosition, reason,
+            )
             if (reason == Player.DISCONTINUITY_REASON_SEEK) {
                 val state = if (engine.masterPlayer.isPlaying) "playing" else "paused"
                 reportNavidromePlayback(state)

@@ -106,6 +106,7 @@ class JourneyPlaybackObserver @Inject constructor(
     fun cancelCurrent(reason: String = REASON_USER_CANCELLED) {
         val snapshot = current ?: return
         current = null
+        PostcardTrackingBridge.markIdle()
         snapshot.finishPlayClock(SystemClock.elapsedRealtime())
         ioScope.launch {
             runCatching {
@@ -132,6 +133,7 @@ class JourneyPlaybackObserver @Inject constructor(
     fun onPositionDiscontinuity(
         player: Player,
         oldPosition: Player.PositionInfo,
+        newPosition: Player.PositionInfo,
         reason: Int,
     ) {
         when (reason) {
@@ -143,9 +145,13 @@ class JourneyPlaybackObserver @Inject constructor(
             }
             Player.DISCONTINUITY_REASON_SEEK -> {
                 val snapshot = current ?: return
-                val forwardMs = (player.currentPosition - snapshot.lastKnownPositionMs)
-                snapshot.lastKnownPositionMs = player.currentPosition.coerceAtLeast(0L)
-                if (forwardMs > FORWARD_SEEK_TOLERANCE_MS) {
+                // Compare the two discontinuity positions, NOT "current - registration
+                // position": after 100 s of normal playback a backwards seek to 50 s would
+                // otherwise look like a +50 s forward jump and invalidate a valid listen.
+                // Backward seeks are allowed and never reset accumulated time (design §4.2).
+                val forwardMs = newPosition.positionMs - oldPosition.positionMs
+                snapshot.lastKnownPositionMs = newPosition.positionMs.coerceAtLeast(0L)
+                if (forwardMs > JourneyValidity.FORWARD_SEEK_TOLERANCE_MS) {
                     // Seeking ahead skips unheard audio; the attempt can no longer settle.
                     snapshot.invalidatedBySeek = true
                 }
@@ -207,6 +213,7 @@ class JourneyPlaybackObserver @Inject constructor(
     private fun settle(snapshot: AttemptSnapshot, reason: String) {
         if (current?.attemptId != snapshot.attemptId) return
         current = null
+        PostcardTrackingBridge.markIdle()
         snapshot.finishPlayClock(SystemClock.elapsedRealtime())
 
         val facts = snapshot.facts
@@ -252,6 +259,7 @@ class JourneyPlaybackObserver @Inject constructor(
     private fun cancelLive(snapshot: AttemptSnapshot, reason: String) {
         if (current?.attemptId != snapshot.attemptId) return
         current = null
+        PostcardTrackingBridge.markIdle()
         snapshot.finishPlayClock(SystemClock.elapsedRealtime())
         cancelAsync(snapshot, reason)
     }

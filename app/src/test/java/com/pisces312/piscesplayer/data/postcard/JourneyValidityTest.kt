@@ -62,4 +62,20 @@ class JourneyValidityTest {
     fun seekToleranceIsTwoSeconds() {
         assertEquals(2_000L, JourneyValidity.FORWARD_SEEK_TOLERANCE_MS)
     }
+
+    @Test
+    fun forwardSeekBeyondTwoSecondsInvalidates() {
+        assertTrue(JourneyValidity.isInvalidatingSeek(30_000L, 32_001L))
+        assertTrue(JourneyValidity.isInvalidatingSeek(0L, 100_000L))
+    }
+
+    @Test
+    fun forwardSeekWithinToleranceAndBackwardSeekStayValid() {
+        assertFalse(JourneyValidity.isInvalidatingSeek(30_000L, 32_000L))
+        assertFalse(JourneyValidity.isInvalidatingSeek(100_000L, 50_000L))
+        assertFalse(JourneyValidity.isInvalidatingSeek(100_000L, 100_000L))
+        // Regression: 100 s of normal playback followed by a backward seek used to be
+        // misread as a +50 s forward jump when compared against the registration position.
+        assertFalse(JourneyValidity.isInvalidatingSeek(100_000L, 50_000L))
+    }
 }

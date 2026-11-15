@@ -11,6 +11,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
+import androidx.compose.material.icons.rounded.MailOutline
 import androidx.compose.material.icons.rounded.Quiz
 import androidx.compose.material.icons.rounded.Piano
 import androidx.compose.material3.Card
@@ -38,6 +39,7 @@ fun MusicGameHubScreen(
     onBack: () -> Unit,
     onOpenRhythm: () -> Unit,
     onOpenMusicQuiz: () -> Unit,
+    onOpenPostcard: () -> Unit,
 ) {
     Scaffold(
         topBar = {
@@ -75,6 +77,16 @@ fun MusicGameHubScreen(
                     subtitle = stringResource(R.string.music_games_quiz_subtitle),
                     icon = Icons.Rounded.Quiz,
                     onClick = onOpenMusicQuiz,
+                )
+            }
+            item {
+                // Secondary entry by design (§11): the best entry is the player itself, so this
+                // card only says "listen as usual, cards collect themselves".
+                MusicGameCard(
+                    title = stringResource(R.string.postcard_hub_title),
+                    subtitle = stringResource(R.string.postcard_hub_subtitle),
+                    icon = Icons.Rounded.MailOutline,
+                    onClick = onOpenPostcard,
                 )
             }
         }
