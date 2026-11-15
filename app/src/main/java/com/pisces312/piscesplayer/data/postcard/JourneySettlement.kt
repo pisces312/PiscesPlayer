@@ -33,6 +33,8 @@ data class SettlementRequest(
     val facts: SongFacts,
     val completedAtEpochMs: Long,
     val zoneId: ZoneId,
+    /** Device language at generation time; only the message/place-name snapshots use it. */
+    val languageTag: String = "zh",
 )
 
 /** Outcome of a settlement, mostly for logging and tests. */
@@ -139,6 +141,7 @@ class JourneySettlement @Inject constructor(
                 plan = plan,
                 firstCreatedAtEpochMs = request.completedAtEpochMs,
                 zoneId = request.zoneId,
+                languageTag = request.languageTag,
             )
             if (specs.isEmpty()) {
                 attemptDao.updateStatus(
@@ -216,7 +219,7 @@ class JourneySettlement @Inject constructor(
                 profileDao.upsert(
                     PostcardProfileEntity(
                         id = 1,
-                        travelerName = PostcardRepository.DEFAULT_TRAVELER_NAME,
+                        travelerName = PostcardRepository.defaultTravelerName(),
                         worldVersion = PostcardRepository.WORLD_VERSION,
                         totalDistanceKm = 0f,
                         totalJourneys = 0,

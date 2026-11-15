@@ -41,6 +41,7 @@ import kotlinx.coroutines.sync.withLock
  * counts from that moment (design §4.4).
  */
 @Singleton
+@androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
 class JourneyPlaybackObserver @Inject constructor(
     private val attemptDao: PostcardAttemptDao,
     private val factsLoader: com.pisces312.piscesplayer.data.postcard.generate.SongFactsLoader,
@@ -256,6 +257,7 @@ class JourneyPlaybackObserver @Inject constructor(
                             facts = facts,
                             completedAtEpochMs = completedAt,
                             zoneId = java.time.ZoneId.systemDefault(),
+                            languageTag = java.util.Locale.getDefault().language,
                         )
                     )
                 }.onFailure { error ->

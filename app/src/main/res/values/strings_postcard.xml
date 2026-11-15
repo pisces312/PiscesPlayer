@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 《远方来信》 / Letters from Afar — M0 sound_postcard feature.
+         English is the default locale; see values-zh-rCN/strings_postcard.xml for Chinese. -->
+
+    <!-- Feature name and the secondary entry in the music games hub -->
+    <string name="postcard_hub_title">Letters from Afar</string>
+    <string name="postcard_hub_subtitle">No controls needed · listen as usual and collect postcards</string>
+
+    <!-- Screen titles and shared actions -->
+    <string name="postcard_inbox_title">Mailbox</string>
+    <string name="postcard_album_title">Album</string>
+    <string name="postcard_detail_title">Postcard</string>
+    <string name="postcard_go_album">Open album</string>
+    <string name="postcard_loading">Loading postcard…</string>
+    <string name="postcard_unrenderable">This card cannot be rendered yet</string>
+
+    <!-- Mailbox -->
+    <string name="postcard_inbox_empty">No letters yet</string>
+    <string name="postcard_inbox_count">%1$d letters · %2$d cards in album</string>
+    <string name="postcard_inbox_empty_hint">Just listen as usual — a postcard is sent when a song ends naturally.</string>
+    <string name="postcard_inbox_empty_hint_2">Pausing is fine. Skipping a song does not count.</string>
+    <string name="postcard_letter_from">A postcard from %1$s km away</string>
+    <string name="postcard_letter_detail">%1$d cards · %2$s</string>
+
+    <!-- Manual "take along" card -->
+    <string name="postcard_take_along_title">Start from the current song</string>
+    <string name="postcard_tracking_title">Travelling with this song</string>
+    <string name="postcard_tracking_hint">A postcard is sent when the song ends naturally. Pausing is fine; skipping cancels it.</string>
+    <string name="postcard_take_along_hint">Just listen as usual — no need to watch the screen. Everything stays on this device.</string>
+    <string name="postcard_take_along_action">Take this song along</string>
+    <string name="postcard_cancel_tracking">Stop travelling</string>
+    <string name="postcard_unavailable">This song cannot travel (cloud or preview tracks do not count)</string>
+
+    <!-- Album -->
+    <string name="postcard_album_empty">Album is empty</string>
+    <string name="postcard_album_empty_hint">Finish a song and its postcard will arrive in the mailbox first.</string>
+    <string name="postcard_visit_nth">Visit #%1$d</string>
+
+    <!-- Detail -->
+    <string name="postcard_revisit">Back again · visit #%1$d</string>
+    <string name="postcard_side_front">Front</string>
+    <string name="postcard_side_back">Back</string>
+    <string name="postcard_label_song">Song</string>
+    <string name="postcard_label_spot">Place</string>
+    <string name="postcard_label_weather">Weather</string>
+    <string name="postcard_fantasy_weather">%1$s · fictional</string>
+    <string name="postcard_label_distance">Distance</string>
+    <string name="postcard_fantasy_distance">%1$s km (fictional)</string>
+    <string name="postcard_label_first_visit">First visit</string>
+    <string name="postcard_visit_history">Visit history</string>
+    <string name="postcard_visit_row">%1$s km · %2$s</string>
+    <string name="postcard_privacy_note">This feature never reads your real location or weather. Places and weather come from a fictional postal route.</string>
+
+    <!-- Condition labels -->
+    <string name="postcard_time_morning">Morning</string>
+    <string name="postcard_time_evening">Dusk</string>
+    <string name="postcard_time_night">Night</string>
+    <string name="postcard_weather_sunny">Clear</string>
+    <string name="postcard_weather_rainy">Rain</string>
+    <string name="postcard_weather_snowy">Snow</string>
+
+    <!-- DateTimeFormatter pattern; keep the literal month/day order of each locale -->
+    <string name="postcard_time_format">MMM d, HH:mm</string>
+</resources>

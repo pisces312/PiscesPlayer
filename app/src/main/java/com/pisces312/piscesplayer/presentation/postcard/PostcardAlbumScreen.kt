@@ -34,13 +34,15 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.pisces312.piscesplayer.R
 
 /**
- * The album / 相册 (design §11.2): a two-column grid of cards, newest first visit first.
- * Revisits never reorder the shelf; the "第 N 次" badge on a card tells the repeat story.
+ * The album (design §11.2): a two-column grid of cards, newest first visit first.
+ * Revisits never reorder the shelf; the revisit badge on a card tells the repeat story.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -52,12 +54,12 @@ fun PostcardAlbumScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("相册") },
+                title = { Text(stringResource(R.string.postcard_album_title)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
-                            contentDescription = "返回",
+                            contentDescription = stringResource(R.string.auth_cd_back),
                         )
                     }
                 },
@@ -78,13 +80,13 @@ fun PostcardAlbumScreen(
                     )
                     Spacer(Modifier.height(12.dp))
                     Text(
-                        text = "相册还是空的",
+                        text = stringResource(R.string.postcard_album_empty),
                         style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     Spacer(Modifier.height(6.dp))
                     Text(
-                        text = "自然听完一首歌，明信片会先寄到信箱。",
+                        text = stringResource(R.string.postcard_album_empty_hint),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -137,7 +139,7 @@ private fun AlbumCell(row: AlbumRow, onClick: () -> Unit) {
                     )
                     if (row.visitCount > 1) {
                         Text(
-                            text = "第 ${row.visitCount} 次",
+                            text = stringResource(R.string.postcard_visit_nth, row.visitCount),
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.primary,
                         )
@@ -148,19 +150,23 @@ private fun AlbumCell(row: AlbumRow, onClick: () -> Unit) {
     }
 }
 
-/** `morning_rainy` -> "晨 · 雨" — the same mapping the card face uses. */
+/**
+ * `morning_rainy` -> "晨 · 雨" / "Morning · Rain". Both halves come from resources, so the
+ * same stored `conditionKey` renders in the active language without touching the frozen spec.
+ */
+@Composable
 internal fun conditionLabel(conditionKey: String): String {
     val parts = conditionKey.split('_')
     val timeOfDay = when (parts.firstOrNull()) {
-        "morning" -> "晨"
-        "evening" -> "暮"
-        "night" -> "夜"
+        "morning" -> stringResource(R.string.postcard_time_morning)
+        "evening" -> stringResource(R.string.postcard_time_evening)
+        "night" -> stringResource(R.string.postcard_time_night)
         else -> "·"
     }
     val weather = when (parts.lastOrNull()) {
-        "sunny" -> "晴"
-        "rainy" -> "雨"
-        "snowy" -> "雪"
+        "sunny" -> stringResource(R.string.postcard_weather_sunny)
+        "rainy" -> stringResource(R.string.postcard_weather_rainy)
+        "snowy" -> stringResource(R.string.postcard_weather_snowy)
         else -> "·"
     }
     return "$timeOfDay · $weather"

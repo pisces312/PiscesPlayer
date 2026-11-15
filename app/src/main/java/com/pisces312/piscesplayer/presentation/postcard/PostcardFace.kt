@@ -18,7 +18,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.pisces312.piscesplayer.R
 import com.pisces312.piscesplayer.data.postcard.model.PostcardSpec
 
 /**
@@ -46,8 +48,8 @@ fun PostcardFace(
         if (spec == null) {
             Box(contentAlignment = Alignment.Center) {
                 Text(
-                    text = "—",
-                    style = MaterialTheme.typography.headlineSmall,
+                    text = stringResource(R.string.postcard_unrenderable),
+                    style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }

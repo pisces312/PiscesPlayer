@@ -75,7 +75,7 @@ class PostcardRepository @Inject constructor(
     suspend fun ensureProfile(): PostcardProfileEntity = withContext(Dispatchers.IO) {
         profileDao.get() ?: PostcardProfileEntity(
             id = 1,
-            travelerName = DEFAULT_TRAVELER_NAME,
+            travelerName = defaultTravelerName(),
             worldVersion = WORLD_VERSION,
             totalDistanceKm = 0f,
             totalJourneys = 0,
@@ -120,10 +120,22 @@ class PostcardRepository @Inject constructor(
 
     companion object {
         /** Fixed fictional handle for M0 (design §6.2); renaming arrives with M2. */
-        const val DEFAULT_TRAVELER_NAME = "邮差"
+        const val DEFAULT_TRAVELER_NAME_ZH = "邮差"
+        const val DEFAULT_TRAVELER_NAME_EN = "Courier"
 
         /** Old-stamp world version; only M2 map layers read it. */
         const val WORLD_VERSION = 1
+
+        /**
+         * Chosen once when the profile is created and stored, so switching the device language
+         * later never rewrites the traveller name (same snapshot rule as message text).
+         */
+        fun defaultTravelerName(): String =
+            if (java.util.Locale.getDefault().language.equals("zh", ignoreCase = true)) {
+                DEFAULT_TRAVELER_NAME_ZH
+            } else {
+                DEFAULT_TRAVELER_NAME_EN
+            }
     }
 }
 

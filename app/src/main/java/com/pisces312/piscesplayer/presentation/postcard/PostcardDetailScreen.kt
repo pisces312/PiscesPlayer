@@ -34,8 +34,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.pisces312.piscesplayer.R
 import com.pisces312.piscesplayer.data.database.PostcardVisitEntity
 
 /**
@@ -59,15 +61,17 @@ fun PostcardDetailScreen(
     zoneId: String,
     onBack: () -> Unit,
 ) {
+    // Configuration-backed locale so a runtime language switch recomposes the timestamps.
+    val locale = androidx.compose.ui.platform.LocalConfiguration.current.locales[0]
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("明信片") },
+                title = { Text(stringResource(R.string.postcard_detail_title)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
-                            contentDescription = "返回",
+                            contentDescription = stringResource(R.string.auth_cd_back),
                         )
                     }
                 },
@@ -86,7 +90,7 @@ fun PostcardDetailScreen(
 
             if (visitCount > 1) {
                 Text(
-                    text = "故地重游 · 第 $visitCount 次",
+                    text = stringResource(R.string.postcard_revisit, visitCount),
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.primary,
                 )
@@ -103,12 +107,12 @@ fun PostcardDetailScreen(
                 FilterChip(
                     selected = side == PostcardSide.FRONT,
                     onClick = { side = PostcardSide.FRONT },
-                    label = { Text("正面") },
+                    label = { Text(stringResource(R.string.postcard_side_front)) },
                 )
                 FilterChip(
                     selected = side == PostcardSide.BACK,
                     onClick = { side = PostcardSide.BACK },
-                    label = { Text("背面") },
+                    label = { Text(stringResource(R.string.postcard_side_back)) },
                 )
             }
 
@@ -121,17 +125,37 @@ fun PostcardDetailScreen(
                     modifier = Modifier.padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
-                    InfoRow("歌曲", title)
-                    InfoRow("地点", spotLabel)
-                    InfoRow("天气", conditionLabel(conditionKey) + " · 虚构天气")
-                    InfoRow("里程", "${formatKm(distanceKm)} 公里（幻想数值）")
-                    InfoRow("首访", formatTime(firstVisitedAtEpochMs, zoneId))
+                    InfoRow(stringResource(R.string.postcard_label_song), title)
+                    InfoRow(stringResource(R.string.postcard_label_spot), spotLabel)
+                    InfoRow(
+                        stringResource(R.string.postcard_label_weather),
+                        stringResource(
+                            R.string.postcard_fantasy_weather,
+                            conditionLabel(conditionKey),
+                        ),
+                    )
+                    InfoRow(
+                        stringResource(R.string.postcard_label_distance),
+                        stringResource(
+                            R.string.postcard_fantasy_distance,
+                            formatKm(distanceKm),
+                        ),
+                    )
+                    InfoRow(
+                        stringResource(R.string.postcard_label_first_visit),
+                        formatTime(
+                            firstVisitedAtEpochMs,
+                            zoneId,
+                            stringResource(R.string.postcard_time_format),
+                            locale,
+                        ),
+                    )
                 }
             }
 
             if (visits.size > 1) {
                 Text(
-                    text = "到访历史",
+                    text = stringResource(R.string.postcard_visit_history),
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.SemiBold,
                 )
@@ -150,12 +174,21 @@ fun PostcardDetailScreen(
                                 horizontalArrangement = Arrangement.SpaceBetween,
                             ) {
                                 Text(
-                                    text = formatTime(visit.visitedAtEpochMs, zoneId),
+                                    text = formatTime(
+                                        visit.visitedAtEpochMs,
+                                        zoneId,
+                                        stringResource(R.string.postcard_time_format),
+                                        locale,
+                                    ),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                                 Text(
-                                    text = "${formatKm(visit.distanceKm)} km · ${conditionLabel(visit.conditionKeyForLabel())}",
+                                    text = stringResource(
+                                        R.string.postcard_visit_row,
+                                        formatKm(visit.distanceKm),
+                                        conditionLabel(visit.conditionKeyForLabel()),
+                                    ),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
@@ -166,7 +199,7 @@ fun PostcardDetailScreen(
             }
 
             Text(
-                text = "本功能不读取真实位置与天气；地点与天气来自虚构邮路。",
+                text = stringResource(R.string.postcard_privacy_note),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

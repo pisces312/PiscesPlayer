@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 《远方来信》—— 听歌旅行明信片（M0 sound_postcard）。
+         设计与实施文档见 RhythmChartLab/docs/。文案全部原创，不借用其他作品措辞。 -->
+
+    <!-- 功能名与音乐游戏大厅的次要入口 -->
+    <string name="postcard_hub_title">远方来信</string>
+    <string name="postcard_hub_subtitle">不用操作，边听边收集</string>
+
+    <!-- 页面标题与通用动作 -->
+    <string name="postcard_inbox_title">信箱</string>
+    <string name="postcard_album_title">相册</string>
+    <string name="postcard_detail_title">明信片</string>
+    <string name="postcard_go_album">去相册</string>
+    <string name="postcard_loading">正在读取明信片…</string>
+    <string name="postcard_unrenderable">此卡暂无法渲染</string>
+
+    <!-- 信箱 -->
+    <string name="postcard_inbox_empty">还没有来信</string>
+    <string name="postcard_inbox_count">%1$d 封来信 · 相册 %2$d 张</string>
+    <string name="postcard_inbox_empty_hint">照常听歌，自然听完才会有明信片寄出。</string>
+    <string name="postcard_inbox_empty_hint_2">暂停可以继续，切歌不算。</string>
+    <string name="postcard_letter_from">一封来自 %1$s 公里外的明信片</string>
+    <string name="postcard_letter_detail">%1$d 张 · %2$s</string>
+
+    <!-- 手动「带上它」 -->
+    <string name="postcard_take_along_title">从当前播放开始</string>
+    <string name="postcard_tracking_title">这首歌正在随行</string>
+    <string name="postcard_tracking_hint">自然听完会寄出明信片；暂停可以继续，切歌不算。</string>
+    <string name="postcard_take_along_hint">照常听歌即可，不需要盯着屏幕。全部保存在本机。</string>
+    <string name="postcard_take_along_action">为当前歌曲带上行李</string>
+    <string name="postcard_cancel_tracking">取消随行</string>
+    <string name="postcard_unavailable">当前歌曲无法随行（云端 / 试听曲目不参与行程）</string>
+
+    <!-- 相册 -->
+    <string name="postcard_album_empty">相册还是空的</string>
+    <string name="postcard_album_empty_hint">自然听完一首歌，明信片会先寄到信箱。</string>
+    <string name="postcard_visit_nth">第 %1$d 次</string>
+
+    <!-- 详情 -->
+    <string name="postcard_revisit">故地重游 · 第 %1$d 次</string>
+    <string name="postcard_side_front">正面</string>
+    <string name="postcard_side_back">背面</string>
+    <string name="postcard_label_song">歌曲</string>
+    <string name="postcard_label_spot">地点</string>
+    <string name="postcard_label_weather">天气</string>
+    <string name="postcard_fantasy_weather">%1$s · 虚构天气</string>
+    <string name="postcard_label_distance">里程</string>
+    <string name="postcard_fantasy_distance">%1$s 公里（幻想数值）</string>
+    <string name="postcard_label_first_visit">首访</string>
+    <string name="postcard_visit_history">到访历史</string>
+    <string name="postcard_visit_row">%1$s km · %2$s</string>
+    <string name="postcard_privacy_note">本功能不读取真实位置与天气；地点与天气来自虚构邮路。</string>
+
+    <!-- 条件标签 -->
+    <string name="postcard_time_morning">晨</string>
+    <string name="postcard_time_evening">暮</string>
+    <string name="postcard_time_night">夜</string>
+    <string name="postcard_weather_sunny">晴</string>
+    <string name="postcard_weather_rainy">雨</string>
+    <string name="postcard_weather_snowy">雪</string>
+
+    <!-- DateTimeFormatter 模式 -->
+    <string name="postcard_time_format">M月d日 HH:mm</string>
+</resources>

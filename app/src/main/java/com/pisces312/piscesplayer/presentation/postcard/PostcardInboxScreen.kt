@@ -16,7 +16,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -37,29 +36,32 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.pisces312.piscesplayer.R
 import com.pisces312.piscesplayer.data.database.PostcardJourneyEntity
+import com.pisces312.piscesplayer.data.postcard.PostcardTrackingBridge
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 /**
- * The mailbox / 信箱 (design §11.1). M0 shows every settled journey because delivery is
- * immediate; M1 keeps the same list and only filters on `deliverAt <= now`.
+ * The mailbox (design §11.1). M0 shows every settled journey because delivery is immediate;
+ * M1 keeps the same list and only filters on `deliverAt <= now`.
  *
  * Each row is a letter, not a card: opening it leads to the first card of the journey. Cards
  * are already stored at settlement, so closing or killing the app never loses one (design §11.2).
+ * All copy is localized through `strings_postcard.xml`.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PostcardInboxScreen(
     journeys: List<PostcardJourneyEntity>,
     cardCount: Int,
-    trackingStatus: com.pisces312.piscesplayer.data.postcard.PostcardTrackingBridge.Status,
+    trackingStatus: PostcardTrackingBridge.Status,
     onTakeAlong: () -> Unit,
     onCancelTracking: () -> Unit,
     onBack: () -> Unit,
@@ -69,12 +71,12 @@ fun PostcardInboxScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("信箱") },
+                title = { Text(stringResource(R.string.postcard_inbox_title)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
-                            contentDescription = "返回",
+                            contentDescription = stringResource(R.string.auth_cd_back),
                         )
                     }
                 },
@@ -95,13 +97,17 @@ fun PostcardInboxScreen(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    text = if (journeys.isEmpty()) "还没有来信" else "${journeys.size} 封来信 · 相册 $cardCount 张",
+                    text = if (journeys.isEmpty()) {
+                        stringResource(R.string.postcard_inbox_empty)
+                    } else {
+                        stringResource(R.string.postcard_inbox_count, journeys.size, cardCount)
+                    },
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.weight(1f),
                 )
                 FilledTonalButton(onClick = onOpenAlbum) {
-                    Text("去相册")
+                    Text(stringResource(R.string.postcard_go_album))
                 }
             }
 
@@ -124,11 +130,11 @@ fun PostcardInboxScreen(
 
 @Composable
 private fun TakeAlongCard(
-    status: com.pisces312.piscesplayer.data.postcard.PostcardTrackingBridge.Status,
+    status: PostcardTrackingBridge.Status,
     onTakeAlong: () -> Unit,
     onCancel: () -> Unit,
 ) {
-    val tracking = status == com.pisces312.piscesplayer.data.postcard.PostcardTrackingBridge.Status.TRACKING
+    val tracking = status == PostcardTrackingBridge.Status.TRACKING
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -143,34 +149,34 @@ private fun TakeAlongCard(
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
-                text = if (tracking) "这首歌正在随行" else "从当前播放开始",
+                text = stringResource(
+                    if (tracking) R.string.postcard_tracking_title else R.string.postcard_take_along_title,
+                ),
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.SemiBold,
             )
             Spacer(Modifier.height(4.dp))
             Text(
-                text = if (tracking) {
-                    "自然听完会寄出明信片；暂停可以继续，切歌不算。"
-                } else {
-                    "照常听歌即可，不需要盯着屏幕。全部保存在本机。"
-                },
+                text = stringResource(
+                    if (tracking) R.string.postcard_tracking_hint else R.string.postcard_take_along_hint,
+                ),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Spacer(Modifier.height(10.dp))
             if (tracking) {
                 FilledTonalButton(onClick = onCancel) {
-                    Text("取消随行")
+                    Text(stringResource(R.string.postcard_cancel_tracking))
                 }
             } else {
                 FilledTonalButton(onClick = onTakeAlong) {
-                    Text("为当前歌曲带上行李")
+                    Text(stringResource(R.string.postcard_take_along_action))
                 }
             }
-            if (status == com.pisces312.piscesplayer.data.postcard.PostcardTrackingBridge.Status.UNAVAILABLE) {
+            if (status == PostcardTrackingBridge.Status.UNAVAILABLE) {
                 Spacer(Modifier.height(6.dp))
                 Text(
-                    text = "当前歌曲无法随行（云端 / 试听曲目不参与行程）",
+                    text = stringResource(R.string.postcard_unavailable),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.error,
                 )
@@ -191,13 +197,13 @@ private fun EmptyState() {
             )
             Spacer(Modifier.height(12.dp))
             Text(
-                text = "照常听歌，自然听完才会有明信片寄出。",
+                text = stringResource(R.string.postcard_inbox_empty_hint),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Spacer(Modifier.height(6.dp))
             Text(
-                text = "暂停可以继续，切歌不算。",
+                text = stringResource(R.string.postcard_inbox_empty_hint_2),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -207,6 +213,7 @@ private fun EmptyState() {
 
 @Composable
 private fun LetterRow(journey: PostcardJourneyEntity, onClick: () -> Unit) {
+    val locale = androidx.compose.ui.platform.LocalConfiguration.current.locales[0]
     Card(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
@@ -226,14 +233,26 @@ private fun LetterRow(journey: PostcardJourneyEntity, onClick: () -> Unit) {
             )
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = "一封来自 ${formatKm(journey.distanceKm)} 公里外的明信片",
+                    text = stringResource(
+                        R.string.postcard_letter_from,
+                        formatKm(journey.distanceKm),
+                    ),
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.SemiBold,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
                 Text(
-                    text = "${journey.cardCount} 张 · ${formatTime(journey.completedAtEpochMs, journey.completedAtZoneId)}",
+                    text = stringResource(
+                        R.string.postcard_letter_detail,
+                        journey.cardCount,
+                        formatTime(
+                            journey.completedAtEpochMs,
+                            journey.completedAtZoneId,
+                            stringResource(R.string.postcard_time_format),
+                            locale,
+                        ),
+                    ),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -250,9 +269,14 @@ private fun LetterRow(journey: PostcardJourneyEntity, onClick: () -> Unit) {
 internal fun formatKm(km: Float): String =
     "%.1f".format(Locale.ROOT, km)
 
-private val TIME_FORMAT = DateTimeFormatter.ofPattern("M月d日 HH:mm", Locale.CHINA)
-
-internal fun formatTime(epochMs: Long, zoneId: String): String {
+/**
+ * Formats a first-visit timestamp with a locale-supplied pattern. The pattern (not a hardcoded
+ * `M月d日`) comes from `postcard_time_format`, so the Chinese and English builds both read
+ * naturally while the stored epoch/zone stay locale-independent.
+ */
+internal fun formatTime(epochMs: Long, zoneId: String, pattern: String, locale: Locale): String {
     val zone = runCatching { ZoneId.of(zoneId) }.getOrDefault(ZoneId.systemDefault())
-    return TIME_FORMAT.format(Instant.ofEpochMilli(epochMs).atZone(zone))
+    val formatter = runCatching { DateTimeFormatter.ofPattern(pattern, locale) }
+        .getOrDefault(DateTimeFormatter.ofPattern("MMM d, HH:mm", Locale.US))
+    return formatter.format(Instant.ofEpochMilli(epochMs).atZone(zone))
 }

@@ -36,12 +36,21 @@ class PostcardComposer(
     private val rendererContentVersion: Int,
 ) {
 
-    /** One spec per route spot, in route order. */
+    /**
+     * One spec per route spot, in route order.
+     *
+     * [languageTag] selects the message line and the stamped place name. It affects ONLY those
+     * two text snapshots: seeds, region, route, condition, palette, layout and serial are
+     * language-independent, so the same song in two locales gets the same card with different
+     * words (design §6.1.2 — the snapshot freezes the words at generation time).
+     * Defaults to `zh`, which keeps every M0 golden spec byte-identical.
+     */
     fun compose(
         facts: SongFacts,
         plan: TripPlan,
         firstCreatedAtEpochMs: Long,
         zoneId: ZoneId,
+        languageTag: String = "zh",
     ): List<PostcardSpec> {
         val region = requireNotNull(PostcardContent.REGION_BY_ID[plan.regionId]) {
             "unknown region ${plan.regionId}"
@@ -62,6 +71,7 @@ class PostcardComposer(
             val cardKey = cardKeyOf(facts.stableSongKey, spotId, condition.key)
 
             val message = pickMessage(variantSeed, region.id, weather)
+            val messageText = PostcardContent.messageTextFor(message.id, languageTag) ?: message.text
             val stampSerial = stampSerialOf(cardKey)
             val figure = figureOf(weather, facts.bpm, weatherSeed)
 
@@ -93,13 +103,13 @@ class PostcardComposer(
                 stamp = PostcardStamp(
                     date = STAMP_DATE_FORMAT
                         .format(java.time.Instant.ofEpochMilli(firstCreatedAtEpochMs).atZone(zoneId)),
-                    spotName = "${region.nameZh}·${spot.nameZh}",
+                    spotName = "${region.nameFor(languageTag)}·${spot.nameFor(languageTag)}",
                     serial = stampSerial,
                 ),
                 distanceKm = plan.baseKm,
                 messageTemplateId = message.id,
                 messageArgs = linkedMapOf("distance" to distanceText),
-                messageTextSnapshot = message.text.replace("{distance}", distanceText),
+                messageTextSnapshot = messageText.replace("{distance}", distanceText),
                 songTitleSnapshot = facts.title,
                 artistSnapshot = facts.artist,
                 firstCreatedAtEpochMs = firstCreatedAtEpochMs,

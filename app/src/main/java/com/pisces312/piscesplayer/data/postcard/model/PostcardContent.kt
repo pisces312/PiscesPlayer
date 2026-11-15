@@ -83,6 +83,44 @@ object PostcardContent {
     val REGION_BY_ID: Map<String, PostcardRegionConfig> = REGIONS.associateBy { it.id }
 
     /**
+     * English display names, keyed by the same stable ids as [REGIONS] / spots. Keeping them
+     * here (rather than in Android resources) makes the content config the single source of
+     * truth for place names: the UI and the generator's frozen stamp read the same table, and
+     * a locale switch can never change an already stored card.
+     */
+    private val REGION_NAMES_EN = mapOf(
+        "east_gorge" to "Eastwind Gorge",
+        "white_field" to "White Night Plain",
+        "mist_valley" to "Mist Valley",
+        "old_town" to "Old Town",
+        "lamp_harbor" to "Longlight Harbour",
+        "wild_road" to "Wilderness Road",
+    )
+
+    private val SPOT_NAMES_EN = mapOf(
+        "east_gorge_01" to "Lighthouse Reef",
+        "east_gorge_02" to "Shell Beach",
+        "white_field_01" to "Aurora Slope",
+        "white_field_02" to "Frozen Lakeside",
+        "mist_valley_01" to "Pine Mist Path",
+        "mist_valley_02" to "Hollow Valley Bridge",
+        "old_town_01" to "Clocktower Lane",
+        "old_town_02" to "Cobbled Market",
+        "lamp_harbor_01" to "Neon Pier",
+        "lamp_harbor_02" to "Container Dock",
+        "wild_road_01" to "Wind-carved Rocks",
+        "wild_road_02" to "Abandoned Highway",
+    )
+
+    internal fun regionNameEn(regionId: String): String = REGION_NAMES_EN[regionId] ?: regionId
+
+    internal fun spotNameEn(spotId: String): String = SPOT_NAMES_EN[spotId] ?: spotId
+
+    /** True for `zh` (including zh-CN / zh-TW); everything else uses the English pool. */
+    fun isChineseLanguage(languageTag: String): Boolean =
+        languageTag.startsWith("zh", ignoreCase = true)
+
+    /**
      * Route length by song duration (design §5.2): `<120s` 1 card, `120..239s` 2, `>=240s` 3.
      * Boundaries: exactly 120000/240000 ms land in the upper bucket.
      */
@@ -131,6 +169,45 @@ object PostcardContent {
         template("msg_generic_1", null, null, "走了 {distance} 公里。鞋底沾了点远方的土。"),
     )
 
+    /**
+     * English mirror of [MESSAGE_TEMPLATES], keyed by the SAME template id. Selection still
+     * happens on the Chinese pool's ids, so a locale change cannot reshuffle which line a song
+     * gets — only the words change, and only for cards generated afterwards (design §6.1.2:
+     * `messageTextSnapshot` freezes the sentence into the spec).
+     *
+     * All lines are original; `{distance}` is the only variable and never contains markup.
+     */
+    val MESSAGE_TEMPLATES_EN: Map<String, String> = mapOf(
+        "msg_east_gorge_sunny" to "Walked {distance} km. The wind pushed the waves right up to my shoes, and light kept flickering on the rocks.",
+        "msg_east_gorge_rainy" to "Walked {distance} km. Rain tapped on the reef and the tide sounded closer than usual.",
+        "msg_east_gorge_snowy" to "Walked {distance} km. Snow fell on the coast, but the waves were still warm.",
+        "msg_white_field_sunny" to "Walked {distance} km. The snow plain was bright enough to squint at, with an aurora slowly unrolling far away.",
+        "msg_white_field_rainy" to "Walked {distance} km. Frozen rain tapped the lake; the whole sky went grey-blue.",
+        "msg_white_field_snowy" to "Walked {distance} km. The snow stopped long ago. Footprints are the only marks left on the plain.",
+        "msg_mist_valley_sunny" to "Walked {distance} km. The fog lifted halfway up the hill, and pine needles held tiny beads of light.",
+        "msg_mist_valley_rainy" to "Walked {distance} km. The fog was slow to clear; the air smelled of moss and wet stone.",
+        "msg_mist_valley_snowy" to "Walked {distance} km. The valley went so quiet that snow covered even the echo.",
+        "msg_old_town_sunny" to "Walked {distance} km. The clocktower's shadow reached exactly across the lane.",
+        "msg_old_town_rainy" to "Walked {distance} km. Cobbles kept the rain in the alley; I waited under the eaves a while.",
+        "msg_old_town_snowy" to "Walked {distance} km. Every roof turned white, but the bakery window was still lit.",
+        "msg_lamp_harbor_sunny" to "Walked {distance} km. Masts stood in rows and gulls argued on the containers.",
+        "msg_lamp_harbor_rainy" to "Walked {distance} km. The pier lamps blurred into orange rings in the rain.",
+        "msg_lamp_harbor_snowy" to "Walked {distance} km. Snow settled on the cranes; the harbour was quiet for once.",
+        "msg_wild_road_sunny" to "Walked {distance} km. Wind hurried the clouds along, and the rock layers kept pace with me.",
+        "msg_wild_road_rainy" to "Walked {distance} km. Rain drummed on rusted tin, with thunder somewhere out on the plain.",
+        "msg_wild_road_snowy" to "Walked {distance} km. The old highway disappeared under snow; only the milestones still showed.",
+        "msg_generic_0" to "Walked {distance} km. Nothing much happened along the way, and that was fine.",
+        "msg_generic_1" to "Walked {distance} km. There is a little dust from somewhere far away on my shoes.",
+    )
+
+    /** The message text for [templateId] in [languageTag]; null only for an unknown id. */
+    fun messageTextFor(templateId: String, languageTag: String): String? =
+        if (isChineseLanguage(languageTag)) {
+            MESSAGE_TEMPLATES.firstOrNull { it.id == templateId }?.text
+        } else {
+            MESSAGE_TEMPLATES_EN[templateId]
+        }
+
     private fun region(
         id: String,
         nameZh: String,
@@ -166,6 +243,11 @@ data class PostcardRegionConfig(
 ) {
     val farComponentId: String get() = "far_$id"
 
+    val nameEn: String get() = PostcardContent.regionNameEn(id)
+
+    fun nameFor(languageTag: String): String =
+        if (PostcardContent.isChineseLanguage(languageTag)) nameZh else nameEn
+
     fun spotById(spotId: String): PostcardSpotConfig? = spots.firstOrNull { it.id == spotId }
 }
 
@@ -178,7 +260,12 @@ data class PostcardSpotConfig(
     val nameZh: String,
     val midComponentId: String,
     val nearComponentId: String,
-)
+) {
+    val nameEn: String get() = PostcardContent.spotNameEn(id)
+
+    fun nameFor(languageTag: String): String =
+        if (PostcardContent.isChineseLanguage(languageTag)) nameZh else nameEn
+}
 
 /**
  * One message template line. [regionId] and [weather] null together means the generic pool.

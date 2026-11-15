@@ -317,8 +317,6 @@
     <string name="song_info_rhythm_game">Rhythm game</string>
     <string name="rhythm_setup_title">Rhythm game</string>
     <string name="music_games_title">Music games</string>
-    <string name="postcard_hub_title">Far letters</string>
-    <string name="postcard_hub_subtitle">No controls needed · listen as usual and collect postcards</string>
     <string name="music_games_rhythm_subtitle">4K falling notes · pick a song to play</string>
     <string name="music_games_quiz_title">Music Quiz</string>
     <string name="music_games_quiz_subtitle">Hear 10-second clips · choose from 5 titles</string>

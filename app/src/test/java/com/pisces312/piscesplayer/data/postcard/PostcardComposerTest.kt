@@ -275,4 +275,65 @@ class PostcardComposerTest {
         // renumbers existing cards, so v1 and v2 must agree here.
         assertEquals(v1.map { it.stampSerial }, v2.map { it.stampSerial })
     }
+
+    // ------------------------------------------------------------- localization
+
+    @Test
+    fun defaultLanguageIsChineseSoM0GoldenSpecsStayByteIdentical() {
+        val f = facts(genreKey = "folk")
+        val implicit = compose(f)
+        val explicitZh = composer.compose(f, planner.plan(f, noon, zone), noon, zone, "zh")
+        assertEquals(implicit, explicitZh)
+        assertTrue(implicit.first().messageTextSnapshot.any { it.code > 0x2FFF })
+    }
+
+    @Test
+    fun englishCardsChangeOnlyTheMessageAndPlaceNameSnapshots() {
+        val f = facts(key = "local:en_42", genreKey = "folk", durationMs = 300_000L, bpm = 90f)
+        val plan = planner.plan(f, noon, zone)
+        val zh = composer.compose(f, plan, noon, zone, "zh")
+        val en = composer.compose(f, plan, noon, zone, "en")
+
+        assertEquals(zh.size, en.size)
+        for ((chinese, english) in zh.zip(en)) {
+            // Identity and art decisions are language-independent.
+            assertEquals(chinese.copy(
+                messageTextSnapshot = "",
+                stamp = chinese.stamp.copy(spotName = ""),
+            ), english.copy(
+                messageTextSnapshot = "",
+                stamp = english.stamp.copy(spotName = ""),
+            ))
+            assertEquals(chinese.messageTemplateId, english.messageTemplateId)
+            assertEquals(chinese.messageArgs, english.messageArgs)
+            assertEquals(chinese.stamp.date, english.stamp.date)
+            assertEquals(chinese.stamp.serial, english.stamp.serial)
+            // Only the two text snapshots differ.
+            assertNotEquals(chinese.messageTextSnapshot, english.messageTextSnapshot)
+            assertNotEquals(chinese.stamp.spotName, english.stamp.spotName)
+            assertTrue("{distance}" !in english.messageTextSnapshot)
+            assertTrue("Walked" in english.messageTextSnapshot)
+            assertTrue(english.stamp.spotName.contains("Old Town"))
+        }
+    }
+
+    @Test
+    fun englishOutputIsDeterministicAndUnknownLanguageFallsBackToEnglishPool() {
+        val f = facts(key = "local:en_7", genreKey = "electronic")
+        val plan = planner.plan(f, noon, zone)
+        val a = composer.compose(f, plan, noon, zone, "en")
+        val b = composer.compose(f, plan, noon, zone, "en-US")
+        assertEquals(a, b)
+        assertTrue(a.all { "Walked" in it.messageTextSnapshot })
+        assertTrue(a.all { it.stamp.spotName.startsWith("Longlight") })
+    }
+
+    @Test
+    fun chineseVariantsAllUseChineseNames() {
+        val f = facts(key = "local:zh_1", genreKey = "rock", durationMs = 300_000L)
+        for (spec in compose(f)) {
+            // Every region name is CJK in the Chinese pool.
+            assertTrue(spec.stamp.spotName.any { it.code > 0x2FFF })
+        }
+    }
 }

@@ -20,15 +20,13 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.pisces312.piscesplayer.data.database.PostcardVisitEntity
+import com.pisces312.piscesplayer.R
 import com.pisces312.piscesplayer.data.postcard.PostcardTrackingBridge
 import com.pisces312.piscesplayer.data.postcard.model.PostcardContent
 import kotlinx.coroutines.launch
@@ -120,12 +118,12 @@ private fun DetailPlaceholder(onBack: () -> Unit) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("明信片") },
+                title = { Text(stringResource(R.string.postcard_detail_title)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
-                            contentDescription = "返回",
+                            contentDescription = stringResource(R.string.auth_cd_back),
                         )
                     }
                 },
@@ -134,7 +132,7 @@ private fun DetailPlaceholder(onBack: () -> Unit) {
     ) { padding ->
         Box(modifier = Modifier.fillMaxSize().padding(padding)) {
             Text(
-                text = "正在读取明信片…",
+                text = stringResource(R.string.postcard_loading),
                 modifier = Modifier.padding(20.dp),
                 style = MaterialTheme.typography.bodyMedium,
             )
@@ -142,9 +140,21 @@ private fun DetailPlaceholder(onBack: () -> Unit) {
     }
 }
 
-/** Region + spot display name from the versioned content config, defensive on unknown ids. */
+/**
+ * Region + spot display name from the versioned content config (the single source of truth for
+ * place names — also what the generator freezes into the stamp). Picks the Chinese or English
+ * name from the current locale; unknown ids fall back to the bare id so old data still renders.
+ */
 internal fun spotLabelOf(regionId: String, spotId: String): String {
     val region = PostcardContent.REGION_BY_ID[regionId] ?: return spotId
-    val spot = region.spotById(spotId) ?: return region.nameZh
-    return "${region.nameZh} · ${spot.nameZh}"
+    val spot = region.spotById(spotId)
+        ?: return if (isChineseLocale()) region.nameZh else region.nameEn
+    return if (isChineseLocale()) {
+        "${region.nameZh} · ${spot.nameZh}"
+    } else {
+        "${region.nameEn} · ${spot.nameEn}"
+    }
 }
+
+private fun isChineseLocale(): Boolean =
+    java.util.Locale.getDefault().language.equals("zh", ignoreCase = true)
