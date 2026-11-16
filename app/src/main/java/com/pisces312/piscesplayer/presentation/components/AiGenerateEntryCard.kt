@@ -34,9 +34,8 @@ import com.pisces312.piscesplayer.R
  * One primary capsule carries the whole flow:
  *
  * ```
- * AI Playlist
- * Short-press to listen · hold to describe
- *                    [wand Serendipity!]
+ * [wand] AI Playlist            [wand Serendipity!]
+ *        Short-press to listen · hold to describe
  * ```
  *
  * - Short press on the capsule: gather the moment's signals and generate straight away.
@@ -73,7 +72,10 @@ fun AiGenerateEntryCard(
                                     .padding(horizontal = 16.dp, vertical = 14.dp)
             ) {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                    Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                    ) {
                         Icon(
                                 imageVector = Icons.Rounded.AutoFixHigh,
                                 contentDescription = null,
@@ -101,12 +103,7 @@ fun AiGenerateEntryCard(
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
-                    }
-                    Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.End,
-                            verticalAlignment = Alignment.CenterVertically
-                    ) {
+                        Spacer(modifier = Modifier.width(12.dp))
                         ActionPill(
                                 text = stringResource(R.string.ai_serendipity_button),
                                 icon = Icons.Rounded.AutoFixHigh,
