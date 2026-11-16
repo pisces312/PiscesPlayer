@@ -155,6 +155,10 @@ class DailyMixStateHolder @Inject constructor(
 
     /**
      * Check if daily mix needs updating (new day) and update if so.
+     *
+     * Compares calendar dates, not the day-of-year counter: that counter wraps
+     * back to 1 on Jan 1st, so a same-day-of-year comparison would skip the
+     * refresh across the year boundary.
      */
     fun checkAndUpdateIfNeeded(favoriteSongIdsFlow: kotlinx.coroutines.flow.Flow<Set<String>>) {
         scope?.launch {
