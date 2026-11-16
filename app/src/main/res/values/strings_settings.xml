@@ -231,8 +231,8 @@
     <string name="setcat_test_setup_title">Test Setup Flow</string>
     <string name="setcat_test_setup_subtitle">Launch the onboarding setup screen for testing.</string>
     <string name="setcat_maintenance">Maintenance</string>
-    <string name="setcat_force_daily_mix_title">Force Daily Mix Regeneration</string>
-    <string name="setcat_force_daily_mix_subtitle">Re-creates the daily mix playlist immediately.</string>
+    <string name="setcat_force_daily_mix_title">Force Mix Regeneration</string>
+    <string name="setcat_force_daily_mix_subtitle">Re-creates the Daily Mix and Discover feeds immediately.</string>
     <string name="setcat_force_stats_title">Force Stats Regeneration</string>
     <string name="setcat_force_stats_subtitle">Clears cache and recalculates playback statistics.</string>
     <string name="setcat_force_palette_title">Force Album Palette Regeneration</string>
@@ -296,15 +296,15 @@
     <string name="rebuild">Rebuild</string>
     <string name="sync_indicator_rebuilding">Rebuilding database</string>
     <string name="toast_rebuilding_database">Rebuilding database…</string>
-    <string name="dialog_regenerate_daily_mix_title">Regenerate Daily Mix?</string>
-    <string name="dialog_regenerate_daily_mix_body">This will discard the current mix and generate a new one based on recent listening habits.</string>
-    <string name="toast_daily_mix_regeneration_started">Daily Mix regeneration started</string>
+    <string name="dialog_regenerate_daily_mix_title">Regenerate mixes?</string>
+    <string name="dialog_regenerate_daily_mix_body">This will discard the current Daily Mix and Discover feeds and generate new ones based on recent listening habits.</string>
+    <string name="toast_daily_mix_regeneration_started">Mix regeneration started</string>
     <string name="dialog_regenerate_stats_title">Regenerate Stats?</string>
     <string name="dialog_regenerate_stats_body">This will clear the statistics cache and force a recalculation from the database history.</string>
     <string name="toast_stats_regeneration_started">Stats regeneration started</string>
     <string name="backup_file_name_format">PiscesPlayer_Backup_%1$d.pxpl</string>
 
-    <string name="setcat_regenerate_daily_mix_action">Regenerate Daily Mix</string>
+    <string name="setcat_regenerate_daily_mix_action">Regenerate mixes</string>
     <string name="setcat_regenerate_stats_action">Regenerate Stats</string>
     <string name="setcat_force_palette_empty">No songs with album art were found.</string>
     <string name="setcat_force_palette_subtitle">Rebuild all cached palette variants for every album art, or pick a single one to refresh.</string>

@@ -118,7 +118,7 @@
     <string name="genre_quick_fill">Türü Hızlı Doldur</string>
     <string name="home_empty_placeholder_refresh">Yenile</string>
     <string name="home_empty_placeholder_title">Henüz gösterilecek veri yok</string>
-    <string name="home_your_mix_title">Sizin\nMix</string>
+    <string name="home_your_mix_title">Keşfet</string>
     <string name="mashup_cd_play_pause">Oynat/Duraklat</string>
     <string name="nav_error_genre_id_missing">Hata: Tür kimliği (Genre ID) eksik</string>
     <string name="no_genres_available">Mevcut tür yok.</string>

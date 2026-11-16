@@ -400,9 +400,9 @@ class DailyMixManager @Inject constructor(
     }
 
     /**
-     * Discovery-oriented home mix. Complements [generateDailyMix]: the two home
-     * sections used to rank songs with the same final score and overlapped heavily,
-     * so "Your Mix" now surfaces what the listener has NOT bonded with yet —
+     * Discovery-oriented home mix ("Discover"). Complements [generateDailyMix]: the
+     * two home sections used to rank songs with the same final score and overlap
+     * heavily, so this feed now surfaces what the listener has NOT bonded with yet —
      * low-affinity, recently added, rarely played tracks.
      *
      * - [excludeSongIds] receives the daily mix picks so the two sections never

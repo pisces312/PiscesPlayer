@@ -118,7 +118,7 @@
     <string name="genre_quick_fill">Быстро заполнить жанр</string>
     <string name="home_empty_placeholder_refresh">Обновить</string>
     <string name="home_empty_placeholder_title">Пока нет данных для отображения</string>
-    <string name="home_your_mix_title">Ваш\nмикс</string>
+    <string name="home_your_mix_title">Открытия</string>
     <string name="mashup_cd_play_pause">Воспроизведение/Пауза</string>
     <string name="nav_error_genre_id_missing">Ошибка: отсутствует ID жанра</string>
     <string name="no_genres_available">Жанры недоступны.</string>

@@ -118,7 +118,7 @@
     <string name="genre_quick_fill">Rellenar género rápido</string>
     <string name="home_empty_placeholder_refresh">Actualizar</string>
     <string name="home_empty_placeholder_title">Aun no hay datos para mostrar</string>
-    <string name="home_your_mix_title">Tu\nMix</string>
+    <string name="home_your_mix_title">Descubre</string>
     <string name="mashup_cd_play_pause">Reproducir/Pausa</string>
     <string name="nav_error_genre_id_missing">Error: falta el ID del género</string>
     <string name="no_genres_available">No hay géneros disponibles.</string>

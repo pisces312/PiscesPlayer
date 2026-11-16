@@ -91,7 +91,6 @@ fun DailyMixSection(
             .fillMaxWidth()
             .padding(horizontal = 16.dp)
     ) {
-        Spacer(Modifier.height(16.dp))
         DailyMixCard(
             songs = songs,
             playerViewModel = playerViewModel,
@@ -194,7 +193,7 @@ private fun DailyMixCard(
 ) {
     val headerSongs = remember(songs) { songs.take(3).toImmutableList() }
     val visibleSongs = remember(songs) { songs.take(4).toImmutableList() }
-    val cornerRadius = 30.dp
+    val cornerRadius = 26.dp
     Card(
         shape = AbsoluteSmoothCornerShape(
             cornerRadiusBR = cornerRadius,

@@ -118,7 +118,7 @@
     <string name="genre_quick_fill">Hurtigutfylling av sjanger</string>
     <string name="home_empty_placeholder_refresh">Oppdater</string>
     <string name="home_empty_placeholder_title">Ingen data å vise ennå</string>
-    <string name="home_your_mix_title">Din\nMix</string>
+    <string name="home_your_mix_title">Oppdagelser</string>
     <string name="mashup_cd_play_pause">Spill/Pause</string>
     <string name="nav_error_genre_id_missing">Feil: Sjanger-ID mangler</string>
     <string name="no_genres_available">Ingen sjangere tilgjengelig.</string>

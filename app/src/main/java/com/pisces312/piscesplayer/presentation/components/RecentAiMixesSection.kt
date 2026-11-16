@@ -2,7 +2,6 @@ package com.pisces312.piscesplayer.presentation.components
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -54,15 +53,14 @@ fun RecentAiMixesSection(
     modifier: Modifier = Modifier,
     previewCount: Int = HOME_AI_MIX_PREVIEW_COUNT
 ) {
-    Column(modifier = modifier) {
+    HomeSectionCard(modifier = modifier) {
         Text(
             text = stringResource(R.string.home_recent_ai_mixes_title),
             style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.SemiBold,
-            modifier = Modifier.padding(start = 22.dp, bottom = 10.dp)
+            fontWeight = FontWeight.SemiBold
         )
+        Spacer(Modifier.height(10.dp))
         LazyRow(
-            contentPadding = PaddingValues(horizontal = 16.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             items(mixes.take(previewCount), key = { it.id }) { mix ->
@@ -74,7 +72,7 @@ fun RecentAiMixesSection(
                 onClick = onShowAll,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(start = 16.dp, end = 16.dp, top = 12.dp)
+                    .padding(top = 12.dp)
             ) {
                 Text(stringResource(R.string.home_recent_ai_mixes_show_more, mixes.size))
             }

@@ -2,6 +2,7 @@ package com.pisces312.piscesplayer.presentation.components
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -40,12 +41,14 @@ fun HomeSectionHeader(
     iconContainerColor: Color = MaterialTheme.colorScheme.surfaceContainerHigh,
     iconContentColor: Color = MaterialTheme.colorScheme.onSurface,
     modifier: Modifier = Modifier,
+    /** Zero it when the header sits inside [HomeSectionCard]; the card already pads. */
+    contentPadding: PaddingValues = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
     action: (@Composable () -> Unit)? = null
 ) {
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
+            .padding(contentPadding),
         verticalAlignment = Alignment.CenterVertically
     ) {
         if (icon != null || iconPainter != null) {

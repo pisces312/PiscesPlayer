@@ -118,7 +118,7 @@
     <string name="genre_quick_fill">Isi Cepat Genre</string>
     <string name="home_empty_placeholder_refresh">Refresh</string>
     <string name="home_empty_placeholder_title">Belum ada data untuk ditampilkan</string>
-    <string name="home_your_mix_title">Your\nMix</string>
+    <string name="home_your_mix_title">Temukan</string>
     <string name="mashup_cd_play_pause">Putar/Jeda</string>
     <string name="nav_error_genre_id_missing">Kesalahan: ID Genre hilang</string>
     <string name="no_genres_available">Tidak ada genre yang tersedia.</string>

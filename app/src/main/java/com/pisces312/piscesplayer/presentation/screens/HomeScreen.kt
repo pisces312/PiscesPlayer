@@ -95,6 +95,7 @@ import com.pisces312.piscesplayer.presentation.navidrome.dashboard.NavidromeDash
 import com.pisces312.piscesplayer.presentation.components.DailyMixSection
 import com.pisces312.piscesplayer.presentation.components.SampleConfig
 import com.pisces312.piscesplayer.presentation.components.HomeGradientTopBar
+import com.pisces312.piscesplayer.presentation.components.HomeSectionCard
 import com.pisces312.piscesplayer.presentation.components.HomeSectionHeader
 import com.pisces312.piscesplayer.presentation.components.HomeOptionsBottomSheet
 import com.pisces312.piscesplayer.presentation.components.MiniPlayerHeight
@@ -202,15 +203,18 @@ fun HomeScreen(
         }
     }
 
-    // "Your Mix" is the discovery feed; "Daily Mix" is the familiar-songs card. The
-    // preview fallback must NOT borrow from the daily mix — that made the two home
-    // sections render the exact same songs.
+    // "Discover" (home_your_mix_title) is the discovery feed; "Daily Mix" is the
+    // familiar-songs card. The preview fallback must NOT borrow from the daily mix —
+    // that made the two home sections render the exact same songs.
     val usesFallbackHomeMix = remember(curatedYourMixSongs) {
         curatedYourMixSongs.isEmpty()
     }
     val yourMixSongs = remember(curatedYourMixSongs, homeMixPreviewSongs) {
         if (curatedYourMixSongs.isNotEmpty()) curatedYourMixSongs else homeMixPreviewSongs
     }
+    // Queue name follows the section title, so "now playing" surfaces read the
+    // localized name instead of the old hardcoded "Your Mix".
+    val yourMixQueueName = stringResource(R.string.home_your_mix_title)
     var homePlaceholderRefreshGeneration by rememberSaveable { mutableIntStateOf(0) }
     var hasHomeLoadingMinimumElapsed by rememberSaveable(homePlaceholderRefreshGeneration) {
         mutableStateOf(false)
@@ -336,7 +340,7 @@ fun HomeScreen(
                     bottom = paddingValuesParent.calculateBottomPadding()
                             + 38.dp + bottomPadding
                 ),
-                verticalArrangement = Arrangement.spacedBy(32.dp)
+                verticalArrangement = Arrangement.spacedBy(24.dp)
             ) {
                 // Always declared: the scroll position is restored by index, so an item that
                 // appears only after the library size is known would shift everything by one and
@@ -400,30 +404,8 @@ fun HomeScreen(
                     }
                 } else {
                     item(
-                        key = "your_mix_header",
-                        contentType = "your_mix_header"
-                    ) {
-                        YourMixHeader(
-                            isShuffleEnabled = isShuffleEnabled,
-                            onPlayShuffled = {
-                                if (usesFallbackHomeMix) {
-                                    playerViewModel.shuffleAllSongs(queueName = "Your Mix")
-                                } else {
-                                    playerViewModel.playSongsShuffled(
-                                        songsToPlay = yourMixSongs,
-                                        queueName = "Your Mix",
-                                        startAtZero = true,
-                                    )
-                                }
-                            }
-                        )
-                    }
-                }
-
-                if (yourMixSongs.isNotEmpty()) {
-                    item(
-                        key = "album_art_collage",
-                        contentType = "album_art_collage"
+                        key = "your_mix_card",
+                        contentType = "your_mix_card"
                     ) {
                         val basePattern = settingsUiState.collagePattern
                         val isAutoRotate = settingsUiState.collageAutoRotate
@@ -439,20 +421,37 @@ fun HomeScreen(
                             basePattern
                         }
 
-                        AlbumArtCollage(
-                            modifier = Modifier.fillMaxWidth(),
-                            songs = yourMixSongs,
-                            padding = 14.dp,
-                            height = 400.dp,
-                            pattern = activePattern,
-                            onSongClick = { song ->
-                                if (usesFallbackHomeMix) {
-                                    playerViewModel.showAndPlaySongFromLibrary(song, queueName = "Your Mix")
-                                } else {
-                                    playerViewModel.showAndPlaySong(song, yourMixSongs, "Your Mix")
+                        HomeSectionCard {
+                            YourMixHeader(
+                                isShuffleEnabled = isShuffleEnabled,
+                                onPlayShuffled = {
+                                    if (usesFallbackHomeMix) {
+                                        playerViewModel.shuffleAllSongs(queueName = yourMixQueueName)
+                                    } else {
+                                        playerViewModel.playSongsShuffled(
+                                            songsToPlay = yourMixSongs,
+                                            queueName = yourMixQueueName,
+                                            startAtZero = true,
+                                        )
+                                    }
                                 }
-                            }
-                        )
+                            )
+                            Spacer(Modifier.height(12.dp))
+                            AlbumArtCollage(
+                                modifier = Modifier.fillMaxWidth(),
+                                songs = yourMixSongs,
+                                padding = 0.dp,
+                                height = 400.dp,
+                                pattern = activePattern,
+                                onSongClick = { song ->
+                                    if (usesFallbackHomeMix) {
+                                        playerViewModel.showAndPlaySongFromLibrary(song, queueName = yourMixQueueName)
+                                    } else {
+                                        playerViewModel.showAndPlaySong(song, yourMixSongs, yourMixQueueName)
+                                    }
+                                }
+                            )
+                        }
                     }
                 }
 
@@ -836,10 +835,10 @@ fun YourMixHeader(
     val colors = MaterialTheme.colorScheme
 
     HomeSectionHeader(
-        // Translations keep an explicit line break from the old hero layout
-        // ("Your\nMix"); this header is single-line, so collapse it to a space.
-        title = stringResource(R.string.home_your_mix_title).replace('\n', ' '),
+        title = stringResource(R.string.home_your_mix_title),
         subtitle = stringResource(R.string.home_your_mix_subtitle),
+        // The card around this header already pads 16dp.
+        contentPadding = PaddingValues(0.dp),
         action = {
             FilledTonalIconButton(
                 onClick = onPlayShuffled,

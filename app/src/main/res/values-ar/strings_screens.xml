@@ -118,7 +118,7 @@
     <string name="genre_quick_fill">ملء سريع للنوع</string>
     <string name="home_empty_placeholder_refresh">تحديث</string>
     <string name="home_empty_placeholder_title">لا توجد بيانات لعرضها بعد</string>
-    <string name="home_your_mix_title">المزيج\nالخاص بك</string>
+    <string name="home_your_mix_title">اكتشافات</string>
     <string name="mashup_cd_play_pause">تشغيل/إيقاف مؤقت</string>
     <string name="nav_error_genre_id_missing">خطأ: معرف النوع (Genre ID) مفقود</string>
     <string name="no_genres_available">لا توجد أنواع متاحة.</string>

@@ -31,7 +31,7 @@
     <string name="presentation_batch_b_rename_playlist_dialog_title">重命名歌单</string>
     <string name="presentation_batch_b_new_name">新名称</string>
 
-    <string name="presentation_batch_b_daily_mix_title">每日推荐</string>
+    <string name="presentation_batch_b_daily_mix_title">每日精选</string>
 
     <string name="presentation_batch_b_quick_fill_select_songs">选择歌曲</string>
     <string name="presentation_batch_b_quick_fill_choose_genre">选择流派</string>

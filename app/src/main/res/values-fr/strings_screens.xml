@@ -118,7 +118,7 @@
     <string name="genre_quick_fill">Remplissage rapide du genre</string>
     <string name="home_empty_placeholder_refresh">Actualiser</string>
     <string name="home_empty_placeholder_title">Aucune donnée à afficher pour le moment</string>
-    <string name="home_your_mix_title">Votre\nMix</string>
+    <string name="home_your_mix_title">Découvertes</string>
     <string name="mashup_cd_play_pause">Lecture/Pause</string>
     <string name="nav_error_genre_id_missing">Erreur : ID de genre manquant</string>
     <string name="no_genres_available">Aucun genre disponible.</string>
