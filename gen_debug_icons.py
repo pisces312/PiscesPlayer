@@ -63,13 +63,16 @@ ICON_SIZES = {
 }
 
 # Five vertical stops (top -> bottom). Change this set to re-theme the debug icon.
+# NOTE: the release foreground is now lit from the bottom (the artwork was rotated
+# 180 deg so the white fish sits on top, 2026-11-16), so the amber ramp runs dark
+# -> light here. Keep this order in sync with `app/src/main/res` corner colours.
 COLORWAYS = {
     "amber": (
-        (255, 215, 122),
-        (245, 168, 60),
-        (224, 122, 31),
-        (154, 66, 18),
         (74, 31, 9),
+        (154, 66, 18),
+        (224, 122, 31),
+        (245, 168, 60),
+        (255, 215, 122),
     ),
     "violet": (
         (229, 219, 255),
