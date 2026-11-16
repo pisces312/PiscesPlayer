@@ -30,7 +30,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         AiCacheEntity::class,
         AiUsageEntity::class
     ],
-    version = 16,
+    version = DatabaseSchema.VERSION,
     exportSchema = true
 )
 abstract class PiscesPlayerDatabase : RoomDatabase() {

@@ -141,10 +141,28 @@ object AppModule {
     @Singleton
     @Provides
     fun providePiscesPlayerDatabase(@ApplicationContext context: Context): PiscesPlayerDatabase {
+        // Last line of defence against a newer schema on disk (see DatabaseVersionGuard).
+        //
+        // Application.onCreate refuses to bootstrap when this happens and MainActivity shows an
+        // explanation instead of the library, but not every database reader is reachable from
+        // those two places: the system rebinds MusicService when it restores the media session,
+        // and it re-broadcasts home-screen widget updates on every install. Both run before the
+        // user touches anything, both reach a DAO, and Room's `onDowngrade` exception cannot be
+        // caught there — it kills the process (observed on the main thread from MusicService).
+        //
+        // An in-memory database keeps those unwelcome callers alive and harmless: queries see an
+        // empty schema-consistent database, nothing reads or writes the file that belongs to the
+        // newer build, and the user's real data stays untouched for a newer build to open later.
+        if (com.pisces312.piscesplayer.data.database.DatabaseVersionGuard.isBlocked) {
+            return Room.inMemoryDatabaseBuilder(context.applicationContext, PiscesPlayerDatabase::class.java)
+                .addCallback(PiscesPlayerDatabase.createRuntimeArtifactsCallback())
+                .build()
+        }
+
         val builder = Room.databaseBuilder(
             context.applicationContext,
             PiscesPlayerDatabase::class.java,
-            "pixelplayer_database"
+            com.pisces312.piscesplayer.data.database.DatabaseSchema.FILE_NAME
         )
             .addCallback(PiscesPlayerDatabase.createRuntimeArtifactsCallback())
             .addMigrations(

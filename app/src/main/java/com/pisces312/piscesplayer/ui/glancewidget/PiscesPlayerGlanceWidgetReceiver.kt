@@ -1,8 +1,7 @@
 package com.pisces312.piscesplayer.ui.glancewidget
 
 import androidx.glance.appwidget.GlanceAppWidget
-import androidx.glance.appwidget.GlanceAppWidgetReceiver
 
-class PiscesPlayerGlanceWidgetReceiver : GlanceAppWidgetReceiver() {
+class PiscesPlayerGlanceWidgetReceiver : GuardedGlanceWidgetReceiver() {
     override val glanceAppWidget: GlanceAppWidget = PiscesPlayerGlanceWidget()
 }

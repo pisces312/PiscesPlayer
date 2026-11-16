@@ -199,4 +199,17 @@
     <string name="player_rating_cd_unrated">Rate this song</string>
     <string name="player_rating_tap_hint">tap to change</string>
     <string name="player_rating_collapse_cd">Collapse rating</string>
+
+    <!-- Database downgrade guard: shown instead of the app when the on-disk schema is newer
+         than this build (see DatabaseVersionGuard). -->
+    <string name="db_downgrade_title">Database from a newer version</string>
+    <string name="db_downgrade_body">Your library on this device was saved by a newer build of PiscesPlayer (database version %1$d). This build only understands version %2$d, so instead of crashing it stopped before opening your data.</string>
+    <string name="db_downgrade_hint">Nothing has been deleted. Install a build that uses database version %1$d or newer to keep your library as it is.</string>
+    <string name="db_downgrade_quit">Quit</string>
+    <string name="db_downgrade_reset">Reset database</string>
+    <string name="db_downgrade_confirm_title">Reset the database?</string>
+    <string name="db_downgrade_confirm_body">This permanently deletes your library, playlists, favorites, play history and settings on this device. The next launch starts from an empty database. This cannot be undone.</string>
+    <string name="db_downgrade_confirm_action">Delete everything</string>
+    <string name="db_downgrade_cancel">Cancel</string>
+    <string name="db_downgrade_reset_done">Database cleared. Reopen PiscesPlayer to start fresh.</string>
 </resources>

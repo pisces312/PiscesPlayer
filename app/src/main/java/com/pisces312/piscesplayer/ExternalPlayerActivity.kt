@@ -15,6 +15,9 @@ import androidx.compose.runtime.getValue
 import dagger.hilt.android.AndroidEntryPoint
 import com.pisces312.piscesplayer.presentation.viewmodel.PlayerViewModel
 import com.pisces312.piscesplayer.presentation.components.external.ExternalPlayerOverlay
+import com.pisces312.piscesplayer.presentation.components.DatabaseDowngradeScreen
+import com.pisces312.piscesplayer.presentation.components.clearBlockedDatabaseAndExit
+import com.pisces312.piscesplayer.data.database.DatabaseVersionGuard
 import com.pisces312.piscesplayer.ui.theme.PiscesPlayerTheme
 import android.content.Intent.EXTRA_STREAM
 import androidx.media3.common.util.UnstableApi
@@ -46,6 +49,23 @@ class ExternalPlayerActivity : ComponentActivity() {
             )
         )
         super.onCreate(savedInstanceState)
+
+        // Same guard as MainActivity: playing an external file goes through the library, so a
+        // newer schema on disk would make Room kill the process. Explain it instead.
+        val blockedDatabaseState = DatabaseVersionGuard.state?.takeIf { it.isBlocked }
+        if (blockedDatabaseState != null) {
+            setContent {
+                PiscesPlayerTheme(darkTheme = isSystemInDarkTheme()) {
+                    DatabaseDowngradeScreen(
+                        onDiskVersion = blockedDatabaseState.onDiskVersion,
+                        appVersion = blockedDatabaseState.appVersion,
+                        onQuit = { finishAffinity() },
+                        onResetDatabase = { clearBlockedDatabaseAndExit(this@ExternalPlayerActivity) }
+                    )
+                }
+            }
+            return
+        }
 
         setContent {
             val systemDarkTheme = isSystemInDarkTheme()

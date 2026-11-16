@@ -11,8 +11,10 @@ import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ProcessLifecycleOwner
 import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
+import androidx.work.WorkManager
 import coil.ImageLoader
 import coil.ImageLoaderFactory
+import com.pisces312.piscesplayer.data.database.DatabaseVersionGuard
 import com.pisces312.piscesplayer.data.diagnostics.AdvancedPerformanceDiagnosticsController
 import com.pisces312.piscesplayer.data.preferences.UserPreferencesRepository
 import com.pisces312.piscesplayer.data.playlist.M3uSyncCoordinator
@@ -115,6 +117,13 @@ class PiscesPlayerApplication : Application(), ImageLoaderFactory, Configuration
     override fun onCreate() {
         super.onCreate()
 
+        // Must run before anything opens the database. When the file on disk was written by a
+        // build with a newer schema, Room throws from `onDowngrade` on whichever thread touches
+        // the database first — at startup that is a background dispatcher, so the process dies
+        // right after the first frame and no `try/catch` anywhere can intervene. Deciding here,
+        // and simply not bootstrapping, is the only reliable way to survive it.
+        val databaseState = DatabaseVersionGuard.inspect(this)
+
         if (BuildConfig.BUILD_TYPE != "benchmark") {
             CrashHandler.install(this)
         }
@@ -135,6 +144,23 @@ class PiscesPlayerApplication : Application(), ImageLoaderFactory, Configuration
             )
             val notificationManager = getSystemService(NotificationManager::class.java)
             notificationManager.createNotificationChannel(channel)
+        }
+
+        if (databaseState.isBlocked) {
+            // Nothing below this point may run: every starter below (sync, M3U, playlist
+            // restore, diagnostics, update check) ends up querying the database, and the
+            // lifecycle observer does too. MainActivity renders DatabaseDowngradeScreen
+            // instead. Also drain queued WorkManager jobs so a rescheduled worker cannot be
+            // the one that touches the database first.
+            Timber.e(
+                "Database schema %d on disk is newer than this build's %d; skipping startup",
+                databaseState.onDiskVersion,
+                databaseState.appVersion
+            )
+            runCatching {
+                WorkManager.getInstance(this).cancelAllWork()
+            }.onFailure { Timber.w(it, "Could not cancel queued work during the schema guard") }
+            return
         }
 
         ProcessLifecycleOwner.get().lifecycle.addObserver(appLifecycleObserver)

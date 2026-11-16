@@ -16,6 +16,15 @@ class WidgetUpdateReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action != "com.pisces312.piscesplayer.ACTION_WIDGET_UPDATE_PLAYBACK_STATE") return
 
+        // Every update below reaches the library repositories through Glance; when the database
+        // on disk belongs to a newer build, opening it kills the process (see
+        // DatabaseVersionGuard and GuardedGlanceWidgetReceiver).
+        if (com.pisces312.piscesplayer.data.database.DatabaseVersionGuard.isBlocked) {
+            Timber.tag("WidgetUpdateReceiver")
+                .w("Skipping widget update: database schema is newer than this build")
+            return
+        }
+
         val pendingResult = goAsync()
         val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
         scope.launch {

@@ -117,6 +117,9 @@ import com.pisces312.piscesplayer.data.worker.SyncProgress
 import com.pisces312.piscesplayer.presentation.components.AllFilesAccessDialog
 import com.pisces312.piscesplayer.presentation.components.AppSidebarDrawer
 import com.pisces312.piscesplayer.presentation.components.CrashReportDialog
+import com.pisces312.piscesplayer.data.database.DatabaseVersionGuard
+import com.pisces312.piscesplayer.presentation.components.DatabaseDowngradeScreen
+import com.pisces312.piscesplayer.presentation.components.clearBlockedDatabaseAndExit
 import com.pisces312.piscesplayer.presentation.components.DismissUndoBar
 import com.pisces312.piscesplayer.presentation.components.DrawerDestination
 import com.pisces312.piscesplayer.presentation.components.MiniPlayerBottomSpacer
@@ -214,6 +217,25 @@ class MainActivity : ComponentActivity() {
             window.isNavigationBarContrastEnforced = false
         }
         super.onCreate(savedInstanceState)
+
+        // A database written by a newer build cannot be opened by this one, and Room throws from
+        // a background thread when anything touches it (see DatabaseVersionGuard). Render the
+        // explanation and return before any ViewModel, preference store or player is created.
+        val blockedDatabaseState = DatabaseVersionGuard.state?.takeIf { it.isBlocked }
+        if (blockedDatabaseState != null) {
+            splashScreen.setKeepOnScreenCondition { false }
+            setContent {
+                PiscesPlayerTheme(darkTheme = isSystemInDarkTheme()) {
+                    DatabaseDowngradeScreen(
+                        onDiskVersion = blockedDatabaseState.onDiskVersion,
+                        appVersion = blockedDatabaseState.appVersion,
+                        onQuit = { finishAffinity() },
+                        onResetDatabase = { clearBlockedDatabaseAndExit(this@MainActivity) }
+                    )
+                }
+            }
+            return
+        }
 
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {

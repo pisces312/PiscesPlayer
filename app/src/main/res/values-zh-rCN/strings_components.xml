@@ -199,4 +199,16 @@
     <string name="player_rating_cd_unrated">为歌曲评分</string>
     <string name="player_rating_tap_hint">点击可修改</string>
     <string name="player_rating_collapse_cd">收起评分</string>
+
+    <!-- 数据库降级保护：设备上的库由更新版本写入时，用它替代整个界面（见 DatabaseVersionGuard）。 -->
+    <string name="db_downgrade_title">数据库来自更新的版本</string>
+    <string name="db_downgrade_body">本机资料库由更新版本的 PiscesPlayer 写入（数据库版本 %1$d），当前版本只支持到 %2$d。为避免崩溃，已阻止打开这份数据。</string>
+    <string name="db_downgrade_hint">没有删除任何内容。安装使用数据库版本 %1$d 或更高版本的构建，即可保留现有资料库。</string>
+    <string name="db_downgrade_quit">退出</string>
+    <string name="db_downgrade_reset">重置数据库</string>
+    <string name="db_downgrade_confirm_title">确定重置数据库？</string>
+    <string name="db_downgrade_confirm_body">这会永久删除本机的资料库、歌单、收藏、播放记录与设置，下次启动将是一个空数据库，且无法撤销。</string>
+    <string name="db_downgrade_confirm_action">全部删除</string>
+    <string name="db_downgrade_cancel">取消</string>
+    <string name="db_downgrade_reset_done">数据库已清空，请重新打开 PiscesPlayer。</string>
 </resources>
