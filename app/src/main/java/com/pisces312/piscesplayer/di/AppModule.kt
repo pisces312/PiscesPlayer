@@ -42,6 +42,7 @@ import com.pisces312.piscesplayer.data.database.MIGRATION_12_13
 import com.pisces312.piscesplayer.data.database.MIGRATION_13_14
 import com.pisces312.piscesplayer.data.database.MIGRATION_14_15
 import com.pisces312.piscesplayer.data.database.MIGRATION_15_16
+import com.pisces312.piscesplayer.data.database.MIGRATION_17_16
 import com.pisces312.piscesplayer.data.database.MusicDao
 import com.pisces312.piscesplayer.data.database.OfflineTrackDao
 import com.pisces312.piscesplayer.data.database.PiscesPlayerDatabase
@@ -163,6 +164,9 @@ object AppModule {
                 MIGRATION_13_14,
                 MIGRATION_14_15,
                 MIGRATION_15_16,
+                // Downgrade path for devices that ran a `feature/sound-postcard` build
+                // (schema 17). No-op on purpose — see the migration's KDoc.
+                MIGRATION_17_16,
             )
             .setJournalMode(RoomDatabase.JournalMode.WRITE_AHEAD_LOGGING)
 

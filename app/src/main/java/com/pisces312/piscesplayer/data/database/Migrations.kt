@@ -783,3 +783,30 @@ val MIGRATION_15_16 = object : Migration(15, 16) {
         )
     }
 }
+
+/**
+ * v17 -> v16: **downgrade** guard for devices that already ran a `feature/sound-postcard`
+ * build.
+ *
+ * Why this exists: that branch bumped the schema to 17, and its only change is six new
+ * `postcard_*` tables — no existing table was touched. Installing a `main` build on a
+ * device that ran it leaves `user_version = 17` on disk while `main` declares 16, which
+ * Room treats as a downgrade and aborts with
+ * "A migration from 17 to 16 was required but not found" — a hard crash on the first
+ * database access, i.e. right after the home screen paints. Without this, rolling a device
+ * back from that branch bricks the app on launch.
+ *
+ * The migration is intentionally a no-op:
+ * - Room only validates the tables its own entity list declares, so the leftover
+ *   `postcard_*` tables are ignored and are harmless to leave in place;
+ * - keeping them preserves postcard data if the user later returns to that branch;
+ * - Room rewrites `room_master_table.identity_hash` after a successful migration, so the
+ *   v16 schema identity check passes.
+ *
+ * Do not "clean this up" by dropping the `postcard_*` tables: rolling back to `main` must
+ * never destroy data written by a newer schema. When the postcard work lands on `main`,
+ * its schema must move to a version above this one rather than reusing 17.
+ */
+val MIGRATION_17_16 = object : Migration(17, 16) {
+    override fun migrate(db: SupportSQLiteDatabase) = Unit
+}
