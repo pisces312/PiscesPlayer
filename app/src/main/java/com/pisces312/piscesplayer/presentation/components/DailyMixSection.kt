@@ -1,6 +1,5 @@
 package com.pisces312.piscesplayer.presentation.components
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -37,15 +36,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.ExperimentalTextApi
-import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.Font
-import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontVariation
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.media3.common.util.UnstableApi
@@ -236,8 +229,6 @@ private fun DailyMixCard(
 
 @Composable
 fun DailyMixHeader(thumbnails: ImmutableList<Song>) {
-    val titleStyle = rememberDailyMixTitleStyle()
-
     fun shapeConditionalModifier(index: Int): Modifier {
         if (index == 0){
             return Modifier.size(50.dp).padding(top = 4.dp)
@@ -252,29 +243,30 @@ fun DailyMixHeader(thumbnails: ImmutableList<Song>) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(80.dp)
-            .background(MaterialTheme.colorScheme.tertiaryContainer),
+            .height(80.dp),
         contentAlignment = Alignment.CenterStart
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(start = 22.dp, end = 16.dp),
+                .padding(horizontal = 16.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Absolute.SpaceBetween
         ) {
-            Column(modifier = Modifier.weight(1f)) {
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(1.dp)
+            ) {
                 Text(
                     text = stringResource(R.string.presentation_batch_g_daily_mix_heading),
-                    style = titleStyle,
-                    color = MaterialTheme.colorScheme.onTertiaryContainer
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface
                 )
                 Text(
-                    modifier = Modifier.padding(start = 1.dp),
                     text = stringResource(R.string.presentation_batch_g_daily_mix_based_on_history),
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.Normal,
-                    color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.8f)
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
             Row(
@@ -407,32 +399,5 @@ private fun ViewAllDailyMixButton(
                 modifier = Modifier.size(20.dp)
             )
         }
-    }
-}
-
-@OptIn(ExperimentalTextApi::class)
-@Composable
-private fun rememberDailyMixTitleStyle(): TextStyle {
-    return remember {
-        TextStyle(
-            fontFamily = FontFamily(
-                Font(
-                    resId = R.font.gflex_variable,
-                    variationSettings = FontVariation.Settings(
-                        FontVariation.weight(630),
-                        FontVariation.width(136f),
-                        FontVariation.grade(40),
-                        FontVariation.Setting("ROND", 100f),
-                        FontVariation.Setting("XTRA", 520f),
-                        FontVariation.Setting("YOPQ", 90f),
-                        FontVariation.Setting("YTLC", 505f)
-                    )
-                )
-            ),
-            fontWeight = FontWeight(630),
-            fontSize = 20.sp,
-            lineHeight = 22.sp,
-            letterSpacing = (-0.35).sp
-        )
     }
 }

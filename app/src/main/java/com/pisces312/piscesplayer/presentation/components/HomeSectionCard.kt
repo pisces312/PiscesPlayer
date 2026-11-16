@@ -13,11 +13,11 @@ import androidx.compose.ui.unit.dp
 import racra.compose.smooth_corner_rect_library.AbsoluteSmoothCornerShape
 
 /**
- * Shape token shared by the content cards on the home screen (Discover and
- * Daily Mix). The AI card uses the same radius for its combined generation CTA
- * and recent-mix shelf, but keeps a gradient on the CTA portion. Do not
- * hand-roll new radii for home sections — reuse this token so the sections stay
- * visually interchangeable.
+ * Shape token shared by every card on the home screen (AI Playlist, Discover
+ * and Daily Mix). All three use neutral title areas and matching typography;
+ * accent colors belong to actions and artwork rather than static headings.
+ * Do not hand-roll new radii for home sections — reuse this token so the
+ * sections stay visually interchangeable.
  */
 val HomeCardShape = AbsoluteSmoothCornerShape(
     cornerRadiusTL = 26.dp,

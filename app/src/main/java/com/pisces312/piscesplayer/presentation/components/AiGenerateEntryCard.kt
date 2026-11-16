@@ -1,6 +1,5 @@
 package com.pisces312.piscesplayer.presentation.components
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -23,7 +22,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -45,8 +43,8 @@ import com.pisces312.piscesplayer.R
  * - Long press on the capsule (or tapping the card body): open the shared sheet so the user can
  *   describe it themselves, with the same signals available as read-only chips.
  *
- * When recent mixes exist, they sit on a neutral shelf below the gradient without a second
- * section title. Generation and generation history therefore read as one home destination.
+ * When recent mixes exist, they sit below the generation controls without a second section
+ * title. Generation and generation history therefore read as one home destination.
  *
  * When no provider is configured the subtitle says so and the caller routes to AI settings
  * instead of opening the generation sheet.
@@ -59,46 +57,39 @@ fun AiGenerateEntryCard(
         /** Long press on the pill (and the card body): open the editable describe sheet. */
         onOpenDescribe: () -> Unit,
         modifier: Modifier = Modifier,
-        /** Recent mixes share this card, on a neutral shelf below the gradient CTA. */
+        /** Recent mixes share this card below the generation controls. */
         recentContent: (@Composable () -> Unit)? = null
 ) {
-    val onCard = MaterialTheme.colorScheme.onPrimary
-
-    Surface(onClick = onOpenDescribe, shape = HomeCardShape, modifier = modifier.fillMaxWidth()) {
+    Surface(
+            onClick = onOpenDescribe,
+            shape = HomeCardShape,
+            color = MaterialTheme.colorScheme.surfaceContainer,
+            modifier = modifier.fillMaxWidth()
+    ) {
         Column(modifier = Modifier.fillMaxWidth()) {
             Box(
                     modifier =
-                            Modifier.background(
-                                            Brush.horizontalGradient(
-                                                    listOf(
-                                                            MaterialTheme.colorScheme.primary,
-                                                            MaterialTheme.colorScheme.tertiary
-                                                    )
-                                            )
-                                    )
-                                    .heightIn(min = 100.dp)
-                                    .padding(horizontal = 18.dp, vertical = 14.dp)
+                            Modifier.heightIn(min = 100.dp)
+                                    .padding(horizontal = 16.dp, vertical = 14.dp)
             ) {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(
                                 imageVector = Icons.Rounded.AutoFixHigh,
                                 contentDescription = null,
-                                tint = onCard,
+                                tint = MaterialTheme.colorScheme.onSurface,
                                 modifier = Modifier.size(28.dp)
                         )
                         Spacer(modifier = Modifier.width(14.dp))
                         Column(
                                 modifier = Modifier.weight(1f),
-                                verticalArrangement = Arrangement.spacedBy(2.dp)
+                                verticalArrangement = Arrangement.spacedBy(1.dp)
                         ) {
                             Text(
                                     text = stringResource(R.string.ai_playlist_entry_title),
-                                    style =
-                                            MaterialTheme.typography.titleMedium.copy(
-                                                    fontWeight = FontWeight.Bold
-                                            ),
-                                    color = onCard
+                                    style = MaterialTheme.typography.titleLarge,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MaterialTheme.colorScheme.onSurface
                             )
                             Text(
                                     text =
@@ -107,7 +98,7 @@ fun AiGenerateEntryCard(
                                                     else R.string.ai_playlist_entry_unconfigured
                                             ),
                                     style = MaterialTheme.typography.bodySmall,
-                                    color = onCard.copy(alpha = 0.85f)
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     }
@@ -119,7 +110,7 @@ fun AiGenerateEntryCard(
                         ActionPill(
                                 text = stringResource(R.string.ai_serendipity_button),
                                 icon = Icons.Rounded.AutoFixHigh,
-                                color = onCard.copy(alpha = 0.24f),
+                                color = MaterialTheme.colorScheme.primary,
                                 onClick = onQuickGenerate,
                                 onLongClick = onOpenDescribe
                         )
@@ -128,10 +119,7 @@ fun AiGenerateEntryCard(
             }
             if (recentContent != null) {
                 Box(
-                        modifier =
-                                Modifier.fillMaxWidth()
-                                        .background(MaterialTheme.colorScheme.surfaceContainer)
-                                        .padding(16.dp)
+                        modifier = Modifier.fillMaxWidth().padding(16.dp)
                 ) { recentContent() }
             }
         }
