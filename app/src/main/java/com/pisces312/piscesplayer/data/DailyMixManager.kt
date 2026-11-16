@@ -14,7 +14,6 @@ import kotlinx.coroutines.sync.withLock
 import timber.log.Timber
 import java.io.File
 import java.util.Calendar
-import java.util.LinkedHashSet
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -400,9 +399,25 @@ class DailyMixManager @Inject constructor(
         return combined.take(limit.coerceAtMost(combined.size))
     }
 
+    /**
+     * Discovery-oriented home mix. Complements [generateDailyMix]: the two home
+     * sections used to rank songs with the same final score and overlapped heavily,
+     * so "Your Mix" now surfaces what the listener has NOT bonded with yet —
+     * low-affinity, recently added, rarely played tracks.
+     *
+     * - [excludeSongIds] receives the daily mix picks so the two sections never
+     *   repeat each other (the caller generates the daily mix first).
+     * - Candidates are ranked by [RankedSong.discoveryScore] instead of finalScore.
+     * - The daily-seeded shuffle runs before a stable sort: songs with genuinely
+     *   different scores keep their order, while equal-score candidates rotate
+     *   day to day (discoveryScore itself is noise-free, unlike finalScore).
+     * - Favorite songs stay in the candidate pool: a favorited but never-played
+     *   track is a rediscovery, not a repeat.
+     */
     suspend fun generateYourMix(
         allSongs: List<Song>,
         favoriteSongIds: Set<String> = emptySet(),
+        excludeSongIds: Set<String> = emptySet(),
         limit: Int = 60
     ): List<Song> {
         if (allSongs.isEmpty()) {
@@ -414,72 +429,34 @@ class DailyMixManager @Inject constructor(
         val random = java.util.Random(seed.toLong())
         val rankedSongs = computeRankedSongs(allSongs, favoriteSongIds, random)
 
-        if (rankedSongs.isEmpty()) {
-            return allSongs.shuffled(random).take(limit.coerceAtMost(allSongs.size))
-        }
+        val candidates = rankedSongs
+            .filterNot { excludeSongIds.contains(it.song.id) }
+            .shuffled(random)
+            .sortedByDescending { it.discoveryScore }
 
-        val favoriteSectionSize = (limit * 0.3).toInt().coerceAtLeast(5).coerceAtMost(limit)
-        val coreSectionSize = (limit * 0.45).toInt().coerceAtLeast(10).coerceAtMost(limit)
-        val discoverySectionSize = (limit - favoriteSectionSize - coreSectionSize).coerceAtLeast(0)
+        if (candidates.isEmpty()) {
+            return emptyList()
+        }
 
         val diversityState = DiversityState()
+        // No favorite allowance here: the extra artist/genre quota for favorites exists
+        // for the familiar-songs daily mix. In the discovery feed favorites compete by
+        // discovery score alone — they still influence scoring via preference.
+        val selected = pickWithDiversity(candidates, emptySet(), limit, diversityState)
+            .toMutableList()
 
-        val favoriteSection = pickWithDiversity(
-            rankedSongs.filter { favoriteSongIds.contains(it.song.id) },
-            favoriteSongIds,
-            favoriteSectionSize,
-            diversityState
-        )
-
-        val alreadySelectedIds = favoriteSection.map { it.id }.toMutableSet()
-
-        val coreSection = pickWithDiversity(
-            rankedSongs.filterNot { alreadySelectedIds.contains(it.song.id) },
-            favoriteSongIds,
-            coreSectionSize,
-            diversityState
-        )
-
-        alreadySelectedIds.addAll(coreSection.map { it.id })
-
-        val discoveryCandidates = rankedSongs
-            .filterNot { alreadySelectedIds.contains(it.song.id) }
-            .sortedWith(compareByDescending<RankedSong> { it.discoveryScore }.thenBy { it.song.id })
-
-        val discoverySection = pickWithDiversity(
-            discoveryCandidates,
-            favoriteSongIds,
-            discoverySectionSize,
-            diversityState
-        )
-
-        val orderedResult = LinkedHashSet<Song>()
-        orderedResult.addAll(favoriteSection)
-        orderedResult.addAll(coreSection)
-        orderedResult.addAll(discoverySection)
-
-        if (orderedResult.size < limit) {
-            val quotaFill = pickWithDiversity(
-                rankedSongs.filterNot { orderedResult.any { selected -> selected.id == it.song.id } },
-                favoriteSongIds,
-                limit - orderedResult.size,
-                diversityState
-            )
-            orderedResult.addAll(quotaFill)
-        }
-
-        if (orderedResult.size < limit) {
-            val resultIds = orderedResult.mapTo(HashSet()) { it.id }
+        if (selected.size < limit) {
+            val selectedIds = selected.mapTo(HashSet()) { it.id }
             val filler = allSongs
-                .filterNot { it.id in resultIds }
+                .filterNot { it.id in selectedIds || excludeSongIds.contains(it.id) }
                 .shuffled(random)
             for (song in filler) {
-                orderedResult.add(song)
-                if (orderedResult.size >= limit) break
+                selected.add(song)
+                if (selected.size >= limit) break
             }
         }
 
-        return orderedResult.take(limit.coerceAtMost(orderedResult.size))
+        return selected.take(limit.coerceAtMost(selected.size))
     }
 
     private fun pickWithDiversity(

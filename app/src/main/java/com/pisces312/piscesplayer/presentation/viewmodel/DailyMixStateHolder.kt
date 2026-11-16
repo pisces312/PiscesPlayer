@@ -19,7 +19,6 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.withContext
-import java.util.Calendar
 import javax.inject.Inject
 import javax.inject.Singleton
 import timber.log.Timber
@@ -95,7 +94,13 @@ class DailyMixStateHolder @Inject constructor(
                 _dailyMixSongs.value = mix.toImmutableList()
                 userPreferencesRepository.saveDailyMixSongIds(mix.map { it.id })
 
-                val yourMix = dailyMixManager.generateYourMix(allSongs, favoriteIds)
+                // Discovery feed: exclude the daily mix picks so the two home
+                // sections never repeat each other.
+                val yourMix = dailyMixManager.generateYourMix(
+                    allSongs = allSongs,
+                    favoriteSongIds = favoriteIds,
+                    excludeSongIds = mix.map { it.id }.toSet()
+                )
                 _yourMixSongs.value = yourMix.toImmutableList()
                 userPreferencesRepository.saveYourMixSongIds(yourMix.map { it.id })
             } else {
@@ -154,10 +159,10 @@ class DailyMixStateHolder @Inject constructor(
     fun checkAndUpdateIfNeeded(favoriteSongIdsFlow: kotlinx.coroutines.flow.Flow<Set<String>>) {
         scope?.launch {
             val lastUpdate = userPreferencesRepository.lastDailyMixUpdateFlow.first()
-            val today = Calendar.getInstance().get(Calendar.DAY_OF_YEAR)
-            val lastUpdateDay = Calendar.getInstance().apply {
-                timeInMillis = lastUpdate
-            }.get(Calendar.DAY_OF_YEAR)
+            val today = java.time.LocalDate.now()
+            val lastUpdateDay = java.time.Instant.ofEpochMilli(lastUpdate)
+                .atZone(java.time.ZoneId.systemDefault())
+                .toLocalDate()
 
             if (today != lastUpdateDay) {
                 updateDailyMix(favoriteSongIdsFlow)

@@ -202,15 +202,14 @@ fun HomeScreen(
         }
     }
 
-    val usesFallbackHomeMix = remember(curatedYourMixSongs, dailyMixSongs) {
-        curatedYourMixSongs.isEmpty() && dailyMixSongs.isEmpty()
+    // "Your Mix" is the discovery feed; "Daily Mix" is the familiar-songs card. The
+    // preview fallback must NOT borrow from the daily mix — that made the two home
+    // sections render the exact same songs.
+    val usesFallbackHomeMix = remember(curatedYourMixSongs) {
+        curatedYourMixSongs.isEmpty()
     }
-    val yourMixSongs = remember(curatedYourMixSongs, dailyMixSongs, homeMixPreviewSongs) {
-        when {
-            curatedYourMixSongs.isNotEmpty() -> curatedYourMixSongs
-            dailyMixSongs.isNotEmpty() -> dailyMixSongs
-            else -> homeMixPreviewSongs
-        }
+    val yourMixSongs = remember(curatedYourMixSongs, homeMixPreviewSongs) {
+        if (curatedYourMixSongs.isNotEmpty()) curatedYourMixSongs else homeMixPreviewSongs
     }
     var homePlaceholderRefreshGeneration by rememberSaveable { mutableIntStateOf(0) }
     var hasHomeLoadingMinimumElapsed by rememberSaveable(homePlaceholderRefreshGeneration) {
