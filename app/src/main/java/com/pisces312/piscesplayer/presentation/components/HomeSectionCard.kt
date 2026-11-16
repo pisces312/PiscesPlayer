@@ -13,11 +13,11 @@ import androidx.compose.ui.unit.dp
 import racra.compose.smooth_corner_rect_library.AbsoluteSmoothCornerShape
 
 /**
- * Shape token shared by every content card on the home screen (Recently
- * generated, Discover, Daily Mix). The AI entry card uses the same radius but
- * keeps its gradient: it is a call to action, deliberately set apart from the
- * content cards. Do not hand-roll new radii for home sections — reuse this
- * token so the sections stay visually interchangeable.
+ * Shape token shared by the content cards on the home screen (Discover and
+ * Daily Mix). The AI card uses the same radius for its combined generation CTA
+ * and recent-mix shelf, but keeps a gradient on the CTA portion. Do not
+ * hand-roll new radii for home sections — reuse this token so the sections stay
+ * visually interchangeable.
  */
 val HomeCardShape = AbsoluteSmoothCornerShape(
     cornerRadiusTL = 26.dp,

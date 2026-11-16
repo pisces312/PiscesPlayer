@@ -99,7 +99,7 @@ import com.pisces312.piscesplayer.presentation.components.HomeSectionCard
 import com.pisces312.piscesplayer.presentation.components.HomeSectionHeader
 import com.pisces312.piscesplayer.presentation.components.HomeOptionsBottomSheet
 import com.pisces312.piscesplayer.presentation.components.MiniPlayerHeight
-import com.pisces312.piscesplayer.presentation.components.RecentAiMixesSection
+import com.pisces312.piscesplayer.presentation.components.RecentAiMixesRow
 import com.pisces312.piscesplayer.presentation.components.SmartImage
 import com.pisces312.piscesplayer.presentation.components.resolveMainScreenBottomGradientHeight
 import com.pisces312.piscesplayer.presentation.model.SettingsCategory
@@ -345,6 +345,9 @@ fun HomeScreen(
                 // Always declared: the scroll position is restored by index, so an item that
                 // appears only after the library size is known would shift everything by one and
                 // push this card above the viewport.
+                // The AI CTA and its recent results form one card. Keeping the history inside
+                // the entry removes a redundant heading and leaves home with three clear parts:
+                // AI Playlist, Discover and Daily Mix.
                 item(
                     key = "ai_playlist_entry",
                     contentType = "ai_playlist_entry"
@@ -356,34 +359,31 @@ fun HomeScreen(
                         onQuickGenerate = { openAiEntry(true) },
                         // Long press / card tap: open the editable describe sheet with the same
                         // signal chips; the prompt may stay blank.
-                        onOpenDescribe = { openAiEntry(false) }
-                    )
-                }
-                if (recentAiMixes.isNotEmpty()) {
-                    item(
-                        key = "recent_ai_mixes_section",
-                        contentType = "recent_ai_mixes_section"
-                    ) {
-                        RecentAiMixesSection(
-                            mixes = recentAiMixes,
-                            onMixClick = { mix ->
-                                scope.launch {
-                                    val songs = playlistViewModel.songsOf(mix.id)
-                                    if (songs.isNotEmpty()) {
-                                        playerViewModel.playSongs(
-                                            songsToPlay = songs,
-                                            startSong = songs.first(),
-                                            queueName = mix.name,
-                                            playlistId = mix.id
-                                        )
+                        onOpenDescribe = { openAiEntry(false) },
+                        recentContent = if (recentAiMixes.isEmpty()) null else {
+                            {
+                                RecentAiMixesRow(
+                                    mixes = recentAiMixes,
+                                    onMixClick = { mix ->
+                                        scope.launch {
+                                            val songs = playlistViewModel.songsOf(mix.id)
+                                            if (songs.isNotEmpty()) {
+                                                playerViewModel.playSongs(
+                                                    songsToPlay = songs,
+                                                    startSong = songs.first(),
+                                                    queueName = mix.name,
+                                                    playlistId = mix.id
+                                                )
+                                            }
+                                        }
+                                    },
+                                    onShowAll = {
+                                        navController.navigateSafely(Screen.AiMixes.route)
                                     }
-                                }
-                            },
-                            onShowAll = {
-                                navController.navigateSafely(Screen.AiMixes.route)
+                                )
                             }
-                        )
-                    }
+                        }
+                    )
                 }
                 if (yourMixSongs.isEmpty()) {
                     item(

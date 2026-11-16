@@ -40,26 +40,20 @@ private val MIX_CARD_WIDTH = 152.dp
 private val MIX_CARD_HEIGHT = 72.dp
 
 /**
- * Home screen row of the most recent generated mixes.
+ * Horizontal shelf of recent generated mixes, embedded below the AI generation CTA.
  *
- * Tapping a card plays it from the first track; the mixes themselves are ordinary playlists
- * tagged with an AI source, so nothing needs to be persisted for this row to exist.
+ * It deliberately has no section heading or outer card: the AI entry supplies both the context
+ * and the shared home card container. Tapping a mix plays it from the first track.
  */
 @Composable
-fun RecentAiMixesSection(
+fun RecentAiMixesRow(
     mixes: List<Playlist>,
     onMixClick: (Playlist) -> Unit,
     onShowAll: () -> Unit,
     modifier: Modifier = Modifier,
     previewCount: Int = HOME_AI_MIX_PREVIEW_COUNT
 ) {
-    HomeSectionCard(modifier = modifier) {
-        Text(
-            text = stringResource(R.string.home_recent_ai_mixes_title),
-            style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.SemiBold
-        )
-        Spacer(Modifier.height(10.dp))
+    Column(modifier = modifier) {
         LazyRow(
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {

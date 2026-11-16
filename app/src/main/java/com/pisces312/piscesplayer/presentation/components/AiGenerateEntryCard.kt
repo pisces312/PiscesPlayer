@@ -29,7 +29,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.pisces312.piscesplayer.R
-import racra.compose.smooth_corner_rect_library.AbsoluteSmoothCornerShape
 
 /**
  * Home screen entry point for AI playlist generation.
@@ -46,6 +45,9 @@ import racra.compose.smooth_corner_rect_library.AbsoluteSmoothCornerShape
  * - Long press on the capsule (or tapping the card body): open the shared sheet so the user can
  *   describe it themselves, with the same signals available as read-only chips.
  *
+ * When recent mixes exist, they sit on a neutral shelf below the gradient without a second
+ * section title. Generation and generation history therefore read as one home destination.
+ *
  * When no provider is configured the subtitle says so and the caller routes to AI settings
  * instead of opening the generation sheet.
  */
@@ -56,81 +58,81 @@ fun AiGenerateEntryCard(
         onQuickGenerate: () -> Unit,
         /** Long press on the pill (and the card body): open the editable describe sheet. */
         onOpenDescribe: () -> Unit,
-        modifier: Modifier = Modifier
+        modifier: Modifier = Modifier,
+        /** Recent mixes share this card, on a neutral shelf below the gradient CTA. */
+        recentContent: (@Composable () -> Unit)? = null
 ) {
-    val shape =
-            AbsoluteSmoothCornerShape(
-                    cornerRadiusTL = 26.dp,
-                    smoothnessAsPercentTL = 60,
-                    cornerRadiusTR = 26.dp,
-                    smoothnessAsPercentTR = 60,
-                    cornerRadiusBL = 26.dp,
-                    smoothnessAsPercentBL = 60,
-                    cornerRadiusBR = 26.dp,
-                    smoothnessAsPercentBR = 60
-            )
-
     val onCard = MaterialTheme.colorScheme.onPrimary
 
-    Surface(onClick = onOpenDescribe, shape = shape, modifier = modifier.fillMaxWidth()) {
-        Box(
-                modifier =
-                        Modifier.background(
-                                        Brush.horizontalGradient(
-                                                listOf(
-                                                        MaterialTheme.colorScheme.primary,
-                                                        MaterialTheme.colorScheme.tertiary
-                                                )
-                                        )
-                                )
-                                .heightIn(min = 100.dp)
-                                .padding(horizontal = 18.dp, vertical = 14.dp)
-        ) {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                            imageVector = Icons.Rounded.AutoFixHigh,
-                            contentDescription = null,
-                            tint = onCard,
-                            modifier = Modifier.size(28.dp)
-                    )
-                    Spacer(modifier = Modifier.width(14.dp))
-                    Column(
-                            modifier = Modifier.weight(1f),
-                            verticalArrangement = Arrangement.spacedBy(2.dp)
-                    ) {
-                        Text(
-                                text = stringResource(R.string.ai_playlist_entry_title),
-                                style =
-                                        MaterialTheme.typography.titleMedium.copy(
-                                                fontWeight = FontWeight.Bold
-                                        ),
-                                color = onCard
+    Surface(onClick = onOpenDescribe, shape = HomeCardShape, modifier = modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.fillMaxWidth()) {
+            Box(
+                    modifier =
+                            Modifier.background(
+                                            Brush.horizontalGradient(
+                                                    listOf(
+                                                            MaterialTheme.colorScheme.primary,
+                                                            MaterialTheme.colorScheme.tertiary
+                                                    )
+                                            )
+                                    )
+                                    .heightIn(min = 100.dp)
+                                    .padding(horizontal = 18.dp, vertical = 14.dp)
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                                imageVector = Icons.Rounded.AutoFixHigh,
+                                contentDescription = null,
+                                tint = onCard,
+                                modifier = Modifier.size(28.dp)
                         )
-                        Text(
-                                text =
-                                        stringResource(
-                                                if (configured) R.string.ai_serendipity_button_hint
-                                                else R.string.ai_playlist_entry_unconfigured
-                                        ),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = onCard.copy(alpha = 0.85f)
+                        Spacer(modifier = Modifier.width(14.dp))
+                        Column(
+                                modifier = Modifier.weight(1f),
+                                verticalArrangement = Arrangement.spacedBy(2.dp)
+                        ) {
+                            Text(
+                                    text = stringResource(R.string.ai_playlist_entry_title),
+                                    style =
+                                            MaterialTheme.typography.titleMedium.copy(
+                                                    fontWeight = FontWeight.Bold
+                                            ),
+                                    color = onCard
+                            )
+                            Text(
+                                    text =
+                                            stringResource(
+                                                    if (configured) R.string.ai_serendipity_button_hint
+                                                    else R.string.ai_playlist_entry_unconfigured
+                                            ),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = onCard.copy(alpha = 0.85f)
+                            )
+                        }
+                    }
+                    Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.End,
+                            verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        ActionPill(
+                                text = stringResource(R.string.ai_serendipity_button),
+                                icon = Icons.Rounded.AutoFixHigh,
+                                color = onCard.copy(alpha = 0.24f),
+                                onClick = onQuickGenerate,
+                                onLongClick = onOpenDescribe
                         )
                     }
                 }
-                Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.End,
-                        verticalAlignment = Alignment.CenterVertically
-                ) {
-                    ActionPill(
-                            text = stringResource(R.string.ai_serendipity_button),
-                            icon = Icons.Rounded.AutoFixHigh,
-                            color = onCard.copy(alpha = 0.24f),
-                            onClick = onQuickGenerate,
-                            onLongClick = onOpenDescribe
-                    )
-                }
+            }
+            if (recentContent != null) {
+                Box(
+                        modifier =
+                                Modifier.fillMaxWidth()
+                                        .background(MaterialTheme.colorScheme.surfaceContainer)
+                                        .padding(16.dp)
+                ) { recentContent() }
             }
         }
     }
