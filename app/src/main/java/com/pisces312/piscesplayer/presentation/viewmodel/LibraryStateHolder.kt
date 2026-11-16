@@ -82,7 +82,7 @@ class LibraryStateHolder @Inject constructor(
      * When hideLocalMedia is true, forces ONLINE filter (excludes source_type = 0).
      */
     @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
-    private val effectiveStorageFilter: kotlinx.coroutines.flow.Flow<com.pisces312.piscesplayer.data.model.StorageFilter> =
+    val effectiveStorageFilter: kotlinx.coroutines.flow.Flow<com.pisces312.piscesplayer.data.model.StorageFilter> =
         kotlinx.coroutines.flow.combine(
             _currentStorageFilter,
             userPreferencesRepository.hideLocalMediaFlow

@@ -678,6 +678,14 @@ class PlayerViewModel @Inject constructor(
         return resolvePlaybackQueueFromSortedIds(sortedIds)
     }
 
+    /**
+     * Full snapshot of favorite songs for multi-selection "select all" on the Liked tab.
+     * Mirrors the list the user sees (effective storage filter, same as favoritesPagingFlow).
+     */
+    suspend fun getFavoriteSongsForSelection(): List<Song> {
+        return musicRepository.getFavoriteSongsOnce(currentEffectiveLibraryStorageFilter())
+    }
+
     private fun currentEffectiveLibraryStorageFilter(
         state: PlayerUiState = playerUiState.value,
     ): com.pisces312.piscesplayer.data.model.StorageFilter {

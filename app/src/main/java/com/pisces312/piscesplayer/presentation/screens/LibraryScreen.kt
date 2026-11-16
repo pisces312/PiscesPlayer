@@ -993,10 +993,11 @@ fun LibraryScreen(
                                     .toImmutableList()
                             }
                         }
-                        val allSongsLazyPagingItems = libraryViewModel.songsPagingFlow.collectAsLazyPagingItems()
-                        val albumsLazyPagingItems = libraryViewModel.albumsPagingFlow.collectAsLazyPagingItems()
-                        val artistsLazyPagingItems = libraryViewModel.artistsPagingFlow.collectAsLazyPagingItems()
-                        val favoritePagingItems = libraryViewModel.favoritesPagingFlow.collectAsLazyPagingItems()
+                        // Paging flows are collected inside each pager page branch below, so only
+                        // the composed pages (current ± beyondViewportPageCount) subscribe. All four
+                        // flows are cachedIn(viewModelScope), so re-entering a page replays cached
+                        // PagingData without re-querying.
+                        val effectiveStorageFilter by libraryViewModel.effectiveStorageFilter.collectAsStateWithLifecycle()
                         val isLibraryLoading by libraryViewModel.isLoadingLibrary.collectAsStateWithLifecycle()
                         val hasCurrentSong by remember(playerViewModel) {
                             playerViewModel.stablePlayerState
@@ -1118,7 +1119,9 @@ fun LibraryScreen(
                                         onSelectAll = {
                                             when (tabTitles.getOrNull(currentTabIndex)?.toLibraryTabIdOrNull()) {
                                                 LibraryTabId.LIKED -> {
-                                                    multiSelectionState.selectAll(favoritePagingItems.itemSnapshotList.items)
+                                                    scope.launch {
+                                                        multiSelectionState.selectAll(playerViewModel.getFavoriteSongsForSelection())
+                                                    }
                                                 }
                                                 LibraryTabId.FOLDERS -> {
                                                     val songsToSelect =
@@ -1352,6 +1355,7 @@ fun LibraryScreen(
                                 )
                                 when (tabTitles.getOrNull(tabIndex)?.toLibraryTabIdOrNull()) {
                                     LibraryTabId.SONGS -> {
+                                        val allSongsLazyPagingItems = libraryViewModel.songsPagingFlow.collectAsLazyPagingItems()
                                         LibrarySongsTab(
                                             songs = allSongsLazyPagingItems,
                                             isLoading = isLibraryLoading,
@@ -1371,12 +1375,13 @@ fun LibraryScreen(
                                             onLocateCurrentSongVisibilityChanged = { songsShowLocateButton = it },
                                             onRegisterLocateCurrentSongAction = { songsLocateAction = it },
                                             sortOption = playerUiState.currentSongSortOption,
-                                            storageFilter = playerUiState.currentStorageFilter,
+                                            storageFilter = effectiveStorageFilter,
                                             hasCurrentSong = hasCurrentSong
                                         )
                                     }
                                     LibraryTabId.ALBUMS -> {
                                         val isLoading = playerUiState.isLoadingLibraryCategories
+                                        val albumsLazyPagingItems = libraryViewModel.albumsPagingFlow.collectAsLazyPagingItems()
 
                                         val stableOnAlbumClick: (Long) -> Unit = remember(navController) {
                                             { albumId: Long ->
@@ -1401,12 +1406,13 @@ fun LibraryScreen(
                                             onAlbumLongPress = onAlbumLongPress,
                                             onAlbumSelectionToggle = onAlbumSelectionToggle,
                                             getSelectionIndex = getAlbumSelectionIndex,
-                                            storageFilter = playerUiState.currentStorageFilter
+                                            storageFilter = effectiveStorageFilter
                                         )
                                     }
 
                                     LibraryTabId.ARTISTS -> {
                                         val isLoading = playerUiState.isLoadingLibraryCategories
+                                        val artistsLazyPagingItems = libraryViewModel.artistsPagingFlow.collectAsLazyPagingItems()
 
                                         LibraryArtistsTab(
                                             artists = artistsLazyPagingItems,
@@ -1427,7 +1433,7 @@ fun LibraryScreen(
                                             onArtistLongPress = onArtistLongPress,
                                             onArtistSelectionToggle = onArtistSelectionToggle,
                                             getSelectionIndex = getArtistSelectionIndex,
-                                            storageFilter = playerUiState.currentStorageFilter
+                                            storageFilter = effectiveStorageFilter
                                         )
                                     }
 
@@ -1470,6 +1476,7 @@ fun LibraryScreen(
                                     }
 
                                     LibraryTabId.LIKED -> {
+                                        val favoritePagingItems = libraryViewModel.favoritesPagingFlow.collectAsLazyPagingItems()
                                         LibraryFavoritesTab(
                                             favoriteSongs = favoritePagingItems,
                                             playerViewModel = playerViewModel,
@@ -1488,7 +1495,7 @@ fun LibraryScreen(
                                             sortOption = playerUiState.currentFavoriteSortOption,
                                             onLocateCurrentSongVisibilityChanged = { likedShowLocateButton = it },
                                             onRegisterLocateCurrentSongAction = { likedLocateAction = it },
-                                            storageFilter = playerUiState.currentStorageFilter,
+                                            storageFilter = effectiveStorageFilter,
                                             hasCurrentSong = hasCurrentSong
                                         )
                                     }
