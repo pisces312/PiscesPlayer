@@ -153,7 +153,23 @@ object AppModule {
         // An in-memory database keeps those unwelcome callers alive and harmless: queries see an
         // empty schema-consistent database, nothing reads or writes the file that belongs to the
         // newer build, and the user's real data stays untouched for a newer build to open later.
-        if (com.pisces312.piscesplayer.data.database.DatabaseVersionGuard.isBlocked) {
+        val guard = com.pisces312.piscesplayer.data.database.DatabaseVersionGuard
+        if (guard.isBlocked) {
+            if (guard.isTemporarySession) {
+                // The user asked to browse before giving up the data: open the rewritten copy
+                // (see DatabaseDowngradeSnapshot). It agrees with this build's schema version and
+                // identity hash, so Room opens it normally and the existing backup export can
+                // read every module; the original file is never touched and this copy is thrown
+                // away when the session ends.
+                return Room.databaseBuilder(
+                    context.applicationContext,
+                    PiscesPlayerDatabase::class.java,
+                    com.pisces312.piscesplayer.data.database.DatabaseDowngradeSnapshot.FILE_NAME
+                )
+                    .addCallback(PiscesPlayerDatabase.createRuntimeArtifactsCallback())
+                    .setJournalMode(RoomDatabase.JournalMode.WRITE_AHEAD_LOGGING)
+                    .build()
+            }
             return Room.inMemoryDatabaseBuilder(context.applicationContext, PiscesPlayerDatabase::class.java)
                 .addCallback(PiscesPlayerDatabase.createRuntimeArtifactsCallback())
                 .build()

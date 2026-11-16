@@ -51,6 +51,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.CircularWavyProgressIndicator
 import androidx.compose.material3.DrawerValue
@@ -119,7 +120,11 @@ import com.pisces312.piscesplayer.presentation.components.AppSidebarDrawer
 import com.pisces312.piscesplayer.presentation.components.CrashReportDialog
 import com.pisces312.piscesplayer.data.database.DatabaseVersionGuard
 import com.pisces312.piscesplayer.presentation.components.DatabaseDowngradeScreen
+import com.pisces312.piscesplayer.presentation.components.TemporarySessionBanner
 import com.pisces312.piscesplayer.presentation.components.clearBlockedDatabaseAndExit
+import com.pisces312.piscesplayer.presentation.components.enterTemporarySession
+import com.pisces312.piscesplayer.presentation.components.exitTemporarySessionAndRestart
+import com.pisces312.piscesplayer.presentation.components.restartForTemporarySession
 import com.pisces312.piscesplayer.presentation.components.DismissUndoBar
 import com.pisces312.piscesplayer.presentation.components.DrawerDestination
 import com.pisces312.piscesplayer.presentation.components.MiniPlayerBottomSpacer
@@ -221,14 +226,35 @@ class MainActivity : ComponentActivity() {
         // A database written by a newer build cannot be opened by this one, and Room throws from
         // a background thread when anything touches it (see DatabaseVersionGuard). Render the
         // explanation and return before any ViewModel, preference store or player is created.
+        // A temporary session is the one exception: the user asked to read a copy of that
+        // database so they can export a backup first, and it opens normally.
         val blockedDatabaseState = DatabaseVersionGuard.state?.takeIf { it.isBlocked }
-        if (blockedDatabaseState != null) {
+        if (blockedDatabaseState != null && !DatabaseVersionGuard.isTemporarySession) {
             splashScreen.setKeepOnScreenCondition { false }
             setContent {
                 PiscesPlayerTheme(darkTheme = isSystemInDarkTheme()) {
+                    var preparingTemporarySession by remember { mutableStateOf(false) }
                     DatabaseDowngradeScreen(
                         onDiskVersion = blockedDatabaseState.onDiskVersion,
                         appVersion = blockedDatabaseState.appVersion,
+                        isPreparingTemporarySession = preparingTemporarySession,
+                        onBrowseTemporarily = {
+                            if (!preparingTemporarySession) {
+                                preparingTemporarySession = true
+                                lifecycleScope.launch {
+                                    if (enterTemporarySession(this@MainActivity)) {
+                                        restartForTemporarySession(this@MainActivity)
+                                    } else {
+                                        preparingTemporarySession = false
+                                        Toast.makeText(
+                                            this@MainActivity,
+                                            R.string.db_downgrade_browse_failed,
+                                            Toast.LENGTH_LONG
+                                        ).show()
+                                    }
+                                }
+                            }
+                        },
                         onQuit = { finishAffinity() },
                         onResetDatabase = { clearBlockedDatabaseAndExit(this@MainActivity) }
                     )
@@ -236,6 +262,7 @@ class MainActivity : ComponentActivity() {
             }
             return
         }
+        val isTemporarySession = DatabaseVersionGuard.isTemporarySession
 
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
@@ -402,7 +429,7 @@ class MainActivity : ComponentActivity() {
                                 SetupScreen(onSetupComplete = {
                                 })
                             } else {
-                                MainAppContent(playerViewModel, mainViewModel)
+                                MainAppContent(playerViewModel, mainViewModel, isTemporarySession)
                             }
                         }
                     }
@@ -555,7 +582,8 @@ class MainActivity : ComponentActivity() {
     @Composable
     private fun MainAppContent(
         playerViewModel: PlayerViewModel,
-        mainViewModel: MainViewModel
+        mainViewModel: MainViewModel,
+        isTemporarySession: Boolean
     ) = traceSection("MainActivity.MainAppContent") {
         val navController = rememberNavController()
         val isSyncing by mainViewModel.isSyncing.collectAsStateWithLifecycle()
@@ -644,7 +672,7 @@ class MainActivity : ComponentActivity() {
         }
 
         Box(modifier = Modifier.fillMaxSize()) {
-            MainUI(playerViewModel, navController)
+            MainUI(playerViewModel, navController, isTemporarySession)
 
             if (canShowLoadingIndicator) {
                 LoadingOverlay(syncProgress)
@@ -656,7 +684,8 @@ class MainActivity : ComponentActivity() {
     @Composable
     private fun MainUI(
         playerViewModel: PlayerViewModel,
-        navController: NavHostController
+        navController: NavHostController,
+        isTemporarySession: Boolean
     ) = traceSection("MainActivity.MainUI") {
         val commonNavItems = remember {
             persistentListOf(
@@ -1069,6 +1098,24 @@ class MainActivity : ComponentActivity() {
                                 onUndo = onUndoDismissPlaylist,
                                 onClose = onCloseDismissUndoBar,
                                 durationMillis = dismissUndoBarSlice.durationMillis
+                            )
+                        }
+
+                        if (isTemporarySession) {
+                            // Sits above the mini player so it covers neither the navigation bar
+                            // (where Settings lives) nor the now-playing controls.
+                            TemporarySessionBanner(
+                                onExit = {
+                                    exitTemporarySessionAndRestart(this@MainActivity)
+                                },
+                                modifier = Modifier
+                                    .align(Alignment.BottomCenter)
+                                    .padding(
+                                        bottom = innerPadding.calculateBottomPadding() +
+                                            MiniPlayerHeight +
+                                            MiniPlayerBottomSpacer +
+                                            8.dp
+                                    )
                             )
                         }
                     }

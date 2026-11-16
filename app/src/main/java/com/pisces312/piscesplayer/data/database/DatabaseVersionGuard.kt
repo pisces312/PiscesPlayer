@@ -25,6 +25,9 @@ import timber.log.Timber
  */
 object DatabaseVersionGuard {
 
+    private const val PREFS_NAME = "db_downgrade_guard"
+    private const val KEY_TEMPORARY_SESSION = "temporary_session"
+
     /**
      * @param onDiskVersion schema version found in the database file, or 0 when the file does
      *   not exist yet or could not be read.
@@ -40,13 +43,26 @@ object DatabaseVersionGuard {
 
     val isBlocked: Boolean get() = state?.isBlocked == true
 
+    /**
+     * True while the user browses a copy of the newer database instead of being blocked
+     * (see [DatabaseDowngradeSnapshot]). Resolved once per process in [inspect] — the flag alone
+     * is not enough, the copy has to be present too, otherwise Room would be pointed at a file
+     * this build cannot open and the process would die again.
+     */
+    @Volatile
+    var isTemporarySession = false
+        private set
+
     /** Reads the on-disk version once and caches the verdict for the process lifetime. */
     fun inspect(context: Context): State {
         val appVersion = DatabaseSchema.VERSION
         val onDiskVersion = readOnDiskVersion(context)
         val result = State(onDiskVersion = onDiskVersion, appVersion = appVersion)
         state = result
-        if (result.isBlocked) {
+        isTemporarySession = result.isBlocked &&
+            temporarySessionRequested(context) &&
+            DatabaseDowngradeSnapshot.isReady(context)
+        if (result.isBlocked && !isTemporarySession) {
             Timber.e(
                 "Database schema %d on disk is newer than this build's %d",
                 onDiskVersion,
@@ -57,11 +73,39 @@ object DatabaseVersionGuard {
     }
 
     /**
+     * Arms the temporary session. The caller must restart the process afterwards: Hilt has
+     * already handed out a database instance (an in-memory one) and [state] is cached.
+     */
+    fun requestTemporarySession(context: Context) {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .putBoolean(KEY_TEMPORARY_SESSION, true)
+            .commit()
+    }
+
+    fun clearTemporarySession(context: Context) {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .putBoolean(KEY_TEMPORARY_SESSION, false)
+            .commit()
+        isTemporarySession = false
+    }
+
+    fun temporarySessionRequested(context: Context): Boolean =
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .getBoolean(KEY_TEMPORARY_SESSION, false)
+
+    /**
      * Deletes the database (plus its `-wal` / `-shm` siblings) so the next launch recreates an
      * empty one. Only reachable from the downgrade screen, after an explicit confirmation.
      */
-    fun deleteDatabase(context: Context): Boolean =
-        context.deleteDatabase(DatabaseSchema.FILE_NAME)
+    fun deleteDatabase(context: Context): Boolean {
+        // The temporary copy belongs to the same decision; leaving it behind would make the
+        // next launch believe a session is still available.
+        DatabaseDowngradeSnapshot.deleteSnapshot(context)
+        clearTemporarySession(context)
+        return context.deleteDatabase(DatabaseSchema.FILE_NAME)
+    }
 
     private fun readOnDiskVersion(context: Context): Int {
         val file = context.getDatabasePath(DatabaseSchema.FILE_NAME)

@@ -212,4 +212,15 @@
     <string name="db_downgrade_confirm_action">Delete everything</string>
     <string name="db_downgrade_cancel">Cancel</string>
     <string name="db_downgrade_reset_done">Database cleared. Reopen PiscesPlayer to start fresh.</string>
+    <string name="db_downgrade_browse_body">You can still open a temporary copy of your library to export a backup before deciding what to do. Nothing you change there is saved.</string>
+    <string name="db_downgrade_browse">Browse and export a backup</string>
+    <string name="db_downgrade_browse_preparing">Preparing…</string>
+    <string name="db_downgrade_browse_starting">Temporary copy ready — open PiscesPlayer again to continue.</string>
+    <string name="db_downgrade_browse_failed">Could not open a copy of your library. Your data has not been touched.</string>
+    <string name="db_temp_session_badge">Temporary copy</string>
+    <string name="db_temp_session_title">Temporary copy</string>
+    <string name="db_temp_session_banner">PiscesPlayer is browsing a copy of your library so you can export a backup. Open Settings → Backup &amp; Restore and save one now — anything you change here is discarded when you exit.</string>
+    <string name="db_temp_session_keep">Keep browsing</string>
+    <string name="db_temp_session_exit">Exit and discard</string>
+    <string name="db_temp_session_ended">Temporary session closed. Your original data is unchanged.</string>
 </resources>

@@ -211,4 +211,15 @@
     <string name="db_downgrade_confirm_action">全部删除</string>
     <string name="db_downgrade_cancel">取消</string>
     <string name="db_downgrade_reset_done">数据库已清空，请重新打开 PiscesPlayer。</string>
+    <string name="db_downgrade_browse_body">你仍可以打开资料库的临时副本，先导出一份备份再决定怎么处理。在副本里做的改动不会保存。</string>
+    <string name="db_downgrade_browse">打开临时副本并导出备份</string>
+    <string name="db_downgrade_browse_preparing">正在准备…</string>
+    <string name="db_downgrade_browse_starting">临时副本已就绪，请重新打开 PiscesPlayer 继续。</string>
+    <string name="db_downgrade_browse_failed">无法打开资料库副本，你的数据未受影响。</string>
+    <string name="db_temp_session_badge">临时副本</string>
+    <string name="db_temp_session_title">临时副本</string>
+    <string name="db_temp_session_banner">PiscesPlayer 正在浏览资料库的副本，方便你先导出一份备份。请打开「设置 → 备份与恢复」立即导出——在副本里做的改动会在退出时丢弃。</string>
+    <string name="db_temp_session_keep">继续浏览</string>
+    <string name="db_temp_session_exit">退出并丢弃</string>
+    <string name="db_temp_session_ended">已退出临时会话，原始数据未改动。</string>
 </resources>

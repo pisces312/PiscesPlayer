@@ -12,11 +12,18 @@ import androidx.activity.viewModels
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.launch
 import dagger.hilt.android.AndroidEntryPoint
 import com.pisces312.piscesplayer.presentation.viewmodel.PlayerViewModel
 import com.pisces312.piscesplayer.presentation.components.external.ExternalPlayerOverlay
 import com.pisces312.piscesplayer.presentation.components.DatabaseDowngradeScreen
 import com.pisces312.piscesplayer.presentation.components.clearBlockedDatabaseAndExit
+import com.pisces312.piscesplayer.presentation.components.enterTemporarySession
+import com.pisces312.piscesplayer.presentation.components.restartForTemporarySession
 import com.pisces312.piscesplayer.data.database.DatabaseVersionGuard
 import com.pisces312.piscesplayer.ui.theme.PiscesPlayerTheme
 import android.content.Intent.EXTRA_STREAM
@@ -53,12 +60,31 @@ class ExternalPlayerActivity : ComponentActivity() {
         // Same guard as MainActivity: playing an external file goes through the library, so a
         // newer schema on disk would make Room kill the process. Explain it instead.
         val blockedDatabaseState = DatabaseVersionGuard.state?.takeIf { it.isBlocked }
-        if (blockedDatabaseState != null) {
+        if (blockedDatabaseState != null && !DatabaseVersionGuard.isTemporarySession) {
             setContent {
                 PiscesPlayerTheme(darkTheme = isSystemInDarkTheme()) {
+                    var preparingTemporarySession by remember { mutableStateOf(false) }
                     DatabaseDowngradeScreen(
                         onDiskVersion = blockedDatabaseState.onDiskVersion,
                         appVersion = blockedDatabaseState.appVersion,
+                        isPreparingTemporarySession = preparingTemporarySession,
+                        onBrowseTemporarily = {
+                            if (!preparingTemporarySession) {
+                                preparingTemporarySession = true
+                                lifecycleScope.launch {
+                                    if (enterTemporarySession(this@ExternalPlayerActivity)) {
+                                        restartForTemporarySession(this@ExternalPlayerActivity)
+                                    } else {
+                                        preparingTemporarySession = false
+                                        android.widget.Toast.makeText(
+                                            this@ExternalPlayerActivity,
+                                            R.string.db_downgrade_browse_failed,
+                                            android.widget.Toast.LENGTH_LONG
+                                        ).show()
+                                    }
+                                }
+                            }
+                        },
                         onQuit = { finishAffinity() },
                         onResetDatabase = { clearBlockedDatabaseAndExit(this@ExternalPlayerActivity) }
                     )

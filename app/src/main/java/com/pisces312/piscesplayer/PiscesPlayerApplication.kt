@@ -146,7 +146,7 @@ class PiscesPlayerApplication : Application(), ImageLoaderFactory, Configuration
             notificationManager.createNotificationChannel(channel)
         }
 
-        if (databaseState.isBlocked) {
+        if (databaseState.isBlocked && !DatabaseVersionGuard.isTemporarySession) {
             // Nothing below this point may run: every starter below (sync, M3U, playlist
             // restore, diagnostics, update check) ends up querying the database, and the
             // lifecycle observer does too. MainActivity renders DatabaseDowngradeScreen
@@ -161,6 +161,16 @@ class PiscesPlayerApplication : Application(), ImageLoaderFactory, Configuration
                 WorkManager.getInstance(this).cancelAllWork()
             }.onFailure { Timber.w(it, "Could not cancel queued work during the schema guard") }
             return
+        }
+
+        if (DatabaseVersionGuard.isTemporarySession) {
+            // Bootstrap normally: the database this process sees is a rewritten copy, so sync,
+            // playback and every read-only path behave as usual. Anything they write lands in
+            // the copy and disappears with it — the user was told so on the way in.
+            Timber.w(
+                "Temporary session on a copy of the newer database (schema %d); changes are discarded",
+                databaseState.onDiskVersion
+            )
         }
 
         ProcessLifecycleOwner.get().lifecycle.addObserver(appLifecycleObserver)
