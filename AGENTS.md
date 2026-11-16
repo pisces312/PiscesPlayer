@@ -15,10 +15,11 @@ PiscesPlayer — Android 音乐播放器（100% Kotlin，Jetpack Compose + Mater
 - **AI 子系统**：本 fork 自研 `data/ai/`（OpenAI 兼容协议，用户自配 endpoint / key / 模型，请求日志只存本地）与 OSS 基线的本地 NLP（`data/playlist/nlp/PlaylistIntentEngine`）**并存**；没有内置云端 AI 凭据或默认上报。
 - **版权红线**：从**专有 `PixelPlayerHQ/PixelPlayer`** 或其派生实现搬功能时，**原创算法/解析层**（parser、matcher、分桶、日志收集等）可搬，提交注明 `Original work, GPL-3.0-or-later`；**glue 层**（ViewModel / DI / DAO / 设置项 / UI 接线 / strings）必须在本仓库重写；**禁止整文件复制专有 PixelPlayer 的实现**。
 
-## 设计文档（私有仓库）
+## 设计文档（私有仓库 `D:\workspace`）
 
-PiscesPlayer 的设计、调研、计划、评审类文档统一存放在**另一个私有仓库**
-`D:\workspace\design\piscesplayer`（本地 git 仓库，不入本仓库），文档在其 `docs/` 子目录下
+PiscesPlayer 的设计、调研、计划、评审类文档统一存放在**私有仓库 `D:\workspace`**
+（Codeup `my-projects`，远端 `git@codeup.aliyun.com:63f6dbf33c5c77b98fc5cfd1/my-projects.git`）
+的 `design/piscesplayer` 子目录，不入本仓库；文档在其 `docs/` 子目录下
 （沿用原目录结构，文档间互引 `docs/xxx.md` 依旧有效）。2026-11-17 起本仓库 `docs/` 只保留
 运维/发布类文档（`RELEASE.md`、`REBRAND.md`、`FDROID.md`、`DEPENDENCY_LICENSES.md`、
 `RELEASE_ARCHIVE.md`、`releases/`、`images/`）；存量设计文档已整体迁往该仓库。
