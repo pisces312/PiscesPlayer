@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+      main/values-zh-rCN 重新定义过 app_name，会让 debug 的 "PiscesPlayer [D]" 在中文系统上失效
+      （中文设备上 debug 与正式版看起来一模一样）。这里补一份中文 override 保持一致。
+    -->
+    <string name="app_name">PiscesPlayer [D]</string>
+</resources>
