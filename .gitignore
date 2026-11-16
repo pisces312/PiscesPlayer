@@ -49,3 +49,6 @@ graphify-out/
 .tmp-test/
 __pycache__/
 tools/rhythm-lab/.venv/
+
+# 图标设计过程稿（本地迭代图，~30MB，不入库）
+docs/icon-redesign/
