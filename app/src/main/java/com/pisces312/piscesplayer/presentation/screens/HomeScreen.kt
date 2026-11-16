@@ -89,7 +89,6 @@ import com.pisces312.piscesplayer.data.preferences.CollagePattern
 import com.pisces312.piscesplayer.presentation.components.AiGenerateEntryCard
 import com.pisces312.piscesplayer.presentation.components.AiMixSheet
 import com.pisces312.piscesplayer.presentation.components.AlbumArtCollage
-import com.pisces312.piscesplayer.presentation.components.BetaInfoBottomSheet
 import com.pisces312.piscesplayer.presentation.jellyfin.dashboard.JellyfinDashboardViewModel
 import com.pisces312.piscesplayer.presentation.navidrome.dashboard.NavidromeDashboardViewModel
 import com.pisces312.piscesplayer.presentation.components.DailyMixSection
@@ -251,10 +250,8 @@ fun HomeScreen(
     val bottomGradientHeight = resolveMainScreenBottomGradientHeight(navBarCompactMode)
 
     var showOptionsBottomSheet by remember { mutableStateOf(false) }
-    var showBetaInfoBottomSheet by remember { mutableStateOf(false) }
     var showStreamingProviderSheet by remember { mutableStateOf(false) }
     val sheetState = rememberModalSheetState()
-    val betaSheetState = rememberModalSheetState()
     // Content (signals, multi-line prompt, length chips, generate button) is taller than the
     // half-screen anchor, so expand straight away instead of clipping the action button.
     val aiMixSheetState = rememberModalSheetState(skipPartiallyExpanded = true)
@@ -315,16 +312,11 @@ fun HomeScreen(
                     onNavigationIconClick = {
                         navController.navigateSafely(Screen.Settings.route)
                     },
-                    onBetaClick = {
-                        showBetaInfoBottomSheet = true
-                    },
                     onStreamingClick = {
                           showStreamingProviderSheet = true
                     },
                     onGamesClick = {
                         navController.navigateSafely(Screen.MusicGameHub.route)
-                    },
-                    onMenuClick = {
                     },
                     isScrolled = isScrolledPastThreshold.value
                 )
@@ -533,14 +525,6 @@ fun HomeScreen(
                     }
                 }
             )
-        }
-    }
-    if (showBetaInfoBottomSheet) {
-        ModalBottomSheet(
-            onDismissRequest = { showBetaInfoBottomSheet = false },
-            sheetState = betaSheetState,
-        ) {
-            BetaInfoBottomSheet()
         }
     }
     val aiPlaylistPreviewState by playlistViewModel.aiPlaylistPreviewState.collectAsStateWithLifecycle()

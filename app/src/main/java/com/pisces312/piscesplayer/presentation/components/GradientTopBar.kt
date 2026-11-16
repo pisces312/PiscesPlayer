@@ -3,21 +3,14 @@ package com.pisces312.piscesplayer.presentation.components
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledIconButton
-import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
-import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.rounded.Cloud
 import androidx.compose.material.icons.rounded.SportsEsports
 import androidx.compose.material3.IconButton
@@ -36,13 +29,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.pisces312.piscesplayer.BuildConfig
 import com.pisces312.piscesplayer.R
 import com.pisces312.piscesplayer.ui.theme.RoundedSans
 import com.pisces312.piscesplayer.ui.theme.PiscesPlayerStatusBarStyle
-import androidx.compose.ui.res.stringResource
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -101,10 +93,8 @@ fun GenreGradientTopBar(
 @Composable
 fun HomeGradientTopBar(
     onNavigationIconClick: () -> Unit,
-    onBetaClick: () -> Unit,
     onStreamingClick: () -> Unit,
     onGamesClick: () -> Unit,
-    onMenuClick: () -> Unit = {},
     isScrolled: Boolean = false,
 ) {
     val surfaceContainerHigh = MaterialTheme.colorScheme.surfaceContainerHighest
@@ -119,34 +109,15 @@ fun HomeGradientTopBar(
 
     TopAppBar(
         modifier = Modifier.background(surfaceContainerHigh.copy(alpha = animatedAlpha)),
-        title = { },
-        navigationIcon = {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.padding(start = 12.dp)
-            ) {
-                FilledTonalButton(
-                    modifier = Modifier.padding(start = 4.dp),
-                    shape = CircleShape,
-                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp),
-                    colors = ButtonDefaults.filledTonalButtonColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                        contentColor = MaterialTheme.colorScheme.onSurface
-                    ),
-                    onClick = onBetaClick
-                ) {
-                    Text(
-                        text = when (BuildConfig.BUILD_TYPE) {
-                            "release" -> stringResource(R.string.presentation_batch_g_topbar_build_stable)
-                            "debug" -> stringResource(R.string.presentation_batch_g_topbar_build_debug)
-                            else -> BuildConfig.BUILD_TYPE.replaceFirstChar { it.uppercase() }
-                        },
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                }
-            }
+        title = {
+            Text(
+                text = stringResource(R.string.about_app_name),
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.SemiBold,
+                fontFamily = RoundedSans,
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.padding(start = 16.dp)
+            )
         },
         actions = {
             Row(

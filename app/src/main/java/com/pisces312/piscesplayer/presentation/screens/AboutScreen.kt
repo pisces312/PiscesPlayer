@@ -101,6 +101,8 @@ import coil.compose.AsyncImagePainter
 import coil.request.ImageRequest
 import coil.size.Size
 import com.pisces312.piscesplayer.R
+import com.pisces312.piscesplayer.presentation.components.AboutBuildNotice
+import com.pisces312.piscesplayer.presentation.components.AboutFeedbackSection
 import com.pisces312.piscesplayer.presentation.components.CollapsibleCommonTopBar
 import com.pisces312.piscesplayer.presentation.components.MiniPlayerHeight
 import com.pisces312.piscesplayer.presentation.components.SmartImage
@@ -425,6 +427,23 @@ fun AboutScreen(
                 )
             }
 
+            item(key = "feedback_title") {
+                AboutSectionHeader(
+                    title = stringResource(R.string.about_feedback_title),
+                    subtitle = stringResource(R.string.about_feedback_subtitle),
+                    modifier = Modifier.padding(top = 24.dp),
+                )
+            }
+
+            item(key = "feedback_section") {
+                AboutFeedbackSection(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp)
+                        .padding(top = 10.dp),
+                )
+            }
+
             item(key = "maintainer_title") {
                 AboutSectionHeader(
                     title = stringResource(R.string.about_maintainer_title),
@@ -558,6 +577,8 @@ private fun AboutHeroCard(
                         modifier = Modifier.padding(top = 6.dp),
                     )
                 }
+
+                AboutBuildNotice(modifier = Modifier.padding(top = 6.dp))
 
                 Spacer(modifier = Modifier.height(12.dp))
 

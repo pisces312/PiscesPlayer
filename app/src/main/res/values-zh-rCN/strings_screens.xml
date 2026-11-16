@@ -197,6 +197,8 @@
     <string name="about_maintainer_subtitle">本分支、上游开源版与原版作者。</string>
     <string name="about_project_title">项目信息</string>
     <string name="about_project_subtitle">源代码、发布版本以及社区入口。</string>
+    <string name="about_feedback_title">反馈与社区</string>
+    <string name="about_feedback_subtitle">报告问题、提交建议前请先阅读反馈指南。</string>
     <string name="about_link_source_title">源代码</string>
     <string name="about_link_source_subtitle">github.com/pisces312/PiscesPlayer</string>
     <string name="about_link_upstream_title">上游项目</string>
