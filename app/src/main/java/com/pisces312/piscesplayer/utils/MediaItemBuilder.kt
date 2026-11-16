@@ -115,6 +115,13 @@ object MediaItemBuilder {
      */
     const val EXTRA_QUICK_PLAY = "com.pisces312.piscesplayer.QUICK_PLAY"
 
+    /**
+     * Marks a queue item as appended by Similar Radio (docs/similar-radio-design.md). Lets the
+     * queue UI badge radio-suggested songs. Session-scoped: the ids are also tracked in memory
+     * by SimilarRadioSession, which is what the UI actually reads.
+     */
+    const val EXTRA_SIMILAR_RADIO = "com.pisces312.piscesplayer.SIMILAR_RADIO"
+
     fun build(song: Song): MediaItem {
         return MediaItem.Builder()
             .setMediaId(song.id)

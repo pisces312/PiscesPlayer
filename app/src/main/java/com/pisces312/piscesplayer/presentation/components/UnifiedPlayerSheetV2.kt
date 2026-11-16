@@ -695,6 +695,11 @@ fun UnifiedPlayerSheetV2(
                                 aiQaPreset = AiSongQaPreset.TRANSLATE_TITLE_AND_LYRICS
                                 showAiQaSheet = true
                             },
+                            onOpenAiSettings = {
+                                navController.navigateSafely(
+                                    Screen.SettingsCategory.createRoute(SettingsCategory.AI.id)
+                                )
+                            },
                             onOpenRhythmGame = {
                                 val songId = infrequentPlayerState.currentSong?.id
                                 if (songId != null) {

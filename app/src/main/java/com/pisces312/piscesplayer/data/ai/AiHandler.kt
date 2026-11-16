@@ -373,6 +373,9 @@ constructor(
         /** Multi-turn Q&A opened from the player. */
         const val PROMPT_TYPE_SONG_QA = "song_qa"
 
+        /** Similar Radio batches: anchor changes every batch, so never cached. */
+        const val PROMPT_TYPE_SIMILAR_RADIO = "similar_radio"
+
         private const val CACHE_TTL_MILLIS = AiPreferencesRepository.CACHE_TTL_MILLIS
     }
 }

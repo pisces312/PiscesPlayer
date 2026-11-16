@@ -38,6 +38,7 @@ import com.google.common.util.concurrent.ListenableFuture
 import com.pisces312.piscesplayer.R
 import com.pisces312.piscesplayer.presentation.navigation.Screen
 import com.pisces312.piscesplayer.data.EotStateHolder
+import com.pisces312.piscesplayer.data.ai.SimilarRadioSession
 import com.pisces312.piscesplayer.data.database.AlbumArtThemeDao
 import com.pisces312.piscesplayer.data.media.CoverArtUpdate
 import com.pisces312.piscesplayer.data.media.CustomMetadataChanges
@@ -275,6 +276,7 @@ class PlayerViewModel @Inject constructor(
     private val dualPlayerEngine: DualPlayerEngine,
     private val appShortcutManager: AppShortcutManager,
     private val listeningStatsTracker: ListeningStatsTracker,
+    private val similarRadioSession: SimilarRadioSession,
     private val dailyMixStateHolder: DailyMixStateHolder,
     private val lyricsStateHolder: LyricsStateHolder,
     private val queueStateHolder: QueueStateHolder,
@@ -1258,6 +1260,16 @@ class PlayerViewModel @Inject constructor(
     }
         .distinctUntilChanged()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), FullPlayerSlice())
+
+    // Similar Radio (docs/similar-radio-design.md): the singleton session lives in the service
+    // layer; here we only forward its state to the player UI and the toggle action.
+    val similarRadioState: StateFlow<SimilarRadioSession.State> = similarRadioSession.state
+    val similarRadioSuggestedIds: StateFlow<Set<String>> = similarRadioSession.suggestedIds
+    val isSimilarRadioConfigured: StateFlow<Boolean> = similarRadioSession.isConfigured
+
+    fun toggleSimilarRadio() {
+        similarRadioSession.toggle()
+    }
 
     data class PlayerConfigSlice(
         val navBarCornerRadius: Int = 32,
@@ -3130,6 +3142,9 @@ class PlayerViewModel @Inject constructor(
             dualPlayerEngine.cancelNext()
             val enginePlayer = dualPlayerEngine.masterPlayer
 
+            // Similar radio stays running across a manual queue swap, but its dedup context
+            // belongs to the old queue (docs/similar-radio-design.md §3.1).
+            similarRadioSession.onQueueReplaced()
             enginePlayer.setMediaItem(startMediaItem, 0L)
             enginePlayer.prepare()
             enginePlayer.play()

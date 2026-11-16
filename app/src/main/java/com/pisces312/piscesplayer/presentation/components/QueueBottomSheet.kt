@@ -42,6 +42,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -279,6 +280,10 @@ fun QueueBottomSheet(
 
     val settingsState by settingsViewModel.uiState.collectAsStateWithLifecycle()
     val showQueueHistory = settingsState.showQueueHistory
+
+    // Similar Radio markers (docs/similar-radio-design.md §5.2)
+    val similarRadioState by viewModel.similarRadioState.collectAsStateWithLifecycle()
+    val similarRadioSuggestedIds by viewModel.similarRadioSuggestedIds.collectAsStateWithLifecycle()
 
     val queueIndexOffset = if (showQueueHistory || currentSongIndex < 0) 0 else currentSongIndex
 
@@ -827,6 +832,7 @@ fun QueueBottomSheet(
                                         swipeStateIdentity = itemStableKey,
                                         onDismissSong = { onRemoveSong(song.id) },
                                         isFromPlaylist = true,
+                                        isRadioSuggested = song.id in similarRadioSuggestedIds,
                                         onMoreOptionsClick = { onSongInfoClick(song) },
                                         dragHandle = {
                                             IconButton(
@@ -861,6 +867,29 @@ fun QueueBottomSheet(
                                             }
                                         }
                                     )
+                                }
+                            }
+
+                            if (similarRadioState.enabled && similarRadioState.generating) {
+                                item(key = "similar_radio_generating", contentType = "queue_status") {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(horizontal = 24.dp, vertical = 12.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        CircularProgressIndicator(
+                                            modifier = Modifier.size(18.dp),
+                                            strokeWidth = 2.dp,
+                                            color = MaterialTheme.colorScheme.primary
+                                        )
+                                        Spacer(modifier = Modifier.width(12.dp))
+                                        Text(
+                                            text = stringResource(R.string.similar_radio_queue_generating),
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -1832,7 +1861,8 @@ fun QueuePlaylistSongItem(
     enableSwipeToDismiss: Boolean = false,
     swipeStateIdentity: Long = 0L,
     onDismissSong: () -> Unit = {},
-    isFromPlaylist: Boolean
+    isFromPlaylist: Boolean,
+    isRadioSuggested: Boolean = false
 ) {
     val colors = MaterialTheme.colorScheme
 
@@ -2009,12 +2039,24 @@ fun QueuePlaylistSongItem(
                     Spacer(Modifier.width(16.dp))
 
                     Column(Modifier.weight(1f)) {
-                        Text(
-                            song.title, maxLines = 1, overflow = TextOverflow.Ellipsis,
-                            color = if (isCurrentSong) colors.primary else colors.onSurface,
-                            fontWeight = if (isCurrentSong) FontWeight.Bold else FontWeight.Normal,
-                            style = MaterialTheme.typography.bodyLarge
-                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            if (isRadioSuggested) {
+                                Text(
+                                    text = "✨",
+                                    style = MaterialTheme.typography.bodyLarge
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                            }
+                            Text(
+                                song.title,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f, fill = false),
+                                color = if (isCurrentSong) colors.primary else colors.onSurface,
+                                fontWeight = if (isCurrentSong) FontWeight.Bold else FontWeight.Normal,
+                                style = MaterialTheme.typography.bodyLarge
+                            )
+                        }
                         Text(
                             song.displayArtist, maxLines = 1, overflow = TextOverflow.Ellipsis,
                             style = MaterialTheme.typography.bodyMedium,

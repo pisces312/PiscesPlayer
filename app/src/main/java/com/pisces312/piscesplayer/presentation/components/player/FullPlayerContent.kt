@@ -103,7 +103,12 @@ import androidx.compose.material.icons.automirrored.rounded.PlaylistAdd
 import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.Bookmark
 import androidx.compose.material.icons.rounded.Cloud
+import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material.icons.rounded.Piano
+import androidx.compose.material.icons.rounded.Radio
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.pisces312.piscesplayer.presentation.viewmodel.AudioBookmarksViewModel
 import androidx.compose.material3.Slider
@@ -223,6 +228,7 @@ fun FullPlayerContent(
     onAddToPlaylistClick: () -> Unit,
     onAskAiClick: () -> Unit,
     onAskAiTranslateLyrics: () -> Unit,
+    onOpenAiSettings: () -> Unit = {},
     onOpenRhythmGame: () -> Unit,
     onSongTitleClick: () -> Unit,
     onQueueDragStart: () -> Unit,
@@ -244,11 +250,14 @@ fun FullPlayerContent(
     var showLyricsSheet by remember { mutableStateOf(false) }
     var showArtistPicker by rememberSaveable { mutableStateOf(false) }
     var showSaveBookmarkDialog by rememberSaveable { mutableStateOf(false) }
+    var showPlayerOverflowMenu by remember { mutableStateOf(false) }
     val bookmarksViewModel: AudioBookmarksViewModel = hiltViewModel()
     
     val lyricsSearchUiState by playerViewModel.lyricsSearchUiState.collectAsStateWithLifecycle()
 
     val fullPlayerSlice by playerViewModel.fullPlayerSlice.collectAsStateWithLifecycle()
+    val similarRadioState by playerViewModel.similarRadioState.collectAsStateWithLifecycle()
+    val isSimilarRadioConfigured by playerViewModel.isSimilarRadioConfigured.collectAsStateWithLifecycle()
     val currentSongArtists = fullPlayerSlice.currentSongArtists
     val lyricsSyncOffset = fullPlayerSlice.lyricsSyncOffset
     val albumArtQuality = fullPlayerSlice.albumArtQuality
@@ -757,12 +766,58 @@ fun FullPlayerContent(
                         }
                     },
                     actions = {
+                        // Layout per docs/similar-radio-design.md §5.1: two AI capabilities
+                        // (radio + Q&A) sit side by side; the low-frequency actions (bookmark,
+                        // queue, add-to-playlist) fold into the overflow menu.
                         Row(
                             modifier = Modifier
                                 .padding(end = 14.dp),
                             horizontalArrangement = Arrangement.spacedBy(6.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
+                            val radioActive = similarRadioState.enabled
+                            val radioEnabled = isSimilarRadioConfigured || radioActive
+                            Box(
+                                modifier = Modifier
+                                    .size(42.dp)
+                                    .clip(CircleShape)
+                                    .background(
+                                        when {
+                                            radioActive -> playerAccentColor
+                                            else -> playerOnAccentColor.copy(alpha = 0.7f)
+                                        }
+                                    )
+                                    .clickable(enabled = radioEnabled) {
+                                        if (isSimilarRadioConfigured) {
+                                            playerViewModel.toggleSimilarRadio()
+                                        } else {
+                                            // Mirror of HomeScreen's openAiEntry guard: hint,
+                                            // then route to the AI provider settings.
+                                            playerViewModel.sendToast(
+                                                context.getString(R.string.similar_radio_unconfigured_hint)
+                                            )
+                                            onOpenAiSettings()
+                                        }
+                                    },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Rounded.Radio,
+                                    contentDescription = stringResource(R.string.similar_radio_cd_toggle),
+                                    tint = when {
+                                        radioActive -> playerOnAccentColor
+                                        radioEnabled -> playerAccentColor
+                                        else -> playerAccentColor.copy(alpha = 0.38f)
+                                    }
+                                )
+                                if (similarRadioState.generating) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(30.dp),
+                                        color = if (radioActive) playerOnAccentColor else playerAccentColor,
+                                        strokeWidth = 2.dp
+                                    )
+                                }
+                            }
                             Box(
                                 modifier = Modifier
                                     .size(42.dp)
@@ -782,42 +837,58 @@ fun FullPlayerContent(
                                     .size(42.dp)
                                     .clip(CircleShape)
                                     .background(playerOnAccentColor.copy(alpha = 0.7f))
-                                    .clickable { showSaveBookmarkDialog = true },
+                                    .clickable { showPlayerOverflowMenu = true },
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
-                                    imageVector = Icons.Rounded.Bookmark,
-                                    contentDescription = stringResource(R.string.audio_bookmarks_cd_add),
+                                    imageVector = Icons.Rounded.MoreVert,
+                                    contentDescription = stringResource(R.string.similar_radio_overflow_cd),
                                     tint = playerAccentColor
                                 )
-                            }
-                            Box(
-                                modifier = Modifier
-                                    .size(42.dp)
-                                    .clip(CircleShape)
-                                    .background(playerOnAccentColor.copy(alpha = 0.7f))
-                                    .clickable(onClick = onShowQueueClicked),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    painter = painterResource(R.drawable.rounded_queue_music_24),
-                                    contentDescription = stringResource(R.string.presentation_batch_g_player_cd_queue),
-                                    tint = playerAccentColor
-                                )
-                            }
-                            Box(
-                                modifier = Modifier
-                                    .size(42.dp)
-                                    .clip(CircleShape)
-                                    .background(playerOnAccentColor.copy(alpha = 0.7f))
-                                    .clickable(onClick = onAddToPlaylistClick),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.AutoMirrored.Rounded.PlaylistAdd,
-                                    contentDescription = stringResource(R.string.cd_add_to_playlist),
-                                    tint = playerAccentColor
-                                )
+                                DropdownMenu(
+                                    expanded = showPlayerOverflowMenu,
+                                    onDismissRequest = { showPlayerOverflowMenu = false }
+                                ) {
+                                    DropdownMenuItem(
+                                        text = { Text(stringResource(R.string.audio_bookmarks_cd_add)) },
+                                        leadingIcon = {
+                                            Icon(
+                                                imageVector = Icons.Rounded.Bookmark,
+                                                contentDescription = null
+                                            )
+                                        },
+                                        onClick = {
+                                            showPlayerOverflowMenu = false
+                                            showSaveBookmarkDialog = true
+                                        }
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text(stringResource(R.string.presentation_batch_g_player_cd_queue)) },
+                                        leadingIcon = {
+                                            Icon(
+                                                painter = painterResource(R.drawable.rounded_queue_music_24),
+                                                contentDescription = null
+                                            )
+                                        },
+                                        onClick = {
+                                            showPlayerOverflowMenu = false
+                                            onShowQueueClicked()
+                                        }
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text(stringResource(R.string.cd_add_to_playlist)) },
+                                        leadingIcon = {
+                                            Icon(
+                                                imageVector = Icons.AutoMirrored.Rounded.PlaylistAdd,
+                                                contentDescription = null
+                                            )
+                                        },
+                                        onClick = {
+                                            showPlayerOverflowMenu = false
+                                            onAddToPlaylistClick()
+                                        }
+                                    )
+                                }
                             }
                         }
                     }

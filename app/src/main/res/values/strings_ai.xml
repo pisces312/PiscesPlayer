@@ -174,4 +174,8 @@
     <string name="ai_error_network">Network unreachable</string>
     <string name="ai_error_parse">Unexpected response from provider</string>
     <string name="ai_error_unknown">Request failed</string>
+    <string name="similar_radio_cd_toggle">Similar radio</string>
+    <string name="similar_radio_overflow_cd">More options</string>
+    <string name="similar_radio_unconfigured_hint">Set up an AI provider first</string>
+    <string name="similar_radio_queue_generating">Generating similar songs…</string>
 </resources>

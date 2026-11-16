@@ -174,5 +174,9 @@
     <string name="ai_error_network">网络不可达</string>
     <string name="ai_error_parse">服务商返回了意外响应</string>
     <string name="ai_error_unknown">请求失败</string>
+    <string name="similar_radio_cd_toggle">相似电台</string>
+    <string name="similar_radio_overflow_cd">更多选项</string>
+    <string name="similar_radio_unconfigured_hint">请先配置 AI 服务商</string>
+    <string name="similar_radio_queue_generating">正在生成相似歌曲…</string>
 
 </resources>

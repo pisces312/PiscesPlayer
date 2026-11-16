@@ -41,6 +41,7 @@ import com.google.common.util.concurrent.SettableFuture
 import com.pisces312.piscesplayer.PiscesPlayerApplication
 import com.pisces312.piscesplayer.MainActivity
 import com.pisces312.piscesplayer.R
+import com.pisces312.piscesplayer.data.ai.SimilarRadioSession
 import com.pisces312.piscesplayer.data.diagnostics.AdvancedPerformanceDiagnostics
 import com.pisces312.piscesplayer.data.model.PlayerInfo
 import com.pisces312.piscesplayer.data.model.PlaybackQueueItemSnapshot
@@ -177,6 +178,8 @@ class MusicService : MediaSessionService() {
     lateinit var navidromeRepository: NavidromeRepository
     @Inject
     lateinit var listeningStatsTracker: ListeningStatsTracker
+    @Inject
+    lateinit var similarRadioSession: SimilarRadioSession
     @Inject
     @AppScope
     lateinit var appScope: CoroutineScope
@@ -1173,6 +1176,7 @@ class MusicService : MediaSessionService() {
             }
             requestWidgetFullUpdate(force = true)
             schedulePlaybackSnapshotPersist(immediate = timeline.isEmpty)
+            similarRadioSession.onTimelineChanged()
             val player = engine.masterPlayer
             val nextIndex = player.nextMediaItemIndex
             if (nextIndex != androidx.media3.common.C.INDEX_UNSET) {
@@ -1236,6 +1240,7 @@ class MusicService : MediaSessionService() {
             }
 
             playbackTimerController.handleMediaItemTransition(mediaItem, reason)
+            similarRadioSession.onMediaItemTransition(mediaItem)
             replayGainProcessor.apply(mediaSession?.player?.currentMediaItem)
             val player = engine.masterPlayer
             val nextIndex = player.nextMediaItemIndex
