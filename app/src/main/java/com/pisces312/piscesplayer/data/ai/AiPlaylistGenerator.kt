@@ -105,7 +105,14 @@ constructor(
                     AiLibrarySampleMode.MOST_PLAYED -> mostPlayed(songs, size)
                     AiLibrarySampleMode.RANDOM -> songs.shuffled().take(size)
                 }
-        return picked.joinToString("\n") { "${it.title} - ${it.displayArtist}" }
+        // Genre in brackets: the model may not know newer/lesser-known songs by name, but it
+        // can still cluster them with the anchor by style. (If the model mimics the bracket in
+        // its reply, parsing is unaffected — normalize() strips it before matching.)
+        return picked.joinToString("\n") { song ->
+            val genre = song.genre?.trim().orEmpty()
+            if (genre.isBlank()) "${song.title} - ${song.displayArtist}"
+            else "${song.title} - ${song.displayArtist} [$genre]"
+        }
     }
 
     private suspend fun mostPlayed(songs: List<Song>, size: Int): List<Song> {

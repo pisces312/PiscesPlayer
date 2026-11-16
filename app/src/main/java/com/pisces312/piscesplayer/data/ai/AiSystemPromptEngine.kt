@@ -16,7 +16,7 @@ object AiSystemPromptEngine {
             buildString {
                 appendLine("User request: $request")
                 appendLine()
-                appendLine("Library sample (pick from these when possible):")
+                appendLine("Library sample (pick from these when possible; genre in brackets):")
                 appendLine(librarySample.ifBlank { "(sample unavailable)" })
                 appendLine()
                 appendLine("Return up to 25 songs, one per line, as 'Title - Artist'.")
