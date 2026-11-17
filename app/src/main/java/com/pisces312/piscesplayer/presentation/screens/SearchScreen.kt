@@ -90,6 +90,7 @@ import com.pisces312.piscesplayer.presentation.viewmodel.PlayerViewModel
 import com.pisces312.piscesplayer.ui.theme.LocalPiscesPlayerDarkTheme
 import androidx.compose.material.icons.rounded.DeleteForever
 import androidx.compose.material.icons.rounded.History
+import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Lyrics
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.LaunchedEffect
@@ -121,6 +122,7 @@ import com.pisces312.piscesplayer.presentation.components.PlaylistBottomSheet
 import com.pisces312.piscesplayer.presentation.components.PlaylistCover
 import com.pisces312.piscesplayer.presentation.components.RecentlyPlayedSection
 import com.pisces312.piscesplayer.presentation.components.RecentlyPlayedSectionMinSongsToShow
+import com.pisces312.piscesplayer.presentation.components.StatsRangeSelector
 import com.pisces312.piscesplayer.presentation.components.StatsRankings
 import com.pisces312.piscesplayer.presentation.components.resolveMainScreenBottomGradientHeight
 import com.pisces312.piscesplayer.presentation.components.resolveNavBarOccupiedHeight
@@ -160,7 +162,8 @@ fun SearchScreen(
     navController: NavHostController,
     onSearchBarActiveChange: (Boolean) -> Unit = {},
     // Scoped to the search back stack entry (not to the idle branch), so it survives
-    // idle↔active switches and supplies the idle rankings/overview without a reload.
+    // idle↔active switches and hosts the inline stats block (range selector, overview,
+    // rankings) without a reload. The stats "show all" screens share this same instance.
     // Allowed: the no-default rule applies to PlayerViewModel only.
     statsViewModel: StatsViewModel = hiltViewModel()
 ) {
@@ -180,10 +183,6 @@ fun SearchScreen(
     val idleListState = rememberLazyListState()
     val statsUiState by statsViewModel.uiState.collectAsStateWithLifecycle()
     val idleSummary = statsUiState.summary
-    // Explicit empty predicate: a zero-valued summary is still a non-null object, so
-    // "hide when no data" needs a real condition, not a null check.
-    val hasIdleStatsOverview = idleSummary != null &&
-        (idleSummary.totalPlayCount > 0 || idleSummary.totalDurationMs > 0)
     val hotSongsQueueName = stringResource(R.string.presentation_batch_g_stats_hot_songs)
     // Idle "recently played" state lives at screen scope for the same reason as the list
     // state: recomposing it on every idle re-entry would redo the derivation for free.
@@ -425,20 +424,6 @@ fun SearchScreen(
                         containerColor = MaterialTheme.colorScheme.primaryContainer,
                         contentColor = MaterialTheme.colorScheme.onPrimaryContainer
                     ),
-                    onClick = { navController.navigateSafely(Screen.Stats.route) }
-                ) {
-                    Icon(
-                        painter = painterResource(R.drawable.rounded_monitoring_24),
-                        contentDescription = stringResource(R.string.search_open_stats_cd)
-                    )
-                }
-
-                FilledIconButton(
-                    modifier = Modifier.padding(bottom = 2.dp),
-                    colors = IconButtonDefaults.filledIconButtonColors(
-                        containerColor = MaterialTheme.colorScheme.primaryContainer,
-                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                    ),
                     onClick = { navController.navigateSafely(Screen.Settings.route) }
                 ) {
                     Icon(
@@ -481,39 +466,6 @@ fun SearchScreen(
                     ) {
                         val hasIdleHistory = searchUiState.searchHistory.isNotEmpty()
                         val hasIdleRecent = recentState.songs.size >= RecentlyPlayedSectionMinSongsToShow
-                        // A zero-valued summary is still a non-null object: check for actual
-                        // ranking rows, not just a loaded summary (same trap as the overview).
-                        val hasIdleRankings = idleSummary != null &&
-                            (idleSummary.songs.isNotEmpty() ||
-                                idleSummary.topArtists.isNotEmpty() ||
-                                idleSummary.topAlbums.isNotEmpty())
-                        if (!hasIdleHistory && !hasIdleRecent && !hasIdleRankings && !hasIdleStatsOverview) {
-                            // Fresh install / fully empty day: fall back to the old minimal
-                            // hint instead of a blank page.
-                            item(key = "idle_empty_hint", contentType = "idle_empty_hint") {
-                                Column(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(top = 96.dp),
-                                    verticalArrangement = Arrangement.Center,
-                                    horizontalAlignment = Alignment.CenterHorizontally
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Rounded.History,
-                                        contentDescription = null,
-                                        modifier = Modifier
-                                            .size(48.dp)
-                                            .padding(bottom = 12.dp),
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-                                    )
-                                    Text(
-                                        text = stringResource(R.string.search_history_empty),
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                            }
-                        }
                         if (hasIdleHistory) {
                             item(key = "idle_history", contentType = "idle_history") {
                                 SearchHistoryChips(
@@ -551,53 +503,78 @@ fun SearchScreen(
                                 )
                             }
                         }
-                        if (hasIdleRankings) {
-                            item(key = "idle_rankings", contentType = "listening_stats_rankings") {
-                                StatsRankings(
-                                    summary = idleSummary,
-                                    onSongClick = { songId, queueSongIds ->
-                                        playerViewModel.playSongByIds(
-                                            startSongId = songId,
-                                            queueSongIds = queueSongIds,
-                                            queueName = hotSongsQueueName
+                        // Complete listening stats (moved here from the deleted stats subpage):
+                        // header + refresh, range selector, overview card, rankings. Rendered
+                        // unconditionally like the old subpage — the components handle null /
+                        // empty summaries — so the block never collapses to a blank gap and the
+                        // range chips stay reachable even on an empty day.
+                        item(key = "idle_stats_overview", contentType = "listening_stats_overview") {
+                            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text(
+                                        text = stringResource(R.string.presentation_batch_g_stats_title),
+                                        style = MaterialTheme.typography.titleLarge,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                    FilledIconButton(
+                                        onClick = { statsViewModel.requestStatsRefresh() },
+                                        enabled = !(statsUiState.isLoading || statsUiState.isRefreshing),
+                                        colors = IconButtonDefaults.filledIconButtonColors(
+                                            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                            contentColor = MaterialTheme.colorScheme.onSurface
                                         )
-                                    },
-                                    onArtistClick = { artist ->
-                                        statsViewModel.resolveArtistId(artist) { artistId ->
-                                            navController.navigateSafely(
-                                                Screen.ArtistDetail.createRoute(artistId)
-                                            )
-                                        }
-                                    },
-                                    onAlbumClick = { album ->
-                                        statsViewModel.resolveAlbumId(album) { albumId ->
-                                            navController.navigateSafely(
-                                                Screen.AlbumDetail.createRoute(albumId)
-                                            )
-                                        }
-                                    },
-                                    onShowAllSongs = {
-                                        navController.navigateSafely(Screen.StatsHotSongs.route)
-                                    },
-                                    onShowAllArtists = {
-                                        navController.navigateSafely(Screen.StatsTopArtists.route)
-                                    },
-                                    onShowAllAlbums = {
-                                        navController.navigateSafely(Screen.StatsTopAlbums.route)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Rounded.Refresh,
+                                            contentDescription = stringResource(R.string.presentation_batch_g_stats_cd_refresh)
+                                        )
                                     }
+                                }
+                                StatsRangeSelector(
+                                    selected = statsUiState.selectedRange,
+                                    onRangeSelected = statsViewModel::onRangeSelected
                                 )
+                                ListeningStatsOverviewCard(summary = idleSummary)
                             }
                         }
-                        if (hasIdleStatsOverview) {
-                            item(key = "idle_overview", contentType = "listening_stats_overview") {
-                                Surface(
-                                    onClick = { navController.navigateSafely(Screen.Stats.route) },
-                                    shape = MaterialTheme.shapes.large,
-                                    color = MaterialTheme.colorScheme.surfaceContainerLowest
-                                ) {
-                                    ListeningStatsOverviewCard(summary = idleSummary)
+                        item(key = "idle_rankings", contentType = "listening_stats_rankings") {
+                            StatsRankings(
+                                summary = idleSummary,
+                                onSongClick = { songId, queueSongIds ->
+                                    playerViewModel.playSongByIds(
+                                        startSongId = songId,
+                                        queueSongIds = queueSongIds,
+                                        queueName = hotSongsQueueName
+                                    )
+                                },
+                                onArtistClick = { artist ->
+                                    statsViewModel.resolveArtistId(artist) { artistId ->
+                                        navController.navigateSafely(
+                                            Screen.ArtistDetail.createRoute(artistId)
+                                        )
+                                    }
+                                },
+                                onAlbumClick = { album ->
+                                    statsViewModel.resolveAlbumId(album) { albumId ->
+                                        navController.navigateSafely(
+                                            Screen.AlbumDetail.createRoute(albumId)
+                                        )
+                                    }
+                                },
+                                onShowAllSongs = {
+                                    navController.navigateSafely(Screen.StatsHotSongs.route)
+                                },
+                                onShowAllArtists = {
+                                    navController.navigateSafely(Screen.StatsTopArtists.route)
+                                },
+                                onShowAllAlbums = {
+                                    navController.navigateSafely(Screen.StatsTopAlbums.route)
                                 }
-                            }
+                            )
                         }
                     }
                 } else {

@@ -175,7 +175,6 @@
     <string name="clear_all">全部清空</string>
     <string name="cd_search_history_icon">历史记录</string>
     <string name="cd_delete_search_history_item">删除该项搜索记录</string>
-    <string name="search_open_stats_cd">听歌统计</string>
     <string name="cd_no_search_results">无搜索结果</string>
     <string name="search_no_results_for_query">未找到“%1$s”相关内容</string>
     <string name="search_no_results_for_lyrics_query">没有找到包含歌词“%1$s”的歌曲</string>

@@ -60,7 +60,6 @@ import com.pisces312.piscesplayer.presentation.screens.RecentlyPlayedScreen
 import com.pisces312.piscesplayer.presentation.screens.AboutScreen
 import com.pisces312.piscesplayer.presentation.screens.SearchScreen
 import com.pisces312.piscesplayer.presentation.screens.AiRequestLogScreen
-import com.pisces312.piscesplayer.presentation.screens.ListeningStatsScreen
 import com.pisces312.piscesplayer.presentation.screens.StatsHotSongsScreen
 import com.pisces312.piscesplayer.presentation.screens.StatsTopAlbumsScreen
 import com.pisces312.piscesplayer.presentation.screens.StatsTopArtistsScreen
@@ -352,25 +351,6 @@ fun AppNavigation(
                     )
                 }
             }
-            // Stats is a subpage entered from the search idle top bar (no longer a root tab),
-            // so it uses the standard subpage transitions like AiMixes.
-            composable(
-                Screen.Stats.route,
-                enterTransition = { enterTransition() },
-                exitTransition = { exitTransition() },
-                popEnterTransition = { popEnterTransition() },
-                popExitTransition = { popExitTransition() },
-            ) {
-                val statsViewModel: StatsViewModel = hiltViewModel()
-                ScreenWrapper(navController = navController, playerViewModel = playerViewModel) {
-                    ListeningStatsScreen(
-                        navController = navController,
-                        paddingValuesParent = paddingValues,
-                        playerViewModel = playerViewModel,
-                        statsViewModel = statsViewModel
-                    )
-                }
-            }
             composable(
                 route = Screen.AiMixes.route,
                 enterTransition = { enterTransition() },
@@ -386,12 +366,8 @@ fun AppNavigation(
                     )
                 }
             }
-            // The "show all" stats screens reuse the stats destination's ViewModel so the
+            // The "show all" stats screens reuse the search tab's StatsViewModel so the
             // selected time range carries over instead of falling back to the default.
-            // Resolution rule: the stats subpage's entry when present (entered from the subpage);
-            // otherwise the launching entry — the search tab when launched from the search idle
-            // rankings, which owns its own StatsViewModel. Direct getBackStackEntry(Stats.route)
-            // would throw when there is no stats entry in the back stack (search-idle path).
             composable(
                 route = Screen.StatsHotSongs.route,
                 enterTransition = { enterTransition() },
@@ -897,10 +873,9 @@ private fun String.toRoute(): String = when (this) {
 }
 
 /**
- * ViewModel owner for the stats "show all" screens. Prefers the stats subpage's entry
- * (range changes made on the subpage carry over); falls back to the launching entry —
- * the search tab when launched from the search idle rankings, which owns its own
- * StatsViewModel (range = its own selection). Only when neither exists (defensive)
+ * ViewModel owner for the stats "show all" screens. The stats content now lives inline in
+ * the search tab idle state, so the shared owner is the launching entry — the search tab,
+ * whose StatsViewModel carries the selected range. Only when that lookup fails (defensive)
  * does the screen fall back to its own entry.
  */
 @Composable
@@ -909,9 +884,7 @@ private fun showAllStatsViewModel(
     backStackEntry: NavBackStackEntry
 ): StatsViewModel {
     val owner = remember(backStackEntry) {
-        runCatching { navController.getBackStackEntry(Screen.Stats.route) }.getOrNull()
-            ?: navController.previousBackStackEntry
-            ?: backStackEntry
+        navController.previousBackStackEntry ?: backStackEntry
     }
     return hiltViewModel(owner)
 }
