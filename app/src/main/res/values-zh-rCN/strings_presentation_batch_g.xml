@@ -6,6 +6,7 @@
     <string name="presentation_batch_g_stats_range_year_to_date">本年至今</string>
     <string name="presentation_batch_g_stats_range_all_time">全部时间</string>
     <string name="presentation_batch_g_stats_title">收听统计</string>
+    <string name="presentation_batch_g_stats_subtitle">数据仅存本机</string>
     <string name="presentation_batch_g_stats_cd_refresh">刷新收听统计</string>
     <string name="presentation_batch_g_stats_hero_listening">收听时长</string>
     <string name="presentation_batch_g_stats_hero_plays">播放次数</string>

@@ -89,6 +89,7 @@ import com.pisces312.piscesplayer.presentation.components.SongInfoBottomSheet
 import com.pisces312.piscesplayer.presentation.viewmodel.PlayerViewModel
 import com.pisces312.piscesplayer.ui.theme.LocalPiscesPlayerDarkTheme
 import androidx.compose.material.icons.rounded.DeleteForever
+import androidx.compose.material.icons.rounded.BarChart
 import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Lyrics
@@ -117,6 +118,7 @@ import com.pisces312.piscesplayer.R
 import com.pisces312.piscesplayer.data.diagnostics.AdvancedPerformanceDiagnostics
 import com.pisces312.piscesplayer.data.repository.MusicRepository
 import com.pisces312.piscesplayer.presentation.components.MiniPlayerHeight
+import com.pisces312.piscesplayer.presentation.components.HomeSectionHeader
 import com.pisces312.piscesplayer.presentation.components.ListeningStatsOverviewCard
 import com.pisces312.piscesplayer.presentation.components.PlaylistBottomSheet
 import com.pisces312.piscesplayer.presentation.components.PlaylistCover
@@ -497,30 +499,31 @@ fun SearchScreen(
                         // range chips stay reachable even on an empty day.
                         item(key = "idle_stats_overview", contentType = "listening_stats_overview") {
                             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.SpaceBetween
-                                ) {
-                                    Text(
-                                        text = stringResource(R.string.presentation_batch_g_stats_title),
-                                        style = MaterialTheme.typography.titleLarge,
-                                        fontWeight = FontWeight.SemiBold
-                                    )
-                                    FilledIconButton(
-                                        onClick = { statsViewModel.requestStatsRefresh() },
-                                        enabled = !(statsUiState.isLoading || statsUiState.isRefreshing),
-                                        colors = IconButtonDefaults.filledIconButtonColors(
-                                            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                                            contentColor = MaterialTheme.colorScheme.onSurface
-                                        )
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Rounded.Refresh,
-                                            contentDescription = stringResource(R.string.presentation_batch_g_stats_cd_refresh)
-                                        )
+                                HomeSectionHeader(
+                                    title = stringResource(R.string.presentation_batch_g_stats_title),
+                                    subtitle = stringResource(R.string.presentation_batch_g_stats_subtitle),
+                                    icon = Icons.Rounded.BarChart,
+                                    iconContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                                    iconContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                                    contentPadding = PaddingValues(0.dp),
+                                    action = {
+                                        FilledIconButton(
+                                            modifier = Modifier.size(40.dp),
+                                            colors = IconButtonDefaults.filledIconButtonColors(
+                                                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                                contentColor = MaterialTheme.colorScheme.onSurface
+                                            ),
+                                            onClick = { statsViewModel.requestStatsRefresh() },
+                                            enabled = !(statsUiState.isLoading || statsUiState.isRefreshing)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Rounded.Refresh,
+                                                contentDescription = stringResource(R.string.presentation_batch_g_stats_cd_refresh),
+                                                modifier = Modifier.size(20.dp)
+                                            )
+                                        }
                                     }
-                                }
+                                )
                                 StatsRangeSelector(
                                     selected = statsUiState.selectedRange,
                                     onRangeSelected = statsViewModel::onRangeSelected
@@ -773,7 +776,7 @@ fun SearchResultSectionHeader(title: String) {
 /**
  * Idle-state search history as a FlowRow of chips (most recent [SearchHistoryChipLimit]).
  * Tap = run the search; long-press = delete that item (same path as the old per-item
- * delete); the trailing chip opens the existing clear-all confirmation dialog.
+ * delete); the header's trailing button opens the existing clear-all confirmation dialog.
  * History storage is unchanged.
  */
 @OptIn(ExperimentalFoundationApi::class)
@@ -784,12 +787,30 @@ fun SearchHistoryChips(
     onHistoryDelete: (String) -> Unit,
     onClearAllHistory: () -> Unit
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(
-            stringResource(R.string.recent_searches),
-            style = MaterialTheme.typography.titleSmall,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(start = 8.dp)
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        HomeSectionHeader(
+            title = stringResource(R.string.recent_searches),
+            subtitle = stringResource(R.string.recent_searches_subtitle),
+            icon = Icons.Rounded.History,
+            iconContainerColor = MaterialTheme.colorScheme.tertiaryContainer,
+            iconContentColor = MaterialTheme.colorScheme.onTertiaryContainer,
+            contentPadding = PaddingValues(0.dp),
+            action = {
+                FilledIconButton(
+                    modifier = Modifier.size(40.dp),
+                    colors = IconButtonDefaults.filledIconButtonColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        contentColor = MaterialTheme.colorScheme.onSurface
+                    ),
+                    onClick = onClearAllHistory
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.DeleteForever,
+                        contentDescription = stringResource(R.string.clear_all),
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
         )
         FlowRow(
             modifier = Modifier.fillMaxWidth(),
@@ -824,31 +845,6 @@ fun SearchHistoryChips(
                             overflow = TextOverflow.Ellipsis
                         )
                     }
-                }
-            }
-            Surface(
-                modifier = Modifier.combinedClickable(onClick = onClearAllHistory),
-                shape = RoundedCornerShape(8.dp),
-                color = MaterialTheme.colorScheme.surfaceContainerHigh
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Rounded.DeleteForever,
-                        contentDescription = stringResource(R.string.cd_delete_search_history_item),
-                        modifier = Modifier.size(16.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-                    )
-                    Text(
-                        text = stringResource(R.string.clear_all),
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
                 }
             }
         }

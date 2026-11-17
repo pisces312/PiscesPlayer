@@ -6,6 +6,7 @@
     <string name="presentation_batch_g_stats_range_year_to_date">Year to Date</string>
     <string name="presentation_batch_g_stats_range_all_time">All Time</string>
     <string name="presentation_batch_g_stats_title">Listening Stats</string>
+    <string name="presentation_batch_g_stats_subtitle">Stays on this device</string>
     <string name="presentation_batch_g_stats_cd_refresh">Refresh listening stats</string>
     <string name="presentation_batch_g_stats_hero_listening">Listening</string>
     <string name="presentation_batch_g_stats_hero_plays">Plays</string>

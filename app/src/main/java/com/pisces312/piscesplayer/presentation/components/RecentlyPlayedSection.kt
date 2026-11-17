@@ -23,6 +23,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowForward
+import androidx.compose.material.icons.rounded.PlayCircle
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilledIconButton
@@ -113,15 +114,16 @@ fun RecentlyPlayedSection(
         HomeSectionHeader(
             title = stringResource(R.string.presentation_batch_g_recently_played_title),
             subtitle = stringResource(R.string.presentation_batch_g_recently_played_subtitle),
-            modifier = Modifier.padding(horizontal = 14.dp),
+            icon = Icons.Rounded.PlayCircle,
+            iconContainerColor = MaterialTheme.colorScheme.secondaryContainer,
+            iconContentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+            contentPadding = PaddingValues(0.dp),
             action = {
                 FilledIconButton(
-                    modifier = Modifier
-                        .height(40.dp)
-                        .width(64.dp),
+                    modifier = Modifier.size(40.dp),
                     colors = IconButtonDefaults.filledIconButtonColors(
                         containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                        contentColor = MaterialTheme.colorScheme.secondary
+                        contentColor = MaterialTheme.colorScheme.onSurface
                     ),
                     onClick = onOpenAllClick,
                     enabled = visibleSongs.size >= RecentlyPlayedSectionMinSongsToShow
@@ -129,7 +131,7 @@ fun RecentlyPlayedSection(
                     Icon(
                         imageVector = Icons.AutoMirrored.Rounded.ArrowForward,
                         contentDescription = null,
-                        modifier = Modifier.size(18.dp)
+                        modifier = Modifier.size(20.dp)
                     )
                 }
             }

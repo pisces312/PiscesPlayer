@@ -169,6 +169,7 @@
     <string name="cd_switch_to_lyrics_search">按歌词搜索</string>
     <string name="cd_switch_to_general_search">搜索标题、艺人、专辑与歌单</string>
     <string name="recent_searches">最近搜索</string>
+    <string name="recent_searches_subtitle">长按可删除记录</string>
     <string name="search_history_empty">暂无搜索记录</string>
     <string name="search_history_clear_title">清空搜索历史？</string>
     <string name="search_history_clear_body">将删除全部已保存的搜索关键字，此操作无法撤销。</string>
