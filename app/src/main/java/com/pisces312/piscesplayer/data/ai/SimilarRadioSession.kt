@@ -11,6 +11,7 @@ import com.pisces312.piscesplayer.utils.MediaItemBuilder
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -24,6 +25,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import timber.log.Timber
 
 /**
@@ -37,7 +39,10 @@ import timber.log.Timber
  * so the queue UI can badge them. The anchor is always the queue tail at generation time, not
  * the song that originally enabled the radio.
  *
- * Lifecycle (all per design §3.1 / §4):
+ * Lifecycle (all per design §3.1 / §4, plus the 2026-11-17 takeover decision):
+ * - Enabling takes the queue over (方案 B): everything after the current item is dropped, so
+ *   the next track is already an AI pick instead of the tail of the old queue. Disabling never
+ *   touches the queue — already-appended ✨ songs remain playable.
  * - Enabling forces [Player.REPEAT_MODE_OFF] (repeat and endless radio are mutually exclusive).
  *   If the user re-enables repeat later we do not fight it: prefetch simply does not trigger
  *   while repeat is on, which equals a pause of the radio.
@@ -99,26 +104,66 @@ constructor(
     private var consecutiveFailures = 0
     private var requestCount = 0
     private var appendedCount = 0
-    private val playedIds = mutableSetOf<String>()
+
+    /**
+     * Thread-safe: written from the main thread (MusicService listener / ViewModel queue swap)
+     * while [produceBatch] iterates it on Dispatchers.IO for dedup.
+     */
+    private val playedIds = java.util.Collections.synchronizedSet(mutableSetOf<String>())
+
+    /**
+     * Bumped on every enable/disable request. The enable path suspends (config check + main
+     * hop); without this guard a disable landing mid-suspension would be overwritten when the
+     * stale coroutine resumes and publishes enabled = true.
+     */
+    private var enableEpoch = 0
+
+    /**
+     * Synchronously-updated intent flag. [_state] lags behind it while the enable coroutine
+     * is suspended; gating the early-return on intent (not on published state) keeps a rapid
+     * "on then off" tap pair from having its cancel swallowed.
+     */
+    @Volatile private var desiredEnabled = false
 
     fun toggle() {
-        setEnabled(!_state.value.enabled)
+        setEnabled(!desiredEnabled)
     }
 
     fun setEnabled(enabled: Boolean) {
-        if (enabled == _state.value.enabled) return
+        if (enabled == desiredEnabled) return
+        desiredEnabled = enabled
         if (!enabled) {
+            enableEpoch++
             disable()
             return
         }
+        val epoch = ++enableEpoch
         scope.launch {
+            if (epoch != enableEpoch) return@launch
             if (!isConfigured.first()) {
                 Timber.tag(TAG).w("enable() ignored: AI provider not configured")
                 return@launch
             }
             // Radio and repeat are mutually exclusive: entering RUNNING drops repeat. We do
             // not restore it on disable (design §2) — the user can re-enable it manually.
-            engine.masterPlayer.repeatMode = Player.REPEAT_MODE_OFF
+            // masterPlayer lives on the main looper — hop even though this scope runs on IO.
+            withContext(Dispatchers.Main) {
+                val player = engine.masterPlayer
+                player.repeatMode = Player.REPEAT_MODE_OFF
+                // Takeover semantics (design decision 2026-11-17, 方案 B): enabling the radio
+                // clears everything after the current item so the queue becomes a pure radio
+                // stream seeded from the current song. The regular prefetch path then fires
+                // immediately (remaining == 0). Skipped mid-crossfade: during a transition the
+                // master is the fading-out player and the incoming one holds its own window,
+                // so editing it would not stick.
+                if (!engine.isTransitionRunning()) {
+                    val currentIndex = player.currentMediaItemIndex
+                    if (currentIndex >= 0 && currentIndex + 1 < player.mediaItemCount) {
+                        player.removeMediaItems(currentIndex + 1, player.mediaItemCount)
+                    }
+                }
+            }
+            if (epoch != enableEpoch) return@launch
             consecutiveFailures = 0
             requestCount = 0
             appendedCount = 0
@@ -150,10 +195,17 @@ constructor(
     fun onQueueReplaced() {
         if (!_state.value.enabled) return
         playedIds.clear()
+        // The ✨ markers belong to the old queue's appended items; ids colliding with the new
+        // queue must not inherit the badge.
+        _suggestedIds.value = emptySet()
         scheduleCheck()
     }
 
     private fun disable() {
+        // Also reached by the silent-OFF paths (failures, session caps) — keep the intent
+        // flag in sync so the next user toggle re-enables instead of being eaten by the
+        // desiredEnabled early-return.
+        desiredEnabled = false
         generationJob?.cancel()
         retryJob?.cancel()
         _state.value = State(enabled = false)
@@ -172,19 +224,26 @@ constructor(
         val snapshot = _state.value
         if (!snapshot.enabled || snapshot.generating) return
         if (generationJob?.isActive == true) return
-        val player = engine.masterPlayer
-        // While repeat is on the queue never drains; the user's explicit repeat wins and the
-        // radio effectively pauses (design §4).
-        if (player.repeatMode != Player.REPEAT_MODE_OFF) return
-        val currentIndex = player.currentMediaItemIndex
-        if (currentIndex < 0) return
-        val remaining = player.mediaItemCount - currentIndex - 1
-        if (remaining > PREFETCH_REMAINING) return
-        val anchor = player.currentMediaItem ?: return
+        // Read the whole player snapshot on the main looper in one hop (MediaItem is immutable,
+        // so the anchor stays valid afterwards).
+        val anchor =
+                withContext(Dispatchers.Main) {
+                    val player = engine.masterPlayer
+                    // While repeat is on the queue never drains; the user's explicit repeat
+                    // wins and the radio effectively pauses (design §4).
+                    if (player.repeatMode != Player.REPEAT_MODE_OFF) return@withContext null
+                    val currentIndex = player.currentMediaItemIndex
+                    if (currentIndex < 0) return@withContext null
+                    val remaining = player.mediaItemCount - currentIndex - 1
+                    if (remaining > PREFETCH_REMAINING) return@withContext null
+                    player.currentMediaItem ?: return@withContext null
+                } ?: return
         generateBatch(anchor)
     }
 
     private fun generateBatch(anchor: MediaItem) {
+        // Re-entrancy guard: maybePrefetch's pre-checks and this launch are not atomic.
+        if (_state.value.generating || generationJob?.isActive == true) return
         _state.update { it.copy(generating = true) }
         generationJob =
                 scope.launch {
@@ -228,7 +287,8 @@ constructor(
         var round = 0
         while (round < MAX_BATCH_ROUNDS) {
             round++
-            val excludeIds = currentQueueIds() + playedIds
+            val playedSnapshot = synchronized(playedIds) { playedIds.toSet() }
+            val excludeIds = currentQueueIds() + playedSnapshot
             val description = buildString {
                 append("Based on '").append(title).append("' by ").append(artist)
                 append(", suggest ").append(BATCH_SIZE).append(" similar songs")
@@ -256,7 +316,7 @@ constructor(
         return fresh
     }
 
-    private fun appendToQueue(songs: List<Song>) {
+    private suspend fun appendToQueue(songs: List<Song>) {
         val items =
                 songs.map { song ->
                     val base = MediaItemBuilder.build(song)
@@ -269,13 +329,15 @@ constructor(
                             )
                             .build()
                 }
-        engine.masterPlayer.addMediaItems(items)
+        withContext(Dispatchers.Main) {
+            engine.masterPlayer.addMediaItems(items)
+        }
         appendedCount += songs.size
         _suggestedIds.update { it + songs.map { song -> song.id } }
     }
 
-    private fun currentQueueIds(): Set<String> =
-            engine.getFullQueue().mapTo(HashSet()) { it.mediaId }
+    private suspend fun currentQueueIds(): Set<String> =
+            withContext(Dispatchers.Main) { engine.getFullQueue().mapTo(HashSet()) { it.mediaId } }
 
     private fun onBatchFailed() {
         consecutiveFailures++
