@@ -787,7 +787,9 @@ fun FullPlayerContent(
                                             else -> playerOnAccentColor.copy(alpha = 0.7f)
                                         }
                                     )
-                                    .clickable(enabled = radioEnabled) {
+                                    // Always clickable: the unconfigured branch below must fire —
+                                    // a disabled clickable would swallow the hint + settings route.
+                                    .clickable {
                                         if (isSimilarRadioConfigured) {
                                             playerViewModel.toggleSimilarRadio()
                                         } else {
