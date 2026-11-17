@@ -479,7 +479,42 @@ fun SearchScreen(
                         ),
                         verticalArrangement = Arrangement.spacedBy(24.dp)
                     ) {
-                        if (searchUiState.searchHistory.isNotEmpty()) {
+                        val hasIdleHistory = searchUiState.searchHistory.isNotEmpty()
+                        val hasIdleRecent = recentState.songs.size >= RecentlyPlayedSectionMinSongsToShow
+                        // A zero-valued summary is still a non-null object: check for actual
+                        // ranking rows, not just a loaded summary (same trap as the overview).
+                        val hasIdleRankings = idleSummary != null &&
+                            (idleSummary.songs.isNotEmpty() ||
+                                idleSummary.topArtists.isNotEmpty() ||
+                                idleSummary.topAlbums.isNotEmpty())
+                        if (!hasIdleHistory && !hasIdleRecent && !hasIdleRankings && !hasIdleStatsOverview) {
+                            // Fresh install / fully empty day: fall back to the old minimal
+                            // hint instead of a blank page.
+                            item(key = "idle_empty_hint", contentType = "idle_empty_hint") {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(top = 96.dp),
+                                    verticalArrangement = Arrangement.Center,
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Rounded.History,
+                                        contentDescription = null,
+                                        modifier = Modifier
+                                            .size(48.dp)
+                                            .padding(bottom = 12.dp),
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                                    )
+                                    Text(
+                                        text = stringResource(R.string.search_history_empty),
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                        }
+                        if (hasIdleHistory) {
                             item(key = "idle_history", contentType = "idle_history") {
                                 SearchHistoryChips(
                                     historyItems = searchUiState.searchHistory,
@@ -494,7 +529,7 @@ fun SearchScreen(
                                 )
                             }
                         }
-                        if (recentState.songs.size >= RecentlyPlayedSectionMinSongsToShow) {
+                        if (hasIdleRecent) {
                             item(key = "idle_recently_played", contentType = "recently_played_section") {
                                 RecentlyPlayedSection(
                                     songs = recentState.songs,
@@ -516,7 +551,7 @@ fun SearchScreen(
                                 )
                             }
                         }
-                        if (idleSummary != null) {
+                        if (hasIdleRankings) {
                             item(key = "idle_rankings", contentType = "listening_stats_rankings") {
                                 StatsRankings(
                                     summary = idleSummary,
