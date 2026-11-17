@@ -12,8 +12,10 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -30,6 +32,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import com.pisces312.piscesplayer.ui.theme.ShapeCache
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -50,6 +53,7 @@ import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.DockedSearchBar
 import androidx.compose.material3.SearchBarDefaults
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -112,12 +116,18 @@ import com.pisces312.piscesplayer.R
 import com.pisces312.piscesplayer.data.diagnostics.AdvancedPerformanceDiagnostics
 import com.pisces312.piscesplayer.data.repository.MusicRepository
 import com.pisces312.piscesplayer.presentation.components.MiniPlayerHeight
+import com.pisces312.piscesplayer.presentation.components.ListeningStatsOverviewCard
 import com.pisces312.piscesplayer.presentation.components.PlaylistBottomSheet
 import com.pisces312.piscesplayer.presentation.components.PlaylistCover
+import com.pisces312.piscesplayer.presentation.components.RecentlyPlayedSection
+import com.pisces312.piscesplayer.presentation.components.RecentlyPlayedSectionMinSongsToShow
+import com.pisces312.piscesplayer.presentation.components.StatsRankings
 import com.pisces312.piscesplayer.presentation.components.resolveMainScreenBottomGradientHeight
 import com.pisces312.piscesplayer.presentation.components.resolveNavBarOccupiedHeight
 import com.pisces312.piscesplayer.presentation.navigation.Screen
 import com.pisces312.piscesplayer.presentation.viewmodel.PlaylistViewModel
+import com.pisces312.piscesplayer.presentation.viewmodel.StatsViewModel
+import com.pisces312.piscesplayer.presentation.model.rememberRecentlyPlayedHomeState
 import com.pisces312.piscesplayer.utils.formatSongCount
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
@@ -148,7 +158,11 @@ fun SearchScreen(
     playerViewModel: PlayerViewModel,
     playlistViewModel: PlaylistViewModel = hiltViewModel(),
     navController: NavHostController,
-    onSearchBarActiveChange: (Boolean) -> Unit = {}
+    onSearchBarActiveChange: (Boolean) -> Unit = {},
+    // Scoped to the search back stack entry (not to the idle branch), so it survives
+    // idle↔active switches and supplies the idle rankings/overview without a reload.
+    // Allowed: the no-default rule applies to PlayerViewModel only.
+    statsViewModel: StatsViewModel = hiltViewModel()
 ) {
     val searchScreenEnteredAt = remember { android.os.SystemClock.elapsedRealtime() }
     var searchQuery by rememberSaveable { mutableStateOf(playerViewModel.searchQuery) }
@@ -159,6 +173,24 @@ fun SearchScreen(
     val bottomGradientHeight = resolveMainScreenBottomGradientHeight(navBarCompactMode)
     var showPlaylistBottomSheet by remember { mutableStateOf(false) }
     var showClearHistoryDialog by remember { mutableStateOf(false) }
+    // Hoisted above AnimatedContent: the idle branch leaves composition when the user
+    // starts typing, and rememberLazyListState is rememberSaveable-backed, so this keeps
+    // the idle scroll position across idle↔active switches AND across tab switches
+    // (saveState/restoreState).
+    val idleListState = rememberLazyListState()
+    val statsUiState by statsViewModel.uiState.collectAsStateWithLifecycle()
+    val idleSummary = statsUiState.summary
+    // Explicit empty predicate: a zero-valued summary is still a non-null object, so
+    // "hide when no data" needs a real condition, not a null check.
+    val hasIdleStatsOverview = idleSummary != null &&
+        (idleSummary.totalPlayCount > 0 || idleSummary.totalDurationMs > 0)
+    val hotSongsQueueName = stringResource(R.string.presentation_batch_g_stats_hot_songs)
+    // Idle "recently played" state lives at screen scope for the same reason as the list
+    // state: recomposing it on every idle re-entry would redo the derivation for free.
+    val recentState = rememberRecentlyPlayedHomeState(playerViewModel)
+    val currentSongId by remember(playerViewModel.stablePlayerState) {
+        playerViewModel.stablePlayerState.map { it.currentSong?.id }.distinctUntilChanged()
+    }.collectAsStateWithLifecycle(initialValue = null)
     val searchUiState by remember(playerViewModel) {
         playerViewModel.playerUiState
             .map { uiState ->
@@ -393,6 +425,20 @@ fun SearchScreen(
                         containerColor = MaterialTheme.colorScheme.primaryContainer,
                         contentColor = MaterialTheme.colorScheme.onPrimaryContainer
                     ),
+                    onClick = { navController.navigateSafely(Screen.Stats.route) }
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.rounded_monitoring_24),
+                        contentDescription = stringResource(R.string.search_open_stats_cd)
+                    )
+                }
+
+                FilledIconButton(
+                    modifier = Modifier.padding(bottom = 2.dp),
+                    colors = IconButtonDefaults.filledIconButtonColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                    ),
                     onClick = { navController.navigateSafely(Screen.Settings.route) }
                 ) {
                     Icon(
@@ -420,21 +466,104 @@ fun SearchScreen(
                 label = "search_mode_transition"
             ) { isSearchIdle ->
                 if (isSearchIdle) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(horizontal = 16.dp)
+                    // Fixed search-bar row above + one idle LazyColumn here (per plan wording).
+                    // Each section hides when empty; with a fresh install nothing shows, which
+                    // is the accepted minimal fallback.
+                    LazyColumn(
+                        state = idleListState,
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(
+                            start = 16.dp,
+                            end = 16.dp,
+                            bottom = bottomBarHeightDp + MiniPlayerHeight + 16.dp
+                        ),
+                        verticalArrangement = Arrangement.spacedBy(24.dp)
                     ) {
-                        SearchHistoryList(
-                            historyItems = searchUiState.searchHistory,
-                            onHistoryClick = { query ->
-                                searchQuery = query
-                                playerViewModel.updateSearchQuery(query)
-                            },
-                            onHistoryDelete = { query -> playerViewModel.deleteSearchHistoryItem(query) },
-                            onClearAllHistory = { showClearHistoryDialog = true },
-                            bottomPadding = bottomBarHeightDp + MiniPlayerHeight + 16.dp
-                        )
+                        if (searchUiState.searchHistory.isNotEmpty()) {
+                            item(key = "idle_history", contentType = "idle_history") {
+                                SearchHistoryChips(
+                                    historyItems = searchUiState.searchHistory,
+                                    onHistoryClick = { query ->
+                                        searchQuery = query
+                                        playerViewModel.updateSearchQuery(query)
+                                    },
+                                    onHistoryDelete = { query ->
+                                        playerViewModel.deleteSearchHistoryItem(query)
+                                    },
+                                    onClearAllHistory = { showClearHistoryDialog = true }
+                                )
+                            }
+                        }
+                        if (recentState.songs.size >= RecentlyPlayedSectionMinSongsToShow) {
+                            item(key = "idle_recently_played", contentType = "recently_played_section") {
+                                RecentlyPlayedSection(
+                                    songs = recentState.songs,
+                                    onSongClick = { song ->
+                                        if (recentState.queue.isNotEmpty()) {
+                                            playerViewModel.playSongs(
+                                                songsToPlay = recentState.queue,
+                                                startSong = song,
+                                                queueName = "Recently Played"
+                                            )
+                                        }
+                                    },
+                                    onOpenAllClick = {
+                                        navController.navigateSafely(Screen.RecentlyPlayed.route)
+                                    },
+                                    themeStateHolder = playerViewModel.themeStateHolder,
+                                    currentSongId = currentSongId,
+                                    contentPadding = PaddingValues(start = 0.dp, end = 8.dp)
+                                )
+                            }
+                        }
+                        if (idleSummary != null) {
+                            item(key = "idle_rankings", contentType = "listening_stats_rankings") {
+                                StatsRankings(
+                                    summary = idleSummary,
+                                    onSongClick = { songId, queueSongIds ->
+                                        playerViewModel.playSongByIds(
+                                            startSongId = songId,
+                                            queueSongIds = queueSongIds,
+                                            queueName = hotSongsQueueName
+                                        )
+                                    },
+                                    onArtistClick = { artist ->
+                                        statsViewModel.resolveArtistId(artist) { artistId ->
+                                            navController.navigateSafely(
+                                                Screen.ArtistDetail.createRoute(artistId)
+                                            )
+                                        }
+                                    },
+                                    onAlbumClick = { album ->
+                                        statsViewModel.resolveAlbumId(album) { albumId ->
+                                            navController.navigateSafely(
+                                                Screen.AlbumDetail.createRoute(albumId)
+                                            )
+                                        }
+                                    },
+                                    onShowAllSongs = {
+                                        navController.navigateSafely(Screen.StatsHotSongs.route)
+                                    },
+                                    onShowAllArtists = {
+                                        navController.navigateSafely(Screen.StatsTopArtists.route)
+                                    },
+                                    onShowAllAlbums = {
+                                        navController.navigateSafely(Screen.StatsTopAlbums.route)
+                                    }
+                                )
+                            }
+                        }
+                        if (hasIdleStatsOverview) {
+                            item(key = "idle_overview", contentType = "listening_stats_overview") {
+                                Surface(
+                                    onClick = { navController.navigateSafely(Screen.Stats.route) },
+                                    shape = MaterialTheme.shapes.large,
+                                    color = MaterialTheme.colorScheme.surfaceContainerLowest
+                                ) {
+                                    ListeningStatsOverviewCard(summary = idleSummary)
+                                }
+                            }
+                        }
                     }
                 } else {
                     Column(
@@ -642,72 +771,84 @@ fun SearchResultSectionHeader(title: String) {
     )
 }
 
+/**
+ * Idle-state search history as a FlowRow of chips (most recent [SearchHistoryChipLimit]).
+ * Tap = run the search; long-press = delete that item (same path as the old per-item
+ * delete); the trailing chip opens the existing clear-all confirmation dialog.
+ * History storage is unchanged.
+ */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun SearchHistoryList(
+fun SearchHistoryChips(
     historyItems: ImmutableList<SearchHistoryItem>,
     onHistoryClick: (String) -> Unit,
     onHistoryDelete: (String) -> Unit,
-    onClearAllHistory: () -> Unit,
-    bottomPadding: Dp = 0.dp
+    onClearAllHistory: () -> Unit
 ) {
-    Column {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 8.dp, horizontal = 8.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(
+            stringResource(R.string.recent_searches),
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(start = 8.dp)
+        )
+        FlowRow(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Text(
-                stringResource(R.string.recent_searches),
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.Bold
-            )
-            if (historyItems.isNotEmpty()) {
-                TextButton(onClick = onClearAllHistory) {
-                    Text(stringResource(R.string.clear_all), maxLines = 1, overflow = TextOverflow.Ellipsis)
+            historyItems.take(SearchHistoryChipLimit).forEach { item ->
+                Surface(
+                    modifier = Modifier.combinedClickable(
+                        onClick = { onHistoryClick(item.query) },
+                        onLongClick = { onHistoryDelete(item.query) }
+                    ),
+                    shape = RoundedCornerShape(8.dp),
+                    color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.History,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            text = item.query,
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
                 }
             }
-        }
-        if (historyItems.isEmpty()) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(bottom = bottomPadding),
-                verticalArrangement = Arrangement.Center,
-                horizontalAlignment = Alignment.CenterHorizontally
+            Surface(
+                modifier = Modifier.combinedClickable(onClick = onClearAllHistory),
+                shape = RoundedCornerShape(8.dp),
+                color = MaterialTheme.colorScheme.surfaceContainerHigh
             ) {
-                Icon(
-                    imageVector = Icons.Rounded.History,
-                    contentDescription = null,
-                    modifier = Modifier
-                        .size(48.dp)
-                        .padding(bottom = 12.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-                )
-                Text(
-                    text = stringResource(R.string.search_history_empty),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        } else {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(
-                    top = 0.dp,
-                    bottom = bottomPadding
-                )
-            ) {
-                items(
-                    historyItems,
-                    key = { "history_${it.id ?: it.query}" },
-                    contentType = { "search_history" }
-                ) { item ->
-                    SearchHistoryListItem(
-                        item = item,
-                        onHistoryClick = onHistoryClick,
-                        onHistoryDelete = onHistoryDelete
+                Row(
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.DeleteForever,
+                        contentDescription = stringResource(R.string.cd_delete_search_history_item),
+                        modifier = Modifier.size(16.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                    )
+                    Text(
+                        text = stringResource(R.string.clear_all),
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
             }
@@ -715,45 +856,7 @@ fun SearchHistoryList(
     }
 }
 
-@Composable
-fun SearchHistoryListItem(
-    item: SearchHistoryItem,
-    onHistoryClick: (String) -> Unit,
-    onHistoryDelete: (String) -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .heightIn(min = 48.dp)
-            .clickable { onHistoryClick(item.query) }
-            .padding(horizontal = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
-            Icon(
-                imageVector = Icons.Rounded.History,
-                contentDescription = stringResource(R.string.cd_search_history_icon),
-                modifier = Modifier.size(20.dp),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Spacer(modifier = Modifier.width(12.dp))
-            Text(
-                text = item.query,
-                style = MaterialTheme.typography.bodyLarge,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-        }
-        IconButton(onClick = { onHistoryDelete(item.query) }) {
-            Icon(
-                imageVector = Icons.Rounded.DeleteForever,
-                contentDescription = stringResource(R.string.cd_delete_search_history_item),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-            )
-        }
-    }
-}
+private const val SearchHistoryChipLimit = 10
 
 
 @Composable

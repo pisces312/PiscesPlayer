@@ -176,6 +176,7 @@
     <string name="clear_all">Clear all</string>
     <string name="cd_search_history_icon">History</string>
     <string name="cd_delete_search_history_item">Delete search history item</string>
+    <string name="search_open_stats_cd">Listening stats</string>
     <string name="cd_no_search_results">No results</string>
     <string name="search_no_results_for_query">No results for \"%1$s\"</string>
     <string name="search_no_results_for_lyrics_query">No songs contain the lyrics \"%1$s\"</string>

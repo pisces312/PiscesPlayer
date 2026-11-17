@@ -26,6 +26,7 @@ import com.pisces312.piscesplayer.R
 import androidx.compose.ui.unit.IntOffset
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.media3.common.util.UnstableApi
+import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -351,36 +352,14 @@ fun AppNavigation(
                     )
                 }
             }
+            // Stats is a subpage entered from the search idle top bar (no longer a root tab),
+            // so it uses the standard subpage transitions like AiMixes.
             composable(
                 Screen.Stats.route,
-                enterTransition = {
-                    mainRootEnterTransition(
-                        fromRoute = initialState.destination.route,
-                        toRoute = targetState.destination.route,
-                        fallback = enterTransition()
-                    )
-                },
-                exitTransition = {
-                    mainRootExitTransition(
-                        fromRoute = initialState.destination.route,
-                        toRoute = targetState.destination.route,
-                        fallback = exitTransition()
-                    )
-                },
-                popEnterTransition = {
-                    mainRootEnterTransition(
-                        fromRoute = initialState.destination.route,
-                        toRoute = targetState.destination.route,
-                        fallback = popEnterTransition()
-                    )
-                },
-                popExitTransition = {
-                    mainRootExitTransition(
-                        fromRoute = initialState.destination.route,
-                        toRoute = targetState.destination.route,
-                        fallback = popExitTransition()
-                    )
-                },
+                enterTransition = { enterTransition() },
+                exitTransition = { exitTransition() },
+                popEnterTransition = { popEnterTransition() },
+                popExitTransition = { popExitTransition() },
             ) {
                 val statsViewModel: StatsViewModel = hiltViewModel()
                 ScreenWrapper(navController = navController, playerViewModel = playerViewModel) {
@@ -409,6 +388,10 @@ fun AppNavigation(
             }
             // The "show all" stats screens reuse the stats destination's ViewModel so the
             // selected time range carries over instead of falling back to the default.
+            // Resolution rule: the stats subpage's entry when present (entered from the subpage);
+            // otherwise the launching entry — the search tab when launched from the search idle
+            // rankings, which owns its own StatsViewModel. Direct getBackStackEntry(Stats.route)
+            // would throw when there is no stats entry in the back stack (search-idle path).
             composable(
                 route = Screen.StatsHotSongs.route,
                 enterTransition = { enterTransition() },
@@ -416,11 +399,7 @@ fun AppNavigation(
                 popEnterTransition = { popEnterTransition() },
                 popExitTransition = { popExitTransition() },
             ) { backStackEntry ->
-                val statsViewModel: StatsViewModel = hiltViewModel(
-                    remember(backStackEntry) {
-                        navController.getBackStackEntry(Screen.Stats.route)
-                    }
-                )
+                val statsViewModel: StatsViewModel = showAllStatsViewModel(navController, backStackEntry)
                 val hotSongsQueueName = stringResource(R.string.presentation_batch_g_stats_hot_songs)
                 ScreenWrapper(navController = navController, playerViewModel = playerViewModel) {
                     StatsHotSongsScreen(
@@ -444,11 +423,7 @@ fun AppNavigation(
                 popEnterTransition = { popEnterTransition() },
                 popExitTransition = { popExitTransition() },
             ) { backStackEntry ->
-                val statsViewModel: StatsViewModel = hiltViewModel(
-                    remember(backStackEntry) {
-                        navController.getBackStackEntry(Screen.Stats.route)
-                    }
-                )
+                val statsViewModel: StatsViewModel = showAllStatsViewModel(navController, backStackEntry)
                 ScreenWrapper(navController = navController, playerViewModel = playerViewModel) {
                     StatsTopArtistsScreen(
                         onBack = { navController.popBackStack() },
@@ -469,11 +444,7 @@ fun AppNavigation(
                 popEnterTransition = { popEnterTransition() },
                 popExitTransition = { popExitTransition() },
             ) { backStackEntry ->
-                val statsViewModel: StatsViewModel = hiltViewModel(
-                    remember(backStackEntry) {
-                        navController.getBackStackEntry(Screen.Stats.route)
-                    }
-                )
+                val statsViewModel: StatsViewModel = showAllStatsViewModel(navController, backStackEntry)
                 ScreenWrapper(navController = navController, playerViewModel = playerViewModel) {
                     StatsTopAlbumsScreen(
                         onBack = { navController.popBackStack() },
@@ -919,8 +890,30 @@ fun AppNavigation(
 private fun String.toRoute(): String = when (this) {
     LaunchTab.SEARCH -> Screen.Search.route
     LaunchTab.LIBRARY -> Screen.Library.route
-    LaunchTab.STATS -> Screen.Stats.route
+    // Stats is no longer a root tab; a persisted "Stats" value lands on search
+    // (the tab whose idle state now hosts the stats content).
+    LaunchTab.STATS -> Screen.Search.route
     else -> Screen.Home.route
+}
+
+/**
+ * ViewModel owner for the stats "show all" screens. Prefers the stats subpage's entry
+ * (range changes made on the subpage carry over); falls back to the launching entry —
+ * the search tab when launched from the search idle rankings, which owns its own
+ * StatsViewModel (range = its own selection). Only when neither exists (defensive)
+ * does the screen fall back to its own entry.
+ */
+@Composable
+private fun showAllStatsViewModel(
+    navController: NavHostController,
+    backStackEntry: NavBackStackEntry
+): StatsViewModel {
+    val owner = remember(backStackEntry) {
+        runCatching { navController.getBackStackEntry(Screen.Stats.route) }.getOrNull()
+            ?: navController.previousBackStackEntry
+            ?: backStackEntry
+    }
+    return hiltViewModel(owner)
 }
 
 private enum class MainRootDirection {

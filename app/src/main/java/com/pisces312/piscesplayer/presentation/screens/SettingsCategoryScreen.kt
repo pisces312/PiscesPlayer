@@ -983,9 +983,15 @@ fun SettingsCategoryScreen(
                                         LaunchTab.HOME to stringResource(R.string.tab_home),
                                         LaunchTab.SEARCH to stringResource(R.string.search),
                                         LaunchTab.LIBRARY to stringResource(R.string.tab_library),
-                                        LaunchTab.STATS to stringResource(R.string.tab_stats),
                                     ),
-                                    selectedKey = uiState.launchTab,
+                                    // Stats is no longer a tab; normalize a persisted "Stats"
+                                    // value to Search for display only (the preference itself
+                                    // is left untouched and still maps to search at launch).
+                                    selectedKey = if (uiState.launchTab == LaunchTab.STATS) {
+                                        LaunchTab.SEARCH
+                                    } else {
+                                        uiState.launchTab
+                                    },
                                     onSelectionChanged = { settingsViewModel.setLaunchTab(it) },
                                     leadingIcon = { Icon(painterResource(R.drawable.tab_24), null, tint = MaterialTheme.colorScheme.secondary) },
                                     modifier = Modifier.settingHighlight("item_appearance_default_tab", highlightKey)
