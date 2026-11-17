@@ -264,7 +264,6 @@
     <string name="presentation_batch_g_list_cd_album_art_for">%1$s 的专辑封面</string>
     <string name="presentation_batch_g_list_cd_playing">正在播放</string>
     <string name="presentation_batch_g_sync_percent">%1$d%%</string>
-    <string name="presentation_batch_g_stats_overview_title">收听统计</string>
     <string name="presentation_batch_g_stats_overview_total_plays">总播放次数</string>
     <string name="presentation_batch_g_stats_overview_avg_per_day">日均播放</string>
     <string name="presentation_batch_g_stats_overview_top_track">最热曲目</string>

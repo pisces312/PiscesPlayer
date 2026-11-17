@@ -312,7 +312,6 @@
     <string name="presentation_batch_g_stats_listening_concentration_title">Concentrazione ascolto</string>
     <string name="presentation_batch_g_stats_n_plays">%1$d riproduzioni</string>
     <string name="presentation_batch_g_stats_overview_avg_per_day">Media al giorno</string>
-    <string name="presentation_batch_g_stats_overview_title">Statistiche di ascolto</string>
     <string name="presentation_batch_g_stats_overview_top_track">Brano principale</string>
     <string name="presentation_batch_g_stats_overview_top_track_line">%1$s • %2$d riproduzioni</string>
     <string name="presentation_batch_g_stats_overview_total_plays">Riproduzioni totali</string>

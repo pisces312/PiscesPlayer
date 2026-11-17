@@ -264,7 +264,6 @@ Backslash (\) can be used to escape character delimiters.</string>
     <string name="presentation_batch_g_list_cd_album_art_for">Album art for %1$s</string>
     <string name="presentation_batch_g_list_cd_playing">Playing</string>
     <string name="presentation_batch_g_sync_percent">%1$d%%</string>
-    <string name="presentation_batch_g_stats_overview_title">Listening stats</string>
     <string name="presentation_batch_g_stats_overview_total_plays">Total plays</string>
     <string name="presentation_batch_g_stats_overview_avg_per_day">Avg per day</string>
     <string name="presentation_batch_g_stats_overview_top_track">Top track</string>

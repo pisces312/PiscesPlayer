@@ -311,7 +311,6 @@
     <string name="presentation_batch_g_stats_listening_concentration_title">감상 집중도</string>
     <string name="presentation_batch_g_stats_n_plays">%1$d회 재생</string>
     <string name="presentation_batch_g_stats_overview_avg_per_day">일평균</string>
-    <string name="presentation_batch_g_stats_overview_title">감상 통계</string>
     <string name="presentation_batch_g_stats_overview_top_track">최고 인기 트랙</string>
     <string name="presentation_batch_g_stats_overview_top_track_line">%1$s • %2$d회 재생</string>
     <string name="presentation_batch_g_stats_overview_total_plays">총 재생 횟수</string>

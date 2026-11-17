@@ -312,7 +312,6 @@
     <string name="presentation_batch_g_stats_listening_concentration_title">Concentration d\'écoute</string>
     <string name="presentation_batch_g_stats_n_plays">%1$d lectures</string>
     <string name="presentation_batch_g_stats_overview_avg_per_day">Moy. par jour</string>
-    <string name="presentation_batch_g_stats_overview_title">Statistiques d\'écoute</string>
     <string name="presentation_batch_g_stats_overview_top_track">Titre le plus écouté</string>
     <string name="presentation_batch_g_stats_overview_top_track_line">%1$s • %2$d lectures</string>
     <string name="presentation_batch_g_stats_overview_total_plays">Total des lectures</string>

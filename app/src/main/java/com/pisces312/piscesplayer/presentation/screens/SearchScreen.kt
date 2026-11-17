@@ -118,8 +118,9 @@ import com.pisces312.piscesplayer.R
 import com.pisces312.piscesplayer.data.diagnostics.AdvancedPerformanceDiagnostics
 import com.pisces312.piscesplayer.data.repository.MusicRepository
 import com.pisces312.piscesplayer.presentation.components.MiniPlayerHeight
+import com.pisces312.piscesplayer.presentation.components.HomeSectionCard
 import com.pisces312.piscesplayer.presentation.components.HomeSectionHeader
-import com.pisces312.piscesplayer.presentation.components.ListeningStatsOverviewCard
+import com.pisces312.piscesplayer.presentation.components.ListeningStatsOverview
 import com.pisces312.piscesplayer.presentation.components.PlaylistBottomSheet
 import com.pisces312.piscesplayer.presentation.components.PlaylistCover
 import com.pisces312.piscesplayer.presentation.components.RecentlyPlayedSection
@@ -446,9 +447,9 @@ fun SearchScreen(
                     LazyColumn(
                         state = idleListState,
                         modifier = Modifier.fillMaxSize(),
+                        // Each block lives in a HomeSectionCard; the cards carry the
+                        // 16dp horizontal gutter themselves.
                         contentPadding = PaddingValues(
-                            start = 16.dp,
-                            end = 16.dp,
                             bottom = bottomBarHeightDp + MiniPlayerHeight + 16.dp
                         ),
                         verticalArrangement = Arrangement.spacedBy(24.dp)
@@ -457,114 +458,120 @@ fun SearchScreen(
                         val hasIdleRecent = recentState.songs.size >= RecentlyPlayedSectionMinSongsToShow
                         if (hasIdleHistory) {
                             item(key = "idle_history", contentType = "idle_history") {
-                                SearchHistoryChips(
-                                    historyItems = searchUiState.searchHistory,
-                                    onHistoryClick = { query ->
-                                        searchQuery = query
-                                        playerViewModel.updateSearchQuery(query)
-                                    },
-                                    onHistoryDelete = { query ->
-                                        playerViewModel.deleteSearchHistoryItem(query)
-                                    },
-                                    onClearAllHistory = { showClearHistoryDialog = true }
-                                )
+                                HomeSectionCard {
+                                    SearchHistoryChips(
+                                        historyItems = searchUiState.searchHistory,
+                                        onHistoryClick = { query ->
+                                            searchQuery = query
+                                            playerViewModel.updateSearchQuery(query)
+                                        },
+                                        onHistoryDelete = { query ->
+                                            playerViewModel.deleteSearchHistoryItem(query)
+                                        },
+                                        onClearAllHistory = { showClearHistoryDialog = true }
+                                    )
+                                }
                             }
                         }
                         if (hasIdleRecent) {
                             item(key = "idle_recently_played", contentType = "recently_played_section") {
-                                RecentlyPlayedSection(
-                                    songs = recentState.songs,
-                                    onSongClick = { song ->
-                                        if (recentState.queue.isNotEmpty()) {
-                                            playerViewModel.playSongs(
-                                                songsToPlay = recentState.queue,
-                                                startSong = song,
-                                                queueName = "Recently Played"
-                                            )
-                                        }
-                                    },
-                                    onOpenAllClick = {
-                                        navController.navigateSafely(Screen.RecentlyPlayed.route)
-                                    },
-                                    themeStateHolder = playerViewModel.themeStateHolder,
-                                    currentSongId = currentSongId,
-                                    contentPadding = PaddingValues(start = 0.dp, end = 8.dp)
-                                )
+                                HomeSectionCard {
+                                    RecentlyPlayedSection(
+                                        songs = recentState.songs,
+                                        onSongClick = { song ->
+                                            if (recentState.queue.isNotEmpty()) {
+                                                playerViewModel.playSongs(
+                                                    songsToPlay = recentState.queue,
+                                                    startSong = song,
+                                                    queueName = "Recently Played"
+                                                )
+                                            }
+                                        },
+                                        onOpenAllClick = {
+                                            navController.navigateSafely(Screen.RecentlyPlayed.route)
+                                        },
+                                        themeStateHolder = playerViewModel.themeStateHolder,
+                                        currentSongId = currentSongId,
+                                        contentPadding = PaddingValues(0.dp)
+                                    )
+                                }
                             }
                         }
                         // Complete listening stats (moved here from the deleted stats subpage):
-                        // header + refresh, range selector, overview card, rankings. Rendered
-                        // unconditionally like the old subpage — the components handle null /
-                        // empty summaries — so the block never collapses to a blank gap and the
-                        // range chips stay reachable even on an empty day.
-                        item(key = "idle_stats_overview", contentType = "listening_stats_overview") {
-                            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                                HomeSectionHeader(
-                                    title = stringResource(R.string.presentation_batch_g_stats_title),
-                                    subtitle = stringResource(R.string.presentation_batch_g_stats_subtitle),
-                                    icon = Icons.Rounded.BarChart,
-                                    iconContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                                    iconContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                                    contentPadding = PaddingValues(0.dp),
-                                    action = {
-                                        FilledIconButton(
-                                            modifier = Modifier.size(40.dp),
-                                            colors = IconButtonDefaults.filledIconButtonColors(
-                                                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                                                contentColor = MaterialTheme.colorScheme.onSurface
-                                            ),
-                                            onClick = { statsViewModel.requestStatsRefresh() },
-                                            enabled = !(statsUiState.isLoading || statsUiState.isRefreshing)
-                                        ) {
-                                            Icon(
-                                                imageVector = Icons.Rounded.Refresh,
-                                                contentDescription = stringResource(R.string.presentation_batch_g_stats_cd_refresh),
-                                                modifier = Modifier.size(20.dp)
+                        // header + refresh, range selector, overview content and rankings share
+                        // one section card. Rendered unconditionally like the old subpage — the
+                        // components handle null / empty summaries — so the block never collapses
+                        // to a blank gap and the range chips stay reachable even on an empty day.
+                        item(key = "idle_stats", contentType = "listening_stats") {
+                            HomeSectionCard {
+                                Column(verticalArrangement = Arrangement.spacedBy(24.dp)) {
+                                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                                        HomeSectionHeader(
+                                            title = stringResource(R.string.presentation_batch_g_stats_title),
+                                            subtitle = stringResource(R.string.presentation_batch_g_stats_subtitle),
+                                            icon = Icons.Rounded.BarChart,
+                                            iconContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                                            iconContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                                            contentPadding = PaddingValues(0.dp),
+                                            action = {
+                                                FilledIconButton(
+                                                    modifier = Modifier.size(40.dp),
+                                                    colors = IconButtonDefaults.filledIconButtonColors(
+                                                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                                        contentColor = MaterialTheme.colorScheme.onSurface
+                                                    ),
+                                                    onClick = { statsViewModel.requestStatsRefresh() },
+                                                    enabled = !(statsUiState.isLoading || statsUiState.isRefreshing)
+                                                ) {
+                                                    Icon(
+                                                        imageVector = Icons.Rounded.Refresh,
+                                                        contentDescription = stringResource(R.string.presentation_batch_g_stats_cd_refresh),
+                                                        modifier = Modifier.size(20.dp)
+                                                    )
+                                                }
+                                            }
+                                        )
+                                        StatsRangeSelector(
+                                            selected = statsUiState.selectedRange,
+                                            onRangeSelected = statsViewModel::onRangeSelected
+                                        )
+                                        ListeningStatsOverview(summary = idleSummary)
+                                    }
+                                    StatsRankings(
+                                        summary = idleSummary,
+                                        onSongClick = { songId, queueSongIds ->
+                                            playerViewModel.playSongByIds(
+                                                startSongId = songId,
+                                                queueSongIds = queueSongIds,
+                                                queueName = hotSongsQueueName
                                             )
+                                        },
+                                        onArtistClick = { artist ->
+                                            statsViewModel.resolveArtistId(artist) { artistId ->
+                                                navController.navigateSafely(
+                                                    Screen.ArtistDetail.createRoute(artistId)
+                                                )
+                                            }
+                                        },
+                                        onAlbumClick = { album ->
+                                            statsViewModel.resolveAlbumId(album) { albumId ->
+                                                navController.navigateSafely(
+                                                    Screen.AlbumDetail.createRoute(albumId)
+                                                )
+                                            }
+                                        },
+                                        onShowAllSongs = {
+                                            navController.navigateSafely(Screen.StatsHotSongs.route)
+                                        },
+                                        onShowAllArtists = {
+                                            navController.navigateSafely(Screen.StatsTopArtists.route)
+                                        },
+                                        onShowAllAlbums = {
+                                            navController.navigateSafely(Screen.StatsTopAlbums.route)
                                         }
-                                    }
-                                )
-                                StatsRangeSelector(
-                                    selected = statsUiState.selectedRange,
-                                    onRangeSelected = statsViewModel::onRangeSelected
-                                )
-                                ListeningStatsOverviewCard(summary = idleSummary)
-                            }
-                        }
-                        item(key = "idle_rankings", contentType = "listening_stats_rankings") {
-                            StatsRankings(
-                                summary = idleSummary,
-                                onSongClick = { songId, queueSongIds ->
-                                    playerViewModel.playSongByIds(
-                                        startSongId = songId,
-                                        queueSongIds = queueSongIds,
-                                        queueName = hotSongsQueueName
                                     )
-                                },
-                                onArtistClick = { artist ->
-                                    statsViewModel.resolveArtistId(artist) { artistId ->
-                                        navController.navigateSafely(
-                                            Screen.ArtistDetail.createRoute(artistId)
-                                        )
-                                    }
-                                },
-                                onAlbumClick = { album ->
-                                    statsViewModel.resolveAlbumId(album) { albumId ->
-                                        navController.navigateSafely(
-                                            Screen.AlbumDetail.createRoute(albumId)
-                                        )
-                                    }
-                                },
-                                onShowAllSongs = {
-                                    navController.navigateSafely(Screen.StatsHotSongs.route)
-                                },
-                                onShowAllArtists = {
-                                    navController.navigateSafely(Screen.StatsTopArtists.route)
-                                },
-                                onShowAllAlbums = {
-                                    navController.navigateSafely(Screen.StatsTopAlbums.route)
                                 }
-                            )
+                            }
                         }
                     }
                 } else {

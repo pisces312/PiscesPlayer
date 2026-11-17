@@ -312,7 +312,6 @@
     <string name="presentation_batch_g_stats_listening_concentration_title">Konsentrasi mendengarkan</string>
     <string name="presentation_batch_g_stats_n_plays">%1$d putaran</string>
     <string name="presentation_batch_g_stats_overview_avg_per_day">Rata-rata per hari</string>
-    <string name="presentation_batch_g_stats_overview_title">Statistik mendengarkan</string>
     <string name="presentation_batch_g_stats_overview_top_track">Trek teratas</string>
     <string name="presentation_batch_g_stats_overview_top_track_line">%1$s • %2$d putaran</string>
     <string name="presentation_batch_g_stats_overview_total_plays">Total putaran</string>

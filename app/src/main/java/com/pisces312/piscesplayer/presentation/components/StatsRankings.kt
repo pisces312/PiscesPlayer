@@ -36,7 +36,7 @@ import com.pisces312.piscesplayer.utils.formatListeningDurationCompact
 const val StatsRankingItemCount = 8
 
 /**
- * 热歌 / 艺人 / 专辑三个排行区块，统计子页与搜索 idle 页共用。
+ * 热歌 / 艺人 / 专辑三个排行区块，渲染在搜索 idle 页收听统计卡内。
  * 区块各自在数据为空时整体隐藏。
  */
 @Composable
@@ -50,10 +50,7 @@ fun StatsRankings(
     onShowAllAlbums: () -> Unit
 ) {
     if (summary == null) return
-    Column(
-        modifier = Modifier.padding(horizontal = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(24.dp)
-    ) {
+    Column(verticalArrangement = Arrangement.spacedBy(24.dp)) {
         RankingSection(
             title = stringResource(R.string.presentation_batch_g_stats_hot_songs),
             items = summary.songs.take(StatsRankingItemCount),

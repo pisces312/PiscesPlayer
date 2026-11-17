@@ -8,12 +8,9 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -28,77 +25,29 @@ import com.pisces312.piscesplayer.R
 import com.pisces312.piscesplayer.data.stats.PlaybackStatsRepository.PlaybackStatsSummary
 import com.pisces312.piscesplayer.data.stats.PlaybackStatsRepository.TimelineEntry
 import com.pisces312.piscesplayer.data.stats.StatsTimeRange
-import com.pisces312.piscesplayer.presentation.stats.displayNameRes
 import com.pisces312.piscesplayer.utils.formatListeningDurationCompact
 import com.pisces312.piscesplayer.utils.formatListeningDurationLong
-import racra.compose.smooth_corner_rect_library.AbsoluteSmoothCornerShape
 
+/**
+ * Overview content for the listening-stats section: hero duration, quick
+ * stats, top track and the mini timeline. Renders bare — the surrounding
+ * section card provides the rounded container and padding, and the section
+ * header already carries the "Listening Stats" title, so the former inner
+ * title row and card wrapper were dropped (UI review, 2026-11-17).
+ */
 @Composable
-fun ListeningStatsOverviewCard(
+fun ListeningStatsOverview(
     summary: PlaybackStatsSummary?,
     modifier: Modifier = Modifier
 ) {
-    Card(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp),
-        shape = AbsoluteSmoothCornerShape(
-            cornerRadiusTL = 28.dp,
-            smoothnessAsPercentTR = 60,
-            cornerRadiusTR = 28.dp,
-            smoothnessAsPercentTL = 60,
-            cornerRadiusBL = 28.dp,
-            smoothnessAsPercentBR = 60,
-            cornerRadiusBR = 28.dp,
-            smoothnessAsPercentBL = 60
-        ),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
-        elevation = CardDefaults.cardElevation(0.dp)
+    Column(
+        modifier = modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(MaterialTheme.colorScheme.surfaceContainer)
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(start = 24.dp, end = 24.dp, top = 22.dp, bottom = 22.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                        Text(
-                            text = stringResource(R.string.presentation_batch_g_stats_overview_title),
-                            style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                        Text(
-                            text = stringResource((summary?.range ?: StatsTimeRange.WEEK).displayNameRes()),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                    Box(
-                        modifier = Modifier
-                            .height(8.dp)
-                            .width(8.dp)
-                            .clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.primaryContainer)
-                    )
-                }
-            }
-            Column(
-                modifier = Modifier.padding(start = 24.dp, end = 24.dp, bottom = 24.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                if (summary == null) {
-                    OverviewPlaceholder()
-                } else {
-                    OverviewContent(summary)
-                }
-            }
+        if (summary == null) {
+            OverviewPlaceholder()
+        } else {
+            OverviewContent(summary)
         }
     }
 }
