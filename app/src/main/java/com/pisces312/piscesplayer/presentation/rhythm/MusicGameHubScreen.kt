@@ -5,11 +5,11 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.rounded.Quiz
 import androidx.compose.material.icons.rounded.Piano
@@ -17,7 +17,6 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -31,11 +30,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.pisces312.piscesplayer.R
+import com.pisces312.piscesplayer.presentation.components.MiniPlayerHeight
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MusicGameHubScreen(
-    onBack: () -> Unit,
+    paddingValues: PaddingValues,
     onOpenRhythm: () -> Unit,
     onOpenMusicQuiz: () -> Unit,
 ) {
@@ -43,14 +43,6 @@ fun MusicGameHubScreen(
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(R.string.music_games_title)) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
-                            contentDescription = stringResource(R.string.auth_cd_back),
-                        )
-                    }
-                },
             )
         },
     ) { innerPadding ->
@@ -59,6 +51,9 @@ fun MusicGameHubScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
                 .padding(horizontal = 16.dp),
+            contentPadding = PaddingValues(
+                bottom = paddingValues.calculateBottomPadding() + MiniPlayerHeight + 24.dp
+            ),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             item {

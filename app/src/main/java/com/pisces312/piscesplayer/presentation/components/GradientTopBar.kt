@@ -12,7 +12,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material.icons.rounded.Cloud
-import androidx.compose.material.icons.rounded.SportsEsports
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.LargeTopAppBar
@@ -94,7 +93,6 @@ fun GenreGradientTopBar(
 fun HomeGradientTopBar(
     onNavigationIconClick: () -> Unit,
     onStreamingClick: () -> Unit,
-    onGamesClick: () -> Unit,
     isScrolled: Boolean = false,
 ) {
     val surfaceContainerHigh = MaterialTheme.colorScheme.surfaceContainerHighest
@@ -134,18 +132,6 @@ fun HomeGradientTopBar(
                     Icon(
                           imageVector = Icons.Rounded.Cloud,
                           contentDescription = stringResource(R.string.presentation_batch_g_streaming_title)
-                    )
-                }
-                FilledIconButton(
-                    colors = IconButtonDefaults.filledIconButtonColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                        contentColor = MaterialTheme.colorScheme.onSurface
-                    ),
-                    onClick = onGamesClick
-                ) {
-                    Icon(
-                        imageVector = Icons.Rounded.SportsEsports,
-                        contentDescription = stringResource(R.string.music_games_title)
                     )
                 }
                 FilledIconButton(

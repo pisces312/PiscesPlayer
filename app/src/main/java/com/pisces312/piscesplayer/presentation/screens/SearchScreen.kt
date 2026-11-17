@@ -439,8 +439,8 @@ fun SearchScreen(
             ) { isSearchIdle ->
                 if (isSearchIdle) {
                     // Fixed search-bar row above + one idle LazyColumn here (per plan wording).
-                    // Each section hides when empty; with a fresh install nothing shows, which
-                    // is the accepted minimal fallback.
+                    // History and recents hide when empty; the listening-stats block renders
+                    // unconditionally (like the old stats subpage) with its own empty state.
                     LazyColumn(
                         state = idleListState,
                         modifier = Modifier.fillMaxSize(),

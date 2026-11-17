@@ -743,16 +743,42 @@ fun AppNavigation(
                     )
                 }
             }
+            // Music games is a root tab now (4th bottom-nav destination), so it uses the
+            // main-root tab transitions like Home/Search/Library.
             composable(
                 Screen.MusicGameHub.route,
-                enterTransition = { enterTransition() },
-                exitTransition = { exitTransition() },
-                popEnterTransition = { popEnterTransition() },
-                popExitTransition = { popExitTransition() },
+                enterTransition = {
+                    mainRootEnterTransition(
+                        fromRoute = initialState.destination.route,
+                        toRoute = targetState.destination.route,
+                        fallback = enterTransition()
+                    )
+                },
+                exitTransition = {
+                    mainRootExitTransition(
+                        fromRoute = initialState.destination.route,
+                        toRoute = targetState.destination.route,
+                        fallback = exitTransition()
+                    )
+                },
+                popEnterTransition = {
+                    mainRootEnterTransition(
+                        fromRoute = initialState.destination.route,
+                        toRoute = targetState.destination.route,
+                        fallback = popEnterTransition()
+                    )
+                },
+                popExitTransition = {
+                    mainRootExitTransition(
+                        fromRoute = initialState.destination.route,
+                        toRoute = targetState.destination.route,
+                        fallback = popExitTransition()
+                    )
+                },
             ) {
                 ScreenWrapper(navController = navController, playerViewModel = playerViewModel) {
                     MusicGameHubScreen(
-                        onBack = { navController.popBackStack() },
+                        paddingValues = paddingValues,
                         onOpenRhythm = {
                             navController.navigateSafely(Screen.RhythmSongPicker.route)
                         },
