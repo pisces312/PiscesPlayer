@@ -304,6 +304,13 @@ interface MusicRepository {
     fun getSong(songId: String): Flow<Song?>
     fun getArtistById(artistId: Long): Flow<Artist?>
     suspend fun getArtistIdByName(name: String): Long?
+
+    /** Case-insensitive, whitespace-trimmed artist-name lookup (stats ranking rows → detail page). */
+    suspend fun getArtistIdByNormalizedName(name: String): Long?
+
+    /** Case-insensitive, whitespace-trimmed album-title lookup (stats ranking rows → detail page). */
+    suspend fun getAlbumIdByName(name: String): Long?
+
     fun getArtistsForSong(songId: Long): Flow<List<Artist>>
 
     /**

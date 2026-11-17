@@ -143,12 +143,12 @@ fun ListeningStatsScreen(
                         )
                     },
                     onArtistClick = { artist ->
-                        statsViewModel.resolveArtistId(artist)?.let { artistId ->
+                        statsViewModel.resolveArtistId(artist) { artistId ->
                             navController.navigateSafely(Screen.ArtistDetail.createRoute(artistId))
                         }
                     },
                     onAlbumClick = { album ->
-                        statsViewModel.resolveAlbumId(album)?.let { albumId ->
+                        statsViewModel.resolveAlbumId(album) { albumId ->
                             navController.navigateSafely(Screen.AlbumDetail.createRoute(albumId))
                         }
                     },

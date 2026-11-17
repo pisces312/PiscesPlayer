@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.Uri
 import android.os.Bundle
 import app.cash.turbine.test
+import com.pisces312.piscesplayer.data.ai.SimilarRadioSession
 import com.pisces312.piscesplayer.data.database.AlbumArtThemeDao
 import com.google.common.util.concurrent.ListenableFuture
 import com.pisces312.piscesplayer.data.model.SearchFilterType
@@ -73,6 +74,7 @@ class PlayerViewModelTest {
     private val mockDualPlayerEngine: DualPlayerEngine = mockk(relaxed = true)
     private val mockAppShortcutManager: AppShortcutManager = mockk(relaxed = true)
     private val mockListeningStatsTracker: ListeningStatsTracker = mockk(relaxed = true)
+    private val mockSimilarRadioSession: SimilarRadioSession = mockk(relaxed = true)
     private val mockDailyMixStateHolder: DailyMixStateHolder = mockk(relaxed = true)
     private val mockLyricsStateHolder: LyricsStateHolder = mockk(relaxed = true)
     private val mockQueueStateHolder: QueueStateHolder = mockk(relaxed = true)
@@ -220,6 +222,7 @@ class PlayerViewModelTest {
             mockDualPlayerEngine,
             mockAppShortcutManager,
             mockListeningStatsTracker,
+            mockSimilarRadioSession,
             mockDailyMixStateHolder,
             mockLyricsStateHolder,
             mockQueueStateHolder,

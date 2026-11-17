@@ -2,7 +2,6 @@ package com.pisces312.piscesplayer.presentation.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.pisces312.piscesplayer.data.model.Song
 import com.pisces312.piscesplayer.data.repository.MusicRepository
 import com.pisces312.piscesplayer.data.stats.PlaybackStatsRepository
 import com.pisces312.piscesplayer.data.stats.PlaybackStatsRepository.PlaybackStatsSummary
@@ -43,9 +42,6 @@ class StatsViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(StatsUiState())
     val uiState: StateFlow<StatsUiState> = _uiState.asStateFlow()
 
-    @Volatile
-    private var cachedSongs: List<Song>? = null
-
     /** Cancelled on every range change so a slow load cannot overwrite a newer selection. */
     private var rangeJob: Job? = null
 
@@ -84,7 +80,7 @@ class StatsViewModel @Inject constructor(
     }
 
     /**
-     * 刷新按钮：丢弃已算好的结果、重查歌曲表，然后重算当前周期。
+     * 刷新按钮：丢弃已算好的结果，重算当前周期（涉及的歌曲由 repository 按 ID 现取）。
      *
      * 这里**刻意不落盘**。原实现会先 `flushCurrentSession()` 把在途片段写成一条新事件，但那等于把
      * 「一次连续播放」切成多段：聚合对区间是「取并集 + 次数求和」（`mergeSongEvents` 里首尾相接必合并、
@@ -97,36 +93,38 @@ class StatsViewModel @Inject constructor(
     fun requestStatsRefresh() {
         viewModelScope.launch {
             playbackStatsRepository.invalidateSummaryCache()
-            cachedSongs = null
             loadRange(period = _uiState.value.selectedPeriod, showLoading = false)
         }
     }
 
-    /** 设置页的「重新生成统计」：丢弃结果缓存与歌曲表，由 refreshFlow 驱动重算。 */
+    /** 设置页的「重新生成统计」：丢弃结果缓存，由 refreshFlow 驱动重算。 */
     fun forceRegenerateStats() {
-        cachedSongs = null
         playbackStatsRepository.requestRefresh()
     }
 
     /**
-     * 只算 [period] 这一个周期。结果由 [PlaybackStatsRepository] 按「日历周期身份」缓存，
-     * 命中时不读文件、不做聚合，也不闪 loading。
+     * 只算 [period] 这一个周期。结果由 [PlaybackStatsRepository] 按「日历周期身份」缓存。
+     * 缓存命中时不读文件、不做聚合，也不闪 loading（先探测 [PlaybackStatsRepository.hasCachedSummary]，
+     * 命中则跳过 isLoading 翻转——否则每次进页都白闪一帧骨架屏）。
      */
     private fun loadRange(period: StatsPeriod, showLoading: Boolean = true) {
         rangeJob?.cancel()
         rangeJob = viewModelScope.launch {
-            if (showLoading) {
-                _uiState.update { it.copy(isLoading = true, isRefreshing = false, selectedRange = period.range, selectedPeriod = period) }
-            } else {
-                _uiState.update { it.copy(isRefreshing = true, selectedRange = period.range, selectedPeriod = period) }
-            }
             // 尚未落盘的当前片段：落在该周期内时 repository 会重算而不走缓存，落在周期外则无影响。
             val extraEvents = listOfNotNull(listeningStatsTracker.pendingFragment())
+            // 命中缓存且片段不影响该周期：这次加载是即时的，不该闪 loading。
+            val instant = playbackStatsRepository.hasCachedSummary(period, extraEvents = extraEvents)
+            if (showLoading && !instant) {
+                _uiState.update { it.copy(isLoading = true, isRefreshing = false, selectedRange = period.range, selectedPeriod = period) }
+            } else if (!showLoading) {
+                _uiState.update { it.copy(isRefreshing = true, selectedRange = period.range, selectedPeriod = period) }
+            } else {
+                _uiState.update { it.copy(selectedRange = period.range, selectedPeriod = period) }
+            }
             val summary = runCatching {
                 withContext(Dispatchers.IO) {
-                    playbackStatsRepository.loadSummary(
+                    playbackStatsRepository.loadSummaryForPeriod(
                         period = period,
-                        songs = loadSongs(),
                         extraEvents = extraEvents
                     )
                 }
@@ -159,20 +157,20 @@ class StatsViewModel @Inject constructor(
         }
     }
 
-    fun resolveArtistId(name: String): Long? {
-        return cachedSongs?.firstOrNull { it.displayArtist.equals(name, ignoreCase = true) }?.artistId
-    }
-
-    fun resolveAlbumId(name: String): Long? {
-        return cachedSongs?.firstOrNull { it.album.equals(name, ignoreCase = true) }?.albumId
-    }
-
-    private suspend fun loadSongs(): List<Song> {
-        cachedSongs?.let { existing ->
-            if (existing.isNotEmpty()) return existing
+    /**
+     * 排行行的艺人/专辑名 → 详情页 ID。统计页不再持有全量歌曲表（歌曲按需按 ID 取），
+     * 这里走 DAO 的规范化名称查询（大小写不敏感 + 去空白），一条索引查找；
+     * 解析在 viewModelScope 里完成，命中后回调导航。
+     */
+    fun resolveArtistId(name: String, onResolved: (Long) -> Unit) {
+        viewModelScope.launch {
+            musicRepository.getArtistIdByNormalizedName(name)?.let(onResolved)
         }
-        val songs = musicRepository.getAllSongsOnce()
-        cachedSongs = songs
-        return songs
+    }
+
+    fun resolveAlbumId(name: String, onResolved: (Long) -> Unit) {
+        viewModelScope.launch {
+            musicRepository.getAlbumIdByName(name)?.let(onResolved)
+        }
     }
 }

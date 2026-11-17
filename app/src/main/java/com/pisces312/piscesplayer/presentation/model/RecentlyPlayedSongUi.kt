@@ -33,36 +33,30 @@ fun mapRecentlyPlayedSongs(
 
     if (recentSongIds.isEmpty()) return emptyList()
 
-    val recentSongIdSet = recentSongIds.toHashSet()
     val (startBound, endBound) = range.resolveBounds(
         nowMillis = nowMillis.coerceAtLeast(0L),
         zoneId = ZoneId.systemDefault()
     )
 
-    val seenSongIds = HashSet<String>()
-    val deduped = ArrayList<RecentlyPlayedSongUiModel>(maxItems.coerceAtMost(playbackHistory.size))
-
-    val sortedHistory = playbackHistory.sortedWith(
-        compareByDescending<PlaybackStatsRepository.PlaybackHistoryEntry> { it.timestamp }
-            .thenBy { it.songId }
-    )
-
-    for (entry in sortedHistory) {
-        if (deduped.size >= maxItems) break
+    // collectRecentlyPlayedSongIds 已按时间倒序排过一次并做了 maxItems 截断；
+    // 这里不再重复排序，单次 O(n) 扫出「区间内每首歌的最新时间」即可，
+    // 输出顺序沿用 recentSongIds（即时间倒序 + 去重后的稳定序）。
+    val newestInRange = HashMap<String, Long>(playbackHistory.size)
+    for (entry in playbackHistory) {
         val safeTimestamp = entry.timestamp.coerceAtLeast(0L)
         if (safeTimestamp > endBound) continue
         if (startBound != null && safeTimestamp < startBound) continue
-        if (!seenSongIds.add(entry.songId)) continue
-        if (entry.songId !in recentSongIdSet) continue
-
-        val song = songById[entry.songId] ?: continue
-        deduped += RecentlyPlayedSongUiModel(
-            song = song,
-            lastPlayedTimestamp = safeTimestamp
-        )
+        val prev = newestInRange[entry.songId]
+        if (prev == null || safeTimestamp > prev) {
+            newestInRange[entry.songId] = safeTimestamp
+        }
     }
 
-    return deduped
+    return recentSongIds.mapNotNull { songId ->
+        val song = songById[songId] ?: return@mapNotNull null
+        val timestamp = newestInRange[songId] ?: return@mapNotNull null
+        RecentlyPlayedSongUiModel(song = song, lastPlayedTimestamp = timestamp)
+    }
 }
 
 fun collectRecentlyPlayedSongIds(

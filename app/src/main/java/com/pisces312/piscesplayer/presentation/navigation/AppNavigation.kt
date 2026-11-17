@@ -453,7 +453,7 @@ fun AppNavigation(
                     StatsTopArtistsScreen(
                         onBack = { navController.popBackStack() },
                         onArtistClick = { artist ->
-                            statsViewModel.resolveArtistId(artist)?.let { artistId ->
+                            statsViewModel.resolveArtistId(artist) { artistId ->
                                 navController.navigateSafely(Screen.ArtistDetail.createRoute(artistId))
                             }
                         },
@@ -478,7 +478,7 @@ fun AppNavigation(
                     StatsTopAlbumsScreen(
                         onBack = { navController.popBackStack() },
                         onAlbumClick = { album ->
-                            statsViewModel.resolveAlbumId(album)?.let { albumId ->
+                            statsViewModel.resolveAlbumId(album) { albumId ->
                                 navController.navigateSafely(Screen.AlbumDetail.createRoute(albumId))
                             }
                         },

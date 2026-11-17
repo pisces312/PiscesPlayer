@@ -1379,6 +1379,9 @@ interface MusicDao {
     @Query("SELECT COUNT(*) FROM albums")
     fun getAlbumCount(): Flow<Int>
 
+    @Query("SELECT id FROM albums WHERE LOWER(TRIM(title)) = LOWER(TRIM(:name)) LIMIT 1")
+    suspend fun getAlbumIdByName(name: String): Long?
+
     @Query("""
         SELECT
             albums.id AS id,

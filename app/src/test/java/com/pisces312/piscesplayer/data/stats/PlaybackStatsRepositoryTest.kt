@@ -4,6 +4,7 @@ import com.google.common.truth.Truth.assertThat
 import com.pisces312.piscesplayer.data.model.ArtistRef
 import com.pisces312.piscesplayer.data.model.Song
 import com.pisces312.piscesplayer.data.preferences.UserPreferencesRepository
+import com.pisces312.piscesplayer.data.repository.MusicRepository
 import java.io.File
 import java.time.Instant
 import java.time.LocalDate
@@ -730,7 +731,8 @@ class PlaybackStatsRepositoryTest {
         every { testContext.filesDir } returns uniqueDir
         val userPreferencesRepository = mockk<UserPreferencesRepository>(relaxed = true)
         every { userPreferencesRepository.statsRankingLimitFlow } returns flowOf(DEFAULT_RANKING_LIMIT)
-        return PlaybackStatsRepository(testContext, userPreferencesRepository)
+        val musicRepository = mockk<MusicRepository>(relaxed = true)
+        return PlaybackStatsRepository(testContext, userPreferencesRepository, musicRepository)
     }
 
     private fun song(

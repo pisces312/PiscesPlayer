@@ -6,6 +6,7 @@ import com.google.gson.Gson
 import com.google.gson.JsonElement
 import com.google.gson.reflect.TypeToken
 import com.pisces312.piscesplayer.data.model.Song
+import com.pisces312.piscesplayer.data.repository.MusicRepository
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.File
 import java.io.FileNotFoundException
@@ -44,7 +45,8 @@ import kotlinx.coroutines.launch
 @Singleton
 class PlaybackStatsRepository @Inject constructor(
     @ApplicationContext private val context: Context,
-    private val userPreferencesRepository: UserPreferencesRepository
+    private val userPreferencesRepository: UserPreferencesRepository,
+    private val musicRepository: MusicRepository
 ) {
 
     private val gson = Gson()
@@ -263,11 +265,9 @@ class PlaybackStatsRepository @Inject constructor(
         extraEvents: List<PlaybackEvent> = emptyList()
     ): PlaybackStatsSummary = withContext(Dispatchers.IO) {
         val zoneId = ZoneId.systemDefault()
-        val cacheKey = summaryCacheKey(period, nowMillis, zoneId)
-        val affectsPeriod = extraEvents.isNotEmpty() &&
-            periodOverlapsEvents(period, extraEvents, nowMillis, zoneId)
-        if (!affectsPeriod) {
-            synchronized(summaryCacheLock) { summaryCache[cacheKey] }?.let { return@withContext it }
+        val admission = cacheAdmission(period, nowMillis, zoneId, extraEvents)
+        if (!admission.affectsPeriod) {
+            synchronized(summaryCacheLock) { summaryCache[admission.key] }?.let { return@withContext it }
         }
 
         val limit = userPreferencesRepository.statsRankingLimitFlow.first().let { raw ->
@@ -281,10 +281,121 @@ class PlaybackStatsRepository @Inject constructor(
             zoneId = zoneId,
             maxRankingCount = limit
         )
-        if (!affectsPeriod) {
-            synchronized(summaryCacheLock) { summaryCache[cacheKey] = summary }
+        if (!admission.affectsPeriod) {
+            synchronized(summaryCacheLock) { summaryCache[admission.key] = summary }
         }
         summary
+    }
+
+    private class CacheAdmission(
+        val key: SummaryCacheKey,
+        val affectsPeriod: Boolean
+    )
+
+    /** 缓存准入判定（[loadSummary] 与 [loadSummaryForPeriod] 共用同一套规则）。 */
+    private fun cacheAdmission(
+        period: StatsPeriod,
+        nowMillis: Long,
+        zoneId: ZoneId,
+        extraEvents: List<PlaybackEvent>
+    ): CacheAdmission = CacheAdmission(
+        key = summaryCacheKey(period, nowMillis, zoneId),
+        affectsPeriod = extraEvents.isNotEmpty() &&
+            periodOverlapsEvents(period, extraEvents, nowMillis, zoneId)
+    )
+
+    /**
+     * 缓存里是否已有 [period] 的结果（规则与 [loadSummary] 完全一致）：
+     * 仅当缓存命中且 [extraEvents] 不影响该周期时返回 true。
+     * 供 ViewModel 在翻加载状态之前探测，避免「命中也要闪一帧 loading」。
+     */
+    fun hasCachedSummary(
+        period: StatsPeriod,
+        nowMillis: Long = System.currentTimeMillis(),
+        extraEvents: List<PlaybackEvent> = emptyList()
+    ): Boolean {
+        val admission = cacheAdmission(period, nowMillis, ZoneId.systemDefault(), extraEvents)
+        if (admission.affectsPeriod) return false
+        return synchronized(summaryCacheLock) { summaryCache[admission.key] } != null
+    }
+
+    /**
+     * 生产路径：与 [loadSummary] 相同的缓存语义，但歌曲不再由调用方全量提供 ——
+     * 先按周期粗筛事件、收集涉及的 songId，只按 ID 查这几首（[fetchSongsForEvents]）。
+     * 「今日」通常只涉及几首歌，免去每次进统计页都全表查询 + 两次 DataStore 读 +
+     * 全量实体映射（旧成本见 [MusicRepository.getAllSongsOnce]）。
+     */
+    suspend fun loadSummaryForPeriod(
+        period: StatsPeriod,
+        nowMillis: Long = System.currentTimeMillis(),
+        extraEvents: List<PlaybackEvent> = emptyList()
+    ): PlaybackStatsSummary = withContext(Dispatchers.IO) {
+        val zoneId = ZoneId.systemDefault()
+        val admission = cacheAdmission(period, nowMillis, zoneId, extraEvents)
+        if (!admission.affectsPeriod) {
+            synchronized(summaryCacheLock) { summaryCache[admission.key] }?.let { return@withContext it }
+        }
+
+        val allEvents = readEvents() + extraEvents
+        val limit = userPreferencesRepository.statsRankingLimitFlow.first().let { raw ->
+            if (raw <= 0) Int.MAX_VALUE else raw
+        }
+        val songs = fetchSongsForEvents(period, allEvents, nowMillis, zoneId)
+        val summary = buildSummaryFromEvents(
+            period = period,
+            songs = songs,
+            nowMillis = nowMillis,
+            allEvents = allEvents,
+            zoneId = zoneId,
+            maxRankingCount = limit
+        )
+        if (!admission.affectsPeriod) {
+            synchronized(summaryCacheLock) { summaryCache[admission.key] = summary }
+        }
+        summary
+    }
+
+    /**
+     * 只取 [events] 里涉及的歌：先粗筛（与 [buildSummaryFromEvents] 同一条规则），
+     * 再按主键分批查（Room 不拆 IN 子句，老设备 SQLite 绑定变量有上限）。
+     * 云曲库（Navidrome/Jellyfin）入库后 id 同样是 Long、Song.id 是纯数字字符串；
+     * 非数字 songId（历史遗留 / 外部项）在这里自然落空，与旧全表路径「表里查不到」
+     * 的语义一致（聚合计数保留、排行行丢弃，见 buildSummaryFromEvents）。
+     */
+    private suspend fun fetchSongsForEvents(
+        period: StatsPeriod,
+        events: List<PlaybackEvent>,
+        nowMillis: Long,
+        zoneId: ZoneId
+    ): List<Song> {
+        val songIds = coarseFilterEvents(period, events, nowMillis, zoneId)
+            .asSequence()
+            .map { it.songId }
+            .filter { it.isNotBlank() }
+            .distinct()
+            .toList()
+        if (songIds.isEmpty()) return emptyList()
+        return songIds.chunked(SONG_ID_FETCH_CHUNK).flatMap { chunk ->
+            runCatching { musicRepository.getSongsByIds(chunk).first() }
+                .getOrElse { emptyList() }
+        }
+    }
+
+    /**
+     * 周期的粗筛：只按 endMillis 下界过滤（不展开导入事件），规则与
+     * [buildSummaryFromEvents] 的非 ALL 分支完全一致。ALL 返回原列表
+     * （起点依赖最早事件，无法提前裁）。
+     */
+    private fun coarseFilterEvents(
+        period: StatsPeriod,
+        events: List<PlaybackEvent>,
+        nowMillis: Long,
+        zoneId: ZoneId
+    ): List<PlaybackEvent> {
+        if (period.range == StatsTimeRange.ALL) return events
+        val bounds = period.resolveBounds(emptyList(), nowMillis, zoneId)
+        val lowerBound = bounds.first ?: Long.MIN_VALUE
+        return events.filter { it.endMillis() >= lowerBound }
     }
 
     /**
@@ -394,9 +505,7 @@ class PlaybackStatsRepository @Inject constructor(
             val bounds = period.resolveBounds(emptyList(), nowMillis, zoneId)
             startBound = bounds.first
             endBound = bounds.second
-            val lowerBound = startBound ?: Long.MIN_VALUE
-            expandedEvents = allEvents
-                .filter { event -> event.endMillis() >= lowerBound }
+            expandedEvents = coarseFilterEvents(period, allEvents, nowMillis, zoneId)
                 .map { event -> expandImportedSpan(event, songMap) }
         }
         val filteredEvents = expandedEvents.mapNotNull { event ->
@@ -1291,6 +1400,9 @@ class PlaybackStatsRepository @Inject constructor(
 
         /** 结果缓存的 LRU 上限：够覆盖「本周 + 上周 + 本月 + …」的来回翻页，又不会长期累积。 */
         private const val MAX_SUMMARY_CACHE_ENTRIES = 12
+
+        /** 按 ID 取歌的 IN 子句分批大小，避开老 SQLite 的绑定变量上限。 */
+        private const val SONG_ID_FETCH_CHUNK = 500
     }
 }
 
