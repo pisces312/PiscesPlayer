@@ -570,9 +570,9 @@ dependencies {
     implementation(libs.androidx.documentfile)
     // DataStore is used directly by several repositories (backup history, quiz stats,
     // AI / equalizer preferences). Declared explicitly instead of relying on
-    // glance's transitive datastore-preferences. Pinned to the version we already
-    // compiled against (1.0.0) to keep this a pure dependency-hygiene change.
-    implementation(libs.androidx.datastore.preferences.app)
+    // glance's transitive datastore-preferences. Pinned to the shared catalog version
+    // so the whole project resolves one datastore line.
+    implementation(libs.androidx.datastore.preferences)
 
     implementation(libs.timber)
     implementation(libs.smooth.corner.rect.android.compose)
