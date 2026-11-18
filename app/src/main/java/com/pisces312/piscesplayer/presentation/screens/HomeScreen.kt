@@ -315,6 +315,9 @@ fun HomeScreen(
                     onStreamingClick = {
                           showStreamingProviderSheet = true
                     },
+                    onSoundscapeClick = {
+                        navController.navigateSafely(Screen.SleepSoundscape.route)
+                    },
                     isScrolled = isScrolledPastThreshold.value
                 )
             }

@@ -3,6 +3,7 @@ package com.pisces312.piscesplayer.presentation.components
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -11,6 +12,7 @@ import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
+import androidx.compose.material.icons.rounded.Bed
 import androidx.compose.material.icons.rounded.Cloud
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
@@ -93,6 +95,7 @@ fun GenreGradientTopBar(
 fun HomeGradientTopBar(
     onNavigationIconClick: () -> Unit,
     onStreamingClick: () -> Unit,
+    onSoundscapeClick: () -> Unit,
     isScrolled: Boolean = false,
 ) {
     val surfaceContainerHigh = MaterialTheme.colorScheme.surfaceContainerHighest
@@ -120,6 +123,7 @@ fun HomeGradientTopBar(
         actions = {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier.padding(end = 14.dp)
             ) {
                 FilledIconButton(
@@ -132,6 +136,20 @@ fun HomeGradientTopBar(
                     Icon(
                           imageVector = Icons.Rounded.Cloud,
                           contentDescription = stringResource(R.string.presentation_batch_g_streaming_title)
+                    )
+                }
+                // 入梦 (sleep soundscape): a bed rather than a crescent — the moon icon reads
+                // as the dark/light theme switch in this app's icon vocabulary.
+                FilledIconButton(
+                    colors = IconButtonDefaults.filledIconButtonColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        contentColor = MaterialTheme.colorScheme.onSurface
+                    ),
+                    onClick = onSoundscapeClick
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.Bed,
+                        contentDescription = stringResource(R.string.soundscape_entry_cd)
                     )
                 }
                 FilledIconButton(
