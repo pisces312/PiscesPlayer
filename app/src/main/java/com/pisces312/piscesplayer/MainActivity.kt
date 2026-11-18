@@ -364,7 +364,15 @@ class MainActivity : ComponentActivity() {
             val mediaPermissions = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 listOf(Manifest.permission.READ_MEDIA_AUDIO)
             } else {
-                listOf(Manifest.permission.READ_EXTERNAL_STORAGE)
+                buildList {
+                    add(Manifest.permission.READ_EXTERNAL_STORAGE)
+                    // Android 10 (API 29) only: legacy-storage write grant, needed for tag edits
+                    // and file deletion (see SetupScreen.MediaPermissionPage). Never request it
+                    // above API 29 - the manifest declares it with maxSdkVersion 29.
+                    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
+                        add(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                    }
+                }
             }
             @OptIn(ExperimentalPermissionsApi::class)
             val mediaPermissionState = rememberMultiplePermissionsState(permissions = mediaPermissions)

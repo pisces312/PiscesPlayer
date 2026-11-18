@@ -14,7 +14,7 @@
   <a href="https://github.com/pisces312/PiscesPlayer/releases">
     <img src="https://img.shields.io/github/downloads/pisces312/PiscesPlayer/total?logo=github&style=for-the-badge" alt="累计下载">
   </a>
-  <img src="https://img.shields.io/badge/Android-11%2B-3DDC84?style=for-the-badge&logo=android&logoColor=white" alt="Android 11+">
+  <img src="https://img.shields.io/badge/Android-10%2B-3DDC84?style=for-the-badge&logo=android&logoColor=white" alt="Android 10+">
   <img src="https://img.shields.io/badge/License-GPLv3-blue?style=for-the-badge" alt="GPLv3 许可证">
 </p>
 
@@ -120,7 +120,7 @@ LRCLIB 与 Deezer 可在首次启动向导中开启，或之后在 `设置 > 音
 
 | 要求 | 版本 |
 | --- | --- |
-| Android | 11 及以上，API 30+ |
+| Android | 10 及以上，API 29+ |
 | JDK | 21 |
 | Android SDK | compile/target 37 |
 

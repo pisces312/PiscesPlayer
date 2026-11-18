@@ -606,7 +606,14 @@ private fun hasMediaPermissionNow(context: Context): Boolean {
     } else {
         Manifest.permission.READ_EXTERNAL_STORAGE
     }
-    return ContextCompat.checkSelfPermission(context, mediaPermission) == PackageManager.PERMISSION_GRANTED
+    val readGranted =
+        ContextCompat.checkSelfPermission(context, mediaPermission) == PackageManager.PERMISSION_GRANTED
+    // Matches MediaPermissionPage: on Android 10 the legacy-storage write grant is required too,
+    // so keep the gate consistent with the permission request there.
+    val writeGranted = Build.VERSION.SDK_INT >= Build.VERSION_CODES.R ||
+        ContextCompat.checkSelfPermission(context, Manifest.permission.WRITE_EXTERNAL_STORAGE) ==
+        PackageManager.PERMISSION_GRANTED
+    return readGranted && writeGranted
 }
 
 private fun hasExactAlarmPermissionNow(context: Context): Boolean {
@@ -739,7 +746,15 @@ fun MediaPermissionPage(
     val permissions = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
         listOf(Manifest.permission.READ_MEDIA_AUDIO)
     } else {
-        listOf(Manifest.permission.READ_EXTERNAL_STORAGE)
+        buildList {
+            add(Manifest.permission.READ_EXTERNAL_STORAGE)
+            // Android 10 (API 29) only: tag edits and file deletion fall back to legacy external
+            // storage (MediaStore write/delete requests are API 30+), which needs this grant.
+            // The permission is declared with maxSdkVersion 29, so never request it above that.
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
+                add(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+            }
+        }
     }
     val permissionState = rememberMultiplePermissionsState(permissions = permissions)
     val mediaIcons = persistentListOf(

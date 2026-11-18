@@ -102,6 +102,12 @@ class MusicQuizLibraryCache internal constructor(
         }
     }
 
+    /** Digest sink; OutputStream.nullOutputStream() only exists from API 33. */
+    private object NullOutputStream : OutputStream() {
+        override fun write(b: Int) = Unit
+        override fun write(b: ByteArray, off: Int, len: Int) = Unit
+    }
+
     /**
      * Digest over exactly the fields classification consumes: id, title, artist, album,
      * genre, year, duration and playback uri. Length-prefixed (via writeUTF/writeInt) so
@@ -109,7 +115,7 @@ class MusicQuizLibraryCache internal constructor(
      */
     private fun digestOf(tracks: List<MusicQuizTrack>): ByteArray {
         val digest = MessageDigest.getInstance(DIGEST_ALGORITHM)
-        DataOutputStream(DigestOutputStream(OutputStream.nullOutputStream(), digest)).use { out ->
+        DataOutputStream(DigestOutputStream(NullOutputStream, digest)).use { out ->
             out.writeInt(tracks.size)
             for (track in tracks) {
                 out.writeUTF(track.id)

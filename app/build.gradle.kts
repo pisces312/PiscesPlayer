@@ -353,7 +353,7 @@ android {
 
     defaultConfig {
         applicationId = "com.pisces312.piscesplayer"
-        minSdk = 30
+        minSdk = 29
         targetSdk = 37
         versionCode = (project.findProperty("APP_VERSION_CODE") as? String)?.toInt() ?: 1
         versionName = (project.findProperty("APP_VERSION_NAME") as? String) ?: "1.0.0"

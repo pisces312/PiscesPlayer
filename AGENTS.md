@@ -43,8 +43,16 @@ PiscesPlayer 的设计、调研、计划、评审类文档统一存放在**私�
 ## 技术栈与版本
 
 - Gradle 9.6.1（wrapper 已改腾讯云镜像）、AGP 9.4.0、Kotlin 2.4.20、KSP 2.3.12、JDK 21（JBR）。
-- compileSdk = targetSdk = 37，minSdk = 30；版本号在 `gradle.properties` 的 `APP_VERSION_NAME` / `APP_VERSION_CODE`
+- compileSdk = targetSdk = 37，minSdk = 29（Android 10，2026-11-19 起）；版本号在 `gradle.properties` 的 `APP_VERSION_NAME` / `APP_VERSION_CODE`
   （**以该文件为准，本文不抄写具体值** —— 每发一版就变，抄在这里必然过期）。
+- **minSdk 29 的 Android 10 特例（只有 API 29 受影响，30+ 行为不变）**：MediaStore 的
+  write/delete request 是 API 30，29 上回退直接文件访问，依赖
+  `requestLegacyExternalStorage` + `WRITE_EXTERNAL_STORAGE`（manifest `maxSdkVersion=29`，
+  Setup 时与 READ 同一批申请，见 `SetupScreen.MediaPermissionPage` / `MainActivity` 的
+  权限列表；**30+ 切勿申请 WRITE**，manifest 里没有该权限会直接拒绝）。
+  `StorageVolume.directory`、per-volume `getContentUri(volume, id)` 都是 API 30，
+  29 上的分支见 `StorageUtils.getVolumePath`（反射 `getPath`）与
+  `MediaStorePermissionHelper`。给写/删路径加代码时保持这些回退可用。
 - Media3 1.11.0（`libs.versions.toml` 的 `media3Session` / `media3Transformer` **保持一致**，不要只升其中一个）、
   Room 2.8.5（**数据库 schema 版本以 `PiscesPlayerDatabase.kt` 的 `version` 为准，本文不抄写**；
   任何实体变更都要把 `version` +1 并新增 migration）、Hilt、OkHttp/Retrofit、TagLib + JAudioTagger 元数据。

@@ -7,7 +7,6 @@ import android.net.Uri
 import android.os.Build
 import android.provider.BaseColumns
 import android.provider.MediaStore
-import androidx.annotation.RequiresApi
 import timber.log.Timber
 
 /**
@@ -90,12 +89,15 @@ object MediaStorePermissionHelper {
             .sortedWith(compareBy<String> { it != MediaStore.VOLUME_EXTERNAL_PRIMARY }.thenBy { it })
 
         return buildList {
-            specificVolumes.forEach { volumeName ->
-                add(MediaStore.Audio.Media.getContentUri(volumeName, songId))
-            }
-            add(MediaStore.Audio.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY, songId))
-            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
-                add(MediaStore.Audio.Media.getContentUri(MediaStore.VOLUME_EXTERNAL, songId))
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                specificVolumes.forEach { volumeName ->
+                    add(MediaStore.Audio.Media.getContentUri(volumeName, songId))
+                }
+                add(MediaStore.Audio.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY, songId))
+            } else {
+                // API 29: the per-volume overloads are API 30; on Android 10 only the merged
+                // external volume is addressable, which is what VOLUME_EXTERNAL resolves to.
+                add(ContentUris.withAppendedId(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, songId))
             }
         }.distinctBy { it.toString() }
     }
@@ -194,12 +196,13 @@ object MediaStorePermissionHelper {
      *
      * Returns null on Android < 11 or if [uris] is empty.
      */
-    @RequiresApi(Build.VERSION_CODES.R)
     fun createWriteRequestIntentSender(
         context: Context,
         uris: Collection<Uri>
     ): IntentSender? {
-        if (uris.isEmpty()) return null
+        // MediaStore.createWriteRequest() is API 30; on Android 10 there is no write-request
+        // dialog, so the caller falls back to writing through legacy external storage.
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R || uris.isEmpty()) return null
 
         val existingIds = try {
             val projection = arrayOf(MediaStore.Files.FileColumns._ID)
@@ -249,7 +252,6 @@ object MediaStorePermissionHelper {
      *
      * Returns null on Android < 11 or if [uris] is empty.
      */
-    @RequiresApi(Build.VERSION_CODES.R)
     fun createDeleteRequestIntentSender(
         context: Context,
         uris: Collection<Uri>
@@ -257,11 +259,11 @@ object MediaStorePermissionHelper {
         return createDeleteRequest(context, uris)?.intentSender
     }
 
-    @RequiresApi(Build.VERSION_CODES.R)
     fun createDeleteRequest(
         context: Context,
         uris: Collection<Uri>
     ): DeleteRequest? {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return null
         val distinctUris = uris.distinctBy { it.toString() }
         if (distinctUris.isEmpty()) return null
 
@@ -287,11 +289,11 @@ object MediaStorePermissionHelper {
         )
     }
 
-    @RequiresApi(Build.VERSION_CODES.R)
     private fun createPlatformDeleteRequest(
         context: Context,
         uris: Collection<Uri>
     ): IntentSender? {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return null
         return try {
             MediaStore.createDeleteRequest(context.contentResolver, uris).intentSender
         } catch (_: Exception) {
@@ -303,7 +305,6 @@ object MediaStorePermissionHelper {
      * Convenience: creates a write-request IntentSender for a single song ID.
      * Returns null for cloud songs or Android < 11.
      */
-    @RequiresApi(Build.VERSION_CODES.R)
     fun createWriteRequestForSong(context: Context, songId: Long): IntentSender? {
         val uri = getMediaStoreUri(context, songId) ?: return null
         return createWriteRequestIntentSender(context, listOf(uri))
@@ -313,7 +314,6 @@ object MediaStorePermissionHelper {
      * Convenience: creates a delete-request IntentSender for a single song ID.
      * Returns null for cloud songs or Android < 11.
      */
-    @RequiresApi(Build.VERSION_CODES.R)
     fun createDeleteRequestForSong(context: Context, songId: Long): IntentSender? {
         val uri = getMediaStoreUri(context, songId) ?: return null
         return createDeleteRequestIntentSender(context, listOf(uri))

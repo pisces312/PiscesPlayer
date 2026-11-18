@@ -11,6 +11,12 @@ PixelPlayerOSS; versions up to and including 0.4.3 were published under the upst
   navigation (while the Search tab is selected) brings up the keyboard. It disappears for good
   once any search history exists.
 
+### Changed
+- The minimum Android version is now 10 (API 29) instead of 11 (API 30). On Android 10, tag
+  edits and file deletion fall back to direct file access through legacy external storage
+  (write access is requested together with read access during setup); Android 11+ behaviour
+  is unchanged.
+
 ## [1.0.3] - 2026-11-18
 
 ### Added

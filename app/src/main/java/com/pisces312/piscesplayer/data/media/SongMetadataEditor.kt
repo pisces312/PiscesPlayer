@@ -9,7 +9,6 @@ import android.os.Build
 import android.os.ParcelFileDescriptor
 import android.provider.MediaStore
 import android.util.Base64
-import androidx.annotation.RequiresApi
 import androidx.core.net.toUri
 import com.kyant.taglib.Picture
 import com.kyant.taglib.TagLib
@@ -241,7 +240,6 @@ class SongMetadataEditor(
         )
     }
 
-    @RequiresApi(Build.VERSION_CODES.R)
     suspend fun editSongMetadata(
         songId: Long,
         newTitle: String,
@@ -1165,7 +1163,6 @@ class SongMetadataEditor(
         }
     }
 
-    @RequiresApi(Build.VERSION_CODES.R)
     private fun updateMediaStoreMetadata(
         songId: Long,
         title: String,

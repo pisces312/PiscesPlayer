@@ -4378,10 +4378,8 @@ class PlayerViewModel @Inject constructor(
 
             if (localSongsNeedingPermission.isNotEmpty()) {
                 val uris = localSongsNeedingPermission.mapNotNull { (_, songId) ->
-                    android.provider.MediaStore.Audio.Media.getContentUri(
-                        android.provider.MediaStore.VOLUME_EXTERNAL_PRIMARY,
-                        songId
-                    )
+                    com.pisces312.piscesplayer.utils.MediaStorePermissionHelper
+                        .getMediaStoreUri(songId)
                 }
 
                 if (uris.isNotEmpty()) {

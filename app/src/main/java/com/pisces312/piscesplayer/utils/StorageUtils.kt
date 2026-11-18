@@ -1,6 +1,7 @@
 package com.pisces312.piscesplayer.utils
 
 import android.content.Context
+import android.os.Build
 import android.os.Environment
 import android.os.storage.StorageManager
 import android.os.storage.StorageVolume
@@ -74,17 +75,16 @@ object StorageUtils {
      * Get the file path for a StorageVolume
      */
     private fun getVolumePath(volume: StorageVolume): File? {
-        return try {
-            volume.directory
-        } catch (e: Exception) {
-            try {
-                val getPath = volume.javaClass.getMethod("getPath")
-                val path = getPath.invoke(volume) as? String
-                path?.let { File(it) }
-            } catch (e: Exception) {
-                null
-            }
+        // StorageVolume.directory is API 30. On API 29 the accessor is missing, and the resulting
+        // NoSuchMethodError is an Error - a `catch (e: Exception)` around it never fires. Branch on
+        // the SDK level first, then fall back to the reflective getPath() for Android 10.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            runCatching { volume.directory }.getOrNull()?.let { return it }
         }
+        val legacyPath = runCatching {
+            volume.javaClass.getMethod("getPath").invoke(volume) as? String
+        }.getOrNull()
+        return legacyPath?.takeIf { it.isNotBlank() }?.let { File(it) }
     }
 
     /**

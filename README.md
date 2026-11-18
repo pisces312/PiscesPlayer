@@ -14,7 +14,7 @@
   <a href="https://github.com/pisces312/PiscesPlayer/releases">
     <img src="https://img.shields.io/github/downloads/pisces312/PiscesPlayer/total?logo=github&style=for-the-badge" alt="Total downloads">
   </a>
-  <img src="https://img.shields.io/badge/Android-11%2B-3DDC84?style=for-the-badge&logo=android&logoColor=white" alt="Android 11+">
+  <img src="https://img.shields.io/badge/Android-10%2B-3DDC84?style=for-the-badge&logo=android&logoColor=white" alt="Android 10+">
   <img src="https://img.shields.io/badge/License-GPLv3-blue?style=for-the-badge" alt="GPLv3 license">
 </p>
 
@@ -120,7 +120,7 @@ LRCLIB and Deezer can be enabled during first-run setup or later from `Settings 
 
 | Requirement | Version |
 | --- | --- |
-| Android | 11 or newer, API 30+ |
+| Android | 10 or newer, API 29+ |
 | JDK | 21 |
 | Android SDK | compile/target 37 |
 
