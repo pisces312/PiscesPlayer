@@ -23,6 +23,27 @@ offline "coordinates to place name" lookup in Serendipity, so those features nee
 service and send no device position to a third party. It holds every Chinese province, city and
 district, plus cities of 100k+ people elsewhere.
 
+## Bundled Audio Assets
+
+The sleep soundscape ships field recordings derived from
+[awr1001/natures-music-android](https://github.com/awr1001/natures-music-android), whose
+`LICENSE-ASSETS` releases the audio under
+[Creative Commons Attribution 4.0](https://creativecommons.org/licenses/by/4.0/) (CC BY 4.0),
+© Aaron Roberts / App-O-Matic.
+
+| Asset | Upstream file | Changes |
+| --- | --- | --- |
+| `app/src/main/res/raw/soundscape_rain.ogg` | `rain1.wav` | Trimmed to 24 s, loudness-normalized, faded ends, 48 kHz OGG |
+| `app/src/main/res/raw/soundscape_wind.ogg` | `wind8.mp3` | Trimmed to 15 s, loudness-normalized, faded ends, 48 kHz OGG |
+| `app/src/main/res/raw/soundscape_thunder.ogg` | `dthunder1.mp3` | Trimmed to 12 s, loudness-normalized, faded ends, 48 kHz OGG |
+| `app/src/main/res/raw/soundscape_fire.ogg` | `campfire1.mp3` | Trimmed to 28 s, loudness-normalized, faded ends, 48 kHz OGG |
+| `app/src/main/res/raw/soundscape_ocean.ogg` | `owaves1.mp3` | Trimmed to 30 s, loudness-normalized, faded ends, 48 kHz OGG |
+| `app/src/main/res/raw/soundscape_crickets.ogg` | `crickets.mp3` | Trimmed to 11 s, loudness-normalized, faded ends, 48 kHz OGG |
+
+The seamless loop is produced at playback time by crossfading each file's tail into its head, so
+the shipped files are plain trimmed recordings. Source snapshot:
+`awr1001/natures-music-android@d67b19f3d84af53e438d5668b938196f0947a033`.
+
 ## Native/Binary Runtime Artifacts
 
 | Artifact | APK native library | Upstream/source | License evidence |

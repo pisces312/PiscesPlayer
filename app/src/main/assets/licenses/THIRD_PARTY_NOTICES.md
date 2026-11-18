@@ -16,6 +16,14 @@ Bundled data:
 | `cities.json` (China) | `https://github.com/xiangyuecn/AreaCity-JsSpider-StatsGov` | MIT |
 | `cities.json` (rest of the world) | GeoNames `cities15000`, `https://download.geonames.org/export/dump/` | CC-BY 4.0 |
 
+Bundled audio:
+
+| Asset | Source | License |
+| --- | --- | --- |
+| Sleep soundscape field recordings (`soundscape_*.ogg`: rain, wind, thunder, campfire, ocean, crickets) | `https://github.com/awr1001/natures-music-android` (© Aaron Roberts / App-O-Matic) | CC BY 4.0, `https://creativecommons.org/licenses/by/4.0/` |
+
+The recordings are trimmed, loudness-normalized and re-encoded; see `THIRD_PARTY_NOTICES.md` in the source repository for the per-file table.
+
 Native runtime artifacts:
 
 | Artifact | Native library | License/source evidence |

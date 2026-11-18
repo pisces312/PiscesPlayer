@@ -3,23 +3,47 @@
 All notable changes to PiscesPlayer will be documented in this file. PiscesPlayer is a fork of
 PixelPlayerOSS; versions up to and including 0.4.3 were published under the upstream name.
 
-## [Unreleased]
+## [1.0.3] - 2026-11-18
 
 ### Added
+- A sleep soundscape, titled 入梦 in Chinese and reachable from the home top bar between the
+  streaming and settings buttons. Noise and nature tracks are stacked into one mix, each with
+  its own volume, and the mix is mixed in software into a single stream.
+- Procedural noise in four colors (white, pink, brown and deep brown) with per-track tone,
+  motion and width controls that apply live while playing.
+- Six natural recordings (rain, wind, thunder, campfire, ocean waves and crickets) that loop
+  seamlessly and mix freely with the noise tracks.
+- Master volume with a 0.7 ceiling for hearing protection, a sleep timer (15, 30, 45, 60 or 90
+  minutes, or until stopped) that fades out over the last 30 seconds, and playback through a
+  foreground service with a stop action, so the soundscape keeps playing with the screen off,
+  pauses on audio focus loss and stops when headphones are unplugged.
+- Scenes: three built-in presets (pure brown, pure pink and white mask) plus up to 20 saved
+  mixes. Tapping a scene recalls it, long-pressing a saved one deletes it, the scene row scrolls
+  horizontally with a visible swipe hint, and the last mix is restored on the next visit without
+  playing.
+- Starting a soundscape pauses music, and stopping it does not resume music.
+- Similar Radio: when the queue is about to run dry, AI picks fifteen songs that continue from
+  the last track, so playback can keep going without manual selection. It is switched on from
+  the full player and requires a configured AI provider.
+- A lyrics search mode backed by a local full-text index, plus a manual "Backfill lyrics index"
+  entry in settings for songs whose lyrics were stored before indexing existed.
+- A downgrade screen for the case where the on-disk database is newer than the installed app:
+  it explains what happened and opens a temporary read-only copy, so a backup can still be
+  exported instead of the app crashing on launch.
 - Music Quiz game modes, switchable from a mode picker right above the start button (also offered
   above the actions on the results and error screens): Standard (unchanged), Kids, Classical and
   Endless. The last selected mode is restored on the next visit, and the setup screen shows the
   rule summary, the mode's own best records and the playable pool size for the chosen mode.
-- Kids mode draws its questions from children's songs. Kids songs are found
-  through a built-in bilingual catalog (classic nursery rhymes, animation themes, recent hits and
-  movie songs) and, when the catalog cannot fill the pool, through keyword evidence in the title,
-  artist/album and cached lyrics. Songs performed by kids-content labels (贝瓦儿歌, 贝乐虎儿歌 or
-  any artist containing 儿歌) always qualify, and catalog matching tolerates punctuation
-  differences in titles (commas, apostrophes, hyphens). Classical works are recognized by a
-  bilingual piece catalog, composer/performer names (Bach, Chopin, Lang Lang, Richard
-  Clayderman, …) and form/genre words; they are used by Classical mode and the same-source
-  rule, not mixed into the kids pool.
-  Too few matches shows a dedicated "too few kids songs" empty state instead of starting a run.
+- Kids mode draws its questions from children's songs. Kids songs are found through a built-in
+  bilingual catalog (classic nursery rhymes, animation themes, recent hits and movie songs) and,
+  when the catalog cannot fill the pool, through keyword evidence in the title, artist/album and
+  cached lyrics. Songs performed by kids-content labels (贝瓦儿歌, 贝乐虎儿歌 or any artist
+  containing 儿歌) always qualify, and catalog matching tolerates punctuation differences in
+  titles (commas, apostrophes, hyphens). Classical works are recognized by a bilingual piece
+  catalog, composer/performer names (Bach, Chopin, Lang Lang, Richard Clayderman, …) and
+  form/genre words; they are used by Classical mode and the same-source rule, not mixed into the
+  kids pool. Too few matches shows a dedicated "too few kids songs" empty state instead of
+  starting a run.
 - Classical mode draws all ten rounds from classical tracks, and the same-source rule applies in
   every mode: when the answer is a classical work, all five options are classical, so the
   category never gives the answer away. Sub-pools that cannot form five distinct options drop out
@@ -29,6 +53,28 @@ PixelPlayerOSS; versions up to and including 0.4.3 were published under the upst
   one, and the results screen adds "most answered" to the records. Best score, best streak,
   completed runs and best rounds are kept per mode so different pools never overwrite each other.
 - Music Quiz answer options show each song's cover art in front of the title.
+
+### Changed
+- Music games is now a fourth bottom tab; the home top bar no longer carries a game button, and
+  the rhythm game keeps its song picker for recent, difficulty and saved-chart filtering.
+- Home sections are unified into cards, and listening statistics moved into the search idle
+  state, replacing the separate statistics subpage and its button.
+- Daily mixes refresh on New Year's Day, and "Your Mix" is a discovery feed that stays disjoint
+  from the daily mixes instead of repeating them.
+- Settings buttons were removed from the search and library top bars.
+- The launcher icon uses a refreshed fish mark (the debug build carries an amber variant).
+- AI library sampling now includes each song's genre when building playlist prompts.
+
+### Fixed
+- Embedded and local-file lyrics are persisted to the database again, so they appear in lyrics
+  search, translation and the lyrics view after a rescan.
+- Accepting AI playlist suggestions no longer gives the user's queue away: enabling Similar Radio
+  takes over the queue deliberately, and its toggle surfaces the missing-provider hint instead of
+  silently doing nothing.
+- Paging flows in the library are subscribed only by composed pages, avoiding duplicate collection
+  after repeated tab switches.
+- The debug suffix on the app name is kept in Chinese locales.
+- The similar-radio and daily-mix refresh paths no longer read player state from the main thread.
 
 ## [1.0.2] - 2026-11-14
 
