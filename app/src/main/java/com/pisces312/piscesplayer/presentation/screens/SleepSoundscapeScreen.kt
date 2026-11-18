@@ -63,7 +63,6 @@ import com.pisces312.piscesplayer.data.noise.SoundscapeMix
 import com.pisces312.piscesplayer.data.noise.SoundscapePreset
 import com.pisces312.piscesplayer.data.noise.SoundscapeSound
 import com.pisces312.piscesplayer.presentation.components.BreathingWaves
-import com.pisces312.piscesplayer.presentation.components.MiniPlayerHeight
 import com.pisces312.piscesplayer.presentation.components.PresetChipRow
 import com.pisces312.piscesplayer.presentation.components.SoundscapeLibrarySheet
 import com.pisces312.piscesplayer.presentation.components.TrackCard
@@ -336,7 +335,9 @@ fun SleepSoundscapeScreen(
                         .padding(top = 8.dp, bottom = 16.dp),
                 )
             }
-            Spacer(Modifier.height(MiniPlayerHeight + 16.dp))
+            // No mini player on this route (MainActivity hides it), so only the
+            // system navigation inset from the Scaffold protects the button.
+            Spacer(Modifier.height(24.dp))
         }
     }
 

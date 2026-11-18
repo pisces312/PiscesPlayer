@@ -120,8 +120,15 @@ class SoundscapeStateHolder @Inject constructor(
     }
 
     fun removeTrack(soundId: String) {
-        updateMix(_mix.value.copy(tracks = _mix.value.tracks.filterNot { it.soundId == soundId }))
+        val remaining = _mix.value.tracks.filterNot { it.soundId == soundId }
+        updateMix(_mix.value.copy(tracks = remaining))
         engine.removeTrack(soundId)
+        // Removing the last sound ends playback: there is nothing left to hear, and a
+        // running foreground notification for silence would be misleading. Uses a
+        // short fade (the removed track is already gone) instead of the 5 s stop fade.
+        if (remaining.isEmpty() && engine.isRunning) {
+            stopMix(fadeOutMs = SoundscapeEngine.TRACK_REMOVE_FADE_MS * 2)
+        }
     }
 
     /** Updates one track's parameters; changes are audible immediately while playing. */
@@ -255,8 +262,8 @@ class SoundscapeStateHolder @Inject constructor(
         }
     }
 
-    private fun stopMix() {
-        engine.stop()
+    private fun stopMix(fadeOutMs: Long = SoundscapeEngine.FADE_OUT_STOP_MS) {
+        engine.stop(fadeOutMs)
         SoundscapeService.stop(context)
     }
 

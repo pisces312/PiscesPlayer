@@ -1012,7 +1012,14 @@ class MainActivity : ComponentActivity() {
                                 .distinctUntilChanged()
                         }.collectAsStateWithLifecycle(initialValue = false)
                         val routesWithHiddenMiniPlayer = remember {
-                            setOf(Screen.NavBarCrRad.route, Screen.RhythmGame.route, Screen.MusicQuiz.route)
+                            setOf(
+                                Screen.NavBarCrRad.route,
+                                Screen.RhythmGame.route,
+                                Screen.MusicQuiz.route,
+                                // 入梦 is its own mixer: starting it stops music, so a mini
+                                // player there would be a dead control.
+                                Screen.SleepSoundscape.route,
+                            )
                         }
                         val shouldHideMiniPlayer by remember(currentRoute) {
                             derivedStateOf { currentRoute in routesWithHiddenMiniPlayer }
