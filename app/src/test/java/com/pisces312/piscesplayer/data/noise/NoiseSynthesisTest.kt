@@ -7,6 +7,7 @@ package com.pisces312.piscesplayer.data.noise
 
 import kotlin.math.abs
 import kotlin.math.cos
+import kotlin.math.log10
 import kotlin.math.ln
 import kotlin.math.max
 import kotlin.math.PI
@@ -27,11 +28,13 @@ class NoiseSynthesisTest {
 
     private fun synth(seed: Long = 11L): NoiseSynthesis = NoiseSynthesis(seed, sampleRate)
 
-    /** One second of steady-state audio at full gain, no motion, full decorrelation. */
+    /**
+     * One second of steady-state audio at full gain, no motion. Width is NOT
+     * forced here — the decorrelation tests set it themselves.
+     */
     private fun renderSteady(s: NoiseSynthesis, color: NoiseColor, seconds: Int = 2): FloatArray {
         s.setColor(color)
         s.setMotion(0f)
-        s.setWidth(1f)
         s.setTargetGain(1f)
         val frames = sampleRate * seconds
         val out = FloatArray(frames * 2)
@@ -171,8 +174,10 @@ class NoiseSynthesisTest {
         val out = FloatArray(frames * 2)
         s.generate(out, frames)
 
-        // Per-100ms envelope RMS; depth 4 dB -> max/min envelope ratio ~ 10^(4/20) = 1.58.
-        val windowFrames = sampleRate / 10
+        // Per-second envelope RMS; depth 4 dB -> max/min envelope ratio ~ 10^(4/20) = 1.58.
+        // 1 s windows (not 100 ms): pink noise correlates for a long time, short
+        // windows add several dB of RMS estimation noise.
+        val windowFrames = sampleRate
         var minE = Float.MAX_VALUE
         var maxE = 0f
         var w = 0
@@ -182,7 +187,7 @@ class NoiseSynthesisTest {
             maxE = maxOf(maxE, e)
             w += windowFrames
         }
-        val ratioDb = 20 * ln(maxE / minE)
+        val ratioDb = 20 * log10(maxE / minE)
         assertTrue("motion depth out of range: $ratioDb dB (max=$maxE min=$minE)", ratioDb in 2.5f..5.5f)
     }
 

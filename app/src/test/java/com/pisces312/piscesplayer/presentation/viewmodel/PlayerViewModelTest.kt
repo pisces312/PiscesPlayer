@@ -83,6 +83,7 @@ class PlayerViewModelTest {
     private val mockPlaybackStateHolder: PlaybackStateHolder = mockk(relaxed = true)
     private val mockConnectivityStateHolder: ConnectivityStateHolder = mockk(relaxed = true)
     private val mockSleepTimerStateHolder: SleepTimerStateHolder = mockk(relaxed = true)
+    private val mockSoundscapeStateHolder: SoundscapeStateHolder = mockk(relaxed = true)
     private val mockSearchStateHolder: SearchStateHolder = mockk(relaxed = true)
     private val mockLibraryStateHolder: LibraryStateHolder = mockk(relaxed = true)
     private val mockFolderNavigationStateHolder: FolderNavigationStateHolder = mockk(relaxed = true)
@@ -231,6 +232,7 @@ class PlayerViewModelTest {
             mockPlaybackStateHolder,
             mockConnectivityStateHolder,
             mockSleepTimerStateHolder,
+            mockSoundscapeStateHolder,
             mockSearchStateHolder,
             mockLibraryStateHolder,
             mockFolderNavigationStateHolder,

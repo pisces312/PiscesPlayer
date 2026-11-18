@@ -29,7 +29,7 @@ data class NoiseTrackParams(
     val motionDb: Float = NoiseSynthesis.MOTION_DEPTH_DEFAULT_DB,
     val width: Float = NoiseSynthesis.WIDTH_DEFAULT,
 ) {
-    fun trackGain(): Float = dBToLinear((volume - 1f) * TRACK_GAIN_RANGE_DB)
+    fun trackGain(): Float = Math.pow(10.0, ((volume - 1f) * TRACK_GAIN_RANGE_DB) / 20.0).toFloat()
 
     companion object {
         const val DEFAULT_TRACK_VOLUME = 0.4f
@@ -149,13 +149,41 @@ class SoundscapeEngine @Inject constructor(
         if (remaining == null || remaining > FOCUS_LOSS_FADE_MS) start(remaining)
     }
 
-    /** Registers or updates a track; a track id may only exist once (mixer sums, not replaces). */
+    /**
+     * Registers or updates a track; a track id may only exist once (mixer sums, not replaces).
+     * An already-active track is updated in place (parameter setters are thread-safe and the
+     * filter state carries over), so a live slider drag never restarts the generator.
+     */
     fun setTrack(soundId: String, params: NoiseTrackParams) {
-        val synth = NoiseSynthesis(seed = soundId.hashCode().toLong())
-        applyParams(synth, params)
         synchronized(tracksLock) {
-            activeTracks.removeAll { it.soundId == soundId }
-            activeTracks.add(ActiveTrack(soundId, synth))
+            val i = activeTracks.indexOfFirst { it.soundId == soundId && it.dropAtElapsedMs == Long.MAX_VALUE }
+            if (i >= 0) {
+                applyParams(activeTracks[i].synth, params)
+            } else {
+                val synth = NoiseSynthesis(seed = soundId.hashCode().toLong())
+                applyParams(synth, params)
+                activeTracks.removeAll { it.soundId == soundId }
+                activeTracks.add(ActiveTrack(soundId, synth))
+            }
+        }
+        publishSoundIds()
+    }
+
+    /** Keeps only the listed track ids; the rest fade out and are dropped like [removeTrack]. */
+    fun retainTracks(soundIds: Collection<String>) {
+        synchronized(tracksLock) {
+            val keep = soundIds.toHashSet()
+            val now = SystemClock.elapsedRealtime()
+            activeTracks.indices
+                .filter { i ->
+                    val t = activeTracks[i]
+                    t.soundId !in keep && t.dropAtElapsedMs == Long.MAX_VALUE
+                }
+                .forEach { i ->
+                    val track = activeTracks[i]
+                    track.synth.setTargetGain(0f)
+                    activeTracks[i] = ActiveTrack(track.soundId, track.synth, now + TRACK_REMOVE_FADE_MS)
+                }
         }
         publishSoundIds()
     }

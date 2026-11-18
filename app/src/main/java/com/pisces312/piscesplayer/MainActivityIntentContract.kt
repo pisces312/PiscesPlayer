@@ -5,4 +5,5 @@ object MainActivityIntentContract {
     const val ACTION_OPEN_PLAYLIST = "com.pisces312.piscesplayer.ACTION_OPEN_PLAYLIST"
     const val EXTRA_PLAYLIST_ID = "playlist_id"
     const val ACTION_OPEN_UPDATES = "com.pisces312.piscesplayer.ACTION_OPEN_UPDATES"
+    const val ACTION_OPEN_SOUNDSCAPE = "com.pisces312.piscesplayer.ACTION_OPEN_SOUNDSCAPE"
 }

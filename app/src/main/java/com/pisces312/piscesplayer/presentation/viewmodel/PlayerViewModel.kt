@@ -285,6 +285,7 @@ class PlayerViewModel @Inject constructor(
     private val playbackStateHolder: PlaybackStateHolder,
     private val connectivityStateHolder: ConnectivityStateHolder,
     private val sleepTimerStateHolder: SleepTimerStateHolder,
+    val soundscapeStateHolder: SoundscapeStateHolder,
     private val searchStateHolder: SearchStateHolder,
     private val libraryStateHolder: LibraryStateHolder,
     private val folderNavigationStateHolder: FolderNavigationStateHolder,
@@ -1749,6 +1750,12 @@ class PlayerViewModel @Inject constructor(
             )
 
             searchStateHolder.initialize(this@PlayerViewModel, viewModelScope)
+            soundscapeStateHolder.initialize(
+                this@PlayerViewModel,
+                scope = viewModelScope,
+                toastEmitter = { msg -> _toastEvents.emit(msg) },
+                pauseMusic = { pauseMusicOnly() },
+            )
             // Must stay after initialize(): the holder binds its scope there, and
             // loadSearchHistory() silently no-ops while that scope is still null.
             loadSearchHistory()
@@ -3959,6 +3966,20 @@ class PlayerViewModel @Inject constructor(
         playbackStateHolder.setSliderUiMounted(mounted)
     }
 
+    /**
+     * Pauses music only — never starts anything. Used when the sleep soundscape
+     * takes over (§4.3: starting the soundscape stops music).
+     * Returns true when music was actually playing and has been paused.
+     */
+    fun pauseMusicOnly(): Boolean {
+        val controller = mediaController
+        if (controller != null && controller.isConnected && controller.isPlaying) {
+            controller.pause()
+            return true
+        }
+        return false
+    }
+
     fun playPause() {
         val controller = mediaController
         if (controller == null || !controller.isConnected) {
@@ -4191,6 +4212,7 @@ class PlayerViewModel @Inject constructor(
         lyricsStateHolder.onCleared(this)
         themeStateHolder.onCleared(this)
         searchStateHolder.onCleared(this@PlayerViewModel)
+        soundscapeStateHolder.onCleared(this@PlayerViewModel)
         libraryStateHolder.onCleared(this)
         sleepTimerStateHolder.onCleared(this)
         connectivityStateHolder.onCleared(this)
