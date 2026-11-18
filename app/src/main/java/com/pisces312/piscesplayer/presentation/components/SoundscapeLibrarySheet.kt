@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Check
-import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -36,7 +35,8 @@ import com.pisces312.piscesplayer.data.noise.SoundscapeSound
  * (already-added sounds are check-marked and disabled); the sheet stays open
  * for consecutive adds and closes through the "Done" button.
  *
- * Nature sounds are listed but locked: Phase B ships the asset pipeline.
+ * Two sections: procedural noise colors and natural field recordings; both
+ * add tracks through the same id contract.
  */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -63,47 +63,22 @@ fun SoundscapeLibrarySheet(
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            FlowRow(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                SoundscapeSound.entries.forEach { sound ->
-                    val inMix = sound.id in activeSoundIds
-                    SuggestionChip(
-                        onClick = { if (!inMix) onAddSound(sound) },
-                        enabled = !inMix,
-                        label = { Text(stringResource(sound.nameRes)) },
-                        icon = if (inMix) {
-                            {
-                                Icon(
-                                    imageVector = Icons.Rounded.Check,
-                                    contentDescription = null,
-                                )
-                            }
-                        } else {
-                            null
-                        },
-                        colors = SuggestionChipDefaults.suggestionChipColors(
-                            disabledContainerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-                        ),
-                    )
-                }
-            }
+            SoundscapeSoundChips(
+                sounds = SoundscapeSound.entries.filter { it.isSynth },
+                activeSoundIds = activeSoundIds,
+                onAddSound = onAddSound,
+            )
 
             Text(
                 text = stringResource(R.string.soundscape_library_nature_section),
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            FlowRow(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                NaturePlaceholder(stringResource(R.string.soundscape_nature_rain))
-                NaturePlaceholder(stringResource(R.string.soundscape_nature_wind))
-                NaturePlaceholder(stringResource(R.string.soundscape_nature_thunder))
-                NaturePlaceholder(stringResource(R.string.soundscape_nature_fire))
-            }
+            SoundscapeSoundChips(
+                sounds = SoundscapeSound.entries.filter { !it.isSynth },
+                activeSoundIds = activeSoundIds,
+                onAddSound = onAddSound,
+            )
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -117,18 +92,37 @@ fun SoundscapeLibrarySheet(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun NaturePlaceholder(label: String) {
-    SuggestionChip(
-        onClick = {},
-        enabled = false,
-        label = { Text(label) },
-        icon = {
-            Icon(
-                imageVector = Icons.Rounded.Lock,
-                contentDescription = null,
+private fun SoundscapeSoundChips(
+    sounds: List<SoundscapeSound>,
+    activeSoundIds: Set<String>,
+    onAddSound: (SoundscapeSound) -> Unit,
+) {
+    FlowRow(
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        sounds.forEach { sound ->
+            val inMix = sound.id in activeSoundIds
+            SuggestionChip(
+                onClick = { if (!inMix) onAddSound(sound) },
+                enabled = !inMix,
+                label = { Text(stringResource(sound.nameRes)) },
+                icon = if (inMix) {
+                    {
+                        Icon(
+                            imageVector = Icons.Rounded.Check,
+                            contentDescription = null,
+                        )
+                    }
+                } else {
+                    null
+                },
+                colors = SuggestionChipDefaults.suggestionChipColors(
+                    disabledContainerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                ),
             )
-        },
-    )
+        }
+    }
 }

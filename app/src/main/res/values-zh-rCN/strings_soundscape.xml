@@ -36,11 +36,13 @@
     <string name="soundscape_noise_brown">棕噪声</string>
     <string name="soundscape_noise_deep_brown">深棕噪声</string>
     <string name="soundscape_library_noise_section">噪声</string>
-    <string name="soundscape_library_nature_section">自然（即将推出）</string>
+    <string name="soundscape_library_nature_section">自然</string>
     <string name="soundscape_nature_rain">雨</string>
     <string name="soundscape_nature_wind">风</string>
     <string name="soundscape_nature_thunder">雷</string>
-    <string name="soundscape_nature_fire">火</string>
+    <string name="soundscape_nature_fire">篝火</string>
+    <string name="soundscape_nature_ocean">海浪</string>
+    <string name="soundscape_nature_crickets">虫鸣</string>
     <string name="soundscape_library_done">完成</string>
     <string name="soundscape_preset_save_title">另存为场景</string>
     <string name="soundscape_preset_save_short">另存</string>

@@ -10,6 +10,7 @@ import android.media.AudioAttributes
 import android.media.AudioFormat
 import android.media.AudioTrack
 import android.os.SystemClock
+import androidx.annotation.RawRes
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -44,9 +45,10 @@ data class NoiseTrackParams(
  *
  * Fades are driven by the writer loop itself (wall-clock paced by the blocking
  * [AudioTrack] write), so a UI volume change is zipper-free (~42 ms), while
- * start fades in over 3 s, a manual stop fades out over 5 s and the sleep timer
- * glides out over 30 s. The mixer's soft limiter guarantees the summed output
- * can never clip no matter how many tracks are stacked.
+ * start fades in over 3 s, the screen's manual stop is immediate and the sleep
+ * timer glides out over 30 s. Other callers can request a short explicit fade.
+ * The mixer's soft limiter guarantees the summed output can never clip no matter
+ * how many tracks are stacked.
  *
  * The engine survives independently of any screen: [data.service.SoundscapeService]
  * keeps the process foreground while [phase] is not [Phase.IDLE].
@@ -60,7 +62,9 @@ class SoundscapeEngine @Inject constructor(
 
     private class ActiveTrack(
         val soundId: String,
-        val synth: NoiseSynthesis,
+        val source: GainControlledTrackSource,
+        /** Distinguishes asset loops from synth tracks so updates never swap kinds in place. */
+        val isAsset: Boolean,
         /** Wall-clock (elapsedRealtime) deadline after which a removing track is dropped. */
         val dropAtElapsedMs: Long = Long.MAX_VALUE,
     )
@@ -121,8 +125,9 @@ class SoundscapeEngine @Inject constructor(
     }
 
     /**
-     * Stops playback with a fade. [fadeOutMs] overrides the default 5 s manual-stop
-     * fade (used for focus-loss suspension and becoming-noisy, which want to be quick).
+     * Stops playback with the requested fade. A zero duration stops before the
+     * writer emits another buffer; the default 5 s fade is retained for the
+     * notification action and other non-UI callers.
      */
     fun stop(fadeOutMs: Long = FADE_OUT_STOP_MS) {
         val current = phaseField
@@ -150,20 +155,47 @@ class SoundscapeEngine @Inject constructor(
     }
 
     /**
-     * Registers or updates a track; a track id may only exist once (mixer sums, not replaces).
-     * An already-active track is updated in place (parameter setters are thread-safe and the
-     * filter state carries over), so a live slider drag never restarts the generator.
+     * Registers or updates a synth (noise) track; a track id may only exist
+     * once (mixer sums, not replaces). An already-active synth track is
+     * updated in place (parameter setters are thread-safe and the filter
+     * state carries over), so a live slider drag never restarts the
+     * generator. An active asset track under the same id is replaced.
      */
     fun setTrack(soundId: String, params: NoiseTrackParams) {
         synchronized(tracksLock) {
             val i = activeTracks.indexOfFirst { it.soundId == soundId && it.dropAtElapsedMs == Long.MAX_VALUE }
-            if (i >= 0) {
-                applyParams(activeTracks[i].synth, params)
+            if (i >= 0 && !activeTracks[i].isAsset) {
+                applyParams(activeTracks[i].source as NoiseSynthesis, params)
             } else {
                 val synth = NoiseSynthesis(seed = soundId.hashCode().toLong())
                 applyParams(synth, params)
                 activeTracks.removeAll { it.soundId == soundId }
-                activeTracks.add(ActiveTrack(soundId, synth))
+                activeTracks.add(ActiveTrack(soundId, synth, isAsset = false))
+            }
+        }
+        publishSoundIds()
+    }
+
+    /**
+     * Registers or updates a natural-sound track looping [rawRes]. An
+     * already-active asset track for the same resource only gets its gain
+     * updated (the decoded buffer is reused); any other active track under
+     * this id is replaced. [volume01] uses the same UI 0..1 → -40..0 dB
+     * mapping as synth tracks so the sliders feel identical.
+     */
+    fun setAssetTrack(soundId: String, @RawRes rawRes: Int, volume01: Float) {
+        val gain = dBToLinear((volume01 - 1f) * NoiseTrackParams.TRACK_GAIN_RANGE_DB)
+        synchronized(tracksLock) {
+            val i = activeTracks.indexOfFirst { it.soundId == soundId && it.dropAtElapsedMs == Long.MAX_VALUE }
+            val existing = if (i >= 0) activeTracks[i] else null
+            val source = existing?.source
+            if (existing != null && existing.isAsset && source is AssetLoopSource && source.resId == rawRes) {
+                source.setTargetGain(gain)
+            } else {
+                activeTracks.removeAll { it.soundId == soundId }
+                val asset = AssetLoopSource(context, rawRes)
+                asset.setTargetGain(gain)
+                activeTracks.add(ActiveTrack(soundId, asset, isAsset = true))
             }
         }
         publishSoundIds()
@@ -181,8 +213,8 @@ class SoundscapeEngine @Inject constructor(
                 }
                 .forEach { i ->
                     val track = activeTracks[i]
-                    track.synth.setTargetGain(0f)
-                    activeTracks[i] = ActiveTrack(track.soundId, track.synth, now + TRACK_REMOVE_FADE_MS)
+                    track.source.setTargetGain(0f)
+                    activeTracks[i] = ActiveTrack(track.soundId, track.source, track.isAsset, now + TRACK_REMOVE_FADE_MS)
                 }
         }
         publishSoundIds()
@@ -197,8 +229,11 @@ class SoundscapeEngine @Inject constructor(
             val i = activeTracks.indexOfFirst { it.soundId == soundId }
             if (i >= 0) {
                 val track = activeTracks[i]
-                track.synth.setTargetGain(0f)
-                activeTracks[i] = track.copy(dropAtElapsedMs = SystemClock.elapsedRealtime() + TRACK_REMOVE_FADE_MS)
+                track.source.setTargetGain(0f)
+                activeTracks[i] = ActiveTrack(
+                    track.soundId, track.source, track.isAsset,
+                    SystemClock.elapsedRealtime() + TRACK_REMOVE_FADE_MS,
+                )
             }
         }
         publishSoundIds()
@@ -211,9 +246,6 @@ class SoundscapeEngine @Inject constructor(
         synchronized(tracksLock) { activeTracks.clear() }
         publishSoundIds()
     }
-
-    private fun ActiveTrack.copy(dropAtElapsedMs: Long) =
-        ActiveTrack(soundId, synth, dropAtElapsedMs)
 
     private fun applyParams(synth: NoiseSynthesis, params: NoiseTrackParams) {
         synth.setColor(params.color)
@@ -318,7 +350,7 @@ class SoundscapeEngine @Inject constructor(
 
                 if (phaseField == Phase.IDLE) break
 
-                val snapshot = synchronized(tracksLock) { activeTracks.map { it.synth } }
+                val snapshot = synchronized(tracksLock) { activeTracks.map { it.source } }
                 mixer.mix(out, bufferFrames, snapshot)
 
                 val written = track.write(out, 0, out.size, AudioTrack.WRITE_BLOCKING)

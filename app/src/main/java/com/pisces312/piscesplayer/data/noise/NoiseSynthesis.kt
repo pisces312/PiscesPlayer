@@ -35,7 +35,7 @@ import kotlin.math.exp
 class NoiseSynthesis(
     seed: Long,
     private val sampleRate: Int = DEFAULT_SAMPLE_RATE,
-) : TrackSource {
+) : GainControlledTrackSource {
 
     private val left = ChannelState(seed)
     private val right = ChannelState(seed + SEED_CHANNEL_DELTA)
@@ -70,7 +70,7 @@ class NoiseSynthesis(
     }
 
     /** Target linear gain 0..1; approached per-sample (no zipper noise). */
-    fun setTargetGain(value: Float) {
+    override fun setTargetGain(value: Float) {
         targetGain = value.coerceIn(0f, 1f)
     }
 

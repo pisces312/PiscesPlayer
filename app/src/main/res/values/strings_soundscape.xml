@@ -36,11 +36,13 @@
     <string name="soundscape_noise_brown">Brown noise</string>
     <string name="soundscape_noise_deep_brown">Deep brown noise</string>
     <string name="soundscape_library_noise_section">Noise</string>
-    <string name="soundscape_library_nature_section">Nature (coming soon)</string>
+    <string name="soundscape_library_nature_section">Nature</string>
     <string name="soundscape_nature_rain">Rain</string>
     <string name="soundscape_nature_wind">Wind</string>
     <string name="soundscape_nature_thunder">Thunder</string>
-    <string name="soundscape_nature_fire">Fire</string>
+    <string name="soundscape_nature_fire">Campfire</string>
+    <string name="soundscape_nature_ocean">Ocean waves</string>
+    <string name="soundscape_nature_crickets">Crickets</string>
     <string name="soundscape_library_done">Done</string>
     <string name="soundscape_preset_save_title">Save as scene</string>
     <string name="soundscape_preset_save_short">Save</string>

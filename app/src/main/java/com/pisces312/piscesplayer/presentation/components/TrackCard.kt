@@ -55,6 +55,8 @@ fun TrackCard(
     var expanded by rememberSaveable(config.soundId) { mutableStateOf(false) }
     val sound = SoundscapeSound.fromId(config.soundId)
     val name = sound?.let { stringResource(it.nameRes) } ?: config.soundId
+    // Natural recordings have no synthesis parameters; only synth tracks expand.
+    val hasParams = sound?.isSynth == true
 
     Card(
         modifier = modifier
@@ -71,7 +73,7 @@ fun TrackCard(
                     style = MaterialTheme.typography.titleMedium,
                     modifier = Modifier
                         .weight(1f)
-                        .clickable { expanded = !expanded },
+                        .then(if (hasParams) Modifier.clickable { expanded = !expanded } else Modifier),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -80,13 +82,15 @@ fun TrackCard(
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-                IconButton(onClick = { expanded = !expanded }) {
-                    Icon(
-                        imageVector = if (expanded) Icons.Rounded.KeyboardArrowUp else Icons.Rounded.KeyboardArrowDown,
-                        contentDescription = stringResource(
-                            if (expanded) R.string.soundscape_collapse_track else R.string.soundscape_expand_track
-                        ),
-                    )
+                if (hasParams) {
+                    IconButton(onClick = { expanded = !expanded }) {
+                        Icon(
+                            imageVector = if (expanded) Icons.Rounded.KeyboardArrowUp else Icons.Rounded.KeyboardArrowDown,
+                            contentDescription = stringResource(
+                                if (expanded) R.string.soundscape_collapse_track else R.string.soundscape_expand_track
+                            ),
+                        )
+                    }
                 }
                 IconButton(onClick = onRemove) {
                     Icon(
@@ -103,7 +107,7 @@ fun TrackCard(
                 onValueChange = { onConfigChange(config.copy(volume = it)) },
             )
 
-            if (expanded && sound != null) {
+            if (expanded && hasParams) {
                 ParameterSlider(
                     label = stringResource(R.string.soundscape_tone),
                     valueLabel = stringResource(R.string.soundscape_tone_range),

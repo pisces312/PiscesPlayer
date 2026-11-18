@@ -51,3 +51,26 @@ These are the dependencies most likely to trigger manual review because they shi
 | `com.github.philburk` | Transitive JSyn dependency from Media3 MIDI |
 
 No `FaceOnLive` JitPack dependency is currently allowed.
+
+## Bundled Asset Licenses
+
+The "入梦" sleep soundscape ships natural field recordings derived from
+`awr1001/natures-music-android` (`https://github.com/awr1001/natures-music-android`,
+source snapshot `d67b19f3d84af53e438d5668b938196f0947a033`). The upstream
+repository's `LICENSE-ASSETS` releases the audio under **CC BY 4.0**
+(© Aaron Roberts / App-O-Matic): <https://creativecommons.org/licenses/by/4.0/>.
+Attribution is reproduced in-app via the sound names and here.
+
+Derived works in `app/src/main/res/raw/`: trimmed to 11–30 s loops,
+loudness-normalized to a -21 dBFS bed level, faded at both ends, resampled to
+48 kHz, re-encoded as OGG Vorbis. The seamless-loop crossfade is applied at
+playback time (`PcmLoopPlayer`), not baked into the files.
+
+| App resource | Upstream source | Upstream file |
+| --- | --- | --- |
+| `soundscape_rain.ogg` | `app/src/main/res/raw/rain1.wav` | rain |
+| `soundscape_wind.ogg` | `app/src/main/res/raw/wind8.mp3` | wind |
+| `soundscape_thunder.ogg` | `app/src/main/res/raw/dthunder1.mp3` | distant thunder |
+| `soundscape_fire.ogg` | `app/src/main/res/raw/campfire1.mp3` | campfire |
+| `soundscape_ocean.ogg` | `app/src/main/res/raw/owaves1.mp3` | ocean waves |
+| `soundscape_crickets.ogg` | `app/src/main/res/raw/crickets.mp3` | crickets |

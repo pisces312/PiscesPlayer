@@ -18,6 +18,14 @@ interface TrackSource {
 }
 
 /**
+ * A [TrackSource] the engine can fade in/out per track: [setTargetGain] is
+ * called from any thread, applied smoothly inside [generate].
+ */
+interface GainControlledTrackSource : TrackSource {
+    fun setTargetGain(value: Float)
+}
+
+/**
  * Pure software mixer for the sleep soundscape: sums any number of
  * [TrackSource]s into one interleaved stereo buffer, applies a smoothed master
  * gain and a transparent soft limiter.

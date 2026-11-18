@@ -135,9 +135,7 @@ class SoundscapeStateHolder @Inject constructor(
     fun updateTrack(soundId: String, transform: (SoundscapeTrackConfig) -> SoundscapeTrackConfig) {
         val tracks = _mix.value.tracks.map { if (it.soundId == soundId) transform(it) else it }
         updateMix(_mix.value.copy(tracks = tracks))
-        _mix.value.tracks.firstOrNull { it.soundId == soundId }?.let { config ->
-            engine.setTrack(soundId, config.toParams())
-        }
+        _mix.value.tracks.firstOrNull { it.soundId == soundId }?.let(::pushTrack)
     }
 
     fun setMasterVolume(volume: Float) {
@@ -222,15 +220,15 @@ class SoundscapeStateHolder @Inject constructor(
     // ---------------- playback ----------------
 
     /**
-     * The main button: starts the mix (pausing music first) or fades it out.
-     * Returns the resulting phase so the caller can react (e.g. disable the
-     * button during fades).
+     * The main button: starts the mix (pausing music first) or stops it
+     * immediately. Timer expiry still uses its own 30-second fade in the engine.
+     * Returns the resulting phase so the caller can react.
      */
     fun togglePlayback(): SoundscapeEngine.Phase {
         val current = engine.phase.value
         when {
             current == SoundscapeEngine.Phase.IDLE -> startMix()
-            else -> stopMix()
+            else -> stopMix(fadeOutMs = IMMEDIATE_STOP_MS)
         }
         return engine.phase.value
     }
@@ -272,6 +270,21 @@ class SoundscapeStateHolder @Inject constructor(
         val configs = _mix.value.tracks
         engine.retainTracks(configs.map { it.soundId })
         for (config in configs) {
+            pushTrack(config)
+        }
+    }
+
+    /**
+     * Routes one track config into the engine by sound kind: natural
+     * recordings loop their asset ([SoundscapeSound.rawRes]); procedural
+     * noise gets the full synth parameter set.
+     */
+    private fun pushTrack(config: SoundscapeTrackConfig) {
+        val sound = SoundscapeSound.fromId(config.soundId)
+        val rawRes = sound?.rawRes
+        if (sound != null && rawRes != null) {
+            engine.setAssetTrack(config.soundId, rawRes, config.volume)
+        } else {
             engine.setTrack(config.soundId, config.toParams())
         }
     }
@@ -295,6 +308,8 @@ class SoundscapeStateHolder @Inject constructor(
     }
 
     private companion object {
+        const val IMMEDIATE_STOP_MS = 0L
+
         fun Int.toDurationMs(): Long? =
             if (this == SoundscapeMix.DURATION_FOREVER) null else this * 60_000L
     }
