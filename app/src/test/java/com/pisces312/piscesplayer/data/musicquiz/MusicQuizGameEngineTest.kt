@@ -125,6 +125,62 @@ class MusicQuizGameEngineTest {
         assertEquals(910, result.totalScore)
     }
 
+    @Test
+    fun endlessRunPullsQuestionsUntilProviderExhaustsThenFinishes() {
+        val supply = ArrayDeque(listOf(question("two"), question("three")))
+        val engine = MusicQuizGameEngine(
+            questions = listOf(question("one")),
+            endless = true,
+            nextQuestionProvider = { supply.removeFirstOrNull() },
+        )
+
+        engine.onPlaybackStarted(nowNanos = 0L)
+        engine.answer("one", nowNanos = 1_000L.millisToNanos())
+        assertTrue(engine.advance())
+        assertEquals("two", engine.currentQuestion.track.id)
+        engine.onPlaybackStarted(nowNanos = 20_000L.millisToNanos())
+        engine.answer("two", nowNanos = 21_000L.millisToNanos())
+        assertTrue(engine.advance())
+        assertEquals("three", engine.currentQuestion.track.id)
+        engine.onPlaybackStarted(nowNanos = 40_000L.millisToNanos())
+        engine.answer("three", nowNanos = 41_000L.millisToNanos())
+        assertTrue(engine.advance())
+
+        assertEquals(MusicQuizEngineState.FINISHED, engine.state)
+        assertEquals(3, engine.summary().totalRounds)
+        assertEquals(3, engine.summary().correctCount)
+    }
+
+    @Test
+    fun endlessSettleCountsOnlyAnsweredQuestions() {
+        val supply = ArrayDeque(listOf(question("two")))
+        val engine = MusicQuizGameEngine(
+            questions = listOf(question("one")),
+            endless = true,
+            nextQuestionProvider = { supply.removeFirstOrNull() },
+        )
+
+        engine.onPlaybackStarted(nowNanos = 0L)
+        engine.answer("one", nowNanos = 1_000L.millisToNanos())
+        engine.advance() // pulls "two"; the player settles before answering it
+
+        val summary = engine.summary()
+        assertEquals(1, summary.totalRounds)
+        assertEquals(1, summary.correctCount)
+        assertEquals(1, summary.records.size)
+    }
+
+    @Test
+    fun endlessRunIsNeverOnItsLastRound() {
+        val engine = MusicQuizGameEngine(
+            questions = listOf(question("one")),
+            endless = true,
+            nextQuestionProvider = { question("next") },
+        )
+
+        assertFalse(engine.isLastRound)
+    }
+
     private fun resolvedEngine(answerAtMs: Long): MusicQuizGameEngine {
         val engine = MusicQuizGameEngine(listOf(question("one")))
         engine.onPlaybackStarted(nowNanos = 0L)

@@ -42,7 +42,9 @@ import com.pisces312.piscesplayer.presentation.components.rememberModalSheetStat
 
 /**
  * Step 1 of "add to playlist": pick which of the finished run's songs to include.
- * All songs start selected; step 2 reuses [com.pisces312.piscesplayer.presentation.components.PlaylistBottomSheet].
+ * Songs start selected up to [DEFAULT_SELECT_CAP] so an endless run cannot silently
+ * pre-select hundreds of tracks; step 2 reuses
+ * [com.pisces312.piscesplayer.presentation.components.PlaylistBottomSheet].
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -51,7 +53,9 @@ internal fun MusicQuizSongSelectSheet(
     onConfirm: (List<MusicQuizTrack>) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    var selectedIds by remember { mutableStateOf(tracks.map { it.id }.toSet()) }
+    var selectedIds by remember {
+        mutableStateOf(tracks.take(DEFAULT_SELECT_CAP).map { it.id }.toSet())
+    }
     val sheetState = rememberModalSheetState(
         skipPartiallyExpanded = true,
         confirmValueChange = { true },
@@ -164,3 +168,5 @@ internal fun MusicQuizSongSelectSheet(
         }
     }
 }
+
+private const val DEFAULT_SELECT_CAP = 50

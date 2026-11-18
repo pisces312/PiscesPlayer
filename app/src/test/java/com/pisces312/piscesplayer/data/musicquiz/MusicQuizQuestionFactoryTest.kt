@@ -4,6 +4,7 @@ import kotlin.random.Random
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -63,7 +64,8 @@ class MusicQuizQuestionFactoryTest {
         }
 
         assertTrue(MusicQuizQuestionFactory.hasEnoughTracks(tracks))
-        assertFalse(MusicQuizQuestionFactory.hasEnoughTitles(tracks))
+        // Four display-equivalent titles can never fill five unambiguous options.
+        assertTrue(MusicQuizQuestionFactory.answerTracks(tracks).isEmpty())
     }
 
     @Test
@@ -136,6 +138,80 @@ class MusicQuizQuestionFactoryTest {
 
         assertEquals(5, enQuestion.options.size)
         assertEquals(1, enQuestion.options.count { it.songId == "en-1" })
+    }
+
+    @Test
+    fun classicalAnswerGetsOnlyClassicalOptions() {
+        val classical = (1..6).map {
+            track("cl-$it").copy(title = "古典曲目 $it", isClassical = true)
+        }
+        val pop = (1..6).map { track("pop-$it").copy(title = "流行曲目 $it") }
+        val all = classical + pop
+        val byId = all.associateBy(MusicQuizTrack::id)
+
+        val run = MusicQuizQuestionFactory(Random(1)).createRun(all)
+
+        run.questions.forEach { question ->
+            val expectClassical = question.track.isClassical
+            question.options.forEach { option ->
+                assertEquals(expectClassical, byId.getValue(option.songId).isClassical)
+            }
+        }
+    }
+
+    @Test
+    fun nonViableSubPoolLeavesQuestionGenerationEntirely() {
+        // Classical sub-pool has only 3 distinct titles: it can neither answer nor distract.
+        val classical = (1..3).map {
+            track("cl-$it").copy(title = "古典曲目 $it", isClassical = true)
+        }
+        val pop = (1..12).map { track("pop-$it").copy(title = "流行曲目 $it") }
+
+        val run = MusicQuizQuestionFactory(Random(2)).createRun(classical + pop)
+
+        run.questions.forEach { question ->
+            assertFalse(question.track.isClassical)
+            question.options.forEach { option ->
+                assertFalse(option.songId.startsWith("cl-"))
+            }
+        }
+    }
+
+    @Test
+    fun endlessDrawDealsEachSongOnceThenSignalsExhaustion() {
+        val tracks = tracks(10)
+        val factory = MusicQuizQuestionFactory(Random(2))
+        val used = mutableSetOf<String>()
+        var last: String? = null
+
+        val drawn = (1..10).map {
+            val question = factory.createNextQuestion(tracks, used, last)!!
+            used += question.track.id
+            last = question.track.id
+            question.track.id
+        }
+
+        assertEquals(10, drawn.toSet().size)
+        assertNull(factory.createNextQuestion(tracks, used, last))
+    }
+
+    @Test
+    fun endlessDrawAfterCycleRestartsNeverRepeatsPreviousSong() {
+        val tracks = tracks(10)
+        val factory = MusicQuizQuestionFactory(Random(3))
+        val used = mutableSetOf<String>()
+        var last: String? = null
+
+        repeat(10) {
+            val question = factory.createNextQuestion(tracks, used, last)!!
+            used += question.track.id
+            last = question.track.id
+        }
+        used.clear()
+
+        val next = factory.createNextQuestion(tracks, used, last)!!
+
+        assertNotEquals(last, next.track.id)
     }
 
     private fun tracks(count: Int): List<MusicQuizTrack> = List(count, ::trackFromIndex)

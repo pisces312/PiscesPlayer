@@ -5,6 +5,25 @@ internal const val MUSIC_QUIZ_OPTION_COUNT = 5
 internal const val MUSIC_QUIZ_CLIP_DURATION_MS = 10_000L
 internal const val MUSIC_QUIZ_MINIMUM_SONG_DURATION_MS = 30_000L
 
+/**
+ * Flat game modes (v2). The song-pool × format matrix is intentionally not a product:
+ * kids/classical play 10 rounds, endless uses the normal pool.
+ */
+enum class MusicQuizMode(val key: String) {
+    STANDARD("standard"),
+    KIDS("kids"),
+    CLASSICAL("classical"),
+    ENDLESS("endless"),
+    ;
+
+    val isEndless: Boolean get() = this == ENDLESS
+
+    companion object {
+        fun fromKey(key: String?): MusicQuizMode =
+            entries.firstOrNull { it.key == key } ?: STANDARD
+    }
+}
+
 data class MusicQuizTrack(
     val id: String,
     val title: String,
@@ -16,6 +35,12 @@ data class MusicQuizTrack(
     val year: Int = 0,
     /** Genre label; null/blank treated as unknown for matching. */
     val genre: String? = null,
+    /** Album title; feeds classical-name matching. */
+    val album: String = "",
+    /** Classified as classical music; drives the same-source option rule. */
+    val isClassical: Boolean = false,
+    /** Classified as a children's song (catalog or keyword tier); classical wins when both match. */
+    val isKidsSong: Boolean = false,
 )
 
 data class MusicQuizOption(
@@ -79,10 +104,22 @@ data class MusicQuizStats(
     val completedRuns: Int = 0,
 )
 
+/** Best records kept per mode so different pools/rules never overwrite each other. */
+data class MusicQuizModeStats(
+    val byMode: Map<MusicQuizMode, MusicQuizStats> = emptyMap(),
+    val bestRounds: Map<MusicQuizMode, Int> = emptyMap(),
+) {
+    fun statsFor(mode: MusicQuizMode): MusicQuizStats = byMode[mode] ?: MusicQuizStats()
+
+    fun bestRoundsFor(mode: MusicQuizMode): Int = bestRounds[mode] ?: 0
+}
+
 data class MusicQuizRecordResult(
     val stats: MusicQuizStats,
+    val bestRounds: Int,
     val isNewBestScore: Boolean,
     val isNewBestStreak: Boolean,
+    val isNewBestRounds: Boolean,
 )
 
 internal fun interface MusicQuizMonotonicClock {

@@ -26,6 +26,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.PlaylistAdd
+import androidx.compose.material.icons.rounded.ArrowDropDown
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.EmojiEvents
@@ -42,12 +43,15 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -78,6 +82,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.pisces312.piscesplayer.R
 import com.pisces312.piscesplayer.data.model.Song
 import com.pisces312.piscesplayer.data.musicquiz.MusicQuizAnswerRecord
+import com.pisces312.piscesplayer.data.musicquiz.MusicQuizMode
 import com.pisces312.piscesplayer.data.musicquiz.MusicQuizOption
 import com.pisces312.piscesplayer.data.musicquiz.MusicQuizTrack
 import com.pisces312.piscesplayer.presentation.components.PlaylistBottomSheet
@@ -202,11 +207,18 @@ fun MusicQuizScreen(
                             uiState.phase == MusicQuizPhase.REVEALING ||
                             uiState.phase == MusicQuizPhase.PREPARING
                         ) {
-                            stringResource(
-                                R.string.music_quiz_round,
-                                uiState.roundIndex + 1,
-                                uiState.totalRounds,
-                            )
+                            if (uiState.isEndless) {
+                                stringResource(
+                                    R.string.music_quiz_round_endless,
+                                    uiState.roundIndex + 1,
+                                )
+                            } else {
+                                stringResource(
+                                    R.string.music_quiz_round,
+                                    uiState.roundIndex + 1,
+                                    uiState.totalRounds,
+                                )
+                            }
                         } else {
                             stringResource(R.string.music_games_quiz_title)
                         },
@@ -221,15 +233,23 @@ fun MusicQuizScreen(
                     }
                 },
                 actions = {
-                    if (uiState.phase == MusicQuizPhase.PREPARING ||
-                        uiState.phase == MusicQuizPhase.PLAYING
-                    ) {
-                        IconButton(onClick = { quizViewModel.pauseGame() }) {
+                    when (uiState.phase) {
+                        MusicQuizPhase.PREPARING,
+                        MusicQuizPhase.PLAYING,
+                        -> IconButton(onClick = { quizViewModel.pauseGame() }) {
                             Icon(
                                 imageVector = Icons.Rounded.Pause,
                                 contentDescription = stringResource(R.string.music_quiz_pause),
                             )
                         }
+                        MusicQuizPhase.IDLE,
+                        MusicQuizPhase.FINISHED,
+                        MusicQuizPhase.ERROR,
+                        -> MusicQuizModeMenu(
+                            current = uiState.mode,
+                            onSelect = quizViewModel::setMode,
+                        )
+                        else -> Unit
                     }
                 },
             )
@@ -254,6 +274,7 @@ fun MusicQuizScreen(
                     onNext = quizViewModel::nextRound,
                 )
                 MusicQuizPhase.PAUSED -> MusicQuizPausedContent(
+                    isEndless = uiState.isEndless,
                     onResume = quizViewModel::resumeGame,
                     onExit = quizViewModel::requestExit,
                 )
@@ -300,17 +321,50 @@ fun MusicQuizScreen(
     if (uiState.showExitConfirmation) {
         AlertDialog(
             onDismissRequest = quizViewModel::dismissExitConfirmation,
-            title = { Text(stringResource(R.string.music_quiz_exit_title)) },
-            text = { Text(stringResource(R.string.music_quiz_exit_message)) },
+            title = {
+                Text(
+                    stringResource(
+                        if (uiState.isEndless) {
+                            R.string.music_quiz_end_title
+                        } else {
+                            R.string.music_quiz_exit_title
+                        },
+                    ),
+                )
+            },
+            text = {
+                Text(
+                    stringResource(
+                        if (uiState.isEndless) {
+                            R.string.music_quiz_end_message
+                        } else {
+                            R.string.music_quiz_exit_message
+                        },
+                    ),
+                )
+            },
             confirmButton = {
                 TextButton(
                     onClick = {
-                        quizViewModel.stopGame()
-                        restoreMainPlayer()
-                        onBack()
+                        if (uiState.isEndless) {
+                            // Settle: keep the answered questions and show the results.
+                            quizViewModel.endRunAndSettle()
+                        } else {
+                            quizViewModel.stopGame()
+                            restoreMainPlayer()
+                            onBack()
+                        }
                     },
                 ) {
-                    Text(stringResource(R.string.music_quiz_exit))
+                    Text(
+                        stringResource(
+                            if (uiState.isEndless) {
+                                R.string.music_quiz_end_run
+                            } else {
+                                R.string.music_quiz_exit
+                            },
+                        ),
+                    )
                 }
             },
             dismissButton = {
@@ -353,7 +407,14 @@ private fun MusicQuizIdleContent(
         )
         Spacer(Modifier.height(8.dp))
         Text(
-            text = stringResource(R.string.music_quiz_rule_summary),
+            text = stringResource(
+                when (state.mode) {
+                    MusicQuizMode.STANDARD -> R.string.music_quiz_rule_summary
+                    MusicQuizMode.KIDS -> R.string.music_quiz_rule_summary_kids
+                    MusicQuizMode.CLASSICAL -> R.string.music_quiz_rule_summary_classical
+                    MusicQuizMode.ENDLESS -> R.string.music_quiz_rule_summary_endless
+                },
+            ),
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
@@ -372,6 +433,14 @@ private fun MusicQuizIdleContent(
                 modifier = Modifier.weight(1f),
             )
         }
+        if (state.isEndless) {
+            Spacer(Modifier.height(8.dp))
+            Text(
+                text = stringResource(R.string.music_quiz_best_rounds, state.bestRounds),
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
         Spacer(Modifier.height(24.dp))
         when {
             !state.hasLibrarySnapshot -> {
@@ -379,18 +448,42 @@ private fun MusicQuizIdleContent(
                 Spacer(Modifier.height(8.dp))
                 Text(stringResource(R.string.music_quiz_loading_library))
             }
+            state.isClassifying -> {
+                CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                Spacer(Modifier.height(8.dp))
+                Text(stringResource(R.string.music_quiz_classifying))
+            }
             state.libraryIssue != null -> {
                 Text(
-                    text = if (state.libraryIssue == MusicQuizLibraryIssue.NOT_ENOUGH_SONGS) {
-                        stringResource(
+                    text = when (state.libraryIssue) {
+                        MusicQuizLibraryIssue.NOT_ENOUGH_SONGS -> stringResource(
                             R.string.music_quiz_not_enough_songs,
                             state.eligibleTrackCount,
                         )
-                    } else {
-                        stringResource(R.string.music_quiz_not_enough_titles)
+                        MusicQuizLibraryIssue.NOT_ENOUGH_TITLES ->
+                            stringResource(R.string.music_quiz_not_enough_titles)
+                        MusicQuizLibraryIssue.NOT_ENOUGH_KIDS_SONGS ->
+                            stringResource(R.string.music_quiz_not_enough_kids_songs)
+                        MusicQuizLibraryIssue.NOT_ENOUGH_CLASSICAL_SONGS ->
+                            stringResource(R.string.music_quiz_not_enough_classical_songs)
                     },
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center,
+                )
+            }
+            else -> {
+                Text(
+                    text = if (state.mode == MusicQuizMode.KIDS) {
+                        stringResource(
+                            R.string.music_quiz_pool_count_kids,
+                            state.kidsTrackCount,
+                            state.classicalTrackCount,
+                        )
+                    } else {
+                        stringResource(R.string.music_quiz_pool_count, state.eligibleTrackCount)
+                    },
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         }
@@ -421,6 +514,61 @@ private fun MusicQuizStatCard(text: String, modifier: Modifier = Modifier) {
             textAlign = TextAlign.Center,
         )
     }
+}
+
+/** Mode switcher at the right end of the title row; only reachable outside an active run. */
+@Composable
+private fun MusicQuizModeMenu(
+    current: MusicQuizMode,
+    onSelect: (MusicQuizMode) -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    TextButton(onClick = { expanded = true }) {
+        Text(stringResource(musicQuizModeShortLabel(current)))
+        Icon(
+            imageVector = Icons.Rounded.ArrowDropDown,
+            contentDescription = stringResource(R.string.music_quiz_mode_cd),
+        )
+    }
+    DropdownMenu(
+        expanded = expanded,
+        onDismissRequest = { expanded = false },
+    ) {
+        MusicQuizMode.entries.forEach { mode ->
+            DropdownMenuItem(
+                text = {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        RadioButton(selected = mode == current, onClick = null)
+                        Spacer(Modifier.width(8.dp))
+                        Text(stringResource(musicQuizModeLabel(mode)))
+                    }
+                },
+                leadingIcon = if (mode == current) {
+                    { Icon(Icons.Rounded.Check, contentDescription = null) }
+                } else {
+                    null
+                },
+                onClick = {
+                    expanded = false
+                    onSelect(mode)
+                },
+            )
+        }
+    }
+}
+
+private fun musicQuizModeLabel(mode: MusicQuizMode): Int = when (mode) {
+    MusicQuizMode.STANDARD -> R.string.music_quiz_mode_standard
+    MusicQuizMode.KIDS -> R.string.music_quiz_mode_kids
+    MusicQuizMode.CLASSICAL -> R.string.music_quiz_mode_classical
+    MusicQuizMode.ENDLESS -> R.string.music_quiz_mode_endless
+}
+
+private fun musicQuizModeShortLabel(mode: MusicQuizMode): Int = when (mode) {
+    MusicQuizMode.STANDARD -> R.string.music_quiz_mode_short_standard
+    MusicQuizMode.KIDS -> R.string.music_quiz_mode_short_kids
+    MusicQuizMode.CLASSICAL -> R.string.music_quiz_mode_short_classical
+    MusicQuizMode.ENDLESS -> R.string.music_quiz_mode_short_endless
 }
 
 @Composable
@@ -599,7 +747,7 @@ private fun MusicQuizRoundContent(
                 Button(onClick = onNext, modifier = Modifier.fillMaxWidth()) {
                     Text(
                         stringResource(
-                            if (state.roundIndex == state.totalRounds - 1) {
+                            if (!state.isEndless && state.roundIndex == state.totalRounds - 1) {
                                 R.string.music_quiz_finish
                             } else {
                                 R.string.music_quiz_next
@@ -667,6 +815,7 @@ private fun MusicQuizAnswerButton(
 
 @Composable
 private fun MusicQuizPausedContent(
+    isEndless: Boolean,
     onResume: () -> Unit,
     onExit: () -> Unit,
 ) {
@@ -700,7 +849,11 @@ private fun MusicQuizPausedContent(
         }
         Spacer(Modifier.height(8.dp))
         OutlinedButton(onClick = onExit, modifier = Modifier.fillMaxWidth()) {
-            Text(stringResource(R.string.music_quiz_exit))
+            Text(
+                stringResource(
+                    if (isEndless) R.string.music_quiz_end_run else R.string.music_quiz_exit,
+                ),
+            )
         }
     }
 }
@@ -728,7 +881,13 @@ private fun MusicQuizResultContent(
                 tint = MaterialTheme.colorScheme.primary,
             )
             Text(
-                text = stringResource(R.string.music_quiz_result_title),
+                text = stringResource(
+                    if (state.isEndless) {
+                        R.string.music_quiz_result_title_endless
+                    } else {
+                        R.string.music_quiz_result_title
+                    },
+                ),
                 style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.Bold,
             )

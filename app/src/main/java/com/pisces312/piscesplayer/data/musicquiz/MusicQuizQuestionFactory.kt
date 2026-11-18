@@ -9,17 +9,30 @@ internal class MusicQuizQuestionFactory(
 ) {
 
     fun createRun(tracks: List<MusicQuizTrack>): MusicQuizRunBlueprint {
-        val pool = eligibleTracks(tracks)
-        require(pool.size >= MUSIC_QUIZ_ROUND_COUNT) { "Not enough playable songs" }
-        require(pool.map { normalizedTitle(it.title) }.distinct().size >= MUSIC_QUIZ_OPTION_COUNT) {
-            "Not enough distinct song titles"
-        }
-        val shuffled = pool.shuffled(random)
+        val answerPool = answerTracks(tracks)
+        require(answerPool.size >= MUSIC_QUIZ_ROUND_COUNT) { "Not enough playable songs" }
+        val shuffled = answerPool.shuffled(random)
         val correctTracks = shuffled.take(MUSIC_QUIZ_ROUND_COUNT)
         return MusicQuizRunBlueprint(
-            questions = correctTracks.map { createQuestion(it, pool) },
+            questions = correctTracks.map { createQuestion(it, sameSourcePool(it, tracks)) },
             reserveTracks = shuffled.drop(MUSIC_QUIZ_ROUND_COUNT),
         )
+    }
+
+    /**
+     * Draws one question for endless mode. Songs are dealt without replacement until the
+     * usable pool is exhausted; the caller clears [usedIds] to start a new cycle. Returns
+     * null when every candidate is used or is the previous question's song.
+     */
+    fun createNextQuestion(
+        tracks: List<MusicQuizTrack>,
+        usedIds: Set<String>,
+        lastTrackId: String?,
+    ): MusicQuizQuestion? {
+        val candidates = answerTracks(tracks)
+            .filter { it.id !in usedIds && it.id != lastTrackId }
+        val correct = candidates.randomOrNull(random) ?: return null
+        return createQuestion(correct, sameSourcePool(correct, tracks))
     }
 
     /** Replaces a broken question without reusing any song already planned for this run. */
@@ -31,7 +44,7 @@ internal class MusicQuizQuestionFactory(
         val plannedIds = plannedQuestions.mapTo(mutableSetOf()) { it.track.id }
         val replacementTrack = reserveTracks.firstOrNull { it.id !in plannedIds } ?: return null
         return MusicQuizReplacement(
-            question = createQuestion(replacementTrack, eligibleTracks(allTracks)),
+            question = createQuestion(replacementTrack, sameSourcePool(replacementTrack, allTracks)),
             remainingReserveTracks = reserveTracks.filterNot { it.id == replacementTrack.id },
         )
     }
@@ -80,7 +93,6 @@ internal class MusicQuizQuestionFactory(
 
     companion object {
         private const val END_GUARD_MS = 1_000L
-        private val WHITESPACE = Regex("\\s+")
 
         fun eligibleTracks(tracks: List<MusicQuizTrack>): List<MusicQuizTrack> = tracks
             .asSequence()
@@ -95,15 +107,29 @@ internal class MusicQuizQuestionFactory(
         fun hasEnoughTracks(tracks: List<MusicQuizTrack>): Boolean =
             eligibleTracks(tracks).size >= MUSIC_QUIZ_ROUND_COUNT
 
-        fun hasEnoughTitles(tracks: List<MusicQuizTrack>): Boolean =
-            eligibleTracks(tracks)
-                .distinctBy { normalizedTitle(it.title) }
-                .size >= MUSIC_QUIZ_OPTION_COUNT
+        /**
+         * Same-source rule: a question's options all come from the correct answer's own
+         * sub-pool (classical or non-classical), so the category of the answer is never a hint.
+         */
+        fun sameSourcePool(track: MusicQuizTrack, tracks: List<MusicQuizTrack>): List<MusicQuizTrack> =
+            tracks.filter { it.isClassical == track.isClassical }
 
-        internal fun normalizedTitle(title: String): String = title
-            .trim()
-            .replace(WHITESPACE, " ")
-            .lowercase(Locale.ROOT)
+        /**
+         * Sub-pools that can actually form a question (>= 5 distinct titles). Sub-pools below
+         * that leave question generation entirely — they neither answer nor distract.
+         */
+        fun viableSubPools(tracks: List<MusicQuizTrack>): List<List<MusicQuizTrack>> = tracks
+            .groupBy(MusicQuizTrack::isClassical)
+            .values
+            .filter { subPool ->
+                subPool.map { normalizedTitle(it.title) }.distinct().size >= MUSIC_QUIZ_OPTION_COUNT
+            }
+
+        /** Songs that may serve as correct answers: members of viable sub-pools. */
+        fun answerTracks(tracks: List<MusicQuizTrack>): List<MusicQuizTrack> =
+            viableSubPools(tracks).flatten()
+
+        internal fun normalizedTitle(title: String): String = MusicQuizText.normalizeTitle(title)
 
         /** Script-based language bucket for the title; coarse on purpose. */
         internal fun languageKey(title: String): String {

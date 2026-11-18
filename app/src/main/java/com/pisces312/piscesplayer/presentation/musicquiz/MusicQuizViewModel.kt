@@ -5,11 +5,17 @@ import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.pisces312.piscesplayer.data.model.Song
+import com.pisces312.piscesplayer.data.musicquiz.ClassicalSongClassifier
+import com.pisces312.piscesplayer.data.musicquiz.KidsSongClassifier
 import com.pisces312.piscesplayer.data.musicquiz.MUSIC_QUIZ_CLIP_DURATION_MS
+import com.pisces312.piscesplayer.data.musicquiz.MUSIC_QUIZ_OPTION_COUNT
 import com.pisces312.piscesplayer.data.musicquiz.MUSIC_QUIZ_ROUND_COUNT
 import com.pisces312.piscesplayer.data.musicquiz.MusicQuizAudioPlayer
 import com.pisces312.piscesplayer.data.musicquiz.MusicQuizEngineState
 import com.pisces312.piscesplayer.data.musicquiz.MusicQuizGameEngine
+import com.pisces312.piscesplayer.data.musicquiz.MusicQuizLyricsProvider
+import com.pisces312.piscesplayer.data.musicquiz.MusicQuizMode
+import com.pisces312.piscesplayer.data.musicquiz.MusicQuizModeStats
 import com.pisces312.piscesplayer.data.musicquiz.MusicQuizQuestion
 import com.pisces312.piscesplayer.data.musicquiz.MusicQuizQuestionFactory
 import com.pisces312.piscesplayer.data.musicquiz.MusicQuizResolution
@@ -23,6 +29,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.File
 import javax.inject.Inject
 import kotlin.random.Random
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.delay
@@ -51,6 +58,8 @@ enum class MusicQuizPhase {
 enum class MusicQuizLibraryIssue {
     NOT_ENOUGH_SONGS,
     NOT_ENOUGH_TITLES,
+    NOT_ENOUGH_KIDS_SONGS,
+    NOT_ENOUGH_CLASSICAL_SONGS,
 }
 
 sealed interface MusicQuizEvent {
@@ -60,10 +69,15 @@ sealed interface MusicQuizEvent {
 
 data class MusicQuizUiState(
     val phase: MusicQuizPhase = MusicQuizPhase.IDLE,
+    val mode: MusicQuizMode = MusicQuizMode.STANDARD,
     val hasLibrarySnapshot: Boolean = false,
+    val isClassifying: Boolean = false,
     val libraryIssue: MusicQuizLibraryIssue? = MusicQuizLibraryIssue.NOT_ENOUGH_SONGS,
     val eligibleTrackCount: Int = 0,
+    val kidsTrackCount: Int = 0,
+    val classicalTrackCount: Int = 0,
     val stats: MusicQuizStats = MusicQuizStats(),
+    val bestRounds: Int = 0,
     val currentQuestion: MusicQuizQuestion? = null,
     val roundIndex: Int = 0,
     val totalRounds: Int = MUSIC_QUIZ_ROUND_COUNT,
@@ -78,14 +92,20 @@ data class MusicQuizUiState(
     val previewTrackId: String? = null,
     val previewPaused: Boolean = false,
 ) {
+    val isEndless: Boolean get() = mode.isEndless
+
     val canStart: Boolean
-        get() = phase == MusicQuizPhase.IDLE && hasLibrarySnapshot && libraryIssue == null
+        get() = phase == MusicQuizPhase.IDLE &&
+            hasLibrarySnapshot &&
+            !isClassifying &&
+            libraryIssue == null
 }
 
 @HiltViewModel
 class MusicQuizViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
     private val statsRepository: MusicQuizStatsRepository,
+    private val lyricsProvider: MusicQuizLyricsProvider,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(MusicQuizUiState())
     val uiState: StateFlow<MusicQuizUiState> = _uiState.asStateFlow()
@@ -94,8 +114,15 @@ class MusicQuizViewModel @Inject constructor(
     val events: SharedFlow<MusicQuizEvent> = _events.asSharedFlow()
 
     private var libraryTracks: List<MusicQuizTrack> = emptyList()
+    private var libraryLoaded = false
+    private var kidsIds: Set<String> = emptySet()
+    private var kidsClassified = false
+    private var classificationJob: Job? = null
+    private var latestStats = MusicQuizModeStats()
     private var runPool: List<MusicQuizTrack> = emptyList()
     private var reserveTracks: List<MusicQuizTrack> = emptyList()
+    private var usedAnswerIds: MutableSet<String> = mutableSetOf()
+    private var lastEndlessTrackId: String? = null
     private var questionFactory = MusicQuizQuestionFactory()
     private var engine: MusicQuizGameEngine? = null
     private var playbackToken = 0L
@@ -146,42 +173,93 @@ class MusicQuizViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
-            statsRepository.stats.collect { stats ->
-                _uiState.update { it.copy(stats = stats) }
+            statsRepository.stats.collect { modeStats ->
+                latestStats = modeStats
+                _uiState.update {
+                    it.copy(
+                        stats = modeStats.statsFor(it.mode),
+                        bestRounds = modeStats.bestRoundsFor(it.mode),
+                    )
+                }
             }
+        }
+        viewModelScope.launch {
+            val savedMode = statsRepository.currentMode()
+            _uiState.update {
+                it.copy(
+                    mode = savedMode,
+                    stats = latestStats.statsFor(savedMode),
+                    bestRounds = latestStats.bestRoundsFor(savedMode),
+                )
+            }
+            if (savedMode == MusicQuizMode.KIDS) ensureKidsClassified()
+            refreshLibraryState()
         }
     }
 
     /** The run keeps its own snapshot; later library emissions only affect the next run. */
     fun updateLibrary(songs: List<Song>) {
-        libraryTracks = songs.asSequence()
-            .filterNot(CloudOfflineRepository::isCloudSong)
-            .map { it.toMusicQuizTrack() }
-            .let { MusicQuizQuestionFactory.eligibleTracks(it.toList()) }
-        val issue = when {
-            !MusicQuizQuestionFactory.hasEnoughTracks(libraryTracks) ->
-                MusicQuizLibraryIssue.NOT_ENOUGH_SONGS
-            !MusicQuizQuestionFactory.hasEnoughTitles(libraryTracks) ->
-                MusicQuizLibraryIssue.NOT_ENOUGH_TITLES
-            else -> null
+        classificationJob?.cancel()
+        classificationJob = viewModelScope.launch {
+            val base = withContext(Dispatchers.Default) {
+                val classified = songs.asSequence()
+                    .filterNot(CloudOfflineRepository::isCloudSong)
+                    .map { it.toMusicQuizTrack() }
+                    .let { MusicQuizQuestionFactory.eligibleTracks(it.toList()) }
+                    .map { track ->
+                        if (track.isClassical) {
+                            track
+                        } else {
+                            track.copy(isClassical = ClassicalSongClassifier.isClassical(track))
+                        }
+                    }
+                classified
+            }
+            libraryTracks = base
+            kidsIds = emptySet()
+            kidsClassified = false
+            libraryLoaded = true
+            if (_uiState.value.mode == MusicQuizMode.KIDS) {
+                ensureKidsClassified()
+            }
+            refreshLibraryState()
         }
+    }
+
+    fun setMode(mode: MusicQuizMode) {
+        val state = _uiState.value
+        if (state.mode == mode) return
+        if (state.phase !in MODE_SWITCHABLE_PHASES) return
+        cancelAutoAdvance()
+        stopPreview()
+        stopPlayback()
+        engine = null
         _uiState.update {
             it.copy(
-                hasLibrarySnapshot = true,
-                libraryIssue = issue,
-                eligibleTrackCount = libraryTracks.size,
+                mode = mode,
+                phase = MusicQuizPhase.IDLE,
+                currentQuestion = null,
+                resolution = null,
+                summary = null,
+                isNewBestScore = false,
+                isNewBestStreak = false,
+                showExitConfirmation = false,
+                stats = latestStats.statsFor(mode),
+                bestRounds = latestStats.bestRoundsFor(mode),
             )
+        }
+        viewModelScope.launch {
+            statsRepository.setMode(mode)
+            if (mode == MusicQuizMode.KIDS) ensureKidsClassified()
+            refreshLibraryState()
         }
     }
 
     fun startGame() {
-        val issue = when {
-            !MusicQuizQuestionFactory.hasEnoughTracks(libraryTracks) ->
-                MusicQuizLibraryIssue.NOT_ENOUGH_SONGS
-            !MusicQuizQuestionFactory.hasEnoughTitles(libraryTracks) ->
-                MusicQuizLibraryIssue.NOT_ENOUGH_TITLES
-            else -> null
-        }
+        val state = _uiState.value
+        if (state.isClassifying) return
+        val mode = state.mode
+        val issue = computeIssue(mode)
         if (issue != null) {
             _uiState.update { it.copy(phase = MusicQuizPhase.IDLE, libraryIssue = issue) }
             return
@@ -191,12 +269,27 @@ class MusicQuizViewModel @Inject constructor(
         stopPreview()
         cancelAutoAdvance()
         questionFactory = MusicQuizQuestionFactory(Random(System.nanoTime()))
-        runPool = libraryTracks
-        val blueprint = questionFactory.createRun(runPool)
-        reserveTracks = blueprint.reserveTracks
-        engine = MusicQuizGameEngine(blueprint.questions)
+        runPool = modePool(mode)
         consecutivePlaybackFailures = 0
         resultRecorded = false
+        if (mode.isEndless) {
+            usedAnswerIds.clear()
+            lastEndlessTrackId = null
+            val first = nextEndlessQuestion()
+            if (first == null) {
+                _uiState.update { it.copy(phase = MusicQuizPhase.ERROR) }
+                return
+            }
+            engine = MusicQuizGameEngine(
+                questions = listOf(first),
+                endless = true,
+                nextQuestionProvider = { nextEndlessQuestion() },
+            )
+        } else {
+            val blueprint = questionFactory.createRun(runPool)
+            reserveTracks = blueprint.reserveTracks
+            engine = MusicQuizGameEngine(blueprint.questions)
+        }
         _uiState.update {
             it.copy(
                 phase = MusicQuizPhase.PREPARING,
@@ -340,9 +433,103 @@ class MusicQuizViewModel @Inject constructor(
         _uiState.update { it.copy(showExitConfirmation = false) }
     }
 
+    /** Endless mode's settle action: ends the run now and records the answered questions. */
+    fun endRunAndSettle() {
+        val currentEngine = engine ?: return
+        cancelAutoAdvance()
+        stopPreview()
+        stopPlayback()
+        finishRun(currentEngine)
+    }
+
     /** Re-arms the reveal auto-advance after backgrounding or configuration changes. */
     fun onScreenResumed() {
         maybeScheduleAutoAdvance()
+    }
+
+    private fun modePool(mode: MusicQuizMode): List<MusicQuizTrack> = when (mode) {
+        MusicQuizMode.STANDARD,
+        MusicQuizMode.ENDLESS,
+        -> libraryTracks
+        MusicQuizMode.KIDS -> libraryTracks.filter { it.isKidsSong || it.isClassical }
+        MusicQuizMode.CLASSICAL -> libraryTracks.filter { it.isClassical }
+    }
+
+    private fun computeIssue(mode: MusicQuizMode): MusicQuizLibraryIssue? {
+        val pool = modePool(mode)
+        val notEnoughTitles = MusicQuizQuestionFactory.viableSubPools(pool).isEmpty()
+        val notEnoughSongs = !notEnoughTitles &&
+            MusicQuizQuestionFactory.answerTracks(pool).size < MUSIC_QUIZ_ROUND_COUNT
+        if (!notEnoughTitles && !notEnoughSongs) return null
+        return when (mode) {
+            MusicQuizMode.KIDS -> MusicQuizLibraryIssue.NOT_ENOUGH_KIDS_SONGS
+            MusicQuizMode.CLASSICAL -> MusicQuizLibraryIssue.NOT_ENOUGH_CLASSICAL_SONGS
+            else -> if (notEnoughTitles) {
+                MusicQuizLibraryIssue.NOT_ENOUGH_TITLES
+            } else {
+                MusicQuizLibraryIssue.NOT_ENOUGH_SONGS
+            }
+        }
+    }
+
+    private fun refreshLibraryState() {
+        if (!libraryLoaded) return
+        val mode = _uiState.value.mode
+        if (mode == MusicQuizMode.KIDS && !kidsClassified) return
+        val pool = modePool(mode)
+        _uiState.update {
+            it.copy(
+                hasLibrarySnapshot = true,
+                isClassifying = false,
+                libraryIssue = computeIssue(mode),
+                eligibleTrackCount = MusicQuizQuestionFactory.answerTracks(pool).size,
+                kidsTrackCount = pool.count { track -> !track.isClassical },
+                classicalTrackCount = pool.count { track -> track.isClassical },
+            )
+        }
+    }
+
+    /** Tier A first; keyword fallback only when the catalog hits cannot fill a kids pool. */
+    private suspend fun ensureKidsClassified() {
+        if (kidsClassified) {
+            refreshLibraryState()
+            return
+        }
+        _uiState.update { it.copy(isClassifying = true) }
+        val ids: Set<String> = withContext(Dispatchers.Default) {
+            val tierA = libraryTracks.filter { KidsSongClassifier.matchesCatalog(it.title) }
+            val kidsEnough = tierA.size >= MUSIC_QUIZ_ROUND_COUNT &&
+                tierA.map { MusicQuizQuestionFactory.normalizedTitle(it.title) }.distinct().size >=
+                MUSIC_QUIZ_OPTION_COUNT
+            if (kidsEnough) {
+                tierA.mapTo(mutableSetOf()) { it.id }
+            } else {
+                val tierAIds = tierA.mapTo(mutableSetOf()) { it.id }
+                val rest = libraryTracks.filter { it.id !in tierAIds }
+                val lyrics = lyricsProvider.lyricsFor(rest.map { it.id })
+                val tierBIds = rest.filter {
+                    KidsSongClassifier.matchesKeywords(it.title, it.artist, it.album, lyrics[it.id])
+                }.mapTo(mutableSetOf()) { it.id }
+                tierAIds.apply { addAll(tierBIds) }
+            }
+        }
+        kidsIds = ids
+        kidsClassified = true
+        libraryTracks = libraryTracks.map { it.copy(isKidsSong = it.id in ids) }
+    }
+
+    private fun nextEndlessQuestion(): MusicQuizQuestion? {
+        var question = questionFactory.createNextQuestion(runPool, usedAnswerIds, lastEndlessTrackId)
+        if (question == null) {
+            // Pool exhausted: start a new cycle, still avoiding an immediate repeat.
+            usedAnswerIds.clear()
+            question = questionFactory.createNextQuestion(runPool, usedAnswerIds, lastEndlessTrackId)
+        }
+        if (question != null) {
+            usedAnswerIds += question.track.id
+            lastEndlessTrackId = question.track.id
+        }
+        return question
     }
 
     private fun loadCurrentQuestion(autoplay: Boolean = true) {
@@ -400,19 +587,30 @@ class MusicQuizViewModel @Inject constructor(
         tickerJob?.cancel()
         stopPlayback()
         consecutivePlaybackFailures += 1
-        val replacement = if (consecutivePlaybackFailures <= MAX_CONSECUTIVE_PLAYBACK_FAILURES) {
-            questionFactory.replacement(
-                allTracks = runPool,
-                reserveTracks = reserveTracks,
-                plannedQuestions = currentEngine.plannedQuestions,
-            )
-        } else {
-            null
-        }
-        if (replacement != null && currentEngine.replaceCurrentQuestion(replacement.question)) {
-            reserveTracks = replacement.remainingReserveTracks
-            _uiState.update { it.copy(currentQuestion = replacement.question) }
+        val endless = _uiState.value.mode.isEndless
+        val replacementQuestion: MusicQuizQuestion? =
+            if (consecutivePlaybackFailures <= MAX_CONSECUTIVE_PLAYBACK_FAILURES) {
+                if (endless) {
+                    nextEndlessQuestion()
+                } else {
+                    questionFactory.replacement(
+                        allTracks = runPool,
+                        reserveTracks = reserveTracks,
+                        plannedQuestions = currentEngine.plannedQuestions,
+                    )?.let { replacement ->
+                        reserveTracks = replacement.remainingReserveTracks
+                        replacement.question
+                    }
+                }
+            } else {
+                null
+            }
+        if (replacementQuestion != null && currentEngine.replaceCurrentQuestion(replacementQuestion)) {
+            _uiState.update { it.copy(currentQuestion = replacementQuestion) }
             loadCurrentQuestion(autoplay = !remainPaused)
+        } else if (endless) {
+            // Endless runs settle instead of erroring: answered questions still count.
+            finishRun(currentEngine)
         } else {
             engine = null
             _uiState.update {
@@ -529,6 +727,7 @@ class MusicQuizViewModel @Inject constructor(
 
     private fun finishRun(currentEngine: MusicQuizGameEngine) {
         val summary = currentEngine.summary()
+        val mode = _uiState.value.mode
         _uiState.update {
             it.copy(
                 phase = MusicQuizPhase.FINISHED,
@@ -543,12 +742,13 @@ class MusicQuizViewModel @Inject constructor(
         resultRecorded = true
         viewModelScope.launch {
             runCatching {
-                withContext(NonCancellable) { statsRepository.recordRun(summary) }
+                withContext(NonCancellable) { statsRepository.recordRun(mode, summary) }
             }
                 .onSuccess { result ->
                     _uiState.update {
                         it.copy(
                             stats = result.stats,
+                            bestRounds = result.bestRounds,
                             isNewBestScore = result.isNewBestScore,
                             isNewBestStreak = result.isNewBestStreak,
                         )
@@ -606,6 +806,7 @@ class MusicQuizViewModel @Inject constructor(
             playbackUri = playbackUri,
             year = year,
             genre = genre,
+            album = album,
         )
     }
 
@@ -616,5 +817,11 @@ class MusicQuizViewModel @Inject constructor(
 
         /** Correct-answer reveal auto-advances after this delay; the button still skips early. */
         const val REVEAL_AUTO_ADVANCE_DELAY_MS = 1_200L
+
+        val MODE_SWITCHABLE_PHASES = setOf(
+            MusicQuizPhase.IDLE,
+            MusicQuizPhase.FINISHED,
+            MusicQuizPhase.ERROR,
+        )
     }
 }

@@ -3,6 +3,28 @@
 All notable changes to PiscesPlayer will be documented in this file. PiscesPlayer is a fork of
 PixelPlayerOSS; versions up to and including 0.4.3 were published under the upstream name.
 
+## [Unreleased]
+
+### Added
+- Music Quiz game modes, switchable from a dropdown at the right end of the game's title row:
+  Standard (unchanged), Kids, Classical and Endless. The last selected mode is restored on the
+  next visit, and the setup screen shows the rule summary, the mode's own best records and the
+  playable pool size for the chosen mode.
+- Kids mode draws its questions from children's songs plus classical music. Kids songs are found
+  through a built-in bilingual catalog (classic nursery rhymes, animation themes, recent hits and
+  movie songs) and, when the catalog cannot fill the pool, through keyword evidence in the title,
+  artist/album and cached lyrics. Classical works are recognized by a bilingual piece catalog,
+  composer/performer names (Bach, Chopin, Lang Lang, Richard Clayderman, …) and form/genre words.
+  Too few matches shows a dedicated "too few kids songs" empty state instead of starting a run.
+- Classical mode draws all ten rounds from classical tracks, and the same-source rule applies in
+  every mode: when the answer is a classical work, all five options are classical, so the
+  category never gives the answer away. Sub-pools that cannot form five distinct options drop out
+  of question generation entirely.
+- Endless mode keeps asking questions from the normal pool (dealing each song once per cycle) and
+  can be settled at any time from the pause screen: the run is scored and saved like a completed
+  one, and the results screen adds "most answered" to the records. Best score, best streak,
+  completed runs and best rounds are kept per mode so different pools never overwrite each other.
+
 ## [1.0.2] - 2026-11-14
 
 ### Added

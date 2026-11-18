@@ -6,11 +6,17 @@ import kotlin.math.roundToLong
 /**
  * One deterministic run. Playback and UI call this engine on the main thread; tests inject a clock.
  * Time spent loading or paused is never included in answer time or scoring.
+ *
+ * A fixed run owns a planned question list and finishes at its end. An endless run pulls
+ * additional questions from [nextQuestionProvider] and only finishes when the provider is
+ * exhausted or the player settles the run.
  */
 internal class MusicQuizGameEngine(
     questions: List<MusicQuizQuestion>,
     private val answerWindowMs: Long = MUSIC_QUIZ_CLIP_DURATION_MS,
     private val clock: MusicQuizMonotonicClock = MusicQuizSystemClock,
+    private val endless: Boolean = false,
+    private val nextQuestionProvider: (() -> MusicQuizQuestion?)? = null,
 ) {
     private val questions = questions.toMutableList()
     private val answerWindowNanos = answerWindowMs * NANOS_PER_MILLISECOND
@@ -30,15 +36,17 @@ internal class MusicQuizGameEngine(
     var maxStreak: Int = 0
         private set
 
+    val isEndless: Boolean get() = endless
     val totalRounds: Int get() = questions.size
     val currentQuestion: MusicQuizQuestion get() = questions[currentRoundIndex]
     val plannedQuestions: List<MusicQuizQuestion> get() = questions.toList()
     val records: List<MusicQuizAnswerRecord> get() = _records.toList()
-    val isLastRound: Boolean get() = currentRoundIndex == questions.lastIndex
+    val isLastRound: Boolean get() = !endless && currentRoundIndex == questions.lastIndex
 
     init {
         require(questions.isNotEmpty()) { "A run needs at least one question" }
         require(answerWindowMs > 0L) { "Answer window must be positive" }
+        require(!endless || nextQuestionProvider != null) { "An endless run needs a question provider" }
     }
 
     fun onPlaybackStarted(nowNanos: Long = clock.nowNanos()) {
@@ -101,6 +109,18 @@ internal class MusicQuizGameEngine(
 
     fun advance(): Boolean {
         if (state != MusicQuizEngineState.RESOLVED) return false
+        if (endless) {
+            val next = nextQuestionProvider?.invoke()
+            if (next == null) {
+                state = MusicQuizEngineState.FINISHED
+                return true
+            }
+            questions += next
+            currentRoundIndex += 1
+            pausedRemainingNanos = answerWindowNanos
+            state = MusicQuizEngineState.WAITING_FOR_PLAYBACK
+            return true
+        }
         if (isLastRound) {
             state = MusicQuizEngineState.FINISHED
         } else {
@@ -126,7 +146,8 @@ internal class MusicQuizGameEngine(
         return MusicQuizRunSummary(
             score = score,
             correctCount = correctRecords.size,
-            totalRounds = totalRounds,
+            // An endless run settles mid-flow: only answered questions count as rounds.
+            totalRounds = if (endless) _records.size else questions.size,
             maxStreak = maxStreak,
             averageCorrectAnswerMs = if (correctRecords.isEmpty()) {
                 0L
