@@ -518,10 +518,8 @@ dependencies {
     // Concrete build-dir path: a task-provider-backed file collection was not picked up by AGP's
     // compile classpath, while this form is (verified via the resolved debugCompileClasspath).
     implementation(files(layout.buildDirectory.file("generated/icons/material-icons-extended-used.jar")).builtBy(generateUsedIconJar))
-    implementation(libs.androidx.constraintlayout.compose)
     implementation(libs.androidx.foundation)
     implementation(libs.androidx.animation)
-    implementation(libs.androidx.palette.ktx)
     implementation(libs.androidx.core.splashscreen)
     implementation(libs.material)
     implementation(libs.androidx.appcompat)
@@ -552,7 +550,6 @@ dependencies {
     implementation(libs.taglib)
     implementation(libs.jaudiotagger)
     implementation(libs.vorbisjava.core)
-    implementation(libs.wavy.slider)
     implementation(libs.androidx.graphics.shapes)
 
     implementation(libs.retrofit)
@@ -568,6 +565,9 @@ dependencies {
 
     implementation(libs.androidx.work.runtime.ktx)
     implementation(libs.androidx.security.crypto)
+    // DocumentFile is used directly by backup/restore (BackupFileValidator, BackupManager).
+    // Declared explicitly instead of relying on palette-ktx's transitive legacy-support-core-utils.
+    implementation(libs.androidx.documentfile)
 
     implementation(libs.timber)
     implementation(libs.smooth.corner.rect.android.compose)
