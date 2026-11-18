@@ -187,6 +187,8 @@ Release 由人工从 `main` 切出，以 `X.Y.Z` 发布到 [Releases 页面](htt
 
 Release 使用个人密钥签名，可相互覆盖升级。PiscesPlayer 使用独立包名与签名，无法覆盖安装 PixelPlayerOSS（上游或 F-Droid）反之亦然；两边迁移曲库使用应用内备份与恢复。
 
+F-Droid 上架进行中。上架后的 F-Droid 版由 F-Droid 官方密钥签名：与 GitHub Release 版不能互相覆盖安装，两个渠道之间切换同样用应用内备份与恢复迁移。应用内更新器只跟踪 GitHub Releases。
+
 ## 支持
 
 PiscesPlayer 是独立维护的业余分支。支持方式：给仓库点 Star、反馈问题或提交 PR。本项目基于 @lostf1sh 的 [PixelPlayerOSS](https://github.com/PixelPlayerHQ/PixelPlayerOSS)，署名与来源见 [NOTICE](NOTICE) 与 [PROVENANCE.md](PROVENANCE.md)。
@@ -234,7 +236,7 @@ JAVA_HOME=/usr/lib/jvm/java-21-openjdk ./gradlew :app:testDebugUnitTest
 
 发版流程：[docs/RELEASE.md](docs/RELEASE.md)
 
-F-Droid 说明（历史文档，本分支不经 F-Droid 分发）：[docs/FDROID.md](docs/FDROID.md)
+F-Droid 说明（历史构建配方参考；F-Droid 上架进行中）：[docs/FDROID.md](docs/FDROID.md)
 
 隐私政策：[PRIVACY.md](PRIVACY.md)
 

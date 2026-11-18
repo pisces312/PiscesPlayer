@@ -187,6 +187,8 @@ To install one, download the APK from the release assets and sideload it: `arm64
 
 Release builds are signed with a personal key, so they update over each other. PiscesPlayer uses its own package name and signing key, so it cannot be installed over a PixelPlayerOSS build (upstream or F-Droid) and vice versa; moving a library between them uses the in-app backup and restore.
 
+An F-Droid listing is in progress. Once available, the F-Droid build is signed by F-Droid's own key: it cannot be installed over the GitHub release build or vice versa, and switching between the two channels also uses the in-app backup and restore. The in-app updater only tracks GitHub releases.
+
 ## Support
 
 PiscesPlayer is a hobby fork maintained independently. To support it, star the repository, report issues, or send pull requests. It is based on [PixelPlayerOSS](https://github.com/PixelPlayerHQ/PixelPlayerOSS) by @lostf1sh; attribution and provenance are recorded in [NOTICE](NOTICE) and [PROVENANCE.md](PROVENANCE.md).
@@ -234,7 +236,7 @@ JAVA_HOME=/usr/lib/jvm/java-21-openjdk ./gradlew :app:testDebugUnitTest
 
 Release process: [docs/RELEASE.md](docs/RELEASE.md)
 
-F-Droid notes (historical, the fork is not distributed via F-Droid): [docs/FDROID.md](docs/FDROID.md)
+F-Droid notes (historical build recipe reference; F-Droid listing in progress): [docs/FDROID.md](docs/FDROID.md)
 
 Privacy policy: [PRIVACY.md](PRIVACY.md)
 
