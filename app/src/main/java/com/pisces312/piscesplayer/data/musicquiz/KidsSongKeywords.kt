@@ -18,9 +18,19 @@ internal object KidsSongKeywords {
 
     /** Artist/album words that identify a kids-content publisher. */
     val strongArtistWords: List<String> = listOf(
-        "贝瓦", "宝宝巴士", "巴士儿歌", "萌宝", "儿歌", "童谣", "少儿", "儿童",
+        "贝瓦", "贝乐虎", "宝宝巴士", "巴士儿歌", "萌宝", "儿歌", "童谣", "少儿", "儿童",
         "nursery", "cocomelon", "pinkfong", "super simple", "mother goose",
         "sesame street", "kids", "children",
+    )
+
+    /**
+     * Always-on publisher-label rule (user rule, v4): a performer whose name is a
+     * kids-content label — 贝瓦儿歌 / 贝乐虎儿歌 / anything containing 儿歌 — is a
+     * kids song no matter which tier. Kept narrow (no bare "kids"/"children" here)
+     * so e.g. "Children of Bodom" never triggers it.
+     */
+    val kidArtistLabelWords: List<String> = listOf(
+        "儿歌", "童谣", "贝瓦", "贝乐虎", "宝宝巴士",
     )
 
     /** Single words that are suggestive but never sufficient alone. */

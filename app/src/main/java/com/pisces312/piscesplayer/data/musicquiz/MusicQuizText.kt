@@ -19,6 +19,7 @@ internal object MusicQuizText {
     private val COMBINING_MARKS = Regex("\\p{M}+")
     private val LRC_STAMP = Regex("\\[[0-9:.]+]")
     private val LATIN_WORD = Regex("[a-z0-9]")
+    private val PUNCTUATION = Regex("[,.!?'\"`‘’“”´:;~、。！？，；：…—–\\-‐/·|]+")
     private val patternCache = ConcurrentHashMap<String, Regex>()
 
     /** Canonical comparison key: decorations stripped, accents folded, lowercased. */
@@ -26,12 +27,24 @@ internal object MusicQuizText {
         var text = fullWidthToHalfWidth(title).trim()
         text = DECORATION.replace(text, " ")
         text = SUFFIX_WORDS.replace(text.trim(), "").trim()
-        return foldAccents(text).replace(WHITESPACE, " ").lowercase(Locale.ROOT)
+        return normalizeWord(text)
     }
 
+    /**
+     * Free-text key without decoration/suffix stripping; for lyrics, metadata and
+     * keyword needles. Punctuation is folded to spaces on both sides of a match so
+     * "Row, Row, Row Your Boat", "Rock-A-Bye Baby" and "she'll" style differences
+     * never break matching.
+     */
+    fun normalizeWord(text: String): String =
+        foldAccents(fullWidthToHalfWidth(text))
+            .let { PUNCTUATION.replace(it, " ") }
+            .replace(WHITESPACE, " ")
+            .lowercase(Locale.ROOT)
+            .trim()
+
     /** Plain key without decoration stripping; for lyrics and free-text scanning. */
-    fun normalizeLoose(text: String): String =
-        foldAccents(fullWidthToHalfWidth(text)).replace(WHITESPACE, " ").lowercase(Locale.ROOT)
+    fun normalizeLoose(text: String): String = normalizeWord(text)
 
     /**
      * Substring match where Latin needles match on word boundaries ("bach" must not hit
@@ -39,10 +52,12 @@ internal object MusicQuizText {
      */
     fun containsPhrase(haystackKey: String, needleKey: String): Boolean {
         if (needleKey.isEmpty()) return false
-        return if (LATIN_WORD.containsMatchIn(needleKey)) {
-            wordBoundaryContains(haystackKey, needleKey)
+        val needle = normalizeWord(needleKey)
+        if (needle.isEmpty()) return false
+        return if (LATIN_WORD.containsMatchIn(needle)) {
+            wordBoundaryContains(haystackKey, needle)
         } else {
-            haystackKey.contains(needleKey)
+            haystackKey.contains(needle)
         }
     }
 

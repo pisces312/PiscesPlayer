@@ -13,6 +13,17 @@ internal object KidsSongClassifier {
     fun matchesCatalog(title: String): Boolean = KidsSongCatalog.matches(title)
 
     /**
+     * Always-on performer-label rule (v4, user rule): the singer is a kids-content
+     * label — 贝瓦儿歌、贝乐虎儿歌 or any performer containing 儿歌 — so the track is a
+     * children's song regardless of the catalog/keyword tiers.
+     */
+    fun matchesArtistLabel(artist: String): Boolean {
+        val key = MusicQuizText.normalizeWord(artist)
+        return key.isNotEmpty() &&
+            KidsSongKeywords.kidArtistLabelWords.any { MusicQuizText.containsPhrase(key, it) }
+    }
+
+    /**
      * Tier B keyword rules (any hit qualifies):
      * 1. artist/album hits a strong publisher word;
      * 2. title hits >= 1 strong word;

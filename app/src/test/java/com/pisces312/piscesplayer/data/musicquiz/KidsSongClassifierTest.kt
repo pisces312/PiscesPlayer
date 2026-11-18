@@ -17,6 +17,60 @@ class KidsSongClassifierTest {
     }
 
     @Test
+    fun `catalog matches the user library kids playlist titles`() {
+        assertTrue(KidsSongClassifier.matchesCatalog("春之歌"))
+        assertTrue(KidsSongClassifier.matchesCatalog("阳光男孩 阳光女孩"))
+        assertTrue(KidsSongClassifier.matchesCatalog("花园种花"))
+        assertTrue(KidsSongClassifier.matchesCatalog("星仔走天涯（咪咪流浪记）"))
+        assertTrue(KidsSongClassifier.matchesCatalog("我是挖掘机"))
+        assertTrue(KidsSongClassifier.matchesCatalog("我不上你的当"))
+        assertTrue(KidsSongClassifier.matchesCatalog("延吉之歌"))
+        assertTrue(KidsSongClassifier.matchesCatalog("小青蛙"))
+        assertTrue(KidsSongClassifier.matchesCatalog("加油鸭"))
+        assertTrue(KidsSongClassifier.matchesCatalog("萤火虫"))
+        assertTrue(KidsSongClassifier.matchesCatalog("爸爸去哪儿"))
+        assertTrue(KidsSongClassifier.matchesCatalog("洗澡歌"))
+        assertTrue(KidsSongClassifier.matchesCatalog("找爸爸"))
+        assertTrue(KidsSongClassifier.matchesCatalog("小白船 [朝鲜族民歌]"))
+        assertTrue(KidsSongClassifier.matchesCatalog("妈妈我爱你"))
+        assertTrue(KidsSongClassifier.matchesCatalog("最棒的老爸"))
+        assertTrue(KidsSongClassifier.matchesCatalog("大家一起喜羊羊（国语）"))
+        assertTrue(KidsSongClassifier.matchesCatalog("Red River Valley"))
+        assertTrue(KidsSongClassifier.matchesCatalog("Dinosaur Stomp"))
+        assertTrue(KidsSongClassifier.matchesCatalog("coco ball"))
+        assertTrue(KidsSongClassifier.matchesCatalog("Zunea-Zunea"))
+        assertTrue(KidsSongClassifier.matchesCatalog("The Alphabet Song"))
+        assertTrue(KidsSongClassifier.matchesCatalog("Schnappi"))
+        assertTrue(KidsSongClassifier.matchesCatalog("I've Been Working On The Railroad"))
+    }
+
+    @Test
+    fun `punctuation differences never break catalog matching`() {
+        assertTrue(KidsSongClassifier.matchesCatalog("Row, Row, Row Your Boat"))
+        assertTrue(KidsSongClassifier.matchesCatalog("If You’re Happy and You Know It"))
+        assertTrue(KidsSongClassifier.matchesCatalog("She'll Be Coming Round the Mountain"))
+        assertTrue(KidsSongClassifier.matchesCatalog("Rock A Bye Baby"))
+        assertTrue(KidsSongClassifier.matchesCatalog("You Are My Sunshine"))
+    }
+
+    @Test
+    fun `performer label rule qualifies kids labels always`() {
+        assertTrue(KidsSongClassifier.matchesArtistLabel("贝瓦儿歌"))
+        assertTrue(KidsSongClassifier.matchesArtistLabel("贝乐虎儿歌"))
+        assertTrue(KidsSongClassifier.matchesArtistLabel("贝瓦"))
+        assertTrue(KidsSongClassifier.matchesArtistLabel("宝宝巴士儿歌"))
+        assertTrue(KidsSongClassifier.matchesArtistLabel("北京快乐儿歌合唱团"))
+    }
+
+    @Test
+    fun `performer label rule rejects ordinary artists`() {
+        assertFalse(KidsSongClassifier.matchesArtistLabel("周杰伦"))
+        assertFalse(KidsSongClassifier.matchesArtistLabel("筷子兄弟"))
+        assertFalse(KidsSongClassifier.matchesArtistLabel("Children of Bodom"))
+        assertFalse(KidsSongClassifier.matchesArtistLabel(""))
+    }
+
+    @Test
     fun `pop counterexamples never qualify`() {
         assertFalse(keywords("童年", "罗大佑"))
         assertFalse(keywords("听妈妈的话", "周杰伦"))

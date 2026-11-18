@@ -13,9 +13,12 @@ PixelPlayerOSS; versions up to and including 0.4.3 were published under the upst
 - Kids mode draws its questions from children's songs. Kids songs are found
   through a built-in bilingual catalog (classic nursery rhymes, animation themes, recent hits and
   movie songs) and, when the catalog cannot fill the pool, through keyword evidence in the title,
-  artist/album and cached lyrics. Classical works are recognized by a bilingual piece catalog,
-  composer/performer names (Bach, Chopin, Lang Lang, Richard Clayderman, …) and form/genre words;
-  they are used by Classical mode and the same-source rule, not mixed into the kids pool.
+  artist/album and cached lyrics. Songs performed by kids-content labels (贝瓦儿歌, 贝乐虎儿歌 or
+  any artist containing 儿歌) always qualify, and catalog matching tolerates punctuation
+  differences in titles (commas, apostrophes, hyphens). Classical works are recognized by a
+  bilingual piece catalog, composer/performer names (Bach, Chopin, Lang Lang, Richard
+  Clayderman, …) and form/genre words; they are used by Classical mode and the same-source
+  rule, not mixed into the kids pool.
   Too few matches shows a dedicated "too few kids songs" empty state instead of starting a run.
 - Classical mode draws all ten rounds from classical tracks, and the same-source rule applies in
   every mode: when the answer is a classical work, all five options are classical, so the

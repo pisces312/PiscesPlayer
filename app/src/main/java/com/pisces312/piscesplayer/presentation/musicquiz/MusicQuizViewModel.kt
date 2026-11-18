@@ -488,7 +488,10 @@ class MusicQuizViewModel @Inject constructor(
         }
     }
 
-    /** Tier A first; keyword fallback only when the catalog hits cannot fill a kids pool. */
+    /**
+     * Tier A first (catalog names + the always-on performer-label rule); keyword
+     * fallback only when those hits cannot fill a kids pool.
+     */
     private suspend fun ensureKidsClassified() {
         if (kidsClassified) {
             refreshLibraryState()
@@ -496,7 +499,10 @@ class MusicQuizViewModel @Inject constructor(
         }
         _uiState.update { it.copy(isClassifying = true) }
         val ids: Set<String> = withContext(Dispatchers.Default) {
-            val tierA = libraryTracks.filter { KidsSongClassifier.matchesCatalog(it.title) }
+            val tierA = libraryTracks.filter {
+                KidsSongClassifier.matchesCatalog(it.title) ||
+                    KidsSongClassifier.matchesArtistLabel(it.artist)
+            }
             val kidsEnough = tierA.size >= MUSIC_QUIZ_ROUND_COUNT &&
                 tierA.map { MusicQuizQuestionFactory.normalizedTitle(it.title) }.distinct().size >=
                 MUSIC_QUIZ_OPTION_COUNT
