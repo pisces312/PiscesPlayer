@@ -748,6 +748,7 @@ class MainActivity : ComponentActivity() {
                 Screen.AudioBookmarks.route,
                 Screen.AudioBookmarkFolder.route,
                 Screen.MusicQuiz.route,
+                Screen.SleepSoundscape.route,
                 Screen.RhythmSongPicker.route,
                 Screen.RhythmSetup.route,
                 Screen.RhythmGame.route,

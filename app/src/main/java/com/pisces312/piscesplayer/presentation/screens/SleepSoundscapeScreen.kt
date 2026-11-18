@@ -16,12 +16,14 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.SwapHoriz
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -162,16 +164,75 @@ fun SleepSoundscapeScreen(
                 playing = phase != SoundscapeEngine.Phase.IDLE,
             )
 
+            // Primary transport stays directly under the visualization so it is
+            // reachable on entry, while the mixer below remains vertically scrollable.
+            val playing = phase != SoundscapeEngine.Phase.IDLE
+            val fading = phase == SoundscapeEngine.Phase.FADING_OUT
+            Button(
+                onClick = { holder.togglePlayback() },
+                enabled = !fading && mix.tracks.isNotEmpty(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(52.dp),
+                colors = if (playing) {
+                    androidx.compose.material3.ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.tertiary,
+                        contentColor = MaterialTheme.colorScheme.onTertiary,
+                    )
+                } else {
+                    androidx.compose.material3.ButtonDefaults.buttonColors()
+                },
+            ) {
+                Text(
+                    text = when {
+                        fading -> stringResource(R.string.soundscape_fading)
+                        playing -> stringResource(R.string.soundscape_stop)
+                        else -> stringResource(R.string.soundscape_start)
+                    },
+                    style = MaterialTheme.typography.titleMedium,
+                )
+            }
+            if (!playing) {
+                Text(
+                    text = stringResource(R.string.soundscape_start_hint),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 8.dp),
+                )
+            }
+            Spacer(Modifier.height(12.dp))
+
             if (hintVisible) {
                 HintBar(onDismiss = { holder.dismissFirstRunHint() })
                 Spacer(Modifier.height(8.dp))
             }
 
-            Text(
-                text = stringResource(R.string.soundscape_scene_label),
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = stringResource(R.string.soundscape_scene_label),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(Modifier.weight(1f))
+                Icon(
+                    imageVector = Icons.Rounded.SwapHoriz,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(16.dp),
+                )
+                Spacer(Modifier.width(4.dp))
+                Text(
+                    text = stringResource(R.string.soundscape_scene_swipe_hint),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
             PresetChipRow(
                 presets = presets,
                 selectedPresetId = selectedPresetId,
@@ -298,45 +359,9 @@ fun SleepSoundscapeScreen(
                 }
             }
 
-            val playing = phase != SoundscapeEngine.Phase.IDLE
-            val fading = phase == SoundscapeEngine.Phase.FADING_OUT
-            Button(
-                onClick = { holder.togglePlayback() },
-                enabled = !fading && mix.tracks.isNotEmpty(),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(52.dp),
-                colors = if (playing) {
-                    androidx.compose.material3.ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.tertiary,
-                        contentColor = MaterialTheme.colorScheme.onTertiary,
-                    )
-                } else {
-                    androidx.compose.material3.ButtonDefaults.buttonColors()
-                },
-            ) {
-                Text(
-                    text = when {
-                        fading -> stringResource(R.string.soundscape_fading)
-                        playing -> stringResource(R.string.soundscape_stop)
-                        else -> stringResource(R.string.soundscape_start)
-                    },
-                    style = MaterialTheme.typography.titleMedium,
-                )
-            }
-            if (!playing) {
-                Text(
-                    text = stringResource(R.string.soundscape_start_hint),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 8.dp, bottom = 16.dp),
-                )
-            }
-            // No mini player on this route (MainActivity hides it), so only the
-            // system navigation inset from the Scaffold protects the button.
+            // This route hides both the mini player and app navigation bar.
+            // The Scaffold's system navigation inset plus this spacer keeps the
+            // final duration option fully reachable when scrolling to the end.
             Spacer(Modifier.height(24.dp))
         }
     }

@@ -47,6 +47,20 @@ fun PresetChipRow(
             .padding(vertical = 4.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
+        // Saving is an action, not a scene: keep it in the leading position so
+        // it is visible on entry and never buried behind the built-in scenes.
+        FilterChip(
+            selected = false,
+            onClick = onAddNew,
+            label = { Text(stringResource(R.string.soundscape_preset_save_short)) },
+            leadingIcon = {
+                Icon(
+                    imageVector = Icons.Rounded.Add,
+                    contentDescription = null,
+                    modifier = Modifier.padding(start = 4.dp),
+                )
+            },
+        )
         presets.forEach { preset ->
             val label = preset.name
                 ?: when (preset.builtInId) {
@@ -69,17 +83,5 @@ fun PresetChipRow(
                 ),
             )
         }
-        FilterChip(
-            selected = false,
-            onClick = onAddNew,
-            label = { Text(stringResource(R.string.soundscape_preset_save_short)) },
-            leadingIcon = {
-                Icon(
-                    imageVector = Icons.Rounded.Add,
-                    contentDescription = null,
-                    modifier = Modifier.padding(start = 4.dp),
-                )
-            },
-        )
     }
 }

@@ -7,6 +7,7 @@
     <string name="soundscape_first_run_hint">把噪声和自然声叠成你的入睡声音，设好时长后安心睡。</string>
     <string name="soundscape_hint_dismiss">知道了</string>
     <string name="soundscape_scene_label">场景</string>
+    <string name="soundscape_scene_swipe_hint">左右滑动查看更多</string>
     <string name="soundscape_current_mix_label">当前混音</string>
     <string name="soundscape_add_sound">添加声音</string>
     <string name="soundscape_master_volume">总音量</string>

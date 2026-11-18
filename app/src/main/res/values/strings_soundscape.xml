@@ -7,6 +7,7 @@
     <string name="soundscape_first_run_hint">Stack noise and nature sounds into your own sleep mix; set a timer and drift off.</string>
     <string name="soundscape_hint_dismiss">Got it</string>
     <string name="soundscape_scene_label">Scenes</string>
+    <string name="soundscape_scene_swipe_hint">Swipe for more scenes</string>
     <string name="soundscape_current_mix_label">Current mix</string>
     <string name="soundscape_add_sound">Add sound</string>
     <string name="soundscape_master_volume">Volume</string>
