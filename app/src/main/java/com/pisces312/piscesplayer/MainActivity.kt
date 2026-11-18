@@ -195,6 +195,7 @@ class MainActivity : ComponentActivity() {
     private val _pendingPlaylistNavigation = kotlinx.coroutines.flow.MutableStateFlow<String?>(null)
     private val _pendingShuffleAll = kotlinx.coroutines.flow.MutableStateFlow(false)
     private val _pendingUpdatesNavigation = kotlinx.coroutines.flow.MutableStateFlow(false)
+    private val _pendingSoundscapeNavigation = kotlinx.coroutines.flow.MutableStateFlow(false)
 
     private val requestAllFilesAccessLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { _ ->
     }
@@ -477,6 +478,11 @@ class MainActivity : ComponentActivity() {
                 intent.action = null
             }
 
+            intent.action == MainActivityIntentContract.ACTION_OPEN_SOUNDSCAPE -> {
+                _pendingSoundscapeNavigation.value = true
+                intent.action = null
+            }
+
             intent.getBooleanExtra("ACTION_SHOW_PLAYER", false) -> {
                 playerViewModel.showPlayer()
             }
@@ -643,6 +649,19 @@ class MainActivity : ComponentActivity() {
                 delay(100)
             }
             _pendingUpdatesNavigation.value = false
+        }
+
+        val pendingSoundscapeNav by _pendingSoundscapeNavigation.collectAsStateWithLifecycle()
+        LaunchedEffect(pendingSoundscapeNav) {
+            if (!pendingSoundscapeNav) return@LaunchedEffect
+            repeat(50) {
+                if (navController.navigateSafely(Screen.SleepSoundscape.route)) {
+                    _pendingSoundscapeNavigation.value = false
+                    return@LaunchedEffect
+                }
+                delay(100)
+            }
+            _pendingSoundscapeNavigation.value = false
         }
 
         var canShowLoadingIndicator by remember { mutableStateOf(false) }
