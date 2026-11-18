@@ -47,6 +47,9 @@ taglib = "1.0.6"
 jaudiotagger = "3.0.1"
 vorbisjava = "0.8"
 datastore = "1.2.1"
+# app module: pinned to the version it actually compiled against via glance's transitive
+# dependency, so making it explicit is a zero-behaviour-change move. Bump deliberately later.
+datastore-app = "1.0.0"
 documentfile = "1.0.0"
 androidxTestCore = "1.7.0"
 junit5 = "6.1.3"
@@ -174,6 +177,7 @@ androidx-uiautomator = { group = "androidx.test.uiautomator", name = "uiautomato
 androidx-benchmark-macro-junit4 = { group = "androidx.benchmark", name = "benchmark-macro-junit4", version.ref = "benchmarkMacroJunit4" }
 androidx-profileinstaller = { group = "androidx.profileinstaller", name = "profileinstaller", version.ref = "profileinstaller" }
 androidx-datastore-preferences = { module = "androidx.datastore:datastore-preferences", version.ref = "datastore" }
+androidx-datastore-preferences-app = { module = "androidx.datastore:datastore-preferences", version.ref = "datastore-app" }
 androidx-documentfile = { module = "androidx.documentfile:documentfile", version.ref = "documentfile" }
 androidx-test-core = { group = "androidx.test", name = "core", version.ref = "androidxTestCore" }
 androidx-test-rules = { group = "androidx.test", name = "rules", version.ref = "androidxTestCore" }

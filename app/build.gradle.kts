@@ -568,6 +568,11 @@ dependencies {
     // DocumentFile is used directly by backup/restore (BackupFileValidator, BackupManager).
     // Declared explicitly instead of relying on palette-ktx's transitive legacy-support-core-utils.
     implementation(libs.androidx.documentfile)
+    // DataStore is used directly by several repositories (backup history, quiz stats,
+    // AI / equalizer preferences). Declared explicitly instead of relying on
+    // glance's transitive datastore-preferences. Pinned to the version we already
+    // compiled against (1.0.0) to keep this a pure dependency-hygiene change.
+    implementation(libs.androidx.datastore.preferences.app)
 
     implementation(libs.timber)
     implementation(libs.smooth.corner.rect.android.compose)
