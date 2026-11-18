@@ -385,6 +385,8 @@
     <string name="music_quiz_classifying">正在整理儿童歌曲…</string>
     <string name="music_quiz_pool_count">可玩歌曲：%1$d 首</string>
     <string name="music_quiz_pool_count_kids">儿歌：%1$d 首</string>
+    <string name="music_quiz_refresh_library">刷新曲库</string>
+    <string name="music_quiz_library_refreshed">已刷新曲库分类</string>
     <string name="music_quiz_best_rounds">最多答题：%1$d 题</string>
     <string name="music_quiz_round_endless">无尽 · 第 %1$d 题</string>
     <string name="music_quiz_end_run">结束并结算</string>

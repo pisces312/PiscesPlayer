@@ -258,6 +258,12 @@ fun MusicQuizScreen(
                     state = uiState,
                     onSelectMode = quizViewModel::setMode,
                     onStart = quizViewModel::startGame,
+                    onRefreshLibrary = {
+                        quizViewModel.refreshLibrary(allSongs)
+                        playerViewModel.sendToast(
+                            context.getString(R.string.music_quiz_library_refreshed),
+                        )
+                    },
                 )
                 MusicQuizPhase.PREPARING -> MusicQuizPreparingContent()
                 MusicQuizPhase.PLAYING,
@@ -383,6 +389,7 @@ private fun MusicQuizIdleContent(
     state: MusicQuizUiState,
     onSelectMode: (MusicQuizMode) -> Unit,
     onStart: () -> Unit,
+    onRefreshLibrary: () -> Unit,
 ) {
     Column(
         modifier = Modifier
@@ -480,6 +487,19 @@ private fun MusicQuizIdleContent(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
+        }
+        Spacer(Modifier.height(8.dp))
+        TextButton(
+            onClick = onRefreshLibrary,
+            enabled = !state.isClassifying,
+        ) {
+            Icon(
+                imageVector = Icons.Rounded.Refresh,
+                contentDescription = null,
+                modifier = Modifier.size(18.dp),
+            )
+            Spacer(Modifier.width(6.dp))
+            Text(stringResource(R.string.music_quiz_refresh_library))
         }
         Spacer(Modifier.height(16.dp))
         MusicQuizModeSelector(

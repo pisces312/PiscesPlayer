@@ -1,19 +1,15 @@
 package com.pisces312.piscesplayer.presentation.musicquiz
 
 import android.content.Context
-import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.pisces312.piscesplayer.data.model.Song
-import com.pisces312.piscesplayer.data.musicquiz.ClassicalSongClassifier
-import com.pisces312.piscesplayer.data.musicquiz.KidsSongClassifier
 import com.pisces312.piscesplayer.data.musicquiz.MUSIC_QUIZ_CLIP_DURATION_MS
-import com.pisces312.piscesplayer.data.musicquiz.MUSIC_QUIZ_OPTION_COUNT
 import com.pisces312.piscesplayer.data.musicquiz.MUSIC_QUIZ_ROUND_COUNT
 import com.pisces312.piscesplayer.data.musicquiz.MusicQuizAudioPlayer
 import com.pisces312.piscesplayer.data.musicquiz.MusicQuizEngineState
 import com.pisces312.piscesplayer.data.musicquiz.MusicQuizGameEngine
-import com.pisces312.piscesplayer.data.musicquiz.MusicQuizLyricsProvider
+import com.pisces312.piscesplayer.data.musicquiz.MusicQuizLibraryCache
 import com.pisces312.piscesplayer.data.musicquiz.MusicQuizMode
 import com.pisces312.piscesplayer.data.musicquiz.MusicQuizModeStats
 import com.pisces312.piscesplayer.data.musicquiz.MusicQuizQuestion
@@ -23,13 +19,10 @@ import com.pisces312.piscesplayer.data.musicquiz.MusicQuizRunSummary
 import com.pisces312.piscesplayer.data.musicquiz.MusicQuizStats
 import com.pisces312.piscesplayer.data.musicquiz.MusicQuizStatsRepository
 import com.pisces312.piscesplayer.data.musicquiz.MusicQuizTrack
-import com.pisces312.piscesplayer.data.offline.CloudOfflineRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
-import java.io.File
 import javax.inject.Inject
 import kotlin.random.Random
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.delay
@@ -104,7 +97,7 @@ data class MusicQuizUiState(
 class MusicQuizViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
     private val statsRepository: MusicQuizStatsRepository,
-    private val lyricsProvider: MusicQuizLyricsProvider,
+    private val libraryCache: MusicQuizLibraryCache,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(MusicQuizUiState())
     val uiState: StateFlow<MusicQuizUiState> = _uiState.asStateFlow()
@@ -113,9 +106,10 @@ class MusicQuizViewModel @Inject constructor(
     val events: SharedFlow<MusicQuizEvent> = _events.asSharedFlow()
 
     private var libraryTracks: List<MusicQuizTrack> = emptyList()
+
+    /** Source list [libraryTracks] was built from; also the staleness token for kids classification. */
+    private var librarySource: List<Song> = emptyList()
     private var libraryLoaded = false
-    private var kidsIds: Set<String> = emptySet()
-    private var kidsClassified = false
     private var classificationJob: Job? = null
     private var latestStats = MusicQuizModeStats()
     private var runPool: List<MusicQuizTrack> = emptyList()
@@ -191,38 +185,36 @@ class MusicQuizViewModel @Inject constructor(
                     bestRounds = latestStats.bestRoundsFor(savedMode),
                 )
             }
-            if (savedMode == MusicQuizMode.KIDS) ensureKidsClassified()
+            // No kids classification here: the library has not arrived yet (libraryTracks is
+            // empty), and racing updateLibrary() from a stale empty snapshot could clobber the
+            // real classification. updateLibrary() owns classification once the songs land.
             refreshLibraryState()
         }
     }
 
-    /** The run keeps its own snapshot; later library emissions only affect the next run. */
-    fun updateLibrary(songs: List<Song>) {
+    /**
+     * The run keeps its own snapshot; later library emissions only affect the next run.
+     * Classification (eligibility + classical + kids flags) is one pure pass cached
+     * process-wide and on disk by [MusicQuizLibraryCache] — no lyrics database access.
+     */
+    fun updateLibrary(songs: List<Song>, force: Boolean = false) {
+        // LaunchedEffect(allSongs) re-fires on every composition entry; skip when the
+        // snapshot is already current so re-entering the screen never reclassifies.
+        if (!force && libraryLoaded && songs === librarySource) return
         classificationJob?.cancel()
         classificationJob = viewModelScope.launch {
-            val base = withContext(Dispatchers.Default) {
-                val classified = songs.asSequence()
-                    .filterNot(CloudOfflineRepository::isCloudSong)
-                    .map { it.toMusicQuizTrack() }
-                    .let { MusicQuizQuestionFactory.eligibleTracks(it.toList()) }
-                    .map { track ->
-                        if (track.isClassical) {
-                            track
-                        } else {
-                            track.copy(isClassical = ClassicalSongClassifier.isClassical(track))
-                        }
-                    }
-                classified
-            }
-            libraryTracks = base
-            kidsIds = emptySet()
-            kidsClassified = false
+            _uiState.update { it.copy(isClassifying = true) }
+            val tracks = libraryCache.tracksFor(songs, force)
+            librarySource = songs
+            libraryTracks = tracks
             libraryLoaded = true
-            if (_uiState.value.mode == MusicQuizMode.KIDS) {
-                ensureKidsClassified()
-            }
             refreshLibraryState()
         }
+    }
+
+    /** Manual "refresh library" action: bypass both cache layers and reclassify [songs]. */
+    fun refreshLibrary(songs: List<Song>) {
+        updateLibrary(songs, force = true)
     }
 
     fun setMode(mode: MusicQuizMode) {
@@ -249,7 +241,6 @@ class MusicQuizViewModel @Inject constructor(
         }
         viewModelScope.launch {
             statsRepository.setMode(mode)
-            if (mode == MusicQuizMode.KIDS) ensureKidsClassified()
             refreshLibraryState()
         }
     }
@@ -475,7 +466,6 @@ class MusicQuizViewModel @Inject constructor(
     private fun refreshLibraryState() {
         if (!libraryLoaded) return
         val mode = _uiState.value.mode
-        if (mode == MusicQuizMode.KIDS && !kidsClassified) return
         val pool = modePool(mode)
         _uiState.update {
             it.copy(
@@ -486,41 +476,6 @@ class MusicQuizViewModel @Inject constructor(
                 kidsTrackCount = pool.size,
             )
         }
-    }
-
-    /**
-     * Tier A first (catalog names + the always-on performer-label rule); keyword
-     * fallback only when those hits cannot fill a kids pool.
-     */
-    private suspend fun ensureKidsClassified() {
-        if (kidsClassified) {
-            refreshLibraryState()
-            return
-        }
-        _uiState.update { it.copy(isClassifying = true) }
-        val ids: Set<String> = withContext(Dispatchers.Default) {
-            val tierA = libraryTracks.filter {
-                KidsSongClassifier.matchesCatalog(it.title) ||
-                    KidsSongClassifier.matchesArtistLabel(it.artist)
-            }
-            val kidsEnough = tierA.size >= MUSIC_QUIZ_ROUND_COUNT &&
-                tierA.map { MusicQuizQuestionFactory.normalizedTitle(it.title) }.distinct().size >=
-                MUSIC_QUIZ_OPTION_COUNT
-            if (kidsEnough) {
-                tierA.mapTo(mutableSetOf()) { it.id }
-            } else {
-                val tierAIds = tierA.mapTo(mutableSetOf()) { it.id }
-                val rest = libraryTracks.filter { it.id !in tierAIds }
-                val lyrics = lyricsProvider.lyricsFor(rest.map { it.id })
-                val tierBIds = rest.filter {
-                    KidsSongClassifier.matchesKeywords(it.title, it.artist, it.album, lyrics[it.id])
-                }.mapTo(mutableSetOf()) { it.id }
-                tierAIds.apply { addAll(tierBIds) }
-            }
-        }
-        kidsIds = ids
-        kidsClassified = true
-        libraryTracks = libraryTracks.map { it.copy(isKidsSong = it.id in ids) }
     }
 
     private fun nextEndlessQuestion(): MusicQuizQuestion? {
@@ -796,23 +751,6 @@ class MusicQuizViewModel @Inject constructor(
         tickerJob?.cancel()
         if (audioPlayer.isInitialized()) audioPlayer.value.release()
         super.onCleared()
-    }
-
-    private fun Song.toMusicQuizTrack(): MusicQuizTrack {
-        val playbackUri = contentUriString.takeIf(String::isNotBlank)
-            ?: path.takeIf(String::isNotBlank)?.let { Uri.fromFile(File(it)).toString() }
-            .orEmpty()
-        return MusicQuizTrack(
-            id = id,
-            title = title,
-            artist = displayArtist,
-            albumArtUriString = albumArtUriString,
-            durationMs = duration,
-            playbackUri = playbackUri,
-            year = year,
-            genre = genre,
-            album = album,
-        )
     }
 
     private companion object {
