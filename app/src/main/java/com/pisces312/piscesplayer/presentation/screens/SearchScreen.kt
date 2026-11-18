@@ -448,8 +448,10 @@ fun SearchScreen(
                         state = idleListState,
                         modifier = Modifier.fillMaxSize(),
                         // Each block lives in a HomeSectionCard; the cards carry the
-                        // 16dp horizontal gutter themselves.
+                        // 16dp horizontal gutter themselves. The top inset keeps the
+                        // first card off the search bar (component → content gap).
                         contentPadding = PaddingValues(
+                            top = 16.dp,
                             bottom = bottomBarHeightDp + MiniPlayerHeight + 16.dp
                         ),
                         verticalArrangement = Arrangement.spacedBy(24.dp)
