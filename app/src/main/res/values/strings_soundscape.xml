@@ -47,6 +47,7 @@
     <string name="soundscape_preset_name_label">Scene name</string>
     <string name="soundscape_preset_limit_toast">Scene limit reached (20) — delete an old one first</string>
     <string name="soundscape_preset_brown_only">Pure brown noise</string>
+    <string name="soundscape_preset_pink_only">Pure pink noise</string>
     <string name="soundscape_preset_white_mask">White noise mask</string>
     <string name="soundscape_preset_delete_title">Delete scene?</string>
     <string name="soundscape_preset_delete_message">Delete "%1$s"? The current mix is not affected.</string>

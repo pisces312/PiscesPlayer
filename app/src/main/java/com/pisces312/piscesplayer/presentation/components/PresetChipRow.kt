@@ -51,6 +51,7 @@ fun PresetChipRow(
             val label = preset.name
                 ?: when (preset.builtInId) {
                     SoundscapePreset.BUILT_IN_BROWN_ONLY -> stringResource(R.string.soundscape_preset_brown_only)
+                    SoundscapePreset.BUILT_IN_PINK_ONLY -> stringResource(R.string.soundscape_preset_pink_only)
                     SoundscapePreset.BUILT_IN_WHITE_MASK -> stringResource(R.string.soundscape_preset_white_mask)
                     else -> stringResource(R.string.soundscape_scene_label)
                 }

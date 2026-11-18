@@ -55,15 +55,23 @@ class SoundscapePresetTest {
     @Test
     fun builtInsAreStableAndNonDeletable() {
         val builtIns = SoundscapePreset.builtIns()
-        assertEquals(2, builtIns.size)
+        assertEquals(3, builtIns.size)
+        assertEquals(builtIns.size, builtIns.map { it.id }.distinct().size)
+        assertEquals(builtIns.size, builtIns.map { it.builtInId }.distinct().size)
         assertTrue(builtIns.all { it.isBuiltIn })
         assertTrue(builtIns.any { it.builtInId == SoundscapePreset.BUILT_IN_BROWN_ONLY })
+        assertTrue(builtIns.any { it.builtInId == SoundscapePreset.BUILT_IN_PINK_ONLY })
         assertTrue(builtIns.any { it.builtInId == SoundscapePreset.BUILT_IN_WHITE_MASK })
 
         val brownOnly = builtIns.first { it.builtInId == SoundscapePreset.BUILT_IN_BROWN_ONLY }
         assertEquals(60, brownOnly.durationMinutes)
         assertEquals(1, brownOnly.tracks.size)
         assertEquals(SoundscapeSound.BROWN.id, brownOnly.tracks[0].soundId)
+
+        val pinkOnly = builtIns.first { it.builtInId == SoundscapePreset.BUILT_IN_PINK_ONLY }
+        assertEquals(1, pinkOnly.tracks.size)
+        assertEquals(SoundscapeSound.PINK.id, pinkOnly.tracks[0].soundId)
+        assertEquals(NoiseColor.PINK, pinkOnly.tracks[0].toParams().color)
 
         val whiteMask = builtIns.first { it.builtInId == SoundscapePreset.BUILT_IN_WHITE_MASK }
         assertEquals(SoundscapeMix.DURATION_FOREVER, whiteMask.durationMinutes)

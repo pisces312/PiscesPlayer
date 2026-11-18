@@ -47,6 +47,7 @@
     <string name="soundscape_preset_name_label">场景名称</string>
     <string name="soundscape_preset_limit_toast">场景已达上限（20 个），请先删除旧的</string>
     <string name="soundscape_preset_brown_only">纯棕噪声</string>
+    <string name="soundscape_preset_pink_only">纯粉噪声</string>
     <string name="soundscape_preset_white_mask">白噪掩蔽</string>
     <string name="soundscape_preset_delete_title">删除场景？</string>
     <string name="soundscape_preset_delete_message">删除「%1$s」？当前混音不受影响。</string>

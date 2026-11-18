@@ -53,7 +53,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ViewList
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.FavoriteBorder
-import androidx.compose.material.icons.rounded.Bedtime
+import androidx.compose.material.icons.rounded.Bed
 import androidx.compose.material.icons.rounded.Bookmark
 import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material.icons.rounded.MoreHoriz
@@ -828,7 +828,7 @@ fun LibraryScreen(
                             }
                         ) {
                             Icon(
-                                imageVector = Icons.Rounded.Bedtime,
+                                imageVector = Icons.Rounded.Bed,
                                 contentDescription = stringResource(R.string.soundscape_entry_cd)
                             )
                         }

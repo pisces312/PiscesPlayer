@@ -87,10 +87,15 @@ data class SoundscapePreset(
 
     companion object {
         const val BUILT_IN_BROWN_ONLY = "brown_only"
+        const val BUILT_IN_PINK_ONLY = "pink_only"
         const val BUILT_IN_WHITE_MASK = "white_mask"
         const val USER_PRESET_LIMIT = 20
 
-        /** 入梦's two non-deletable system presets. */
+        /**
+         * 入梦's non-deletable system presets, ordered softest-first by usage: brown
+         * (default), pink (the middle ground between brown's rumble and white's
+         * hiss), then white for masking speech-band noise.
+         */
         fun builtIns(): List<SoundscapePreset> = listOf(
             SoundscapePreset(
                 id = -1L,
@@ -104,6 +109,20 @@ data class SoundscapePreset(
                     )
                 ),
                 masterVolume = 0.5f,
+                durationMinutes = 60,
+            ),
+            SoundscapePreset(
+                id = -3L,
+                builtInId = BUILT_IN_PINK_ONLY,
+                tracks = listOf(
+                    SoundscapeTrackConfig(
+                        soundId = SoundscapeSound.PINK.id,
+                        toneHz = 9_000f,
+                        motionDb = 0.5f,
+                        volume = 0.45f,
+                    )
+                ),
+                masterVolume = 0.45f,
                 durationMinutes = 60,
             ),
             SoundscapePreset(
