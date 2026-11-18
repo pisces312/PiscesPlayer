@@ -11,6 +11,7 @@ internal const val MUSIC_QUIZ_MINIMUM_SONG_DURATION_MS = 30_000L
  */
 enum class MusicQuizMode(val key: String) {
     STANDARD("standard"),
+    /** Kids songs only (v3: classical music is deliberately not mixed into the kids pool). */
     KIDS("kids"),
     CLASSICAL("classical"),
     ENDLESS("endless"),
@@ -39,13 +40,15 @@ data class MusicQuizTrack(
     val album: String = "",
     /** Classified as classical music; drives the same-source option rule. */
     val isClassical: Boolean = false,
-    /** Classified as a children's song (catalog or keyword tier); classical wins when both match. */
+    /** Classified as a children's song (catalog or keyword tier); independent of [isClassical]. */
     val isKidsSong: Boolean = false,
 )
 
 data class MusicQuizOption(
     val songId: String,
     val title: String,
+    /** Cover art shown in front of the option label (v3). */
+    val albumArtUriString: String? = null,
 )
 
 data class MusicQuizQuestion(

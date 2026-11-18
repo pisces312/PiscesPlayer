@@ -75,7 +75,6 @@ data class MusicQuizUiState(
     val libraryIssue: MusicQuizLibraryIssue? = MusicQuizLibraryIssue.NOT_ENOUGH_SONGS,
     val eligibleTrackCount: Int = 0,
     val kidsTrackCount: Int = 0,
-    val classicalTrackCount: Int = 0,
     val stats: MusicQuizStats = MusicQuizStats(),
     val bestRounds: Int = 0,
     val currentQuestion: MusicQuizQuestion? = null,
@@ -451,7 +450,8 @@ class MusicQuizViewModel @Inject constructor(
         MusicQuizMode.STANDARD,
         MusicQuizMode.ENDLESS,
         -> libraryTracks
-        MusicQuizMode.KIDS -> libraryTracks.filter { it.isKidsSong || it.isClassical }
+        // v3: the kids pool is kids songs only — classical music is not mixed in.
+        MusicQuizMode.KIDS -> libraryTracks.filter { it.isKidsSong }
         MusicQuizMode.CLASSICAL -> libraryTracks.filter { it.isClassical }
     }
 
@@ -483,8 +483,7 @@ class MusicQuizViewModel @Inject constructor(
                 isClassifying = false,
                 libraryIssue = computeIssue(mode),
                 eligibleTrackCount = MusicQuizQuestionFactory.answerTracks(pool).size,
-                kidsTrackCount = pool.count { track -> !track.isClassical },
-                classicalTrackCount = pool.count { track -> track.isClassical },
+                kidsTrackCount = pool.size,
             )
         }
     }

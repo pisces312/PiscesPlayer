@@ -28,6 +28,22 @@ class MusicQuizQuestionFactoryTest {
     }
 
     @Test
+    fun optionsCarryCoverArtFromTheirTracks() {
+        val source = tracks(10).mapIndexed { index, track ->
+            track.copy(albumArtUriString = "content://art/$index")
+        }
+        val artById = source.associate { it.id to it.albumArtUriString }
+
+        val run = MusicQuizQuestionFactory(Random(7)).createRun(source)
+
+        run.questions.forEach { question ->
+            question.options.forEach { option ->
+                assertEquals(artById[option.songId], option.albumArtUriString)
+            }
+        }
+    }
+
+    @Test
     fun fixedSeedReproducesQuestionsAndClipPositions() {
         val tracks = tracks(12)
 

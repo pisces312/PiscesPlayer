@@ -242,13 +242,6 @@ fun MusicQuizScreen(
                                 contentDescription = stringResource(R.string.music_quiz_pause),
                             )
                         }
-                        MusicQuizPhase.IDLE,
-                        MusicQuizPhase.FINISHED,
-                        MusicQuizPhase.ERROR,
-                        -> MusicQuizModeMenu(
-                            current = uiState.mode,
-                            onSelect = quizViewModel::setMode,
-                        )
                         else -> Unit
                     }
                 },
@@ -263,6 +256,7 @@ fun MusicQuizScreen(
             when (uiState.phase) {
                 MusicQuizPhase.IDLE -> MusicQuizIdleContent(
                     state = uiState,
+                    onSelectMode = quizViewModel::setMode,
                     onStart = quizViewModel::startGame,
                 )
                 MusicQuizPhase.PREPARING -> MusicQuizPreparingContent()
@@ -280,12 +274,15 @@ fun MusicQuizScreen(
                 )
                 MusicQuizPhase.FINISHED -> MusicQuizResultContent(
                     state = uiState,
+                    onSelectMode = quizViewModel::setMode,
                     onReplay = quizViewModel::startGame,
                     onBack = ::handleBack,
                     onTogglePreview = quizViewModel::togglePreview,
                     onAddToPlaylist = ::openPlaylistFlow,
                 )
                 MusicQuizPhase.ERROR -> MusicQuizErrorContent(
+                    mode = uiState.mode,
+                    onSelectMode = quizViewModel::setMode,
                     onRetry = quizViewModel::startGame,
                     onBack = ::handleBack,
                 )
@@ -384,6 +381,7 @@ fun MusicQuizScreen(
 @Composable
 private fun MusicQuizIdleContent(
     state: MusicQuizUiState,
+    onSelectMode: (MusicQuizMode) -> Unit,
     onStart: () -> Unit,
 ) {
     Column(
@@ -474,11 +472,7 @@ private fun MusicQuizIdleContent(
             else -> {
                 Text(
                     text = if (state.mode == MusicQuizMode.KIDS) {
-                        stringResource(
-                            R.string.music_quiz_pool_count_kids,
-                            state.kidsTrackCount,
-                            state.classicalTrackCount,
-                        )
+                        stringResource(R.string.music_quiz_pool_count_kids, state.kidsTrackCount)
                     } else {
                         stringResource(R.string.music_quiz_pool_count, state.eligibleTrackCount)
                     },
@@ -488,6 +482,11 @@ private fun MusicQuizIdleContent(
             }
         }
         Spacer(Modifier.height(16.dp))
+        MusicQuizModeSelector(
+            current = state.mode,
+            onSelect = onSelectMode,
+        )
+        Spacer(Modifier.height(8.dp))
         Button(
             onClick = onStart,
             enabled = state.canStart,
@@ -516,43 +515,56 @@ private fun MusicQuizStatCard(text: String, modifier: Modifier = Modifier) {
     }
 }
 
-/** Mode switcher at the right end of the title row; only reachable outside an active run. */
+/** Full-width mode picker shown above the primary action; only reachable outside an active run. */
 @Composable
-private fun MusicQuizModeMenu(
+private fun MusicQuizModeSelector(
     current: MusicQuizMode,
     onSelect: (MusicQuizMode) -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     var expanded by remember { mutableStateOf(false) }
-    TextButton(onClick = { expanded = true }) {
-        Text(stringResource(musicQuizModeShortLabel(current)))
-        Icon(
-            imageVector = Icons.Rounded.ArrowDropDown,
-            contentDescription = stringResource(R.string.music_quiz_mode_cd),
-        )
-    }
-    DropdownMenu(
-        expanded = expanded,
-        onDismissRequest = { expanded = false },
-    ) {
-        MusicQuizMode.entries.forEach { mode ->
-            DropdownMenuItem(
-                text = {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        RadioButton(selected = mode == current, onClick = null)
-                        Spacer(Modifier.width(8.dp))
-                        Text(stringResource(musicQuizModeLabel(mode)))
-                    }
-                },
-                leadingIcon = if (mode == current) {
-                    { Icon(Icons.Rounded.Check, contentDescription = null) }
-                } else {
-                    null
-                },
-                onClick = {
-                    expanded = false
-                    onSelect(mode)
-                },
+    Box(modifier = modifier.fillMaxWidth()) {
+        OutlinedButton(
+            onClick = { expanded = true },
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text(
+                text = stringResource(
+                    R.string.music_quiz_mode_current,
+                    stringResource(musicQuizModeLabel(current)),
+                ),
+                modifier = Modifier.weight(1f),
+                textAlign = TextAlign.Start,
             )
+            Icon(
+                imageVector = Icons.Rounded.ArrowDropDown,
+                contentDescription = stringResource(R.string.music_quiz_mode_cd),
+            )
+        }
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+        ) {
+            MusicQuizMode.entries.forEach { mode ->
+                DropdownMenuItem(
+                    text = {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            RadioButton(selected = mode == current, onClick = null)
+                            Spacer(Modifier.width(8.dp))
+                            Text(stringResource(musicQuizModeLabel(mode)))
+                        }
+                    },
+                    leadingIcon = if (mode == current) {
+                        { Icon(Icons.Rounded.Check, contentDescription = null) }
+                    } else {
+                        null
+                    },
+                    onClick = {
+                        expanded = false
+                        onSelect(mode)
+                    },
+                )
+            }
         }
     }
 }
@@ -562,13 +574,6 @@ private fun musicQuizModeLabel(mode: MusicQuizMode): Int = when (mode) {
     MusicQuizMode.KIDS -> R.string.music_quiz_mode_kids
     MusicQuizMode.CLASSICAL -> R.string.music_quiz_mode_classical
     MusicQuizMode.ENDLESS -> R.string.music_quiz_mode_endless
-}
-
-private fun musicQuizModeShortLabel(mode: MusicQuizMode): Int = when (mode) {
-    MusicQuizMode.STANDARD -> R.string.music_quiz_mode_short_standard
-    MusicQuizMode.KIDS -> R.string.music_quiz_mode_short_kids
-    MusicQuizMode.CLASSICAL -> R.string.music_quiz_mode_short_classical
-    MusicQuizMode.ENDLESS -> R.string.music_quiz_mode_short_endless
 }
 
 @Composable
@@ -795,6 +800,14 @@ private fun MusicQuizAnswerButton(
             disabledContentColor = contentColor,
         ),
     ) {
+        SmartImage(
+            model = option.albumArtUriString,
+            contentDescription = null,
+            modifier = Modifier.size(40.dp),
+            shape = RoundedCornerShape(8.dp),
+            targetSize = SmartImageListTargetSize,
+        )
+        Spacer(Modifier.width(12.dp))
         Text(
             text = option.title,
             modifier = Modifier.weight(1f),
@@ -861,6 +874,7 @@ private fun MusicQuizPausedContent(
 @Composable
 private fun MusicQuizResultContent(
     state: MusicQuizUiState,
+    onSelectMode: (MusicQuizMode) -> Unit,
     onReplay: () -> Unit,
     onBack: () -> Unit,
     onTogglePreview: (String) -> Unit,
@@ -949,6 +963,11 @@ private fun MusicQuizResultContent(
             )
         }
         item {
+            MusicQuizModeSelector(
+                current = state.mode,
+                onSelect = onSelectMode,
+            )
+            Spacer(Modifier.height(12.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -1060,6 +1079,8 @@ private fun MusicQuizReviewRow(
 
 @Composable
 private fun MusicQuizErrorContent(
+    mode: MusicQuizMode,
+    onSelectMode: (MusicQuizMode) -> Unit,
     onRetry: () -> Unit,
     onBack: () -> Unit,
 ) {
@@ -1083,6 +1104,11 @@ private fun MusicQuizErrorContent(
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Spacer(Modifier.height(24.dp))
+        MusicQuizModeSelector(
+            current = mode,
+            onSelect = onSelectMode,
+        )
+        Spacer(Modifier.height(8.dp))
         Button(onClick = onRetry, modifier = Modifier.fillMaxWidth()) {
             Icon(Icons.Rounded.Refresh, contentDescription = null)
             Spacer(Modifier.width(8.dp))

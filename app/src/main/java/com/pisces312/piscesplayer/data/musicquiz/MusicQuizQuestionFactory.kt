@@ -78,7 +78,13 @@ internal class MusicQuizQuestionFactory(
 
         val options = (distractors + correctTrack)
             .shuffled(random)
-            .map { MusicQuizOption(songId = it.id, title = it.title.trim()) }
+            .map {
+                MusicQuizOption(
+                    songId = it.id,
+                    title = it.title.trim(),
+                    albumArtUriString = it.albumArtUriString,
+                )
+            }
         check(options.size == MUSIC_QUIZ_OPTION_COUNT)
         check(options.distinctBy { normalizedTitle(it.title) }.size == MUSIC_QUIZ_OPTION_COUNT)
 
