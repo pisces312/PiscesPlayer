@@ -1,0 +1,7 @@
+PiscesPlayer 1.0.3:
+
+* Sleep soundscape "入梦": mix procedural noise (white/pink/brown) with seamless nature recordings, per-track volume, saved scenes, sleep timer and screen-off playback.
+* Similar Radio: AI picks fifteen songs to continue the queue when it runs dry.
+* Music Quiz modes: Kids, Classical and Endless, with per-mode records and cover-art answer options.
+* Lyrics search backed by a local full-text index.
+* Music games is now a bottom tab; home sections unified into cards.
