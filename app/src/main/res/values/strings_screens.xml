@@ -171,7 +171,7 @@
     <string name="cd_switch_to_general_search">Search titles, artists, albums and playlists</string>
     <string name="recent_searches">Recent searches</string>
     <string name="recent_searches_subtitle">Long-press to remove a record</string>
-    <string name="search_history_empty">No recent searches yet</string>
+    <string name="search_history_empty_hint">No recent searches yet — tap the search bar or double-tap the Search icon at the bottom to start</string>
     <string name="search_history_clear_title">Clear search history?</string>
     <string name="search_history_clear_body">This removes every saved search keyword. This cannot be undone.</string>
     <string name="clear_all">Clear all</string>

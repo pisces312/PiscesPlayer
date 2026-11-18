@@ -474,6 +474,21 @@ fun SearchScreen(
                                     )
                                 }
                             }
+                        } else {
+                            // Empty-history hint: teaches both input paths — tapping the
+                            // search bar directly, and double-tapping the bottom search tab
+                            // icon while the Search tab is selected (root-tab double-tap
+                            // shortcut, which focuses the input and shows the IME). Shown
+                            // only until any search history exists.
+                            item(key = "idle_history_hint", contentType = "idle_history_hint") {
+                                HomeSectionCard {
+                                    Text(
+                                        text = stringResource(R.string.search_history_empty_hint),
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
                         }
                         if (hasIdleRecent) {
                             item(key = "idle_recently_played", contentType = "recently_played_section") {

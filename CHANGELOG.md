@@ -3,6 +3,14 @@
 All notable changes to PiscesPlayer will be documented in this file. PiscesPlayer is a fork of
 PixelPlayerOSS; versions up to and including 0.4.3 were published under the upstream name.
 
+## [Unreleased]
+
+### Added
+- A hint shown on the search screen while there is no search history: it tells the user that
+  the search bar can be tapped directly, and that double-tapping the Search icon in the bottom
+  navigation (while the Search tab is selected) brings up the keyboard. It disappears for good
+  once any search history exists.
+
 ## [1.0.3] - 2026-11-18
 
 ### Added
