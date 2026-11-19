@@ -6,6 +6,7 @@ package com.pisces312.piscesplayer.presentation.rhythm
 
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -26,6 +27,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.DeleteSweep
+import androidx.compose.material.icons.outlined.FileDownload
 import androidx.compose.material.icons.outlined.MusicNote
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.UploadFile
@@ -70,6 +72,7 @@ import com.pisces312.piscesplayer.data.rhythm.DspDifficulty
 import com.pisces312.piscesplayer.data.rhythm.MasterGenerationResult
 import com.pisces312.piscesplayer.data.rhythm.RhythmAnalysisParams
 import com.pisces312.piscesplayer.data.rhythm.RhythmChart
+import com.pisces312.piscesplayer.data.rhythm.RhythmChartExport
 import com.pisces312.piscesplayer.data.rhythm.RhythmChartMeta
 import com.pisces312.piscesplayer.data.rhythm.RhythmChartSettings
 import com.pisces312.piscesplayer.data.rhythm.RhythmDeriveMode
@@ -149,6 +152,11 @@ fun RhythmSetupScreen(
     var settingsTarget by remember { mutableStateOf<RhythmChartMeta?>(null) }
     var playTarget by remember { mutableStateOf<RhythmChartMeta?>(null) }
     var playLogicName by rememberSaveable { mutableStateOf(RhythmPlayLogic.AS_STORED.name) }
+
+    // Chart export: the format dialog parks the target here until the SAF create-document
+    // round trip returns the destination uri.
+    var exportTarget by remember { mutableStateOf<RhythmChartMeta?>(null) }
+    var pendingExport by remember { mutableStateOf<Pair<RhythmChartMeta, RhythmChartExport.Format>?>(null) }
 
     var showGenerateSheet by remember { mutableStateOf(false) }
     var overwriting by remember { mutableStateOf(false) }
@@ -295,6 +303,39 @@ fun RhythmSetupScreen(
         }
     }
 
+    /** Write the chart export payload to the SAF destination picked by the user. */
+    fun performExport(meta: RhythmChartMeta, format: RhythmChartExport.Format, uri: Uri) {
+        val currentSong = song
+        scope.launch {
+            try {
+                val name = withContext(Dispatchers.IO) {
+                    val chart = repository.loadChart(meta.chartId)
+                        ?: throw IllegalStateException("chart not found")
+                    val take = repository.tapTakeFor(meta.chartId)
+                    val info = RhythmChartExport.SongInfo(
+                        title = currentSong?.title.orEmpty(),
+                        artist = currentSong?.artist.orEmpty(),
+                        durationMs = currentSong?.duration ?: 0L,
+                        audioFileName = currentSong?.path?.let { File(it).name }.orEmpty(),
+                        audioFingerprint = currentSong
+                            ?.let { RhythmChartExport.audioFingerprint(context, it) }
+                            .orEmpty(),
+                    )
+                    val bytes = RhythmChartExport.build(format, chart, take, info)
+                    val out = context.contentResolver.openOutputStream(uri)
+                        ?: throw IllegalStateException("cannot open the export destination")
+                    out.use { it.write(bytes) }
+                    RhythmChartExport.fileName(format, currentSong?.title.orEmpty(), meta.difficultyName)
+                }
+                playerViewModel.sendToast(context.getString(R.string.rhythm_export_done, name))
+            } catch (e: Exception) {
+                playerViewModel.sendToast(
+                    context.getString(R.string.rhythm_export_failed, e.message ?: e.javaClass.simpleName),
+                )
+            }
+        }
+    }
+
     // Refresh on resume so the best score is current after returning from a run.
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner, songId) {
@@ -322,6 +363,14 @@ fun RhythmSetupScreen(
             } finally {
                 importing = false
             }
+        }
+    }
+
+    val exportLaunchers = rememberExportLaunchers { format, uri ->
+        val target = pendingExport
+        pendingExport = null
+        if (uri != null && target != null) {
+            performExport(target.first, format, uri)
         }
     }
 
@@ -483,6 +532,13 @@ fun RhythmSetupScreen(
                         onPlay = { playChart(meta) },
                         onSettings = { settingsTarget = meta },
                         onDelete = { pendingDelete = meta },
+                        // Export is offered for hand-tapped charts; a generated or imported
+                        // chart already exists outside the app in its source form.
+                        onExport = if (meta.source == RhythmChart.SOURCE_TAP) {
+                            { exportTarget = meta }
+                        } else {
+                            null
+                        },
                     )
                 }
             }
@@ -588,6 +644,20 @@ fun RhythmSetupScreen(
                 )
             },
             onDismiss = { playTarget = null },
+        )
+    }
+
+    exportTarget?.let { meta ->
+        ExportFormatDialog(
+            chartName = meta.difficultyName,
+            onPick = { format ->
+                exportTarget = null
+                pendingExport = meta to format
+                exportLaunchers.getValue(format).launch(
+                    RhythmChartExport.fileName(format, song?.title.orEmpty(), meta.difficultyName),
+                )
+            },
+            onDismiss = { exportTarget = null },
         )
     }
 
@@ -951,6 +1021,7 @@ private fun ChartRow(
     onPlay: () -> Unit,
     onSettings: () -> Unit,
     onDelete: () -> Unit,
+    onExport: (() -> Unit)? = null,
 ) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(
@@ -1010,6 +1081,14 @@ private fun ChartRow(
                         }
                     }
                 }
+                if (onExport != null) {
+                    IconButton(onClick = onExport) {
+                        Icon(
+                            imageVector = Icons.Outlined.FileDownload,
+                            contentDescription = stringResource(R.string.rhythm_export_chart_cd),
+                        )
+                    }
+                }
                 IconButton(onClick = onSettings) {
                     Icon(
                         imageVector = Icons.Outlined.Settings,
@@ -1040,4 +1119,113 @@ private fun ChartRow(
             }
         }
     }
+}
+
+/** One SAF create-document launcher per export format; the picker suggests the right mime type. */
+@Composable
+private fun rememberExportLaunchers(
+    onResult: (RhythmChartExport.Format, Uri?) -> Unit,
+): Map<RhythmChartExport.Format, ActivityResultLauncher<String>> {
+    val osu = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument(RhythmChartExport.Format.OSU.mimeType),
+    ) { onResult(RhythmChartExport.Format.OSU, it) }
+    val prc = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument(RhythmChartExport.Format.PRC.mimeType),
+    ) { onResult(RhythmChartExport.Format.PRC, it) }
+    val json = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument(RhythmChartExport.Format.CHART_JSON.mimeType),
+    ) { onResult(RhythmChartExport.Format.CHART_JSON, it) }
+    val take = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument(RhythmChartExport.Format.TAP_JSON.mimeType),
+    ) { onResult(RhythmChartExport.Format.TAP_JSON, it) }
+    return remember {
+        mapOf(
+            RhythmChartExport.Format.OSU to osu,
+            RhythmChartExport.Format.PRC to prc,
+            RhythmChartExport.Format.CHART_JSON to json,
+            RhythmChartExport.Format.TAP_JSON to take,
+        )
+    }
+}
+
+/**
+ * Format picker for chart export: osu!mania beatmap, `.prc` bundle, unified chart JSON or the
+ * raw tap take. The selection is confirmed before the document picker opens.
+ */
+@Composable
+private fun ExportFormatDialog(
+    chartName: String,
+    onPick: (RhythmChartExport.Format) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var selected by remember { mutableStateOf(RhythmChartExport.Format.OSU) }
+    val options = listOf(
+        Triple(
+            RhythmChartExport.Format.OSU,
+            R.string.rhythm_export_format_osu,
+            R.string.rhythm_export_format_osu_desc,
+        ),
+        Triple(
+            RhythmChartExport.Format.PRC,
+            R.string.rhythm_export_format_prc,
+            R.string.rhythm_export_format_prc_desc,
+        ),
+        Triple(
+            RhythmChartExport.Format.CHART_JSON,
+            R.string.rhythm_export_format_json,
+            R.string.rhythm_export_format_json_desc,
+        ),
+        Triple(
+            RhythmChartExport.Format.TAP_JSON,
+            R.string.rhythm_export_format_take,
+            R.string.rhythm_export_format_take_desc,
+        ),
+    )
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.rhythm_export_title)) },
+        text = {
+            Column {
+                Text(
+                    text = stringResource(R.string.rhythm_export_subtitle, chartName),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                Spacer(Modifier.height(8.dp))
+                options.forEach { (format, label, description) ->
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { selected = format },
+                    ) {
+                        RadioButton(
+                            selected = selected == format,
+                            onClick = { selected = format },
+                        )
+                        Column {
+                            Text(
+                                text = stringResource(label),
+                                style = MaterialTheme.typography.bodyMedium,
+                            )
+                            Text(
+                                text = stringResource(description),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { onPick(selected) }) {
+                Text(stringResource(R.string.rhythm_export_confirm))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.cancel))
+            }
+        },
+    )
 }
