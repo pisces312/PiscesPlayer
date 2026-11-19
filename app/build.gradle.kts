@@ -144,8 +144,9 @@ abstract class GenerateBuildInfo : DefaultTask() {
 /**
  * Repackages material-icons-extended so the APK only carries the icons the app references.
  *
- * Release builds already let R8 drop the ~10k unused icon classes, but the debug variant is not
- * minified and therefore pays for every icon in the artifact. This task scans the Kotlin sources
+ * Both variants now run R8, which would drop the ~10k unused icon classes anyway, but feeding
+ * it the full extended AAR still costs compile and dex time on every build. This task scans the
+ * Kotlin sources
  * for `Icons.<style>.<Name>` references, copies the matching classes (plus any `NameKt$...`
  * synthetics) out of the AAR's classes.jar, and emits them as a small jar that replaces the
  * original dependency. Icons that live in material-icons-core are simply not present in the
@@ -264,6 +265,14 @@ val enableComposeCompilerReports = providers.gradleProperty("pixelplayer.enableC
     .getOrElse("false")
     .toBoolean()
 
+// Debug runs R8 in shrink-only mode (no obfuscation, no optimization) so stack traces stay
+// readable without retrace. Set -Ppixelplayer.enableDebugMinify=false to get the historical
+// fully unminified debug build - required for connectedDebugAndroidTest, whose test APK calls
+// app members by their original names that R8 shrinking may have removed.
+val enableDebugMinify = providers.gradleProperty("pixelplayer.enableDebugMinify")
+    .getOrElse("true")
+    .toBoolean()
+
 // Resolves the full material-icons-extended AAR for GenerateUsedIconJar only. The app classpath
 // gets the generated subset jar instead, so the unused ~10k icon classes never reach the debug
 // dex (release already drops them via R8).
@@ -377,13 +386,24 @@ android {
             // Separate application id so debug and release can be installed side by side.
             applicationIdSuffix = ".debug"
             versionNameSuffix = "-debug"
-            // No R8 here. `release` is the default build, so `debug` is only
-            // built on demand to chase a problem that resists diagnosis - and for that job an
-            // unminified build is strictly better: every stack frame maps to a source line, and
-            // nothing the instrumentation reaches for has been rewritten or deleted. Measured
-            // cost, arm64-v8a / 0.4.1: 152.1 MB unminified vs 69.2 MB with R8 (release: 37.5 MB).
-            isMinifyEnabled = false
-            isShrinkResources = false
+            // R8 in shrink-only mode: proguard-debug.pro turns obfuscation and optimization
+            // off, so class/method names and line numbers in stack traces stay verbatim while
+            // unused code and resources are still dropped. The keep rules are the same ones
+            // release uses - reflection-heavy libraries (Room, Hilt, Gson, ...) need them in
+            // any shrunk variant. Instrumented tests do NOT run against this variant (the test
+            // APK reaches for members R8 may delete); build with
+            // -Ppixelplayer.enableDebugMinify=false when they are needed.
+            isMinifyEnabled = enableDebugMinify
+            isShrinkResources = enableDebugMinify
+            if (enableDebugMinify) {
+                // AGP 9 rejects proguard-android.txt; the optimize base file is fine because
+                // proguard-debug.pro explicitly turns optimization (and obfuscation) back off.
+                proguardFiles(
+                    getDefaultProguardFile("proguard-android-optimize.txt"),
+                    "proguard-rules.pro",
+                    "proguard-debug.pro"
+                )
+            }
         }
 
         release {

@@ -92,7 +92,7 @@ PiscesPlayer 的设计、调研、计划、评审类文档统一存放在**私�
 .\gradlew.bat :app:assembleDebug                # 仅按需：release 复现不了 / 难定位时
 .\gradlew.bat :app:testDebugUnitTest            # 单元测试（JUnit 5，JVM）
 .\gradlew.bat :app:lintDebug                    # Lint（release 构建不做）
-.\gradlew.bat :app:connectedDebugAndroidTest    # instrumented 测试（需连真机 / 模拟器）
+.\gradlew.bat :app:connectedDebugAndroidTest -Ppixelplayer.enableDebugMinify=false    # instrumented 测试（需连真机 / 模拟器；必须关 debug minify）
 ```
 
 - **debug / release 可共存**：`debug` 带 `applicationIdSuffix = ".debug"` + `versionNameSuffix = "-debug"`，应用名 `PiscesPlayer [D]`（`app/src/debug/res/values/strings.xml`），
@@ -102,15 +102,18 @@ PiscesPlayer 的设计、调研、计划、评审类文档统一存放在**私�
   `mipmap-anydpi-v26` 的 XML 在 debug 源集覆盖一份、故意去掉 `monochrome`，否则 Android 13+ 主题图标会把颜色差异抹平。
   改了 main 图标后重跑根目录 `gen_debug_icons.py`（Pillow + numpy + scipy，默认 `amber` / `--subject-hue 325`，可用 `--colorway` 换配色）；
   脚本自带断言：白鱼像素零变化、圆内色差 ≥ 80。
-- **默认构建 `release`；`debug` 只在按需排查时构建**：R8 只跑在 `release` / `benchmark` 上，
-  `debug` 是 `isMinifyEnabled = false` + `isShrinkResources = false`。
-  理由：debug 的用途是「release 上复现不了、又难定位」的问题，此时未混淆的栈帧逐行对应源码，
-  也不会有 R8 改名 / facade 合并造成的干扰；代价只有体积，而且只在自己点名要时才付。
+- **默认构建 `release`；`debug` 只在按需排查时构建**：2026-11-19 起 `debug` 也跑 R8，
+  但是**只裁剪、不混淆、不优化**（`app/proguard-debug.pro` 的 `-dontobfuscate -dontoptimize`，
+  keep 规则与 release 同一份 `proguard-rules.pro`）：类名 / 方法名 / 行号在栈帧里原样保留，
+  logcat 不需要 retrace；`-dontoptimize` 同时保证不内联、不合并类（否则名字对了栈也会缺帧），
+  且 `proguard-rules.pro` 里的 `-assumenosideeffects` 不生效，debug 保留 Timber/Log 日志。
+  开关：`-Ppixelplayer.enableDebugMinify=false` 回到完全未 minify 的历史形态
+  （instrumented 测试必须用它，见下条；怀疑 bug 是 R8 裁剪本身引起时也用它）。
   体积实测（arm64-v8a、0.4.1、同一份代码）：**release 37.5 MB / debug 无 R8 152.1 MB /
   debug 带 R8 69.2 MB**（差别几乎全在 dex：14.5 MB / 128.0 MB / 45.0 MB）。
-  **不要再给 `debug` 打开 R8**：instrumented test 的 test APK 是独立程序，按**未混淆的原名**调用
-  app APK 里的类与成员，而被 minify 的 app 恰好把这些改写或删掉（Kotlin facade、`RoomDatabase.close()`、
-  app 自己不调用的 DAO 方法），逐个 keep 是无底洞 —— 详见下方「instrumented 测试」。
+  历史教训（为什么曾经禁止给 debug 开 R8）：instrumented test 的 test APK 是独立程序，按**原名**调用
+  app APK 里的类与成员，而 R8 裁剪会删掉 app 自己不调用的成员（Kotlin facade、`RoomDatabase.close()`、
+  闲置 DAO 方法），逐个 keep 是无底洞 —— 所以机上测试一律走 `enableDebugMinify=false`。
 - **ABI 只构建 `arm64-v8a`**（`pixelplayer.enableAbiSplits` 默认 true）；关掉该 property 时文件名中的 abi 段为 `universal`。
 - **模拟器可直接安装运行 `arm64-v8a` 产物（已实测确认 2026-09-14，2026-11-01 再次确认）**：
   本机 AVD `pixel6` 是 **x86_64** 系统镜像（`system-images\android-34\google_apis\x86_64`），
@@ -129,8 +132,9 @@ PiscesPlayer 的设计、调研、计划、评审类文档统一存放在**私�
     Application/Activity 依赖注入、崩溃修复）且用户提出要复现或确认。其余情况把 APK 交给用户，
     由用户在真机上验。
   - 真机/模拟器验证统一用 `.\gradlew.bat :app:assembleRelease`（debug 与 release 的 applicationId 不同，可共存）。
-- **instrumented 测试**：`.\gradlew.bat :app:connectedDebugAndroidTest`，跑在 `debug` 变体上
-  （`testBuildType` 保持默认；正因 debug 不 minify，这套测试才跑得起来）。
+- **instrumented 测试**：`.\gradlew.bat :app:connectedDebugAndroidTest -Ppixelplayer.enableDebugMinify=false`，
+  跑在 `debug` 变体上（`testBuildType` 保持默认）。**必须带 `enableDebugMinify=false`**：
+  debug 默认跑 R8 裁剪，test APK 按原名调用的成员可能已被删掉（见上条历史教训）。
   只跑某几个类：追加 `-Pandroid.testInstrumentationRunnerArguments.class=全限定类名,逗号分隔`。
   唯一跑不了的：`SyncWorkerTest` 需要 MockK inline（JVMTI agent），ART 拒绝从 app cache 加载，
   属既有测试设计问题，与构建配置无关。
