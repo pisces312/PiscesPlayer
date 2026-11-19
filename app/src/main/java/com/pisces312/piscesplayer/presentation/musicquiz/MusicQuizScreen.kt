@@ -40,7 +40,6 @@ import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Quiz
 import androidx.compose.material.icons.rounded.Refresh
-import androidx.compose.material.icons.rounded.Timer
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -87,6 +86,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.pisces312.piscesplayer.R
 import com.pisces312.piscesplayer.data.model.Song
+import com.pisces312.piscesplayer.data.musicquiz.MUSIC_QUIZ_CLIP_DURATION_MS
 import com.pisces312.piscesplayer.data.musicquiz.MusicQuizAnswerRecord
 import com.pisces312.piscesplayer.data.musicquiz.MusicQuizMode
 import com.pisces312.piscesplayer.data.musicquiz.MusicQuizOption
@@ -648,9 +648,19 @@ private fun MusicQuizRoundContent(
                 color = MaterialTheme.colorScheme.primary,
             )
         }
-        // The score row and the next button stay put while the body scrolls. The countdown and
-        // the hero share one block of fixed height, so revealing the answer never moves the
-        // candidate list below, however long the revealed title is.
+        // The hero band keeps a fixed height in both states - the note while listening, the cover
+        // plus the answer afterwards - so the candidate list always starts at the same y.
+        MusicQuizRoundHero(
+            title = question.track.title,
+            artist = question.track.artist,
+            coverUri = question.track.albumArtUriString,
+            // Only a reveal sets a resolution, so a non-null record is the same signal as
+            // `revealing` while also carrying the verdict.
+            record = resolution?.record,
+            remainingMs = state.remainingMs,
+        )
+        // Only the options take the remaining height and only they scroll, so the countdown stays
+        // on screen even when a long title pushes the list.
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -662,119 +672,6 @@ private fun MusicQuizRoundContent(
                     .verticalScroll(scrollState),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(MUSIC_QUIZ_HERO_BLOCK_HEIGHT),
-                ) {
-                    if (!revealing) {
-                        val progress = (state.remainingMs / 10_000f).coerceIn(0f, 1f)
-                        LinearProgressIndicator(
-                            progress = { progress },
-                            modifier = Modifier.fillMaxWidth(),
-                            color = if (state.remainingMs <= 3_000L) {
-                                MaterialTheme.colorScheme.error
-                            } else {
-                                MaterialTheme.colorScheme.primary
-                            },
-                        )
-                        Spacer(Modifier.height(10.dp))
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.End,
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Icon(
-                                imageVector = Icons.Rounded.Timer,
-                                contentDescription = null,
-                                modifier = Modifier.size(18.dp),
-                            )
-                            Spacer(Modifier.width(4.dp))
-                            Text(
-                                text = stringResource(
-                                    R.string.music_quiz_time_remaining,
-                                    (state.remainingMs + 999L) / 1_000L,
-                                ),
-                                style = MaterialTheme.typography.labelLarge,
-                            )
-                        }
-                    }
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .weight(1f),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        if (revealing) {
-                            val record = resolution.record
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                SmartImage(
-                                    model = question.track.albumArtUriString,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(88.dp),
-                                    shape = RoundedCornerShape(20.dp),
-                                    targetSize = SmartImageListTargetSize,
-                                )
-                                Spacer(Modifier.height(8.dp))
-                                Text(
-                                    text = stringResource(
-                                        when {
-                                            record.timedOut -> R.string.music_quiz_timeout
-                                            record.isCorrect -> R.string.music_quiz_correct
-                                            else -> R.string.music_quiz_wrong
-                                        },
-                                    ),
-                                    style = MaterialTheme.typography.titleMedium,
-                                    color = if (record.isCorrect) {
-                                        CORRECT_COLOR
-                                    } else {
-                                        MaterialTheme.colorScheme.error
-                                    },
-                                    fontWeight = FontWeight.Bold,
-                                )
-                                MusicQuizAnswerTitle(question.track.title)
-                                Text(
-                                    text = question.track.artist,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                )
-                                Text(
-                                    text = if (record.isCorrect) {
-                                        stringResource(R.string.music_quiz_points, record.scoreAwarded)
-                                    } else {
-                                        stringResource(R.string.music_quiz_no_points)
-                                    },
-                                    style = MaterialTheme.typography.titleMedium,
-                                    color = MaterialTheme.colorScheme.primary,
-                                )
-                            }
-                        } else {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Icon(
-                                    imageVector = Icons.Rounded.MusicNote,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(72.dp),
-                                    tint = MaterialTheme.colorScheme.primary,
-                                )
-                                Spacer(Modifier.height(12.dp))
-                                Text(
-                                    text = stringResource(R.string.music_quiz_listen),
-                                    style = MaterialTheme.typography.headlineSmall,
-                                    fontWeight = FontWeight.Bold,
-                                )
-                                Text(
-                                    text = stringResource(R.string.music_quiz_clip_hint),
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    textAlign = TextAlign.Center,
-                                )
-                            }
-                        }
-                    }
-                }
-
                 question.options.forEach { option ->
                     MusicQuizAnswerButton(
                         option = option,
@@ -810,6 +707,109 @@ private fun MusicQuizRoundContent(
                     )
                 }
             }
+        }
+    }
+}
+
+/**
+ * The round's hero band. While listening it is the placeholder note plus the clip countdown; on
+ * reveal the same slot shows the cover, the verdict and the answer. Both states occupy exactly
+ * [MUSIC_QUIZ_HERO_BLOCK_HEIGHT], which is what keeps the candidate list at a constant offset.
+ *
+ * The progress bar is pinned to the band's top edge instead of taking layout space: it has to be
+ * visible while listening, yet must not add height that the reveal state does not have.
+ */
+@Composable
+private fun MusicQuizRoundHero(
+    title: String,
+    artist: String,
+    coverUri: String?,
+    record: MusicQuizAnswerRecord?,
+    remainingMs: Long,
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(MUSIC_QUIZ_HERO_BLOCK_HEIGHT),
+        contentAlignment = Alignment.Center,
+    ) {
+        if (record != null) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                SmartImage(
+                    model = coverUri,
+                    contentDescription = null,
+                    modifier = Modifier.size(MUSIC_QUIZ_HERO_ART_SIZE),
+                    shape = RoundedCornerShape(16.dp),
+                    targetSize = SmartImageListTargetSize,
+                )
+                Spacer(Modifier.height(6.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = stringResource(
+                            when {
+                                record.timedOut -> R.string.music_quiz_timeout
+                                record.isCorrect -> R.string.music_quiz_correct
+                                else -> R.string.music_quiz_wrong
+                            },
+                        ),
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = if (record.isCorrect) {
+                            CORRECT_COLOR
+                        } else {
+                            MaterialTheme.colorScheme.error
+                        },
+                    )
+                    // A miss shows the verdict alone: the old "no points" line cost a row and
+                    // told the player nothing they could not read off the score.
+                    if (record.isCorrect) {
+                        Spacer(Modifier.width(6.dp))
+                        Text(
+                            text = stringResource(R.string.music_quiz_points, record.scoreAwarded),
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                    }
+                }
+                MusicQuizAnswerTitle(title)
+                Text(
+                    text = artist,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        } else {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Icon(
+                    imageVector = Icons.Rounded.MusicNote,
+                    contentDescription = null,
+                    modifier = Modifier.size(MUSIC_QUIZ_HERO_ART_SIZE),
+                    tint = MaterialTheme.colorScheme.primary,
+                )
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    text = stringResource(
+                        R.string.music_quiz_time_remaining,
+                        (remainingMs + 999L) / 1_000L,
+                    ),
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            LinearProgressIndicator(
+                progress = { (remainingMs.toFloat() / MUSIC_QUIZ_CLIP_DURATION_MS).coerceIn(0f, 1f) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .align(Alignment.TopCenter),
+                color = if (remainingMs <= 3_000L) {
+                    MaterialTheme.colorScheme.error
+                } else {
+                    MaterialTheme.colorScheme.primary
+                },
+            )
         }
     }
 }
@@ -884,7 +884,9 @@ private fun MusicQuizAnswerButton(
             .fillMaxWidth()
             .heightIn(min = 54.dp),
         shape = RoundedCornerShape(16.dp),
-        contentPadding = PaddingValues(horizontal = 18.dp, vertical = 10.dp),
+        // 8 dp vertical: a three-line option costs 98 dp instead of 102, which is what keeps five
+        // of them on one screen below the hero band.
+        contentPadding = PaddingValues(horizontal = 18.dp, vertical = 8.dp),
         colors = ButtonDefaults.buttonColors(
             containerColor = containerColor,
             contentColor = contentColor,
@@ -1232,11 +1234,17 @@ private val CORRECT_COLOR = Color(0xFF2E7D32)
 private val MUSIC_QUIZ_NEXT_BUTTON_SLOT_HEIGHT = 48.dp
 
 /**
- * Height of the round's hero block: countdown bar, timer row and the listening prompt, or the
- * revealed cover plus its answer lines. Fixed on purpose — the reveal state must not change the
- * height of anything above the candidate list.
+ * Height of the round's hero band: the placeholder note and countdown, or the revealed cover plus
+ * its answer lines. Fixed on purpose so nothing above the candidate list ever changes height.
+ * Budget: 64 art + 6 + 20 verdict + 28 title + 16 artist = 134 dp.
  */
-private val MUSIC_QUIZ_HERO_BLOCK_HEIGHT = 318.dp
+private val MUSIC_QUIZ_HERO_BLOCK_HEIGHT = 136.dp
+
+/**
+ * Edge of the hero artwork — the placeholder note while listening, the album cover on reveal.
+ * Sharing one size is what makes the two states read as the same slot.
+ */
+private val MUSIC_QUIZ_HERO_ART_SIZE = 64.dp
 
 /** Minimal [Song] stand-in: playlist operations only consume the library id and labels. */
 private fun MusicQuizTrack.toPlaylistSong(): Song =
