@@ -149,10 +149,13 @@ data class RhythmChart(
         rmsThresholds.firstOrNull { it.percentile == percentile }?.rms
 
     companion object {
-        val SOURCES = setOf(SOURCE_OSU, SOURCE_DSP, SOURCE_PRC)
+        val SOURCES = setOf(SOURCE_OSU, SOURCE_DSP, SOURCE_PRC, SOURCE_TAP)
         const val SOURCE_OSU = "osu"
         const val SOURCE_DSP = "dsp"
         const val SOURCE_PRC = "prc"
+
+        /** Manual tap recording ([RhythmTapChart]); plain taps like an osu import. */
+        const val SOURCE_TAP = "tap"
 
         /** Runway before the first playable note; derived charts are stored without anything earlier. */
         const val LEAD_IN_MS = 1000.0

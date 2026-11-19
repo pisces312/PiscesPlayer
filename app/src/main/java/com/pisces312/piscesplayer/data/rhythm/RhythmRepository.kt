@@ -53,6 +53,27 @@ class RhythmRepository @Inject constructor(
         store().chartsForSong(songId)
     }
 
+    /**
+     * Save a hand-tapped chart ([RhythmChart.SOURCE_TAP]) and its raw take.
+     *
+     * A tap chart is a first-class library entry like an osu import: `playChart` sends it
+     * straight to the game (no play-logic dialog), scores are recorded against it, and it can
+     * be deleted like any other chart. `difficultyKey` stays null so it lands in the "others"
+     * group, same as osu imports.
+     */
+    suspend fun saveTapChart(
+        songId: String,
+        chart: RhythmChart,
+        take: RhythmTapTake? = null,
+    ): RhythmChartMeta = withContext(Dispatchers.IO) {
+        store().importTapChart(songId = songId, chart = chart, take = take)
+    }
+
+    /** The raw take recorded for [chartId], for export/PC analysis; null when none was kept. */
+    suspend fun tapTakeFor(chartId: String): RhythmTapTake? = withContext(Dispatchers.IO) {
+        store().readTapTake(chartId)
+    }
+
     suspend fun chartCatalog(): Map<String, List<RhythmChartMeta>> = withContext(Dispatchers.IO) {
         store().chartCatalog()
     }

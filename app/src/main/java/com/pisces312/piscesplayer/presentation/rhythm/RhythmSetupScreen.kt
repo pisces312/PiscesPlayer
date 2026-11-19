@@ -371,27 +371,46 @@ fun RhythmSetupScreen(
             }
 
             item {
-                Button(
-                    onClick = { importLauncher.launch(arrayOf("*/*")) },
-                    enabled = !importing && !generating && song != null,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(56.dp),
-                ) {
-                    if (importing) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(20.dp),
-                            strokeWidth = 2.dp,
-                        )
-                        Spacer(Modifier.width(12.dp))
-                    } else {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(
+                        onClick = { importLauncher.launch(arrayOf("*/*")) },
+                        enabled = !importing && !generating && song != null,
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(56.dp),
+                    ) {
+                        if (importing) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(20.dp),
+                                strokeWidth = 2.dp,
+                            )
+                            Spacer(Modifier.width(12.dp))
+                        } else {
+                            Icon(
+                                imageVector = Icons.Outlined.UploadFile,
+                                contentDescription = null,
+                            )
+                            Spacer(Modifier.width(10.dp))
+                        }
+                        Text(stringResource(R.string.rhythm_import_osu))
+                    }
+                    // Manual tap recording: taps become a first-class chart like an osu import.
+                    OutlinedButton(
+                        onClick = {
+                            navController.navigateSafely(Screen.RhythmRecord.createRoute(songId))
+                        },
+                        enabled = !importing && !generating && song != null,
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(56.dp),
+                    ) {
                         Icon(
-                            imageVector = Icons.Outlined.UploadFile,
+                            imageVector = Icons.Outlined.MusicNote,
                             contentDescription = null,
                         )
                         Spacer(Modifier.width(10.dp))
+                        Text(stringResource(R.string.rhythm_record_entry))
                     }
-                    Text(stringResource(R.string.rhythm_import_osu))
                 }
             }
 
@@ -957,10 +976,10 @@ private fun ChartRow(
                     ) {
                         Text(
                             text = stringResource(
-                                if (meta.source == RhythmChart.SOURCE_DSP) {
-                                    R.string.rhythm_source_dsp
-                                } else {
-                                    R.string.rhythm_source_osu
+                                when (meta.source) {
+                                    RhythmChart.SOURCE_DSP -> R.string.rhythm_source_dsp
+                                    RhythmChart.SOURCE_TAP -> R.string.rhythm_source_tap
+                                    else -> R.string.rhythm_source_osu
                                 },
                             ),
                             style = MaterialTheme.typography.labelSmall,

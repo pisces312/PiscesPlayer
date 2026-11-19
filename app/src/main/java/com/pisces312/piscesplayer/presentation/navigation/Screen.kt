@@ -113,4 +113,8 @@ sealed class Screen(val route: String) {
                 (logic?.let { "?logic=${Uri.encode(it)}" } ?: "")
     }
 
+    object RhythmRecord : Screen("rhythm_record/{songId}") {
+        fun createRoute(songId: String) = "rhythm_record/${Uri.encode(songId)}"
+    }
+
 }

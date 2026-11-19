@@ -365,4 +365,71 @@ class RhythmLibraryStoreTest {
         assertNull(meta.parentChartId)
         assertNull(meta.masterGeneratedAtMs)
     }
+
+    // ---- hand-tapped charts (docs/plans/manual-tap-chart-mobile-plan.md §6) ----
+
+    private fun tapChart(vararg times: Int): RhythmChart = RhythmChart(
+        source = RhythmChart.SOURCE_TAP,
+        difficultyName = "手打",
+        notes = times.mapIndexed { index, time -> RhythmNote(index, time, index % 4) },
+        durationMs = times.lastOrNull() ?: 0,
+    )
+
+    private fun tapTake(vararg times: Double): RhythmTapTake = RhythmTapTake(
+        audio = RhythmTapAudio(path = "song.mp3", durationMs = 60_000, sampleRate = 44100),
+        hitCount = times.size,
+        hits = times.mapIndexed { index, time -> RhythmTapHit(time, RhythmTapTake.keyFor(index % 4)) },
+    )
+
+    @Test
+    fun tapChartIsPlayableLibraryEntryWithItsTakeKept() {
+        val store = RhythmLibraryStore(root())
+        val take = tapTake(1000.0, 1500.0, 2000.0)
+
+        val meta = store.importTapChart("song-a", tapChart(1000, 1500, 2000), take, nowMs = 100)
+
+        assertEquals(RhythmChart.SOURCE_TAP, meta.source)
+        assertNull(meta.difficultyKey) // lands in the "others" group like osu imports
+        assertTrue(store.chartsForSong("song-a").any { it.chartId == meta.chartId })
+        val loaded = store.readChart(meta.chartId)
+        assertNotNull(loaded)
+        assertEquals(RhythmChart.SOURCE_TAP, loaded!!.source)
+        assertEquals(listOf(1000, 1500, 2000), loaded.notes.map { it.timeMs })
+        assertEquals(take, store.readTapTake(meta.chartId))
+    }
+
+    @Test
+    fun savingIdenticalTapChartIsIdempotent() {
+        val store = RhythmLibraryStore(root())
+        val first = store.importTapChart("song-a", tapChart(1000, 1500), tapTake(1000.0, 1500.0), nowMs = 100)
+        val second = store.importTapChart("song-a", tapChart(1000, 1500), tapTake(1000.0, 1500.0), nowMs = 200)
+
+        assertEquals(first.chartId, second.chartId)
+        assertEquals(1, store.chartsForSong("song-a").size)
+    }
+
+    @Test
+    fun deletingATapChartRemovesItsTake() {
+        val root = root()
+        val store = RhythmLibraryStore(root)
+        val meta = store.importTapChart("song-a", tapChart(1000), tapTake(1000.0), nowMs = 100)
+        val takeFile = File(root, "taps/${meta.chartId}.tap.json")
+        assertTrue(takeFile.isFile)
+
+        assertTrue(store.delete("song-a", meta.chartId))
+
+        assertFalse(takeFile.isFile)
+        assertNull(store.readTapTake(meta.chartId))
+    }
+
+    @Test
+    fun importTapChartRejectsOtherSources() {
+        val store = RhythmLibraryStore(root())
+
+        val error = runCatching {
+            store.importTapChart("song-a", tapChart(1000).copy(source = RhythmChart.SOURCE_DSP))
+        }.exceptionOrNull()
+
+        assertTrue(error is IllegalArgumentException)
+    }
 }

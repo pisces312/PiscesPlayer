@@ -34,6 +34,9 @@ internal class RhythmLibraryStore(private val rootDir: File) {
     private val settingsDir: File
         get() = File(rootDir, SETTINGS_DIR)
 
+    private val tapsDir: File
+        get() = File(rootDir, TAPS_DIR).also { it.mkdirs() }
+
     private val indexFile: File
         get() = File(rootDir, INDEX_FILE)
 
@@ -121,6 +124,38 @@ internal class RhythmLibraryStore(private val rootDir: File) {
         return meta
     }
 
+    /**
+     * Store a hand-tapped chart ([RhythmChart.SOURCE_TAP]) and keep its raw take as a sidecar.
+     *
+     * Same idempotency story as [importChart]: the id comes from the serialized chart, so
+     * re-saving identical content is a no-op while a new take gets its own entry. The take
+     * itself is preserved verbatim for export/PC analysis (manual-tap-chart-mobile-plan.md §6).
+     */
+    fun importTapChart(
+        songId: String,
+        chart: RhythmChart,
+        take: RhythmTapTake? = null,
+        nowMs: Long = System.currentTimeMillis(),
+    ): RhythmChartMeta {
+        require(chart.source == RhythmChart.SOURCE_TAP) {
+            "importTapChart only stores tap charts"
+        }
+        val meta = importChart(songId = songId, chart = chart, nowMs = nowMs)
+        if (take != null) {
+            writeAtomic(File(tapsDir, "${meta.chartId}.tap.json"), take.toJson())
+        }
+        return meta
+    }
+
+    /** The raw take recorded for [chartId], or null when none was kept (or it is unreadable). */
+    fun readTapTake(chartId: String): RhythmTapTake? {
+        val file = File(tapsDir, "$chartId.tap.json")
+        if (!file.isFile) return null
+        return runCatching {
+            RhythmTapTake.fromJson(file.readText())
+        }.getOrNull()
+    }
+
     private fun persist(
         songId: String,
         chart: RhythmChart,
@@ -189,6 +224,7 @@ internal class RhythmLibraryStore(private val rootDir: File) {
         // Settings are per chart, so they go with it. A failed delete must not block removing
         // the chart — a corrupt sidecar would otherwise make the entry undeletable.
         File(settingsDir, "$chartId.json").delete()
+        File(tapsDir, "$chartId.tap.json").delete()
         return true
     }
 
@@ -270,6 +306,7 @@ internal class RhythmLibraryStore(private val rootDir: File) {
         const val ROOT_DIR = "rhythm"
         private const val CHARTS_DIR = "charts"
         private const val SETTINGS_DIR = "settings"
+        private const val TAPS_DIR = "taps"
         private const val INDEX_FILE = "library.json"
     }
 }

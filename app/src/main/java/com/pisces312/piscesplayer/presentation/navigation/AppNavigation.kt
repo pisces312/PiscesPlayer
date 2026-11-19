@@ -78,6 +78,7 @@ import com.pisces312.piscesplayer.presentation.musicquiz.MusicQuizScreen
 import com.pisces312.piscesplayer.presentation.screens.SleepSoundscapeScreen
 import com.pisces312.piscesplayer.presentation.rhythm.MusicGameHubScreen
 import com.pisces312.piscesplayer.presentation.rhythm.RhythmGameScreen
+import com.pisces312.piscesplayer.presentation.rhythm.RhythmRecordScreen
 import com.pisces312.piscesplayer.presentation.rhythm.RhythmSetupScreen
 import com.pisces312.piscesplayer.presentation.rhythm.RhythmSongPickerScreen
 
@@ -870,6 +871,23 @@ fun AppNavigation(
                     chartId = backStackEntry.arguments?.getString("chartId").orEmpty(),
                     playLogic = backStackEntry.arguments?.getString("logic"),
                     playerViewModel = playerViewModel,
+                    onExit = { navController.popBackStack() },
+                )
+            }
+            composable(
+                Screen.RhythmRecord.route,
+                arguments = listOf(navArgument("songId") { type = NavType.StringType }),
+                enterTransition = { enterTransition() },
+                exitTransition = { exitTransition() },
+                popEnterTransition = { popEnterTransition() },
+                popExitTransition = { popExitTransition() },
+            ) { backStackEntry ->
+                RhythmRecordScreen(
+                    songId = backStackEntry.arguments?.getString("songId").orEmpty(),
+                    playerViewModel = playerViewModel,
+                    // Saved charts land in the library; return to the setup screen which
+                    // refreshes on resume and shows the new entry.
+                    onSaved = { navController.popBackStack() },
                     onExit = { navController.popBackStack() },
                 )
             }
