@@ -44,6 +44,27 @@ class MusicQuizQuestionFactoryTest {
     }
 
     @Test
+    fun optionsCarryArtistAndYearFromTheirTracks() {
+        val source = tracks(10).mapIndexed { index, track ->
+            track.copy(
+                artist = if (index % 3 == 0) "  Artist ${track.id}  " else "Artist ${track.id}",
+                year = if (index % 4 == 0) 0 else 1990 + index,
+            )
+        }
+        val byId = source.associateBy(MusicQuizTrack::id)
+
+        val run = MusicQuizQuestionFactory(Random(7)).createRun(source)
+
+        run.questions.forEach { question ->
+            question.options.forEach { option ->
+                val track = byId.getValue(option.songId)
+                assertEquals(track.artist.trim(), option.artist)
+                assertEquals(track.year, option.year)
+            }
+        }
+    }
+
+    @Test
     fun fixedSeedReproducesQuestionsAndClipPositions() {
         val tracks = tracks(12)
 

@@ -83,6 +83,8 @@ internal class MusicQuizQuestionFactory(
                     songId = it.id,
                     title = it.title.trim(),
                     albumArtUriString = it.albumArtUriString,
+                    artist = it.artist.trim(),
+                    year = it.year,
                 )
             }
         check(options.size == MUSIC_QUIZ_OPTION_COUNT)

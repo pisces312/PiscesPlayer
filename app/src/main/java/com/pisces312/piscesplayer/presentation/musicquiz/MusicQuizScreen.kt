@@ -49,6 +49,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.RadioButton
@@ -805,6 +806,15 @@ private fun MusicQuizAnswerButton(
         isWrongSelection -> MaterialTheme.colorScheme.onErrorContainer
         else -> MaterialTheme.colorScheme.onSurface
     }
+    // "Artist · year" subtitle; unknown parts (blank artist / year 0) are omitted,
+    // and the whole line disappears when neither is known.
+    val subtitle = buildString {
+        if (option.artist.isNotBlank()) append(option.artist)
+        if (option.year > 0) {
+            if (isNotEmpty()) append(" · ")
+            append(option.year)
+        }
+    }
     Button(
         onClick = onClick,
         enabled = !revealing,
@@ -828,14 +838,26 @@ private fun MusicQuizAnswerButton(
             targetSize = SmartImageListTargetSize,
         )
         Spacer(Modifier.width(12.dp))
-        Text(
-            text = option.title,
-            modifier = Modifier.weight(1f),
-            style = MaterialTheme.typography.bodyLarge,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis,
-            textAlign = TextAlign.Start,
-        )
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = option.title,
+                style = MaterialTheme.typography.bodyLarge,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                textAlign = TextAlign.Start,
+            )
+            if (subtitle.isNotEmpty()) {
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    // Follows the button's content color so the reveal states stay legible.
+                    color = LocalContentColor.current.copy(alpha = 0.7f),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    textAlign = TextAlign.Start,
+                )
+            }
+        }
         if (isCorrect || isWrongSelection) {
             Spacer(Modifier.width(8.dp))
             Icon(

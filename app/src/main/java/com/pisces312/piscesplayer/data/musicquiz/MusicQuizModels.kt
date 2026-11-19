@@ -49,6 +49,10 @@ data class MusicQuizOption(
     val title: String,
     /** Cover art shown in front of the option label (v3). */
     val albumArtUriString: String? = null,
+    /** Performer shown under the title; blank = unknown, subtitle omits it. */
+    val artist: String = "",
+    /** Release year shown under the title; 0 = unknown, subtitle omits it. */
+    val year: Int = 0,
 )
 
 data class MusicQuizQuestion(

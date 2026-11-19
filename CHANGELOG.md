@@ -12,6 +12,8 @@ PixelPlayerOSS; versions up to and including 0.4.3 were published under the upst
   once any search history exists.
 
 ### Changed
+- Music quiz answer options now show the artist and release year under the song title;
+  unknown values are omitted, and the line disappears entirely when neither is known.
 - The minimum Android version is now 10 (API 29) instead of 11 (API 30). On Android 10, tag
   edits and file deletion fall back to direct file access through legacy external storage
   (write access is requested together with read access during setup); Android 11+ behaviour
