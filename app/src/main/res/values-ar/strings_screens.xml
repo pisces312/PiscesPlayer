@@ -140,8 +140,6 @@
     <string name="setup_backup_created_format">تم الإنشاء في %1$s</string>
     <string name="setup_backup_from_version">نسخة احتياطية من الإصدار %1$s</string>
     <string name="setup_backup_have_title">هل لديك نسخة احتياطية؟</string>
-    <string name="setup_beta_label">تجريبي (Beta)</string>
-    <string name="setup_beta_symbol">β</string>
     <string name="setup_checking_backup">جاري التحقق من حزمة النسخة الاحتياطية…</string>
     <string name="setup_choose_folders_ignore">اختر المجلدات لتجاهلها</string>
     <string name="setup_compact_mode">الوضع المدمج</string>

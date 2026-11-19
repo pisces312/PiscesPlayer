@@ -140,8 +140,6 @@
     <string name="setup_backup_created_format">생성일: %1$s</string>
     <string name="setup_backup_from_version">버전 %1$s의 백업</string>
     <string name="setup_backup_have_title">백업 파일이 있나요?</string>
-    <string name="setup_beta_label">베타</string>
-    <string name="setup_beta_symbol">β</string>
     <string name="setup_checking_backup">백업 패키지 확인 중…</string>
     <string name="setup_choose_folders_ignore">무시할 폴더 선택</string>
     <string name="setup_compact_mode">컴팩트 모드</string>

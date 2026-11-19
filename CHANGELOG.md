@@ -17,6 +17,10 @@ PixelPlayerOSS; versions up to and including 0.4.3 were published under the upst
   (write access is requested together with read access during setup); Android 11+ behaviour
   is unchanged.
 
+### Fixed
+- The first-run setup welcome page no longer shows the "β Beta" badge; it was rendered
+  unconditionally, including in release builds.
+
 ## [1.0.3] - 2026-11-18
 
 ### Added

@@ -43,8 +43,6 @@
     <string name="accounts_unable_open_screen">Unable to open this screen right now.</string>
 
     <string name="setup_welcome_prefix">Welcome to </string>
-    <string name="setup_beta_symbol">β</string>
-    <string name="setup_beta_label">Beta</string>
     <string name="setup_intro_body">Let\'s get everything set up for you.</string>
     <string name="setup_checking_backup">Checking backup package…</string>
     <string name="setup_theme_title">App Theme</string>
