@@ -12,6 +12,11 @@ PixelPlayerOSS; versions up to and including 0.4.3 were published under the upst
   once any search history exists.
 
 ### Changed
+- Music quiz: answer options are no longer truncated to a single line, so long classical titles
+  (work, opus and movement) stay readable instead of collapsing into identical prefixes; the
+  round body scrolls when its content outgrows the screen.
+- Music quiz: the revealed answer keeps its title on one line and scrolls it sideways when it
+  does not fit, so showing the answer never moves the candidate list below it.
 - Music quiz answer options now show the artist and release year under the song title;
   unknown values are omitted, and the line disappears entirely when neither is known.
 - The minimum Android version is now 10 (API 29) instead of 11 (API 30). On Android 10, tag

@@ -5,7 +5,9 @@ import android.content.pm.ActivityInfo
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -22,7 +24,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.PlaylistAdd
@@ -75,6 +79,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -622,6 +627,9 @@ private fun MusicQuizRoundContent(
     val question = state.currentQuestion ?: return
     val resolution = state.resolution
     val revealing = state.phase == MusicQuizPhase.REVEALING && resolution != null
+    val scrollState = rememberScrollState()
+    // Option titles may wrap to several lines; a round that was scrolled must start at the top.
+    LaunchedEffect(question.track.id) { scrollState.scrollTo(0) }
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -640,123 +648,143 @@ private fun MusicQuizRoundContent(
                 color = MaterialTheme.colorScheme.primary,
             )
         }
-        if (!revealing) {
-            val progress = (state.remainingMs / 10_000f).coerceIn(0f, 1f)
-            LinearProgressIndicator(
-                progress = { progress },
-                modifier = Modifier.fillMaxWidth(),
-                color = if (state.remainingMs <= 3_000L) {
-                    MaterialTheme.colorScheme.error
-                } else {
-                    MaterialTheme.colorScheme.primary
-                },
-            )
-            Row(
-                modifier = Modifier.align(Alignment.End),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Icon(
-                    imageVector = Icons.Rounded.Timer,
-                    contentDescription = null,
-                    modifier = Modifier.size(18.dp),
-                )
-                Spacer(Modifier.width(4.dp))
-                Text(
-                    text = stringResource(
-                        R.string.music_quiz_time_remaining,
-                        (state.remainingMs + 999L) / 1_000L,
-                    ),
-                    style = MaterialTheme.typography.labelLarge,
-                )
-            }
-        }
-
+        // The score row and the next button stay put while the body scrolls. The countdown and
+        // the hero share one block of fixed height, so revealing the answer never moves the
+        // candidate list below, however long the revealed title is.
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f),
-            contentAlignment = Alignment.Center,
         ) {
-            if (revealing) {
-                val record = resolution.record
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    SmartImage(
-                        model = question.track.albumArtUriString,
-                        contentDescription = null,
-                        modifier = Modifier.size(88.dp),
-                        shape = RoundedCornerShape(20.dp),
-                        targetSize = SmartImageListTargetSize,
-                    )
-                    Spacer(Modifier.height(8.dp))
-                    Text(
-                        text = stringResource(
-                            when {
-                                record.timedOut -> R.string.music_quiz_timeout
-                                record.isCorrect -> R.string.music_quiz_correct
-                                else -> R.string.music_quiz_wrong
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(scrollState),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(MUSIC_QUIZ_HERO_BLOCK_HEIGHT),
+                ) {
+                    if (!revealing) {
+                        val progress = (state.remainingMs / 10_000f).coerceIn(0f, 1f)
+                        LinearProgressIndicator(
+                            progress = { progress },
+                            modifier = Modifier.fillMaxWidth(),
+                            color = if (state.remainingMs <= 3_000L) {
+                                MaterialTheme.colorScheme.error
+                            } else {
+                                MaterialTheme.colorScheme.primary
                             },
-                        ),
-                        style = MaterialTheme.typography.titleMedium,
-                        color = if (record.isCorrect) CORRECT_COLOR else MaterialTheme.colorScheme.error,
-                        fontWeight = FontWeight.Bold,
-                    )
-                    Text(
-                        text = question.track.title,
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.SemiBold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        textAlign = TextAlign.Center,
-                    )
-                    Text(
-                        text = question.track.artist,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    Text(
-                        text = if (record.isCorrect) {
-                            stringResource(R.string.music_quiz_points, record.scoreAwarded)
+                        )
+                        Spacer(Modifier.height(10.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.End,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.Timer,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp),
+                            )
+                            Spacer(Modifier.width(4.dp))
+                            Text(
+                                text = stringResource(
+                                    R.string.music_quiz_time_remaining,
+                                    (state.remainingMs + 999L) / 1_000L,
+                                ),
+                                style = MaterialTheme.typography.labelLarge,
+                            )
+                        }
+                    }
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        if (revealing) {
+                            val record = resolution.record
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                SmartImage(
+                                    model = question.track.albumArtUriString,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(88.dp),
+                                    shape = RoundedCornerShape(20.dp),
+                                    targetSize = SmartImageListTargetSize,
+                                )
+                                Spacer(Modifier.height(8.dp))
+                                Text(
+                                    text = stringResource(
+                                        when {
+                                            record.timedOut -> R.string.music_quiz_timeout
+                                            record.isCorrect -> R.string.music_quiz_correct
+                                            else -> R.string.music_quiz_wrong
+                                        },
+                                    ),
+                                    style = MaterialTheme.typography.titleMedium,
+                                    color = if (record.isCorrect) {
+                                        CORRECT_COLOR
+                                    } else {
+                                        MaterialTheme.colorScheme.error
+                                    },
+                                    fontWeight = FontWeight.Bold,
+                                )
+                                MusicQuizAnswerTitle(question.track.title)
+                                Text(
+                                    text = question.track.artist,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                                Text(
+                                    text = if (record.isCorrect) {
+                                        stringResource(R.string.music_quiz_points, record.scoreAwarded)
+                                    } else {
+                                        stringResource(R.string.music_quiz_no_points)
+                                    },
+                                    style = MaterialTheme.typography.titleMedium,
+                                    color = MaterialTheme.colorScheme.primary,
+                                )
+                            }
                         } else {
-                            stringResource(R.string.music_quiz_no_points)
-                        },
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.primary,
-                    )
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Icon(
+                                    imageVector = Icons.Rounded.MusicNote,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(72.dp),
+                                    tint = MaterialTheme.colorScheme.primary,
+                                )
+                                Spacer(Modifier.height(12.dp))
+                                Text(
+                                    text = stringResource(R.string.music_quiz_listen),
+                                    style = MaterialTheme.typography.headlineSmall,
+                                    fontWeight = FontWeight.Bold,
+                                )
+                                Text(
+                                    text = stringResource(R.string.music_quiz_clip_hint),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    textAlign = TextAlign.Center,
+                                )
+                            }
+                        }
+                    }
                 }
-            } else {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Icon(
-                        imageVector = Icons.Rounded.MusicNote,
-                        contentDescription = null,
-                        modifier = Modifier.size(72.dp),
-                        tint = MaterialTheme.colorScheme.primary,
-                    )
-                    Spacer(Modifier.height(12.dp))
-                    Text(
-                        text = stringResource(R.string.music_quiz_listen),
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.Bold,
-                    )
-                    Text(
-                        text = stringResource(R.string.music_quiz_clip_hint),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        textAlign = TextAlign.Center,
+
+                question.options.forEach { option ->
+                    MusicQuizAnswerButton(
+                        option = option,
+                        correctOptionId = question.track.id,
+                        selectedOptionId = resolution?.record?.selectedOptionId,
+                        revealing = revealing,
+                        onClick = { onAnswer(option.songId) },
                     )
                 }
             }
-        }
-
-        question.options.forEach { option ->
-            MusicQuizAnswerButton(
-                option = option,
-                correctOptionId = question.track.id,
-                selectedOptionId = resolution?.record?.selectedOptionId,
-                revealing = revealing,
-                onClick = { onAnswer(option.songId) },
-            )
         }
         // The slot is reserved up front so revealing never shifts the options above it.
         Box(
@@ -784,6 +812,40 @@ private fun MusicQuizRoundContent(
             }
         }
     }
+}
+
+/**
+ * Title of the revealed answer. It is always exactly one line tall — a long classical title scrolls
+ * sideways instead of wrapping — so showing the answer cannot change the height of the hero block
+ * and the candidate list below keeps its position. Titles that fit are simply centred.
+ */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun MusicQuizAnswerTitle(text: String) {
+    var overflowing by remember(text) { mutableStateOf(false) }
+    Text(
+        text = text,
+        style = MaterialTheme.typography.titleLarge,
+        fontWeight = FontWeight.SemiBold,
+        textAlign = TextAlign.Center,
+        maxLines = 1,
+        softWrap = false,
+        // The plain measuring pass is what decides whether a marquee is needed; inside the marquee
+        // the text is measured with an unbounded width and would always report no overflow, so the
+        // flag must not be rewritten once it has flipped.
+        onTextLayout = { layout -> if (!overflowing) overflowing = layout.hasVisualOverflow },
+        modifier = if (overflowing) {
+            Modifier
+                .fillMaxWidth()
+                .basicMarquee(
+                    initialDelayMillis = 600,
+                    repeatDelayMillis = 1500,
+                    velocity = 40.dp,
+                )
+        } else {
+            Modifier
+        },
+    )
 }
 
 @Composable
@@ -839,11 +901,12 @@ private fun MusicQuizAnswerButton(
         )
         Spacer(Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
+            // No line cap: classical titles (work, opus, movement) are routinely longer than one
+            // line, and truncation can make two candidates look identical. Line height is tight
+            // so a two-line option still fits the reveal layout. The body scrolls if needed.
             Text(
                 text = option.title,
-                style = MaterialTheme.typography.bodyLarge,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
+                style = MaterialTheme.typography.bodyLarge.copy(lineHeight = 22.sp),
                 textAlign = TextAlign.Start,
             )
             if (subtitle.isNotEmpty()) {
@@ -1167,6 +1230,13 @@ private val CORRECT_COLOR = Color(0xFF2E7D32)
 
 /** Height of the reserved reveal-button slot on the round screen; keeps reveal from shifting options. */
 private val MUSIC_QUIZ_NEXT_BUTTON_SLOT_HEIGHT = 48.dp
+
+/**
+ * Height of the round's hero block: countdown bar, timer row and the listening prompt, or the
+ * revealed cover plus its answer lines. Fixed on purpose — the reveal state must not change the
+ * height of anything above the candidate list.
+ */
+private val MUSIC_QUIZ_HERO_BLOCK_HEIGHT = 318.dp
 
 /** Minimal [Song] stand-in: playlist operations only consume the library id and labels. */
 private fun MusicQuizTrack.toPlaylistSong(): Song =
