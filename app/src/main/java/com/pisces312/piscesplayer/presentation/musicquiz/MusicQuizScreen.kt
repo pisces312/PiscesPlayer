@@ -40,6 +40,7 @@ import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Quiz
 import androidx.compose.material.icons.rounded.Refresh
+import androidx.compose.material.icons.rounded.Timer
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -70,6 +71,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
@@ -636,7 +638,13 @@ private fun MusicQuizRoundContent(
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        Row(modifier = Modifier.fillMaxWidth()) {
+        // Score and streak on the left, the clip countdown back in the top-right corner. Hiding
+        // the countdown on reveal only changes the row's width, so its height - and everything
+        // below it - stays put.
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
             Text(
                 text = stringResource(R.string.music_quiz_score, state.score),
                 modifier = Modifier.weight(1f),
@@ -647,7 +655,44 @@ private fun MusicQuizRoundContent(
                 style = MaterialTheme.typography.titleSmall,
                 color = MaterialTheme.colorScheme.primary,
             )
+            // Fixed width and faded out on reveal instead of removed: taking it out of the row
+            // would slide the streak label sideways the instant the answer appears.
+            Box(
+                modifier = Modifier
+                    .width(MUSIC_QUIZ_TIMER_SLOT_WIDTH)
+                    .alpha(if (revealing) 0f else 1f),
+                contentAlignment = Alignment.CenterEnd,
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Rounded.Timer,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Spacer(Modifier.width(4.dp))
+                    Text(
+                        text = stringResource(
+                            R.string.music_quiz_time_remaining,
+                            (state.remainingMs + 999L) / 1_000L,
+                        ),
+                        style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
         }
+        // Stays in the layout on reveal (remaining time is 0, so the track is simply empty): a
+        // collapsing bar here would move the band and the candidate list by its own height.
+        LinearProgressIndicator(
+            progress = { (state.remainingMs.toFloat() / MUSIC_QUIZ_CLIP_DURATION_MS).coerceIn(0f, 1f) },
+            modifier = Modifier.fillMaxWidth(),
+            color = if (state.remainingMs <= 3_000L) {
+                MaterialTheme.colorScheme.error
+            } else {
+                MaterialTheme.colorScheme.primary
+            },
+        )
         // The hero band keeps a fixed height in both states - the note while listening, the cover
         // plus the answer afterwards - so the candidate list always starts at the same y.
         MusicQuizRoundHero(
@@ -657,10 +702,10 @@ private fun MusicQuizRoundContent(
             // Only a reveal sets a resolution, so a non-null record is the same signal as
             // `revealing` while also carrying the verdict.
             record = resolution?.record,
-            remainingMs = state.remainingMs,
         )
         // Only the options take the remaining height and only they scroll, so the countdown stays
-        // on screen even when a long title pushes the list.
+        // on screen even when a long title pushes the list. 8 dp between cards buys the margin
+        // that keeps five three-line titles inside the viewport.
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -670,7 +715,7 @@ private fun MusicQuizRoundContent(
                 modifier = Modifier
                     .fillMaxWidth()
                     .verticalScroll(scrollState),
-                verticalArrangement = Arrangement.spacedBy(10.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 question.options.forEach { option ->
                     MusicQuizAnswerButton(
@@ -712,12 +757,10 @@ private fun MusicQuizRoundContent(
 }
 
 /**
- * The round's hero band. While listening it is the placeholder note plus the clip countdown; on
- * reveal the same slot shows the cover, the verdict and the answer. Both states occupy exactly
- * [MUSIC_QUIZ_HERO_BLOCK_HEIGHT], which is what keeps the candidate list at a constant offset.
- *
- * The progress bar is pinned to the band's top edge instead of taking layout space: it has to be
- * visible while listening, yet must not add height that the reveal state does not have.
+ * The round's hero band. While listening it is the placeholder note above the "which song is
+ * this?" prompt; on reveal the same slot shows the cover, the verdict and the answer. Both states
+ * occupy exactly [MUSIC_QUIZ_HERO_BLOCK_HEIGHT], which is what keeps the candidate list at a
+ * constant offset. The countdown itself lives in the header row, not in here.
  */
 @Composable
 private fun MusicQuizRoundHero(
@@ -725,7 +768,6 @@ private fun MusicQuizRoundHero(
     artist: String,
     coverUri: String?,
     record: MusicQuizAnswerRecord?,
-    remainingMs: Long,
 ) {
     Box(
         modifier = Modifier
@@ -791,25 +833,11 @@ private fun MusicQuizRoundHero(
                 )
                 Spacer(Modifier.height(6.dp))
                 Text(
-                    text = stringResource(
-                        R.string.music_quiz_time_remaining,
-                        (remainingMs + 999L) / 1_000L,
-                    ),
-                    style = MaterialTheme.typography.titleSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    text = stringResource(R.string.music_quiz_listen),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
                 )
             }
-            LinearProgressIndicator(
-                progress = { (remainingMs.toFloat() / MUSIC_QUIZ_CLIP_DURATION_MS).coerceIn(0f, 1f) },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .align(Alignment.TopCenter),
-                color = if (remainingMs <= 3_000L) {
-                    MaterialTheme.colorScheme.error
-                } else {
-                    MaterialTheme.colorScheme.primary
-                },
-            )
         }
     }
 }
@@ -1233,10 +1261,13 @@ private val CORRECT_COLOR = Color(0xFF2E7D32)
 /** Height of the reserved reveal-button slot on the round screen; keeps reveal from shifting options. */
 private val MUSIC_QUIZ_NEXT_BUTTON_SLOT_HEIGHT = 48.dp
 
+/** Width reserved for the countdown in the header row; wide enough for "10 s" in any locale. */
+private val MUSIC_QUIZ_TIMER_SLOT_WIDTH = 64.dp
+
 /**
- * Height of the round's hero band: the placeholder note and countdown, or the revealed cover plus
- * its answer lines. Fixed on purpose so nothing above the candidate list ever changes height.
- * Budget: 64 art + 6 + 20 verdict + 28 title + 16 artist = 134 dp.
+ * Height of the round's hero band: the placeholder note with its prompt, or the revealed cover
+ * plus its answer lines. Fixed on purpose so nothing above the candidate list ever changes height.
+ * The taller state sets it: 64 art + 6 + 20 verdict + 28 title + 16 artist = 134 dp.
  */
 private val MUSIC_QUIZ_HERO_BLOCK_HEIGHT = 136.dp
 

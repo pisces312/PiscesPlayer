@@ -17,10 +17,12 @@ PixelPlayerOSS; versions up to and including 0.4.3 were published under the upst
   round body scrolls when its content outgrows the screen.
 - Music quiz: the revealed answer keeps its title on one line and scrolls it sideways when it
   does not fit, so showing the answer never moves the candidate list below it.
-- Music quiz: the round's hero is now a fixed 136 dp band — a note with the clip countdown while
-  listening, the cover with the verdict and answer afterwards — so the candidate list starts at
-  the same height in every state and roughly 240 dp more vertical space goes to the options
-  (five three-line titles now fit on one screen). The "Which song is this?" prompt, its hint line
+- Music quiz: the round's hero is now a fixed 136 dp band — the note above the "Which song is
+  this?" prompt while listening, the cover with the verdict and answer afterwards — so the
+  candidate list starts at the same height in every state and hands a large share of the
+  vertical space back to the options (five three-line titles now fit on one screen). The clip
+  countdown, clock icon included, moved up into the top-right corner of the header, and only the
+  options scroll, so it stays visible while browsing a long list. The hint line under the prompt
   and the "No points" line are gone; a correct answer shows its points next to the verdict.
 - Music quiz answer options now show the artist and release year under the song title;
   unknown values are omitted, and the line disappears entirely when neither is known.
