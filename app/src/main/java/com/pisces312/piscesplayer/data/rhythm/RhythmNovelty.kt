@@ -36,6 +36,14 @@ internal object RhythmNovelty {
         val values: FloatArray,
         /** Whitened band energies, frameCount * bandCount; empty when `keepBands` was false. */
         val bands: FloatArray,
+        /**
+         * Pre-whitening log band energies (`log1p` of the per-band magnitude peak),
+         * frameCount * bandCount; empty when `keepBands` was false.
+         *
+         * `expm1` of these values recovers the linear magnitude share per band — that is what
+         * the onset `lowRatio` ([RhythmNote.lowRatio]) is computed from.
+         */
+        val rawBands: FloatArray,
         val bandCount: Int,
         val frameCount: Int,
         val fps: Double,
@@ -146,6 +154,7 @@ internal object RhythmNovelty {
         return Result(
             values = values,
             bands = band,
+            rawBands = if (keepBands) bandRaw else FloatArray(0),
             bandCount = bands,
             frameCount = frameCount,
             fps = sampleRate.toDouble() / HOP,

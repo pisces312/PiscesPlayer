@@ -63,6 +63,130 @@ enum class DspDifficulty(
 }
 
 /**
+ * Which beat cells [RhythmChartDeriver.deriveBeatFirst] keeps: the gate of the beat-first
+ * selection (PC lab `BeatFirstParams.drum_gate`).
+ */
+enum class BeatDrumGate {
+    /** Every beat cell gets its strongest onset; only rest/density thin it. */
+    OFF,
+
+    /** Keep beats whose primary onset sits in the drum bands 0..3 (kick / snare / toms / bass). */
+    BAND,
+
+    /** Keep beats whose primary onset is low-band dominated ([RhythmBeatFirstParams.lowRatioMin]). */
+    LOW_RATIO,
+}
+
+/**
+ * Selection knobs of the BEAT_FIRST derivation (PC lab `BeatFirstParams`), kept 1:1 with the PC
+ * experiment matrix so a phone chart can be debugged against `scripts/pps_matrix.py` output.
+ *
+ * [restThreshold] and [densityCap] are sparsification: the first skips beats that are quiet
+ * against their own neighbourhood, the second caps hits per centred second.
+ */
+data class RhythmBeatFirstParams(
+    val drumGate: BeatDrumGate = BeatDrumGate.BAND,
+    /** 0 = off; otherwise a beat is dropped when its drum score is below this fraction of the local p90. */
+    val restThreshold: Double = 0.0,
+    /** Hits allowed inside any centred 1 s window; null = off. Weakest beats are dropped first. */
+    val densityCap: Double? = null,
+    /** [BeatDrumGate.LOW_RATIO] threshold; 0.45 is the value the hand-tap experiment used. */
+    val lowRatioMin: Double = 0.45,
+)
+
+/**
+ * One difficulty slot a derivation produces: a built-in ladder rung or a user-defined profile.
+ *
+ * The deriver only reads [gridDiv] (quantization) and [profile] (density budget) plus the label,
+ * so the custom difficulty is just another instance of this.
+ */
+data class DspDifficultySpec(
+    /** [RhythmChartMeta.difficultyKey]; built-ins use their lowercase name, custom is [KEY_CUSTOM]. */
+    val key: String,
+    val label: String,
+    val gridDiv: Int,
+    val profile: DspDeriveProfile,
+    /** Beats one note slot spans: 1 = one slot per beat, 2 = one slot per two beats. */
+    val slotBeats: Int = 1,
+) {
+    init {
+        require(gridDiv > 0) { "gridDiv must be > 0" }
+        require(slotBeats > 0) { "slotBeats must be > 0" }
+    }
+
+    /** How many slots fit in one beat; the difficulty ordering key (hardest first). */
+    val slotsPerBeat: Double
+        get() = gridDiv.toDouble() / slotBeats
+
+    companion object {
+        const val KEY_CUSTOM = "custom"
+
+        /**
+         * The built-in ladder as of 2026-11-20: two rungs only (three auto levels were too hard
+         * to control). HARD is the old Easy density (one slot per beat), EASY is the new sparser
+         * rung (one slot per two beats). On the classic path they map to the frozen ladder's
+         * NORMAL (= the 544-note golden density) and EASY (doubled beat) rungs respectively.
+         */
+        val EASY = DspDifficultySpec(
+            key = "easy",
+            label = "Easy",
+            gridDiv = 1,
+            profile = DspDeriveProfile(maxNotesPerSecond = 1.5, minGapMs = 600.0),
+            slotBeats = 2,
+        )
+
+        val HARD = DspDifficultySpec(
+            key = "hard",
+            label = "Hard",
+            gridDiv = 1,
+            profile = DspDeriveProfile(maxNotesPerSecond = 2.0, minGapMs = 300.0),
+        )
+
+        val BUILT_IN = listOf(EASY, HARD)
+    }
+}
+
+/** The built-in rung as a [DspDifficultySpec]. */
+val DspDifficulty.spec: DspDifficultySpec
+    get() = DspDifficultySpec(
+        key = name.lowercase(),
+        label = label,
+        gridDiv = gridDiv,
+        profile = deriveProfile,
+    )
+
+/**
+ * The user-defined difficulty of the derive sheet. Every field is adjustable so a derivation can
+ * be debugged against the PC experiment matrix; the built-in ladder stays the quick path.
+ */
+data class RhythmCustomDifficulty(
+    /** Empty falls back to the localized "Custom" label at the call site. */
+    val name: String = "",
+    /** Beat subdivisions per note slot: 1 = 1/1 beat, 2 = 1/2, 4 = 1/4, 8 = 1/8. */
+    val gridDiv: Int = 1,
+    val maxNotesPerSecond: Double = 2.0,
+    val minGapMs: Double = 300.0,
+    /** Whole-song ceiling; null = no absolute cap. */
+    val maxNotes: Int? = null,
+    /** MELODY-FIRST slot split per second; unused by [OnsetSelection.BALANCED]. */
+    val melodySlots: Int = 1,
+    val percSlots: Int = 1,
+) {
+    fun spec(defaultLabel: String): DspDifficultySpec = DspDifficultySpec(
+        key = DspDifficultySpec.KEY_CUSTOM,
+        label = name.ifBlank { defaultLabel },
+        gridDiv = gridDiv,
+        profile = DspDeriveProfile(
+            maxNotesPerSecond = maxNotesPerSecond,
+            minGapMs = minGapMs,
+            maxNotes = maxNotes,
+            melodySlots = melodySlots,
+            percSlots = percSlots,
+        ),
+    )
+}
+
+/**
  * How a derived difficulty turns the master's onsets into notes.
  *
  * All modes read the same master: none of them re-decodes the song.
@@ -79,6 +203,14 @@ enum class RhythmDeriveMode {
      * musical: strong percussion tends to win the density budget and melody phrases thin out.
      */
     ONSET,
+
+    /**
+     * The beat grid is the skeleton: snap the onsets into beat cells and let each cell earn its
+     * note through the drum gate / rest / density-cap filters ([RhythmBeatFirstParams]). Cells
+     * the gate rejects stay empty, so the chart breathes where the music does. This is the v2-v4
+     * configuration family of the hand-tap config fit.
+     */
+    BEAT_FIRST,
 
     /**
      * Frozen replica of the 0.4.3-pisces.1-era default (`RhythmClassicGridDeriver`): one

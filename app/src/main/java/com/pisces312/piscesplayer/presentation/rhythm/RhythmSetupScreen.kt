@@ -175,14 +175,11 @@ fun RhythmSetupScreen(
         (RhythmRepository.MAX_ANALYSIS_DURATION_MS / 60_000L).toInt(),
     )
     val cancelledMessage = stringResource(R.string.rhythm_generate_cancelled)
-    val difficultyLabels = mapOf(
-        DspDifficulty.EASY to stringResource(R.string.rhythm_generate_difficulty_easy),
-        DspDifficulty.NORMAL to stringResource(R.string.rhythm_generate_difficulty_normal),
-        DspDifficulty.HARD to stringResource(R.string.rhythm_generate_difficulty_hard),
-    )
+    val customDifficultyLabel = stringResource(R.string.rhythm_derive_custom)
     val modeLabels = mapOf(
         RhythmDeriveMode.GRID to stringResource(R.string.rhythm_derive_mode_grid),
         RhythmDeriveMode.ONSET to stringResource(R.string.rhythm_derive_mode_onset),
+        RhythmDeriveMode.BEAT_FIRST to stringResource(R.string.rhythm_derive_mode_beat_first),
         RhythmDeriveMode.CLASSIC to stringResource(R.string.rhythm_derive_mode_classic),
     )
 
@@ -251,19 +248,19 @@ fun RhythmSetupScreen(
     fun derive(settings: RhythmDeriveSettings) {
         val master = snapshot.masterChart ?: return
         val masterMeta = snapshot.master ?: return
-        val labels = difficultyLabels
         val modeNames = modeLabels
-        val difficulties = settings.difficulties.sortedDescending()
+        // Creation order: hardest first, so the easiest chart lands at the top of the list.
+        val specs = settings.difficultySpecs(customDifficultyLabel).sortedByDescending { it.slotsPerBeat }
         deriving = true
         scope.launch {
             try {
                 val stamp = DERIVED_NAME_FORMATTER.format(Instant.now())
                 val names = buildMap {
-                    for (difficulty in difficulties) {
+                    for (spec in specs) {
                         for (mode in settings.modes) {
                             put(
-                                difficulty to mode,
-                                "${labels.getValue(difficulty)} · " +
+                                spec to mode,
+                                "${spec.label} · " +
                                     "${modeNames.getValue(mode)} · $stamp",
                             )
                         }
@@ -273,7 +270,7 @@ fun RhythmSetupScreen(
                     songId = songId,
                     master = master,
                     masterMeta = masterMeta,
-                    difficulties = difficulties,
+                    difficulties = specs,
                     modes = settings.modes,
                     laneStrategy = settings.laneStrategy,
                     displayNames = names,
@@ -690,7 +687,7 @@ fun RhythmSetupScreen(
                 onComputeEstimates = { settings ->
                     repository.previewDerivedCounts(
                         master = masterChart,
-                        difficulties = DspDifficulty.entries,
+                        difficulties = settings.difficultySpecs(customDifficultyLabel),
                         modes = settings.modes,
                         laneStrategy = settings.laneStrategy,
                         maxChord = settings.maxChord,

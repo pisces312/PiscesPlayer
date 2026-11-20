@@ -165,29 +165,24 @@ class RhythmRepository @Inject constructor(
         songId: String,
         master: RhythmChart,
         masterMeta: RhythmChartMeta,
-        difficulties: List<DspDifficulty>,
+        difficulties: List<DspDifficultySpec>,
         modes: Set<RhythmDeriveMode>,
         laneStrategy: LaneStrategy,
-        displayNames: Map<Pair<DspDifficulty, RhythmDeriveMode>, String>,
+        displayNames: Map<Pair<DspDifficultySpec, RhythmDeriveMode>, String>,
         maxChord: Int = 1,
         onsetSelection: OnsetSelection = OnsetSelection.BALANCED,
         options: RhythmDeriveOptions = RhythmDeriveOptions(),
     ): List<RhythmChartMeta> {
-        if (difficulties.isEmpty() || modes.isEmpty()) return emptyList()
+        val jobs = deriveJobs(difficulties, modes)
+        if (jobs.isEmpty()) return emptyList()
         val notes = filteredNotes(master, options)
         if (notes.isEmpty()) return emptyList()
         val source = master.copy(notes = notes)
         val timing = selectedTiming(master, options)
         val gridTiming = gridTimingFor(master, modes, options, timing)
-        val jobs = difficulties.flatMap { difficulty ->
-            // Grid last, so it is created last and lands on top of the newest-first list.
-            RhythmDeriveMode.entries.reversed()
-                .filter { it in modes }
-                .map { difficulty to it }
-        }
         val charts = withContext(Dispatchers.Default) {
             jobs.map { (difficulty, mode) ->
-                deriveOne(source, difficulty, mode, laneStrategy, maxChord, gridTiming, timing, onsetSelection)
+                deriveOne(source, difficulty, mode, laneStrategy, maxChord, gridTiming, timing, onsetSelection, options)
                     // Derived charts are stored playable: the first lead-in stays only in the
                     // master, so a difficulty starts exactly where the run has runway.
                     .withoutLeadIn()
@@ -211,7 +206,8 @@ class RhythmRepository @Inject constructor(
                     // Stagger by a millisecond so a batch keeps a stable display order without
                     // relying on the filesystem clock.
                     nowMs = now + index,
-                    difficultyKey = difficultyKeyOf(jobs[index].first),
+                    difficultyKey = jobs[index].first.key,
+                    difficultyGridDiv = jobs[index].first.gridDiv,
                     parentChartId = masterMeta.chartId,
                     masterGeneratedAtMs = masterMeta.importedAtMs,
                 )
@@ -225,28 +221,45 @@ class RhythmRepository @Inject constructor(
      */
     suspend fun previewDerivedCounts(
         master: RhythmChart,
-        difficulties: List<DspDifficulty>,
+        difficulties: List<DspDifficultySpec>,
         modes: Set<RhythmDeriveMode>,
         laneStrategy: LaneStrategy,
         maxChord: Int = 1,
         onsetSelection: OnsetSelection = OnsetSelection.BALANCED,
         options: RhythmDeriveOptions = RhythmDeriveOptions(),
-    ): Map<Pair<DspDifficulty, RhythmDeriveMode>, Int> = withContext(Dispatchers.Default) {
-        if (difficulties.isEmpty() || modes.isEmpty()) return@withContext emptyMap()
+    ): Map<Pair<DspDifficultySpec, RhythmDeriveMode>, Int> = withContext(Dispatchers.Default) {
+        val jobs = deriveJobs(difficulties, modes)
+        if (jobs.isEmpty()) return@withContext emptyMap()
         val notes = filteredNotes(master, options)
         if (notes.isEmpty()) return@withContext emptyMap()
         val source = master.copy(notes = notes)
         val timing = selectedTiming(master, options)
         val gridTiming = gridTimingFor(master, modes, options, timing)
-        difficulties.flatMap { difficulty ->
-            RhythmDeriveMode.entries.filter { it in modes }.map { mode ->
-                (difficulty to mode) to
-                    deriveOne(source, difficulty, mode, laneStrategy, maxChord, gridTiming, timing, onsetSelection)
-                        .withoutLeadIn()
-                        .noteCount()
-            }
+        jobs.map { (difficulty, mode) ->
+            (difficulty to mode) to
+                deriveOne(source, difficulty, mode, laneStrategy, maxChord, gridTiming, timing, onsetSelection, options)
+                    .withoutLeadIn()
+                    .noteCount()
         }.toMap()
     }
+
+    /**
+     * Difficulty x mode pairs in creation order: hardest difficulty first (so the easiest chart
+     * lands on top of the newest-first list), modes in reverse declaration order (grid last).
+     * The custom difficulty cannot run on the frozen classic quantizer, so that one pair is
+     * skipped ([RhythmClassicGridDeriver] pins the 0.4.3 ladder and must not grow).
+     */
+    private fun deriveJobs(
+        difficulties: List<DspDifficultySpec>,
+        modes: Set<RhythmDeriveMode>,
+    ): List<Pair<DspDifficultySpec, RhythmDeriveMode>> = difficulties
+        .sortedByDescending { it.slotsPerBeat }
+        .flatMap { difficulty ->
+            RhythmDeriveMode.entries.reversed()
+                .filter { it in modes }
+                .filterNot { difficulty.key == DspDifficultySpec.KEY_CUSTOM && it == RhythmDeriveMode.CLASSIC }
+                .map { difficulty to it }
+        }
 
     /**
      * Loudness first, then density — the order the generator used before the filters moved here.
@@ -278,13 +291,14 @@ class RhythmRepository @Inject constructor(
 
     private fun deriveOne(
         master: RhythmChart,
-        difficulty: DspDifficulty,
+        difficulty: DspDifficultySpec,
         mode: RhythmDeriveMode,
         laneStrategy: LaneStrategy,
         maxChord: Int,
         gridTiming: List<RhythmTimingPoint>,
         timing: List<RhythmTimingPoint>,
         onsetSelection: OnsetSelection,
+        options: RhythmDeriveOptions,
     ): RhythmChart = when (mode) {
         RhythmDeriveMode.GRID -> RhythmChartDeriver.derive(
             master = master,
@@ -301,12 +315,22 @@ class RhythmRepository @Inject constructor(
             selection = onsetSelection,
             timing = timing,
         )
+        // The beat-grid skeleton with a gate per beat: the v2-v4 configurations of the hand-tap
+        // config fit. Same timing source as ONSET (the selected variant).
+        RhythmDeriveMode.BEAT_FIRST -> RhythmChartDeriver.deriveBeatFirst(
+            master = master,
+            difficulty = difficulty,
+            laneStrategy = laneStrategy,
+            maxChord = maxChord,
+            timing = timing,
+            params = options.beatParams,
+        )
         // Frozen replica of the 0.4.3-pisces.1-era grid quantization, reached through the
         // current (easier) classic ladder. The replica itself stays byte-identical; the
         // ladder maps difficulties onto it and reads only the master and selected timing.
         RhythmDeriveMode.CLASSIC -> RhythmClassicLadder.derive(
             master = master,
-            difficulty = difficulty,
+            difficulty = classicLadderDifficulty(difficulty),
             laneStrategy = laneStrategy,
             maxChord = maxChord,
             timing = timing,
@@ -351,6 +375,18 @@ class RhythmRepository @Inject constructor(
         /** 120 BPM, only for a master that somehow carries no timing point at all. */
         private const val FALLBACK_BEAT_MS = 500.0
 
-        fun difficultyKeyOf(difficulty: DspDifficulty): String = difficulty.name.lowercase()
+    /**
+     * The frozen classic ladder only knows the built-in rungs; the custom difficulty never
+     * reaches it ([deriveJobs] drops that pair before it starts). Since the 2026-11-20 two-rung
+     * ladder the Hard key (one slot per beat) maps to the ladder's NORMAL — the replica Easy,
+     * the 544-note golden density — while every other key keeps the historical name match
+     * ("easy" -> the ladder's doubled-beat EASY, one slot per two beats).
+     */
+    private fun classicLadderDifficulty(difficulty: DspDifficultySpec): DspDifficulty =
+        when (difficulty.key) {
+            DspDifficultySpec.HARD.key -> DspDifficulty.NORMAL
+            else -> DspDifficulty.entries.firstOrNull { it.name.lowercase() == difficulty.key }
+                ?: error("the classic ladder has no rung for ${difficulty.key}")
+        }
     }
 }

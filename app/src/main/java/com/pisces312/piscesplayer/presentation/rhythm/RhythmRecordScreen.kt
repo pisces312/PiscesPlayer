@@ -127,6 +127,7 @@ fun RhythmRecordScreen(
     var frameTick by remember { mutableLongStateOf(0L) }
     var runId by remember { mutableIntStateOf(0) }
     var showSavePanel by remember { mutableStateOf(false) }
+    var confirmExit by remember { mutableStateOf(false) }
     var saving by remember { mutableStateOf(false) }
     var audioInfo by remember { mutableStateOf<RhythmTapAudio?>(null) }
     var playbackPath by remember { mutableStateOf("") }
@@ -273,6 +274,14 @@ fun RhythmRecordScreen(
                         paused = !paused
                         touchTracker.clear()
                     },
+                    onExit = {
+                        if (hits.isEmpty()) {
+                            currentClock.pause()
+                            onExit()
+                        } else {
+                            confirmExit = true
+                        }
+                    },
                 )
                 Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
                     RecordPlayfield(
@@ -323,6 +332,30 @@ fun RhythmRecordScreen(
                 )
             }
         }
+    }
+
+    if (confirmExit) {
+        AlertDialog(
+            onDismissRequest = { confirmExit = false },
+            title = { Text(stringResource(R.string.rhythm_record_discard_title)) },
+            text = { Text(stringResource(R.string.rhythm_record_discard_message, hits.size)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        confirmExit = false
+                        clock?.pause()
+                        onExit()
+                    },
+                ) {
+                    Text(stringResource(R.string.rhythm_record_exit))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmExit = false }) {
+                    Text(stringResource(R.string.rhythm_record_save_cancel))
+                }
+            },
+        )
     }
 
     if (showSavePanel) {
@@ -386,6 +419,7 @@ private fun RecordHud(
     paused: Boolean,
     frameTick: Long,
     onTogglePause: () -> Unit,
+    onExit: () -> Unit,
 ) {
     @Suppress("UNUSED_EXPRESSION") frameTick
     val progress = if (durationMs > 0.0) {
@@ -420,6 +454,12 @@ private fun RecordHud(
                         if (paused) R.string.rhythm_resume else R.string.rhythm_pause,
                     ),
                     color = RECORD_ACCENT,
+                )
+            }
+            TextButton(onClick = onExit) {
+                Text(
+                    text = stringResource(R.string.rhythm_record_exit),
+                    color = RECORD_HUD_SECONDARY,
                 )
             }
         }

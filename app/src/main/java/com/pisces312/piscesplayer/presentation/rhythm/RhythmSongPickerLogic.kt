@@ -1,5 +1,6 @@
 package com.pisces312.piscesplayer.presentation.rhythm
 
+import com.pisces312.piscesplayer.data.rhythm.DspDifficultySpec
 import com.pisces312.piscesplayer.data.rhythm.RhythmChart
 import java.text.Collator
 import java.util.Locale
@@ -97,8 +98,10 @@ internal fun filterRhythmSongCandidates(
 internal fun RhythmSongCandidate.matchesDifficulty(filter: RhythmDifficultyFilter): Boolean =
     when (filter) {
         RhythmDifficultyFilter.ALL -> true
+        // "Ungraded" is the bucket for everything outside the built-in ladder: the raw master,
+        // osu/tap imports and custom difficulties.
         RhythmDifficultyFilter.UNGRADED -> difficultyKeys.any {
-            it == null || it == RhythmChart.DIFFICULTY_RAW
+            it == null || it == RhythmChart.DIFFICULTY_RAW || it == DspDifficultySpec.KEY_CUSTOM
         }
         else -> difficultyKeys.any { it == filter.key }
     }
@@ -107,7 +110,7 @@ internal fun RhythmSongCandidate.countForDifficulty(filter: RhythmDifficultyFilt
     when (filter) {
         RhythmDifficultyFilter.ALL -> chartCount
         RhythmDifficultyFilter.UNGRADED -> difficultyKeys.count {
-            it == null || it == RhythmChart.DIFFICULTY_RAW
+            it == null || it == RhythmChart.DIFFICULTY_RAW || it == DspDifficultySpec.KEY_CUSTOM
         }
         else -> difficultyKeys.count { it == filter.key }
     }

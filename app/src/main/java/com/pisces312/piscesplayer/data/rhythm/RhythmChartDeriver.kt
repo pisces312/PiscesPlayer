@@ -64,7 +64,7 @@ internal object RhythmChartDeriver {
      */
     fun derive(
         master: RhythmChart,
-        difficulty: DspDifficulty,
+        difficulty: DspDifficultySpec,
         laneStrategy: LaneStrategy = LaneStrategy.BAND_ORDER,
         maxChord: Int = 1,
         timing: List<RhythmTimingPoint> = master.timing,
@@ -83,7 +83,7 @@ internal object RhythmChartDeriver {
         // keying by the snapped time merges those cells instead of emitting the beat twice.
         val cells = HashMap<Int, MutableList<RhythmNote>>(master.notes.size)
         for (note in master.notes) {
-            val cell = snapTime(note.timeMs, points, difficulty.gridDiv)
+            val cell = snapTime(note.timeMs, points, difficulty.gridDiv, difficulty.slotBeats)
             cells.getOrPut(cell) { ArrayList(2) } += note
         }
 
@@ -159,11 +159,12 @@ internal object RhythmChartDeriver {
         timeMs: Int,
         points: List<RhythmTimingPoint>,
         gridDiv: Int,
+        slotBeats: Int = 1,
     ): Int {
         var index = 0
         while (index + 1 < points.size && points[index + 1].timeMs <= timeMs) index++
         val point = points[index]
-        val grid = point.beatMs / gridDiv
+        val grid = point.beatMs * slotBeats / gridDiv
         val cell = Math.round((timeMs - point.timeMs) / grid).toInt()
         val next = points.getOrNull(index + 1)
         if (next != null) {
@@ -192,10 +193,10 @@ internal object RhythmChartDeriver {
      */
     fun deriveOnsetNative(
         master: RhythmChart,
-        difficulty: DspDifficulty,
+        difficulty: DspDifficultySpec,
         laneStrategy: LaneStrategy = LaneStrategy.BAND_ORDER,
         maxChord: Int = 1,
-        profile: DspDeriveProfile = difficulty.deriveProfile,
+        profile: DspDeriveProfile = difficulty.profile,
         selection: OnsetSelection = OnsetSelection.BALANCED,
         /** Beat grid for the accent prior; the derive sheet passes the selected timing variant. */
         timing: List<RhythmTimingPoint> = master.timing,
@@ -228,6 +229,212 @@ internal object RhythmChartDeriver {
             difficultyName = difficulty.label,
             notes = emitNotes(selected, laneStrategy),
         )
+    }
+
+    /** Built-in ladder convenience: identical to passing [DspDifficulty.spec]. */
+    fun derive(
+        master: RhythmChart,
+        difficulty: DspDifficulty,
+        laneStrategy: LaneStrategy = LaneStrategy.BAND_ORDER,
+        maxChord: Int = 1,
+        timing: List<RhythmTimingPoint> = master.timing,
+    ): RhythmChart = derive(master, difficulty.spec, laneStrategy, maxChord, timing)
+
+    /** Built-in ladder convenience: identical to passing [DspDifficulty.spec]. */
+    fun deriveOnsetNative(
+        master: RhythmChart,
+        difficulty: DspDifficulty,
+        laneStrategy: LaneStrategy = LaneStrategy.BAND_ORDER,
+        maxChord: Int = 1,
+        profile: DspDeriveProfile = difficulty.deriveProfile,
+        selection: OnsetSelection = OnsetSelection.BALANCED,
+        timing: List<RhythmTimingPoint> = master.timing,
+    ): RhythmChart = deriveOnsetNative(
+        master, difficulty.spec, laneStrategy, maxChord, profile, selection, timing,
+    )
+
+    /**
+     * BEAT_FIRST derivation: the beat grid is the skeleton, and each beat cell earns its note.
+     *
+     * Line-for-line port of the PC lab's `pps_derive.derive_beat_first` (the v2-v4 arms of the
+     * hand-tap config fit), so a phone chart can be diffed against `scripts/pps_matrix.py`:
+     *
+     * 1. Snap every onset onto the grid cells ([snapTime], [difficulty] gridDiv) and rank the
+     *    cell's onsets by drum score (strength x band weight; low bands count more).
+     * 2. A cell is kept only when its primary passes the drum gate ([RhythmBeatFirstParams.drumGate])
+     *    and the rest test (its drum score is not below `restThreshold` x the local p90 score).
+     * 3. Chord extras come from the same cell: at least 20% of the primary's strength, within
+     *    [CHORD_WINDOW_MS], in a free lane. Weak candidates are skipped, not cut off.
+     * 4. [RhythmBeatFirstParams.densityCap] then drops the weakest cells until no centred 1 s
+     *    window holds more than the cap. Emitted times are the snapped cell times, and the
+     *    [RhythmNote.lowRatio] evidence rides along to the chart.
+     */
+    fun deriveBeatFirst(
+        master: RhythmChart,
+        difficulty: DspDifficultySpec,
+        laneStrategy: LaneStrategy = LaneStrategy.BAND_ORDER,
+        maxChord: Int = 1,
+        timing: List<RhythmTimingPoint> = master.timing,
+        params: RhythmBeatFirstParams = RhythmBeatFirstParams(),
+    ): RhythmChart {
+        require(master.notes.isNotEmpty()) { "master chart has no notes" }
+        val chord = maxChord.coerceIn(1, MAX_CHORD_NOTES)
+        val points = timing.ifEmpty { listOf(RhythmTimingPoint(0, DEFAULT_BEAT_MS)) }
+            .sortedBy { it.timeMs }
+        require(points.all { it.beatMs > 0.0 }) {
+            "invalid beat length ${points.firstOrNull { it.beatMs <= 0.0 }?.beatMs}"
+        }
+
+        val cells = HashMap<Int, MutableList<RhythmNote>>(master.notes.size)
+        for (note in master.notes) {
+            val cell = snapTime(note.timeMs, points, difficulty.gridDiv, difficulty.slotBeats)
+            cells.getOrPut(cell) { ArrayList(2) } += note
+        }
+
+        val orderedTimes = cells.keys.filter { it in 0..master.durationMs }.sorted()
+        val candidates = orderedTimes.map { timeMs ->
+            val ranked = cells.getValue(timeMs).sortedWith(DRUM_CANDIDATE_ORDER)
+            BeatCell(timeMs = timeMs, members = ranked, score = drumScore(ranked.first()))
+        }
+        val scores = candidates.map { it.score }
+
+        val kept = ArrayList<BeatCell>(candidates.size)
+        for (candidate in candidates) {
+            val primary = candidate.members.first()
+            if (!passesDrumGate(primary, params)) continue
+            if (params.restThreshold > 0.0) {
+                val p90 = localP90(orderedTimes, scores, candidate.timeMs)
+                if (p90 > 0.0 && candidate.score < params.restThreshold * p90) continue
+            }
+            val floor = primary.strength * CHORD_MIN_STRENGTH_RATIO
+            val members = ArrayList<RhythmNote>(chord)
+            members += primary
+            val used = HashSet<Int>(chord)
+            used += laneOf(primary, laneStrategy)
+            for (other in candidate.members.drop(1)) {
+                if (members.size >= chord) break
+                // Ranked by drum score, so a weak candidate does not end the loop.
+                if (other.strength < floor) continue
+                if (abs(other.timeMs - primary.timeMs) > CHORD_WINDOW_MS) continue
+                val lane = laneOf(other, laneStrategy)
+                if (!used.add(lane)) continue
+                members += other
+            }
+            kept += BeatCell(timeMs = candidate.timeMs, members = members, score = candidate.score)
+        }
+
+        val capped = applyBeatDensityCap(kept, params.densityCap)
+
+        val notes = ArrayList<RhythmNote>(capped.sumOf { it.members.size })
+        var lastLane = -1
+        for (cell in capped) {
+            val primary = cell.members.first()
+            val primaryLane = avoidRepeatedLane(
+                laneOf(primary, laneStrategy),
+                lastLane,
+                primary.band,
+            )
+            lastLane = primaryLane
+            notes += RhythmNote(
+                id = notes.size,
+                timeMs = cell.timeMs,
+                lane = primaryLane,
+                strength = primary.strength,
+                band = primary.band,
+                lowRatio = primary.lowRatio,
+            )
+            val extras = cell.members.drop(1).sortedBy { laneOf(it, laneStrategy) }
+            for (extra in extras) {
+                notes += RhythmNote(
+                    id = notes.size,
+                    timeMs = cell.timeMs,
+                    lane = laneOf(extra, laneStrategy),
+                    strength = extra.strength,
+                    band = extra.band,
+                    lowRatio = extra.lowRatio,
+                )
+            }
+        }
+
+        return master.copy(
+            difficultyName = difficulty.label,
+            timing = if (timing.isEmpty()) master.timing else points,
+            notes = notes,
+        )
+    }
+
+    /** Built-in ladder convenience: identical to passing [DspDifficulty.spec]. */
+    fun deriveBeatFirst(
+        master: RhythmChart,
+        difficulty: DspDifficulty,
+        laneStrategy: LaneStrategy = LaneStrategy.BAND_ORDER,
+        maxChord: Int = 1,
+        timing: List<RhythmTimingPoint> = master.timing,
+        params: RhythmBeatFirstParams = RhythmBeatFirstParams(),
+    ): RhythmChart = deriveBeatFirst(master, difficulty.spec, laneStrategy, maxChord, timing, params)
+
+    /** One beat cell: the ranked onsets that snapped onto it, and the primary's drum score. */
+    private class BeatCell(
+        val timeMs: Int,
+        val members: List<RhythmNote>,
+        val score: Float,
+    )
+
+    /** Strength x band weight: low bands (kick / snare) count more than hi-hat. */
+    private fun drumScore(note: RhythmNote): Float {
+        val weight = DRUM_BAND_WEIGHTS.getOrElse(note.band) { 1.0f }
+        return note.strength * weight
+    }
+
+    private fun passesDrumGate(note: RhythmNote, params: RhythmBeatFirstParams): Boolean =
+        when (params.drumGate) {
+            BeatDrumGate.OFF -> true
+            // Unknown lowRatio (legacy masters) falls through to the band gate, same as the PC lab.
+            BeatDrumGate.LOW_RATIO ->
+                if (note.lowRatio > 0f) note.lowRatio >= params.lowRatioMin else bandGatePasses(note)
+            BeatDrumGate.BAND -> bandGatePasses(note)
+        }
+
+    /** Unknown bands (old charts, `band < 0`) are not blocked; the rest test decides for them. */
+    private fun bandGatePasses(note: RhythmNote): Boolean = note.band < 0 || note.band <= DRUM_BAND_MAX
+
+    /** p90 of the drum scores inside a centred [REST_WINDOW_MS] window, numpy-linear. */
+    private fun localP90(times: List<Int>, scores: List<Float>, timeMs: Int): Double {
+        val low = times.binarySearch(timeMs - REST_WINDOW_MS.toInt()).let { if (it >= 0) it else -it - 1 }
+        val high = times.binarySearch(timeMs + REST_WINDOW_MS.toInt()).let { if (it >= 0) it + 1 else -it - 1 }
+        if (high <= low) return 0.0
+        return percentile(scores.subList(low, high).map { it.toDouble() }, 0.9)
+    }
+
+    /** numpy's default linear-interpolation percentile. */
+    private fun percentile(values: List<Double>, fraction: Double): Double {
+        if (values.isEmpty()) return 0.0
+        val sorted = values.sorted()
+        val position = (sorted.size - 1) * fraction.coerceIn(0.0, 1.0)
+        val low = position.toInt()
+        val high = minOf(low + 1, sorted.size - 1)
+        val weight = position - low
+        return sorted[low] * (1.0 - weight) + sorted[high] * weight
+    }
+
+    /** Whole-cell removal, weakest first: no centred 1 s window may hold more than [cap] hits. */
+    private fun applyBeatDensityCap(cells: List<BeatCell>, cap: Double?): List<BeatCell> {
+        if (cap == null || cells.size <= 1) return cells
+        val kept = ArrayList<BeatCell>(cells.size)
+        val keptTimes = ArrayList<Int>(cells.size)
+        val strongestFirst = cells.sortedWith(
+            compareByDescending<BeatCell> { it.score }.thenBy { it.timeMs },
+        )
+        for (cell in strongestFirst) {
+            var neighbours = 0
+            for (keptTime in keptTimes) {
+                if (abs(keptTime - cell.timeMs) <= RhythmDeriveFilters.DENSITY_WINDOW_MS) neighbours++
+            }
+            if (neighbours >= cap) continue
+            kept += cell
+            keptTimes += cell.timeMs
+        }
+        return kept.sortedBy { it.timeMs }
     }
 
     /**
@@ -483,6 +690,22 @@ internal object RhythmChartDeriver {
 
     private val CANDIDATE_ORDER =
         compareByDescending<RhythmNote> { it.strength }.thenBy { it.id }
+
+    /** BEAT_FIRST ranks a cell's onsets by drum score; ties break like [CANDIDATE_ORDER]. */
+    private val DRUM_CANDIDATE_ORDER =
+        compareByDescending<RhythmNote> { drumScore(it) }
+            .thenByDescending { it.strength }
+            .thenBy { it.id }
+
+    /** BEAT_FIRST band weights: low bands (kick / snare) count most, hi-hat least. */
+    private val DRUM_BAND_WEIGHTS =
+        floatArrayOf(1.25f, 1.25f, 1.25f, 1.25f, 1.0f, 1.0f, 1.0f, 0.75f)
+
+    /** [BeatDrumGate.BAND] keeps bands 0..3 (kick / snare / toms / bass). */
+    private const val DRUM_BAND_MAX = 3
+
+    /** Half-window of the BEAT_FIRST rest test's local p90 statistic. */
+    private const val REST_WINDOW_MS = 4000.0
 
     /** Window length behind [DspDeriveProfile.maxNotesPerSecond]. */
     private const val NPS_WINDOW_MS = 1000

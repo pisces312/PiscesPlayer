@@ -32,6 +32,8 @@ import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -47,15 +49,18 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.pisces312.piscesplayer.R
-import com.pisces312.piscesplayer.data.rhythm.DspDifficulty
+import com.pisces312.piscesplayer.data.rhythm.BeatDrumGate
+import com.pisces312.piscesplayer.data.rhythm.DspDifficultySpec
 import com.pisces312.piscesplayer.data.rhythm.LaneStrategy
 import com.pisces312.piscesplayer.data.rhythm.OnsetSelection
 import com.pisces312.piscesplayer.data.rhythm.RhythmChart
 import com.pisces312.piscesplayer.data.rhythm.RhythmChartDeriver
+import com.pisces312.piscesplayer.data.rhythm.RhythmCustomDifficulty
 import com.pisces312.piscesplayer.data.rhythm.RhythmDeriveMode
 import com.pisces312.piscesplayer.data.rhythm.RhythmDerivePreset
 import com.pisces312.piscesplayer.data.rhythm.RhythmDeriveSettings
 import com.pisces312.piscesplayer.data.rhythm.RhythmTimingVariantKey
+import com.pisces312.piscesplayer.data.rhythm.spec
 import com.pisces312.piscesplayer.presentation.components.rememberModalSheetState
 import java.util.Locale
 
@@ -76,8 +81,9 @@ private val DENSITY_CHOICES = listOf<Pair<Double?, Int>>(
  *
  * Everything here is instant because deriving is a pure function over notes: the note counts are
  * computed live, before the user commits, so "about N notes" is not a guess. Presets write every
- * field at once and collapse the controls into a read-only summary; touching any control switches
- * the preset chip back to custom (§7.3).
+ * configuration field at once and collapse the controls into a read-only summary; touching any
+ * control switches the preset chip back to custom (§7.3). The difficulty axis (built-in ladder +
+ * custom difficulty) is chosen separately from the preset.
  */
 @OptIn(
     ExperimentalMaterial3Api::class,
@@ -88,23 +94,27 @@ private val DENSITY_CHOICES = listOf<Pair<Double?, Int>>(
 internal fun RhythmDeriveSheet(
     master: RhythmChart,
     deriving: Boolean,
-    onComputeEstimates: suspend (RhythmDeriveSettings) -> Map<Pair<DspDifficulty, RhythmDeriveMode>, Int>,
+    onComputeEstimates: suspend (RhythmDeriveSettings) -> Map<Pair<DspDifficultySpec, RhythmDeriveMode>, Int>,
     onDismiss: () -> Unit,
     onDerive: (RhythmDeriveSettings) -> Unit,
 ) {
-    // Open on the classic preset: it is the default derive experience, collapsed into its
-    // summary; expanding switches to the fine-tuning controls like any preset tap.
+    // Open on the v1 preset: it is the default derive experience because it matches the
+    // hand-tapped feel and plays on-beat without per-chart delay (real-device A/B, 2026-11-20),
+    // collapsed into its summary; expanding switches to the fine-tuning controls like any
+    // preset tap.
     var settings by remember {
-        mutableStateOf(RhythmDerivePreset.CLASSIC_043.applyTo(RhythmDeriveSettings()))
+        mutableStateOf(RhythmDerivePreset.defaultSettings())
     }
     // Expanded while the values are being fine-tuned; a preset tap collapses them into a summary.
     var expanded by remember { mutableStateOf(false) }
-    var estimates by remember { mutableStateOf<Map<Pair<DspDifficulty, RhythmDeriveMode>, Int>?>(null) }
+    var estimates by remember { mutableStateOf<Map<Pair<DspDifficultySpec, RhythmDeriveMode>, Int>?>(null) }
     // Which info dialog is open, if any.
     var infoMode by remember { mutableStateOf<RhythmDeriveMode?>(null) }
     var infoSelection by remember { mutableStateOf<OnsetSelection?>(null) }
     var infoPreset by remember { mutableStateOf<RhythmDerivePreset?>(null) }
     var infoTiming by remember { mutableStateOf<String?>(null) }
+    var infoGate by remember { mutableStateOf(false) }
+    var infoCustom by remember { mutableStateOf(false) }
 
     val matchedPreset = RhythmDerivePreset.match(settings)
     val timingChoices = remember(master) { master.timingVariantsFor() }
@@ -118,6 +128,8 @@ internal fun RhythmDeriveSheet(
             ?.let { String.format(Locale.US, "%.1f", 60_000.0 / it.beatMs) }
             ?: "—"
     }
+    val customLabel = stringResource(R.string.rhythm_derive_custom)
+    val difficultySpecs = settings.difficultySpecs(customLabel)
 
     LaunchedEffect(
         settings.timingVariant,
@@ -127,6 +139,12 @@ internal fun RhythmDeriveSheet(
         settings.maxChord,
         settings.minRmsPercentile,
         settings.maxLocalNps,
+        settings.beatDrumGate,
+        settings.beatRestThreshold,
+        settings.beatDensityCap,
+        settings.beatLowRatioMin,
+        settings.difficulties,
+        settings.customDifficulty,
     ) {
         estimates = null
         estimates = onComputeEstimates(settings)
@@ -135,6 +153,7 @@ internal fun RhythmDeriveSheet(
     val modeLabels = mapOf(
         RhythmDeriveMode.GRID to stringResource(R.string.rhythm_derive_mode_grid),
         RhythmDeriveMode.ONSET to stringResource(R.string.rhythm_derive_mode_onset),
+        RhythmDeriveMode.BEAT_FIRST to stringResource(R.string.rhythm_derive_mode_beat_first),
         RhythmDeriveMode.CLASSIC to stringResource(R.string.rhythm_derive_mode_classic),
     )
     val selectionLabels = mapOf(
@@ -142,8 +161,17 @@ internal fun RhythmDeriveSheet(
         OnsetSelection.MELODY_FIRST to stringResource(R.string.rhythm_derive_selection_melody),
     )
     val profileLabels = mapOf(
+        RhythmDerivePreset.V1_GRID_TRACKED to stringResource(R.string.rhythm_derive_profile_v1),
+        RhythmDerivePreset.V2_BEAT_BAND_REST0 to stringResource(R.string.rhythm_derive_profile_v2),
+        RhythmDerivePreset.V3_BEAT_BAND_REST10 to stringResource(R.string.rhythm_derive_profile_v3),
+        RhythmDerivePreset.V4_BEAT_LOW45_REST10 to stringResource(R.string.rhythm_derive_profile_v4),
         RhythmDerivePreset.CLASSIC_043 to stringResource(R.string.rhythm_derive_profile_classic_043),
         RhythmDerivePreset.RECOMMENDED to stringResource(R.string.rhythm_derive_profile_recommended),
+    )
+    val gateLabels = mapOf(
+        BeatDrumGate.OFF to stringResource(R.string.rhythm_derive_beat_gate_off),
+        BeatDrumGate.BAND to stringResource(R.string.rhythm_derive_beat_gate_band),
+        BeatDrumGate.LOW_RATIO to stringResource(R.string.rhythm_derive_beat_gate_low),
     )
     val timingLabels = mapOf(
         RhythmTimingVariantKey.TRACKED to stringResource(R.string.rhythm_derive_timing_tracked),
@@ -221,21 +249,28 @@ internal fun RhythmDeriveSheet(
                     shape = MaterialTheme.shapes.medium,
                     modifier = Modifier.fillMaxWidth(),
                 ) {
-                    Text(
-                        text = profileSummary(
-                            settings = settings,
-                            modeLabels = modeLabels,
-                            selectionLabels = selectionLabels,
-                            timingLabels = timingLabels,
-                            laneLabels = laneLabels,
-                            loudnessLabels = loudnessLabels,
-                            densityLabels = densityLabels,
-                            classicApproximate = classicApproximate,
-                            approxShort = approxShort,
-                        ),
-                        style = MaterialTheme.typography.bodySmall,
-                        modifier = Modifier.padding(12.dp),
-                    )
+                    Column(modifier = Modifier.padding(12.dp)) {
+                        Text(
+                            text = profileSummary(
+                                settings = settings,
+                                modeLabels = modeLabels,
+                                selectionLabels = selectionLabels,
+                                timingLabels = timingLabels,
+                                laneLabels = laneLabels,
+                                loudnessLabels = loudnessLabels,
+                                densityLabels = densityLabels,
+                                classicApproximate = classicApproximate,
+                                approxShort = approxShort,
+                            ),
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                        if (RhythmDeriveMode.BEAT_FIRST in settings.modes) {
+                            Text(
+                                text = beatSummary(settings, gateLabels),
+                                style = MaterialTheme.typography.bodySmall,
+                            )
+                        }
+                    }
                 }
                 TextButton(onClick = { expanded = true }) {
                     Text(stringResource(R.string.rhythm_derive_profile_expand))
@@ -245,6 +280,7 @@ internal fun RhythmDeriveSheet(
                     estimates = estimates,
                     modes = settings.modes,
                     modeLabels = modeLabels,
+                    customLabel = customLabel,
                 )
             }
 
@@ -336,10 +372,73 @@ internal fun RhythmDeriveSheet(
                     )
                 }
 
+                if (RhythmDeriveMode.BEAT_FIRST in settings.modes) {
+                    SectionLabel(stringResource(R.string.rhythm_derive_beat))
+                    FlowRow(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        BeatDrumGate.entries.forEach { gate ->
+                            FilterChip(
+                                selected = settings.beatDrumGate == gate,
+                                onClick = { settings = settings.copy(beatDrumGate = gate) },
+                                label = { Text(gateLabels.getValue(gate)) },
+                            )
+                        }
+                        InfoButton(onClick = { infoGate = true })
+                    }
+                    if (settings.beatDrumGate == BeatDrumGate.LOW_RATIO) {
+                        SliderRow(
+                            label = stringResource(R.string.rhythm_derive_beat_low_min),
+                            valueText = String.format(Locale.US, "%.2f", settings.beatLowRatioMin),
+                            value = settings.beatLowRatioMin.toFloat(),
+                            range = 0.30f..0.80f,
+                            steps = 9,
+                            onValueChange = {
+                                settings = settings.copy(beatLowRatioMin = String.format(Locale.US, "%.2f", it).toDouble())
+                            },
+                        )
+                    }
+                    SliderRow(
+                        label = stringResource(R.string.rhythm_derive_beat_rest),
+                        valueText = if (settings.beatRestThreshold <= 0.0) {
+                            stringResource(R.string.rhythm_derive_beat_rest_off)
+                        } else {
+                            String.format(Locale.US, "%.2f", settings.beatRestThreshold)
+                        },
+                        value = settings.beatRestThreshold.toFloat(),
+                        range = 0f..0.5f,
+                        steps = 9,
+                        onValueChange = {
+                            settings = settings.copy(beatRestThreshold = String.format(Locale.US, "%.2f", it).toDouble())
+                        },
+                    )
+                    SliderRow(
+                        label = stringResource(R.string.rhythm_derive_beat_cap),
+                        valueText = if (settings.beatDensityCap == null) {
+                            stringResource(R.string.rhythm_derive_beat_cap_off)
+                        } else {
+                            stringResource(R.string.rhythm_derive_beat_cap_value, settings.beatDensityCap ?: 0.0)
+                        },
+                        value = (settings.beatDensityCap ?: 0.0).toFloat(),
+                        range = 0f..10f,
+                        steps = 9,
+                        onValueChange = {
+                            val cap = it.toInt().toDouble()
+                            settings = settings.copy(beatDensityCap = cap.takeIf { value -> value > 0.0 })
+                        },
+                    )
+                    Text(
+                        text = stringResource(R.string.rhythm_derive_beat_hint),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+
                 SectionLabel(stringResource(R.string.rhythm_generate_difficulty))
-                DspDifficulty.entries.forEach { difficulty ->
+                DspDifficultySpec.BUILT_IN.forEach { difficulty ->
                     DifficultyRow(
-                        difficulty = difficulty,
+                        labelText = difficulty.localizedName(),
                         checked = difficulty in settings.difficulties,
                         estimateText = estimateLabel(difficulty, estimates, settings.modes, modeLabels),
                         onToggle = {
@@ -353,7 +452,34 @@ internal fun RhythmDeriveSheet(
                         },
                     )
                 }
-                if (settings.difficulties.isEmpty()) {
+                val custom = settings.customDifficulty
+                DifficultyRow(
+                    labelText = stringResource(R.string.rhythm_derive_custom),
+                    checked = custom != null,
+                    estimateText = custom
+                        ?.let { estimateLabel(it.spec(customLabel), estimates, settings.modes, modeLabels) }
+                        .orEmpty(),
+                    onToggle = {
+                        settings = settings.copy(
+                            customDifficulty = if (custom != null) null else RhythmCustomDifficulty(),
+                        )
+                    },
+                )
+                if (custom != null) {
+                    CustomDifficultyEditor(
+                        custom = custom,
+                        onChange = { settings = settings.copy(customDifficulty = it) },
+                        onInfo = { infoCustom = true },
+                    )
+                    if (RhythmDeriveMode.CLASSIC in settings.modes) {
+                        Text(
+                            text = stringResource(R.string.rhythm_derive_custom_classic_skipped),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+                if (settings.difficulties.isEmpty() && custom == null) {
                     Text(
                         text = stringResource(R.string.rhythm_derive_none_selected),
                         style = MaterialTheme.typography.bodySmall,
@@ -463,7 +589,7 @@ internal fun RhythmDeriveSheet(
                     // The derived list shows the newest chart first, so derive from hardest
                     // to easiest: the easiest chart then lands at the top.
                     onClick = { onDerive(settings) },
-                    enabled = settings.difficulties.isNotEmpty() &&
+                    enabled = (settings.difficulties.isNotEmpty() || settings.customDifficulty != null) &&
                         settings.modes.isNotEmpty() &&
                         !deriving,
                     modifier = Modifier.weight(1f),
@@ -478,6 +604,14 @@ internal fun RhythmDeriveSheet(
         DeriveInfoDialog(
             title = profileLabels.getValue(preset),
             body = when (preset) {
+                RhythmDerivePreset.V1_GRID_TRACKED ->
+                    stringResource(R.string.rhythm_derive_info_profile_v1)
+                RhythmDerivePreset.V2_BEAT_BAND_REST0 ->
+                    stringResource(R.string.rhythm_derive_info_profile_v2)
+                RhythmDerivePreset.V3_BEAT_BAND_REST10 ->
+                    stringResource(R.string.rhythm_derive_info_profile_v3)
+                RhythmDerivePreset.V4_BEAT_LOW45_REST10 ->
+                    stringResource(R.string.rhythm_derive_info_profile_v4)
                 RhythmDerivePreset.CLASSIC_043 ->
                     stringResource(R.string.rhythm_derive_info_profile_classic_043)
                 RhythmDerivePreset.RECOMMENDED ->
@@ -502,6 +636,7 @@ internal fun RhythmDeriveSheet(
             body = when (mode) {
                 RhythmDeriveMode.GRID -> stringResource(R.string.rhythm_derive_info_grid)
                 RhythmDeriveMode.ONSET -> stringResource(R.string.rhythm_derive_info_onset)
+                RhythmDeriveMode.BEAT_FIRST -> stringResource(R.string.rhythm_derive_info_beat_first)
                 RhythmDeriveMode.CLASSIC -> stringResource(R.string.rhythm_derive_info_classic)
             },
             onDismiss = { infoMode = null },
@@ -515,6 +650,20 @@ internal fun RhythmDeriveSheet(
                 OnsetSelection.MELODY_FIRST -> stringResource(R.string.rhythm_derive_info_melody)
             },
             onDismiss = { infoSelection = null },
+        )
+    }
+    if (infoGate) {
+        DeriveInfoDialog(
+            title = stringResource(R.string.rhythm_derive_beat_gate),
+            body = stringResource(R.string.rhythm_derive_info_beat_gate),
+            onDismiss = { infoGate = false },
+        )
+    }
+    if (infoCustom) {
+        DeriveInfoDialog(
+            title = stringResource(R.string.rhythm_derive_custom),
+            body = stringResource(R.string.rhythm_derive_info_custom),
+            onDismiss = { infoCustom = false },
         )
     }
 }
@@ -537,15 +686,18 @@ private fun profileSummary(
     } else {
         stringResource(R.string.rhythm_derive_profile_summary_none)
     }
-    val difficulties = if (settings.difficulties.size == DspDifficulty.entries.size) {
-        stringResource(R.string.rhythm_derive_profile_summary_all)
+    val difficultyNames = ArrayList<String>()
+    if (settings.difficulties.size == DspDifficultySpec.BUILT_IN.size) {
+        difficultyNames += stringResource(R.string.rhythm_derive_profile_summary_all)
     } else {
-        val names = ArrayList<String>()
-        for (difficulty in DspDifficulty.entries) {
-            if (difficulty in settings.difficulties) names += difficulty.localizedName()
+        for (difficulty in DspDifficultySpec.BUILT_IN) {
+            if (difficulty in settings.difficulties) difficultyNames += difficulty.localizedName()
         }
-        names.joinToString(", ")
     }
+    settings.customDifficulty?.let { custom ->
+        difficultyNames += custom.name.ifBlank { stringResource(R.string.rhythm_derive_custom) }
+    }
+    val difficulties = difficultyNames.joinToString(", ")
     return stringResource(
         R.string.rhythm_derive_profile_summary_format,
         (timingLabels[settings.timingVariant] ?: settings.timingVariant) +
@@ -567,16 +719,26 @@ private fun profileSummary(
 @Composable
 private fun EstimatesColumn(
     settings: RhythmDeriveSettings,
-    estimates: Map<Pair<DspDifficulty, RhythmDeriveMode>, Int>?,
+    estimates: Map<Pair<DspDifficultySpec, RhythmDeriveMode>, Int>?,
     modes: Set<RhythmDeriveMode>,
     modeLabels: Map<RhythmDeriveMode, String>,
+    customLabel: String,
 ) {
     Column {
-        for (difficulty in DspDifficulty.entries) {
+        for (difficulty in DspDifficultySpec.BUILT_IN) {
             if (difficulty !in settings.difficulties) continue
             Text(
                 text = "${difficulty.localizedName()} · ${
                     estimateLabel(difficulty, estimates, modes, modeLabels)
+                }",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        settings.customDifficulty?.let { custom ->
+            Text(
+                text = "${custom.name.ifBlank { customLabel }} · ${
+                    estimateLabel(custom.spec(customLabel), estimates, modes, modeLabels)
                 }",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -635,8 +797,8 @@ private fun SectionLabel(text: String) {
 
 @Composable
 private fun estimateLabel(
-    difficulty: DspDifficulty,
-    estimates: Map<Pair<DspDifficulty, RhythmDeriveMode>, Int>?,
+    difficulty: DspDifficultySpec,
+    estimates: Map<Pair<DspDifficultySpec, RhythmDeriveMode>, Int>?,
     modes: Set<RhythmDeriveMode>,
     modeLabels: Map<RhythmDeriveMode, String>,
 ): String {
@@ -657,7 +819,7 @@ private fun estimateLabel(
 
 @Composable
 private fun DifficultyRow(
-    difficulty: DspDifficulty,
+    labelText: String,
     checked: Boolean,
     estimateText: String,
     onToggle: () -> Unit,
@@ -672,7 +834,7 @@ private fun DifficultyRow(
         Checkbox(checked = checked, onCheckedChange = { onToggle() })
         Spacer(Modifier.width(4.dp))
         Text(
-            text = difficulty.localizedName(),
+            text = labelText,
             style = MaterialTheme.typography.bodyLarge,
             modifier = Modifier.weight(1f),
         )
@@ -684,12 +846,182 @@ private fun DifficultyRow(
     }
 }
 
+/** One slider with its label and current value on one line. */
 @Composable
-private fun DspDifficulty.localizedName(): String = stringResource(
-    when (this) {
-        DspDifficulty.EASY -> R.string.rhythm_generate_difficulty_easy
-        DspDifficulty.NORMAL -> R.string.rhythm_generate_difficulty_normal
-        DspDifficulty.HARD -> R.string.rhythm_generate_difficulty_hard
+private fun SliderRow(
+    label: String,
+    valueText: String,
+    value: Float,
+    range: ClosedFloatingPointRange<Float>,
+    steps: Int,
+    onValueChange: (Float) -> Unit,
+) {
+    Column {
+        Row {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.weight(1f),
+            )
+            Text(
+                text = valueText,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Slider(
+            value = value,
+            onValueChange = onValueChange,
+            valueRange = range,
+            steps = steps,
+            modifier = Modifier.fillMaxWidth(),
+        )
+    }
+}
+
+/** The beat-first knob summary shown under the preset summary. */
+@Composable
+private fun beatSummary(
+    settings: RhythmDeriveSettings,
+    gateLabels: Map<BeatDrumGate, String>,
+): String {
+    val lowMin = if (settings.beatDrumGate == BeatDrumGate.LOW_RATIO) {
+        String.format(Locale.US, "%.2f", settings.beatLowRatioMin)
+    } else {
+        stringResource(R.string.rhythm_derive_profile_summary_none)
+    }
+    val rest = if (settings.beatRestThreshold <= 0.0) {
+        stringResource(R.string.rhythm_derive_beat_rest_off)
+    } else {
+        String.format(Locale.US, "%.2f", settings.beatRestThreshold)
+    }
+    val cap = settings.beatDensityCap
+        ?.let { stringResource(R.string.rhythm_derive_beat_cap_value, it) }
+        ?: stringResource(R.string.rhythm_derive_beat_cap_off)
+    return stringResource(
+        R.string.rhythm_derive_beat_summary_format,
+        gateLabels.getValue(settings.beatDrumGate),
+        lowMin,
+        rest,
+        cap,
+    )
+}
+
+private val CUSTOM_GRID_DIVS = listOf(1, 2, 4, 8)
+
+private val CUSTOM_SLOT_RANGE = 1..4
+
+/** Every adjustable field of the custom difficulty, laid out for debugging. */
+@Composable
+private fun CustomDifficultyEditor(
+    custom: RhythmCustomDifficulty,
+    onChange: (RhythmCustomDifficulty) -> Unit,
+    onInfo: () -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(start = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            OutlinedTextField(
+                value = custom.name,
+                onValueChange = { onChange(custom.copy(name = it)) },
+                label = { Text(stringResource(R.string.rhythm_derive_custom_name)) },
+                singleLine = true,
+                modifier = Modifier.weight(1f),
+            )
+            InfoButton(onClick = onInfo)
+        }
+        Text(
+            text = stringResource(R.string.rhythm_derive_custom_grid),
+            style = MaterialTheme.typography.bodyMedium,
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            CUSTOM_GRID_DIVS.forEach { div ->
+                FilterChip(
+                    selected = custom.gridDiv == div,
+                    onClick = { onChange(custom.copy(gridDiv = div)) },
+                    label = { Text("1/$div") },
+                )
+            }
+        }
+        SliderRow(
+            label = stringResource(R.string.rhythm_derive_custom_nps),
+            valueText = String.format(Locale.US, "%.1f", custom.maxNotesPerSecond),
+            value = custom.maxNotesPerSecond.toFloat(),
+            range = 0.5f..12f,
+            steps = 22,
+            onValueChange = {
+                onChange(custom.copy(maxNotesPerSecond = String.format(Locale.US, "%.1f", it).toDouble()))
+            },
+        )
+        SliderRow(
+            label = stringResource(R.string.rhythm_derive_custom_gap),
+            valueText = stringResource(R.string.rhythm_derive_custom_gap_value, custom.minGapMs.toInt()),
+            value = custom.minGapMs.toFloat(),
+            range = 0f..500f,
+            steps = 19,
+            onValueChange = {
+                onChange(custom.copy(minGapMs = String.format(Locale.US, "%.0f", it).toDouble()))
+            },
+        )
+        SliderRow(
+            label = stringResource(R.string.rhythm_derive_custom_max_notes),
+            valueText = custom.maxNotes
+                ?.let { stringResource(R.string.rhythm_derive_custom_max_notes_value, it) }
+                ?: stringResource(R.string.rhythm_derive_custom_unlimited),
+            value = (custom.maxNotes ?: 0).toFloat(),
+            range = 0f..1000f,
+            steps = 19,
+            onValueChange = { onChange(custom.copy(maxNotes = it.toInt().takeIf { value -> value > 0 })) },
+        )
+        SlotsRow(
+            label = stringResource(R.string.rhythm_derive_custom_melody_slots),
+            value = custom.melodySlots,
+            onChange = { onChange(custom.copy(melodySlots = it)) },
+        )
+        SlotsRow(
+            label = stringResource(R.string.rhythm_derive_custom_perc_slots),
+            value = custom.percSlots,
+            onChange = { onChange(custom.copy(percSlots = it)) },
+        )
+        Text(
+            text = stringResource(R.string.rhythm_derive_custom_hint),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+@Composable
+private fun SlotsRow(
+    label: String,
+    value: Int,
+    onChange: (Int) -> Unit,
+) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.weight(1f),
+        )
+        CUSTOM_SLOT_RANGE.forEach { slots ->
+            FilterChip(
+                selected = value == slots,
+                onClick = { onChange(slots) },
+                label = { Text(slots.toString()) },
+            )
+        }
+    }
+}
+
+@Composable
+private fun DspDifficultySpec.localizedName(): String = stringResource(
+    when (key) {
+        DspDifficultySpec.HARD.key -> R.string.rhythm_generate_difficulty_hard
+        else -> R.string.rhythm_generate_difficulty_easy
     },
 )
 

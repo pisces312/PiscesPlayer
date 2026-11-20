@@ -124,6 +124,31 @@ class RhythmBeatTrackerTest {
     }
 
     @Test
+    fun phasePullLocksTheLatticeOntoOffsetOnsets() {
+        // Real-device report: the grid sat ~80 ms off the audible beat a third into the song.
+        // When the onset evidence is a constant 30 ms off the tracked lattice, the per-anchor
+        // pull must move the grid onto the hits — the hits are what the player hears.
+        val beats = DoubleArray(24) { it * 1000.0 }
+        val onsetTimes = DoubleArray(beats.size) { beats[it] + 30.0 }
+        val onsetStrengths = FloatArray(beats.size) { 1.0f }
+        val timing = RhythmBeatTracker.piecewiseTiming(
+            beatTimesMs = beats,
+            durationMs = 30_000,
+            evidenceTimesMs = onsetTimes,
+            evidenceStrengths = onsetStrengths,
+        )
+
+        assertTrue("anchors ${timing.size}", timing.size >= 15)
+        for (point in timing) {
+            val nearestOnset = onsetTimes.minByOrNull { abs(it - point.timeMs) }!!
+            assertTrue(
+                "anchor ${point.timeMs} is ${point.timeMs - nearestOnset} ms off the onset",
+                abs(point.timeMs - nearestOnset) <= 10.0,
+            )
+        }
+    }
+
+    @Test
     fun gradualTempoChangeIsFollowed() {
         // A ritardando: the period grows 1000 -> 1100 ms over 30 beats. The lattice must
         // follow the onsets instead of holding a fixed period and walking off the beat.

@@ -10,6 +10,7 @@ import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.exp
+import kotlin.math.expm1
 import kotlin.math.log2
 import kotlin.math.max
 import kotlin.math.min
@@ -37,6 +38,11 @@ internal class DspAnalysis(
     val onsetBands: IntArray,
     /** Local RMS at each onset, same index as [onsetTimesMs]. */
     val onsetRms: FloatArray,
+    /**
+     * Low-band (0..3) share of the linear band energy at each onset frame, same index as
+     * [onsetTimesMs]; the BEAT_FIRST drum gate evidence ([RhythmNote.lowRatio]).
+     */
+    val onsetLowRatio: FloatArray,
     /** Tracked beat grid: the anchors every derived grid snaps to. Never empty. */
     val timing: List<RhythmTimingPoint>,
     /** 0.4.3-pisces.1 single-point grid, stored alongside the tracked one. */
@@ -191,6 +197,22 @@ internal object RhythmChartGenerator {
             onsetBands[index] = dominantBand
         }
 
+        // Low-band energy share per onset: expm1 of the raw log band energies recovers the
+        // linear magnitude peaks, and the gate reads their share in bands 0..3. Identical to
+        // the PC lab's `onset_low_ratio` (pps_core.analyze).
+        val onsetLowRatio = FloatArray(onsetCount)
+        for (index in 0 until onsetCount) {
+            val base = onsetFrames[index] * N_BANDS
+            var low = 0.0
+            var total = 0.0
+            for (candidate in 0 until N_BANDS) {
+                val linear = expm1(novelty.rawBands[base + candidate].toDouble())
+                total += linear
+                if (candidate < 4) low += linear
+            }
+            onsetLowRatio[index] = if (total > 0.0) (low / total).toFloat() else 0f
+        }
+
         // --- 5. tempo: autocorrelation + octave arbitration ---
         val detectedBpm = estimateBpm(novn, fps, frameCount)
         val octaveCorrection: Double
@@ -265,6 +287,7 @@ internal object RhythmChartGenerator {
             onsetStrength = onsetStrength.copyOf(onsetCount),
             onsetBands = onsetBands.copyOf(onsetCount),
             onsetRms = onsetRms,
+            onsetLowRatio = onsetLowRatio.copyOf(onsetCount),
             timing = timing,
             classicTiming = classicTiming,
             rmsThresholds = rmsThresholds,
@@ -299,6 +322,7 @@ internal object RhythmChartGenerator {
                 strength = analysis.onsetStrength[index],
                 band = band,
                 rms = analysis.onsetRms[index],
+                lowRatio = analysis.onsetLowRatio[index],
             )
             lastLane = lane
         }

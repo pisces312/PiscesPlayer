@@ -76,8 +76,8 @@ class RhythmRepositoryDeriveTest {
         master: RhythmChart,
         modes: Set<RhythmDeriveMode>,
         options: RhythmDeriveOptions = RhythmDeriveOptions(),
-        difficulties: List<DspDifficulty> = listOf(DspDifficulty.EASY),
-    ): Map<Pair<DspDifficulty, RhythmDeriveMode>, Int> = repository.previewDerivedCounts(
+        difficulties: List<DspDifficultySpec> = listOf(DspDifficulty.EASY.spec),
+    ): Map<Pair<DspDifficultySpec, RhythmDeriveMode>, Int> = repository.previewDerivedCounts(
         master = master,
         difficulties = difficulties,
         modes = modes,
@@ -103,7 +103,7 @@ class RhythmRepositoryDeriveTest {
             options = RhythmDeriveOptions(minRmsPercentile = 25),
         )
 
-        assertEquals(1, counts.getValue(DspDifficulty.EASY to RhythmDeriveMode.CLASSIC))
+        assertEquals(1, counts.getValue(DspDifficulty.EASY.spec to RhythmDeriveMode.CLASSIC))
     }
 
     @Test
@@ -119,10 +119,10 @@ class RhythmRepositoryDeriveTest {
             chart,
             modes = setOf(RhythmDeriveMode.CLASSIC),
             options = RhythmDeriveOptions(minRmsPercentile = 25),
-            difficulties = listOf(DspDifficulty.NORMAL),
+            difficulties = listOf(DspDifficulty.NORMAL.spec),
         )
 
-        assertEquals(4, counts.getValue(DspDifficulty.NORMAL to RhythmDeriveMode.CLASSIC))
+        assertEquals(4, counts.getValue(DspDifficulty.NORMAL.spec to RhythmDeriveMode.CLASSIC))
     }
 
     @Test
@@ -138,8 +138,8 @@ class RhythmRepositoryDeriveTest {
 
         // Without the cap 1000/1010 share a cell but 1500 is a second cell. The cap drops 1500
         // because it sits exactly 500 ms from the kept 1000, leaving a single note.
-        assertEquals(2, off.getValue(DspDifficulty.EASY to RhythmDeriveMode.CLASSIC))
-        assertEquals(1, on.getValue(DspDifficulty.EASY to RhythmDeriveMode.CLASSIC))
+        assertEquals(2, off.getValue(DspDifficulty.EASY.spec to RhythmDeriveMode.CLASSIC))
+        assertEquals(1, on.getValue(DspDifficulty.EASY.spec to RhythmDeriveMode.CLASSIC))
     }
 
     @Test
@@ -184,6 +184,123 @@ class RhythmRepositoryDeriveTest {
         assertEquals(0f, derived.notes.single().rms, 0f)
     }
 
+    @Test
+    fun beatFirstRunsThroughTheBeatGate() = runBlocking {
+        val chart = master(times = listOf(1_500, 2_500, 3_500)).let { base ->
+            base.copy(
+                notes = base.notes.mapIndexed { index, note ->
+                    note.copy(
+                        band = if (index == 0) 0 else 6,
+                        lowRatio = if (index == 0) 0.6f else 0.1f,
+                    )
+                },
+            )
+        }
+
+        val ungated = preview(
+            chart,
+            modes = setOf(RhythmDeriveMode.BEAT_FIRST),
+            options = RhythmDeriveOptions(beatParams = RhythmBeatFirstParams(drumGate = BeatDrumGate.OFF)),
+        )
+        assertEquals(3, ungated.getValue(DspDifficulty.EASY.spec to RhythmDeriveMode.BEAT_FIRST))
+
+        val gated = preview(
+            chart,
+            modes = setOf(RhythmDeriveMode.BEAT_FIRST),
+            options = RhythmDeriveOptions(
+                beatParams = RhythmBeatFirstParams(
+                    drumGate = BeatDrumGate.LOW_RATIO,
+                    restThreshold = 0.0,
+                    lowRatioMin = 0.45,
+                ),
+            ),
+        )
+        // Only the low-ratio-dominated beat survives the share gate.
+        assertEquals(1, gated.getValue(DspDifficulty.EASY.spec to RhythmDeriveMode.BEAT_FIRST))
+    }
+
+    @Test
+    fun customDifficultyDerivesWithItsOwnBudget() = runBlocking {
+        val custom = RhythmCustomDifficulty(
+            name = "Test",
+            gridDiv = 1,
+            maxNotesPerSecond = 1.0,
+            minGapMs = 0.0,
+        )
+        val chart = master(times = listOf(1_500, 1_600, 2_500))
+
+        val counts = preview(
+            chart,
+            modes = setOf(RhythmDeriveMode.ONSET),
+            difficulties = listOf(custom.spec("Custom")),
+        )
+        // 1500/1600 share a 1 s budget window, so the stronger one only survives; 2500 is out
+        // of that window and keeps its own slot.
+        assertEquals(2, counts.getValue(custom.spec("Custom") to RhythmDeriveMode.ONSET))
+
+        val metas = repository.deriveCharts(
+            songId = SONG,
+            master = chart,
+            masterMeta = metaOf(chart),
+            difficulties = listOf(custom.spec("Custom")),
+            modes = setOf(RhythmDeriveMode.GRID),
+            laneStrategy = LaneStrategy.BAND_ORDER,
+            displayNames = emptyMap(),
+        )
+        assertEquals(DspDifficultySpec.KEY_CUSTOM, metas.single().difficultyKey)
+        assertEquals(1, metas.single().difficultyGridDiv)
+    }
+
+    @Test
+    fun customDifficultySkipsTheFrozenClassicLadder() = runBlocking {
+        val custom = RhythmCustomDifficulty(gridDiv = 8)
+        val chart = master(times = listOf(1_500, 2_500))
+
+        val counts = preview(
+            chart,
+            modes = setOf(RhythmDeriveMode.CLASSIC),
+            difficulties = listOf(custom.spec("Custom")),
+        )
+
+        assertTrue(counts.isEmpty())
+    }
+
+    @Test
+    fun theTwoRungLadderHalvesEasyThroughTwoBeatSlots() = runBlocking {
+        val points = listOf(RhythmTimingPoint(0, 500.0))
+        val chart = master(
+            times = (1_000..8_000 step 500).toList(),
+            variants = listOf(
+                RhythmTimingVariant(RhythmTimingVariantKey.TRACKED, points),
+                RhythmTimingVariant(RhythmTimingVariantKey.CLASSIC, points),
+            ),
+        )
+
+        val counts = preview(
+            chart,
+            modes = setOf(RhythmDeriveMode.GRID),
+            difficulties = DspDifficultySpec.BUILT_IN,
+        )
+
+        // Hard fills one slot per beat (15 cells at 500 ms), Easy one slot per two beats (8).
+        assertEquals(15, counts.getValue(DspDifficultySpec.HARD to RhythmDeriveMode.GRID))
+        assertEquals(8, counts.getValue(DspDifficultySpec.EASY to RhythmDeriveMode.GRID))
+    }
+
+    @Test
+    fun theClassicHardRungIsTheOneBeatReplica() = runBlocking {
+        val chart = master(times = listOf(1_500, 2_000, 2_500, 3_000))
+
+        val counts = preview(
+            chart,
+            modes = setOf(RhythmDeriveMode.CLASSIC),
+            difficulties = listOf(DspDifficultySpec.HARD),
+        )
+
+        // The 544-note golden density: the ladder's NORMAL rung keeps the one-beat cell.
+        assertEquals(4, counts.getValue(DspDifficultySpec.HARD to RhythmDeriveMode.CLASSIC))
+    }
+
     private suspend fun deriveSingle(
         master: RhythmChart,
         options: RhythmDeriveOptions,
@@ -192,7 +309,7 @@ class RhythmRepositoryDeriveTest {
             songId = SONG,
             master = master,
             masterMeta = metaOf(master),
-            difficulties = listOf(DspDifficulty.EASY),
+            difficulties = listOf(DspDifficulty.EASY.spec),
             modes = setOf(RhythmDeriveMode.GRID),
             laneStrategy = LaneStrategy.BAND_ORDER,
             displayNames = emptyMap(),

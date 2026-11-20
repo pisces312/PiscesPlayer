@@ -66,6 +66,7 @@ internal class RhythmLibraryStore(private val rootDir: File) {
         chart: RhythmChart,
         nowMs: Long = System.currentTimeMillis(),
         difficultyKey: String? = null,
+        difficultyGridDiv: Int? = null,
         parentChartId: String? = null,
         masterGeneratedAtMs: Long? = null,
     ): RhythmChartMeta {
@@ -79,6 +80,7 @@ internal class RhythmLibraryStore(private val rootDir: File) {
             chartId = contentId(body),
             nowMs = nowMs,
             difficultyKey = difficultyKey,
+            difficultyGridDiv = difficultyGridDiv,
             parentChartId = parentChartId,
             masterGeneratedAtMs = masterGeneratedAtMs,
         )
@@ -162,6 +164,7 @@ internal class RhythmLibraryStore(private val rootDir: File) {
         chartId: String,
         nowMs: Long,
         difficultyKey: String? = null,
+        difficultyGridDiv: Int? = null,
         parentChartId: String? = null,
         masterGeneratedAtMs: Long? = null,
     ): RhythmChartMeta {
@@ -184,6 +187,7 @@ internal class RhythmLibraryStore(private val rootDir: File) {
                 durationMs = chart.durationMs,
                 importedAtMs = nowMs,
                 difficultyKey = difficultyKey,
+                difficultyGridDiv = difficultyGridDiv,
                 parentChartId = parentChartId,
                 masterGeneratedAtMs = masterGeneratedAtMs,
             )

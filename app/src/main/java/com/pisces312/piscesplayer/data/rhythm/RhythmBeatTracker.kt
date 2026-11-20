@@ -63,6 +63,16 @@ internal object RhythmBeatTracker {
      */
     private const val PERIOD_RESNAP_FRACTION = 0.12
 
+    /**
+     * Per-anchor phase pull toward the onset evidence: correction cap as a fraction of the
+     * period and the search step in ms. Without it the lattice only corrects at
+     * [PERIOD_RESNAP_FRACTION] of drift, so mid-song it can sit tens of milliseconds off the
+     * audible beat (real-device report: ~80 ms by a third into the song). Small on purpose —
+     * it trims the walk between re-snaps and stays inside the spacing tolerances.
+     */
+    private const val PHASE_PULL_FRACTION = 0.04
+    private const val PHASE_PULL_STEP_MS = 2.0
+
     /** How far the fitted median beat may sit from the requested rate before it is rejected. */
     private const val MAX_RATE_DEVIATION = 0.05
 
@@ -345,6 +355,11 @@ internal object RhythmBeatTracker {
                 if (chainScore > latticeScore) positionMs = beatTimesMs[anchor]
             }
 
+            // Per-anchor nudge toward the local onset evidence (see [phasePull]).
+            if (hasEvidence) {
+                positionMs += phasePull(positionMs, periodMs, evidenceTimesMs, evidenceStrengths)
+            }
+
             if (positionMs > 0.0 && positionMs < durationMs && positionMs > lastAnchorMs + 1.0) {
                 lastAnchorMs = positionMs
                 timing += RhythmTimingPoint(Math.round(positionMs).toInt(), periodMs / 2.0)
@@ -352,6 +367,61 @@ internal object RhythmBeatTracker {
             positionMs += periodMs
         }
         return timing
+    }
+
+    /**
+     * Small per-anchor correction of the lattice toward the local onset evidence: the
+     * strength-squared vote of [phaseScore], graded by distance and restricted to onsets within
+     * one music beat of the anchor, searched outwards in [PHASE_PULL_STEP_MS] steps to
+     * [PHASE_PULL_FRACTION] of the period. The smallest winning shift is kept, so a lattice
+     * already sitting on the evidence does not move (the tracker tests' spacing bounds and the
+     * even-spacing contract rely on that).
+     */
+    private fun phasePull(
+        originMs: Double,
+        periodMs: Double,
+        evidenceTimesMs: DoubleArray,
+        evidenceStrengths: FloatArray,
+    ): Double {
+        val chartBeatMs = periodMs / 2.0
+        val maxPullMs = PHASE_PULL_FRACTION * periodMs
+        var bestShift = 0.0
+        var bestScore = localPhaseScore(0.0, originMs, chartBeatMs, evidenceTimesMs, evidenceStrengths)
+        var stepMs = PHASE_PULL_STEP_MS
+        while (stepMs <= maxPullMs) {
+            for (shift in doubleArrayOf(-stepMs, stepMs)) {
+                val score = localPhaseScore(shift, originMs, chartBeatMs, evidenceTimesMs, evidenceStrengths)
+                if (score > bestScore) {
+                    bestScore = score
+                    bestShift = shift
+                }
+            }
+            stepMs += PHASE_PULL_STEP_MS
+        }
+        return bestShift
+    }
+
+    /** [phaseScore] for one shifted candidate, local to one music beat around [originMs]. */
+    private fun localPhaseScore(
+        shiftMs: Double,
+        originMs: Double,
+        chartBeatMs: Double,
+        evidenceTimesMs: DoubleArray,
+        evidenceStrengths: FloatArray,
+    ): Double {
+        val origin = originMs + shiftMs
+        var score = 0.0
+        for (index in evidenceTimesMs.indices) {
+            val timeMs = evidenceTimesMs[index]
+            if (abs(timeMs - originMs) > chartBeatMs * 2.0) continue
+            val phase = ((timeMs - origin) % chartBeatMs + chartBeatMs) % chartBeatMs
+            val distance = min(phase, chartBeatMs - phase)
+            if (distance <= PHASE_VOTE_WINDOW_MS) {
+                val strength = evidenceStrengths[index].toDouble()
+                score += strength * strength * (1.0 - distance / PHASE_VOTE_WINDOW_MS)
+            }
+        }
+        return score
     }
 
     /** Squared onset strength within [PHASE_VOTE_WINDOW_MS] of a lattice line at [origin]. */

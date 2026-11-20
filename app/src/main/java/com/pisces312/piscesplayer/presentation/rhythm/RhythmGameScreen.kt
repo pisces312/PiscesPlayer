@@ -201,12 +201,14 @@ fun RhythmGameScreen(
                     stored.source == RhythmChart.SOURCE_DSP
                 ) {
                     // The re-bake needs the difficulty's snap divisor and, for the legacy
-                    // refiner, the master's full onset set.
+                    // refiner, the master's full onset set. Custom difficulties record their
+                    // divisor directly; older metas recover it from the ladder key.
                     val meta = repository.chartsForSong(songId).firstOrNull { it.chartId == chartId }
                     val master = meta?.parentChartId?.let { repository.loadChart(it) }
-                    val gridDiv = DspDifficulty.entries
-                        .firstOrNull { it.name.equals(meta?.difficultyKey, ignoreCase = true) }
-                        ?.gridDiv
+                    val gridDiv = meta?.difficultyGridDiv
+                        ?: DspDifficulty.entries
+                            .firstOrNull { it.name.equals(meta?.difficultyKey, ignoreCase = true) }
+                            ?.gridDiv
                         ?: DspDifficulty.HARD.gridDiv
                     logic.retime(stored, master, gridDiv).copy(
                         difficultyName = logicLabel

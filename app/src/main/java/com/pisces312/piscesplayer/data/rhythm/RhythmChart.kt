@@ -25,6 +25,15 @@ data class RhythmNote(
     val band: Int = -1,
     /** Local RMS at the onset (40 ms envelope, interpolated); 0 when unknown (osu imports, legacy masters). */
     val rms: Float = 0f,
+    /**
+     * Share of the onset frame's linear band energy sitting in the low bands 0..3, 0..1;
+     * 0 when unknown (osu imports, legacy masters).
+     *
+     * Evidence for the BEAT_FIRST drum gate ([RhythmBeatFirstParams.lowRatioMin]): the hand-tap
+     * experiment showed people skip the quiet, low-poor beats, so a chart can drop them. The PC
+     * lab stores the same field under the same JSON name (`lowRatio`).
+     */
+    val lowRatio: Float = 0f,
 ) {
     init {
         require(timeMs >= 0) { "note timeMs must be >= 0" }
@@ -179,9 +188,16 @@ data class RhythmChartMeta(
     var bestScore: Int = 0,
     /**
      * `"raw"` for the single master chart, a [DspDifficulty] name in lower case for derived
-     * charts, null for osu imports and for charts stored before the ladder existed.
+     * charts, [DspDifficultySpec.KEY_CUSTOM] for a custom difficulty, null for osu imports and
+     * for charts stored before the ladder existed.
      */
     val difficultyKey: String? = null,
+    /**
+     * Grid divisor the derivation snapped with ([DspDifficultySpec.gridDiv]); null for charts
+     * stored before custom difficulties existed, where [difficultyKey] recovers it instead.
+     * Play-time re-baking needs it, and a custom difficulty has no rung to recover it from.
+     */
+    val difficultyGridDiv: Int? = null,
     /** Derived charts point at the master they came from; the master itself has no parent. */
     val parentChartId: String? = null,
     /**

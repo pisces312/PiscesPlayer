@@ -158,6 +158,10 @@ class RhythmAutoPlayToolTest {
                         maxChord = 2, timing = analysis.timing,
                     )
                     RhythmDeriveMode.ONSET -> RhythmChartDeriver.deriveOnsetNative(master, difficulty)
+                    RhythmDeriveMode.BEAT_FIRST -> RhythmChartDeriver.deriveBeatFirst(
+                        master, difficulty, LaneStrategy.BAND_ORDER, maxChord = 2,
+                        timing = analysis.timing,
+                    )
                     RhythmDeriveMode.CLASSIC -> RhythmClassicGridDeriver.derive(
                         master, difficulty, LaneStrategy.BAND_ORDER, maxChord = 2,
                     )
