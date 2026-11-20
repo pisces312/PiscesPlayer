@@ -644,10 +644,16 @@ interface MusicDao {
         applyDirectoryFilter: Boolean
     ): Flow<List<SongEntity>>
 
+    /**
+     * Home "Your Mix" fallback preview. `source_type != 7` keeps the built-in classical
+     * MIDI collection out of home recommendations (Song.isBuiltIn) — it must not compete
+     * for the LIMIT slots with its fresh date_added.
+     */
     @Query("""
         SELECT """ + SONG_LIST_PROJECTION + """
         FROM songs
         WHERE (:applyDirectoryFilter = 0 OR id < 0 OR parent_directory_path IN (:allowedParentDirs))
+        AND source_type != 7
         ORDER BY date_added DESC, id DESC
         LIMIT :limit
     """)

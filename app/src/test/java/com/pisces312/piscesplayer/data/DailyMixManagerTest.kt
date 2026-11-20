@@ -150,6 +150,7 @@ class DailyMixManagerTest {
             engagements.firstOrNull { it.songId == songId }?.playCount
 
         override suspend fun deleteEngagement(songId: Long) = Unit
+        override suspend fun deleteEngagementsAtOrAbove(minSongId: Long) = Unit
         override suspend fun clearAllEngagements() = Unit
         override suspend fun recordPlay(songId: Long, durationMs: Long, timestamp: Long) = Unit
         override suspend fun getTopPlayedSongs(limit: Int) =

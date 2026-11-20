@@ -1,14 +1,17 @@
 package com.pisces312.piscesplayer.data.classical
 
 import android.content.Context
+import android.content.SharedPreferences
 import com.pisces312.piscesplayer.data.database.AlbumEntity
 import com.pisces312.piscesplayer.data.database.ArtistEntity
+import com.pisces312.piscesplayer.data.database.EngagementDao
 import com.pisces312.piscesplayer.data.database.MusicDao
 import com.pisces312.piscesplayer.data.database.SongArtistCrossRef
 import com.pisces312.piscesplayer.data.database.SongEntity
 import com.pisces312.piscesplayer.data.database.SourceType
 import com.pisces312.piscesplayer.data.model.ArtistRef
 import com.pisces312.piscesplayer.data.database.serializeArtistRefs
+import com.pisces312.piscesplayer.data.stats.PlaybackStatsRepository
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -39,7 +42,9 @@ import javax.inject.Singleton
 @Singleton
 class ClassicalLibraryInitializer @Inject constructor(
     @ApplicationContext private val context: Context,
-    private val musicDao: MusicDao
+    private val musicDao: MusicDao,
+    private val engagementDao: EngagementDao,
+    private val playbackStatsRepository: PlaybackStatsRepository
 ) {
     private val mutex = Mutex()
 
@@ -60,6 +65,7 @@ class ClassicalLibraryInitializer @Inject constructor(
 
     private suspend fun doInitialize() {
         val prefs = context.getSharedPreferences(ClassicalLibrary.PREFS_NAME, Context.MODE_PRIVATE)
+        purgeListeningDataOnce(prefs)
         val installedVersion = prefs.getInt(ClassicalLibrary.PREF_VERSION, 0)
         val root = File(context.filesDir, ClassicalLibrary.EXTRACT_DIR_NAME)
         if (installedVersion == ClassicalLibrary.RESOURCE_VERSION &&
@@ -175,5 +181,20 @@ class ClassicalLibraryInitializer @Inject constructor(
         // ---- 5. done; only now is the version marker written ---------------
         prefs.edit().putInt(ClassicalLibrary.PREF_VERSION, ClassicalLibrary.RESOURCE_VERSION).apply()
         Timber.d("Classical library installed: %d tracks, %d composers", tracks.size, composers.size)
+    }
+
+    /**
+     * Built-in tracks are excluded from listening stats at record time
+     * (MusicService.syncLocalListeningStatsFromPlayer). This one-shot cleanup removes
+     * engagement rows and playback-stat events recorded before that exclusion existed
+     * (e.g. early verification plays), keeping built-ins out of stats / recently played /
+     * AI sampling retroactively. Runs on every code path but is flag-guarded.
+     */
+    private suspend fun purgeListeningDataOnce(prefs: SharedPreferences) {
+        if (prefs.getBoolean(ClassicalLibrary.PREF_STATS_PURGE_DONE, false)) return
+        engagementDao.deleteEngagementsAtOrAbove(ClassicalLibrary.SONG_ID_BASE)
+        playbackStatsRepository.purgeEventsWithSongIdAtLeast(ClassicalLibrary.SONG_ID_BASE)
+        prefs.edit().putBoolean(ClassicalLibrary.PREF_STATS_PURGE_DONE, true).apply()
+        Timber.d("Purged pre-exclusion listening stats for built-in classical tracks")
     }
 }

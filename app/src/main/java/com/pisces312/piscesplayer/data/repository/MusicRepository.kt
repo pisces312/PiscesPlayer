@@ -153,6 +153,12 @@ interface MusicRepository {
      * Returns the complete list of songs once.
      * @return List of Song objects.
      */
+    /**
+     * Whole-library snapshot for library-wide pools (AI / recommendation / smart playlists,
+     * duplicate scanning, M3U matching). Excludes the built-in classical MIDI collection
+     * ([com.pisces312.piscesplayer.data.model.Song.isBuiltIn]); use `getAudioFiles()` when
+     * built-in tracks are wanted (quiz, rhythm picker).
+     */
     suspend fun getAllSongsOnce(): List<Song>
 
     /**

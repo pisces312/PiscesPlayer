@@ -771,6 +771,25 @@ class PlaybackStatsRepository @Inject constructor(
     }
 
     /**
+     * 一次性清理入口：删除 songId 数值 ≥ [minSongId] 的已落盘播放事件。
+     * 供内置古典曲库安装器使用 —— 内置曲目在记录入口即被排除
+     * （`MusicService.syncLocalListeningStatsFromPlayer`），这里清掉修复前的残留。
+     * @return 写入是否成功。
+     */
+    suspend fun purgeEventsWithSongIdAtLeast(minSongId: Long): Boolean = withContext(Dispatchers.IO) {
+        val writeSucceeded = updateEventsAtomically { events ->
+            events.filterNot { event ->
+                event.songId.toLongOrNull()?.let { it >= minSongId } == true
+            }.toMutableList()
+        }
+        if (writeSucceeded) {
+            // 外部数据变更：结果缓存失效，并通知统计页重算。
+            requestRefresh()
+        }
+        writeSucceeded
+    }
+
+    /**
      * 批量导入播放事件。
      * @return 写入是否成功（false = 落盘失败，调用方不应把计数当成已生效）。
      */

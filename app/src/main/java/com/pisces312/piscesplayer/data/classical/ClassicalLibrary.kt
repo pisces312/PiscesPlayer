@@ -21,6 +21,9 @@ object ClassicalLibrary {
     const val PREFS_NAME = "classical_library"
     const val PREF_VERSION = "classical_library_version"
 
+    /** One-shot flag: pre-exclusion listening-stats rows have been purged. */
+    const val PREF_STATS_PURGE_DONE = "classical_stats_purge_v1"
+
     const val SONG_ID_BASE = 15_000_000_000_000L
     const val ALBUM_ID_BASE = 16_000_000_000_000L
     const val ARTIST_ID_BASE = 17_000_000_000_000L

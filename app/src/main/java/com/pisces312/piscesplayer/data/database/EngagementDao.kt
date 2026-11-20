@@ -35,6 +35,13 @@ interface EngagementDao {
     @Query("DELETE FROM song_engagements WHERE song_id = :songId")
     suspend fun deleteEngagement(songId: Long)
 
+    /**
+     * Bulk purge by id floor. Song ids are structured (see ClassicalLibrary.SONG_ID_BASE),
+     * so `>= minSongId` selects exactly the built-in classical rows without binding a list.
+     */
+    @Query("DELETE FROM song_engagements WHERE song_id >= :minSongId")
+    suspend fun deleteEngagementsAtOrAbove(minSongId: Long)
+
     @Query("DELETE FROM song_engagements")
     suspend fun clearAllEngagements()
 

@@ -756,6 +756,11 @@ class MusicRepositoryImpl @Inject constructor(
             allowedParentDirs = allowedParentDirs,
             applyDirectoryFilter = applyDirectoryFilter
         ).first().toSongsWithFavoriteStateOnce()
+            // The built-in classical MIDI collection is self-contained (own library tab) and
+            // must never enter library-wide pools: AI playlist / serendipity sampling, NLP
+            // playlist generation, daily mix & your mix, smart playlists, duplicate scanning.
+            // Quiz / rhythm deliberately read getAudioFiles() and keep it.
+            .filter { !it.isBuiltIn }
     }
 
     @OptIn(ExperimentalCoroutinesApi::class)

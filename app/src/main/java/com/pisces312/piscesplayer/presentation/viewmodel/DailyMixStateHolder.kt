@@ -122,7 +122,9 @@ class DailyMixStateHolder @Inject constructor(
                 }
                 if (songs.isNotEmpty()) {
                     val songMap = songs.associateBy { it.id }
-                    val orderedSongs = dailyMixIds.mapNotNull { songMap[it] }
+                    // .filterNot: ids persisted before built-in classical was excluded from
+                    // the mix pools must not sneak back in through the restore path.
+                    val orderedSongs = dailyMixIds.mapNotNull { songMap[it] }.filterNot { it.isBuiltIn }
                     _dailyMixSongs.value = orderedSongs.toImmutableList()
                 }
             }
@@ -136,7 +138,8 @@ class DailyMixStateHolder @Inject constructor(
                 }
                 if (songs.isNotEmpty()) {
                     val songMap = songs.associateBy { it.id }
-                    val orderedSongs = yourMixIds.mapNotNull { songMap[it] }
+                    // See the daily-mix restore above: keep built-in classical out.
+                    val orderedSongs = yourMixIds.mapNotNull { songMap[it] }.filterNot { it.isBuiltIn }
                     _yourMixSongs.value = orderedSongs.toImmutableList()
                 }
             }

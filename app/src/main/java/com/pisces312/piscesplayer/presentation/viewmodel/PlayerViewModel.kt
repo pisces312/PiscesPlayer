@@ -193,7 +193,7 @@ data class PlaybackAudioMetadata(
 )
 
 private val DEFAULT_LIBRARY_TAB_ORDER: List<String> =
-    listOf("SONGS", "ALBUMS", "YEARS", "ARTIST", "PLAYLISTS", "FOLDERS", "LIKED", "GENRES")
+    listOf("SONGS", "ALBUMS", "YEARS", "ARTIST", "PLAYLISTS", "FOLDERS", "LIKED", "GENRES", "CLASSICAL")
 
 private data class SortOptionsSnapshot(
     val songSort: SortOption,
