@@ -112,16 +112,10 @@ internal fun RhythmDeriveSheet(
     var infoMode by remember { mutableStateOf<RhythmDeriveMode?>(null) }
     var infoSelection by remember { mutableStateOf<OnsetSelection?>(null) }
     var infoPreset by remember { mutableStateOf<RhythmDerivePreset?>(null) }
-    var infoTiming by remember { mutableStateOf<String?>(null) }
     var infoGate by remember { mutableStateOf(false) }
     var infoCustom by remember { mutableStateOf(false) }
 
     val matchedPreset = RhythmDerivePreset.match(settings)
-    val timingChoices = remember(master) { master.timingVariantsFor() }
-    val timingAvailable = timingChoices.isNotEmpty()
-    val classicApproximate = timingChoices
-        .firstOrNull { it.key == RhythmTimingVariantKey.CLASSIC }
-        ?.approximate == true
     val loudnessAvailable = master.rmsThresholds.isNotEmpty()
     val masterBpm = remember(master) {
         master.timing.firstOrNull()
@@ -154,7 +148,6 @@ internal fun RhythmDeriveSheet(
         RhythmDeriveMode.GRID to stringResource(R.string.rhythm_derive_mode_grid),
         RhythmDeriveMode.ONSET to stringResource(R.string.rhythm_derive_mode_onset),
         RhythmDeriveMode.BEAT_FIRST to stringResource(R.string.rhythm_derive_mode_beat_first),
-        RhythmDeriveMode.CLASSIC to stringResource(R.string.rhythm_derive_mode_classic),
     )
     val selectionLabels = mapOf(
         OnsetSelection.BALANCED to stringResource(R.string.rhythm_derive_selection_balanced),
@@ -165,7 +158,6 @@ internal fun RhythmDeriveSheet(
         RhythmDerivePreset.V2_BEAT_BAND_REST0 to stringResource(R.string.rhythm_derive_profile_v2),
         RhythmDerivePreset.V3_BEAT_BAND_REST10 to stringResource(R.string.rhythm_derive_profile_v3),
         RhythmDerivePreset.V4_BEAT_LOW45_REST10 to stringResource(R.string.rhythm_derive_profile_v4),
-        RhythmDerivePreset.CLASSIC_043 to stringResource(R.string.rhythm_derive_profile_classic_043),
         RhythmDerivePreset.RECOMMENDED to stringResource(R.string.rhythm_derive_profile_recommended),
     )
     val gateLabels = mapOf(
@@ -173,11 +165,10 @@ internal fun RhythmDeriveSheet(
         BeatDrumGate.BAND to stringResource(R.string.rhythm_derive_beat_gate_band),
         BeatDrumGate.LOW_RATIO to stringResource(R.string.rhythm_derive_beat_gate_low),
     )
+    // Derivation always works on the tracked variant; the label only names it in the summary.
     val timingLabels = mapOf(
         RhythmTimingVariantKey.TRACKED to stringResource(R.string.rhythm_derive_timing_tracked),
-        RhythmTimingVariantKey.CLASSIC to stringResource(R.string.rhythm_derive_timing_classic),
     )
-    val approxShort = stringResource(R.string.rhythm_derive_timing_approx_short)
     val laneLabels = mapOf(
         LaneStrategy.BAND_ORDER to stringResource(R.string.rhythm_derive_lane_band_order),
         LaneStrategy.LOW_OUTSIDE to stringResource(R.string.rhythm_derive_lane_low_outside),
@@ -259,8 +250,6 @@ internal fun RhythmDeriveSheet(
                                 laneLabels = laneLabels,
                                 loudnessLabels = loudnessLabels,
                                 densityLabels = densityLabels,
-                                classicApproximate = classicApproximate,
-                                approxShort = approxShort,
                             ),
                             style = MaterialTheme.typography.bodySmall,
                         )
@@ -285,36 +274,6 @@ internal fun RhythmDeriveSheet(
             }
 
             if (expanded) {
-                SectionLabel(stringResource(R.string.rhythm_derive_timing))
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    listOf(RhythmTimingVariantKey.TRACKED, RhythmTimingVariantKey.CLASSIC)
-                        .forEach { key ->
-                            FilterChip(
-                                selected = settings.timingVariant == key,
-                                enabled = timingAvailable,
-                                onClick = { settings = settings.copy(timingVariant = key) },
-                                label = {
-                                    Text(
-                                        timingLabels.getValue(key) +
-                                            if (classicApproximate && key == RhythmTimingVariantKey.CLASSIC) {
-                                                " · $approxShort"
-                                            } else {
-                                                ""
-                                            },
-                                    )
-                                },
-                            )
-                            InfoButton(onClick = { infoTiming = key })
-                        }
-                }
-                if (classicApproximate) {
-                    Text(
-                        text = stringResource(R.string.rhythm_derive_timing_approx),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-
                 SectionLabel(stringResource(R.string.rhythm_derive_mode))
                 FlowRow(
                     modifier = Modifier.fillMaxWidth(),
@@ -471,13 +430,6 @@ internal fun RhythmDeriveSheet(
                         onChange = { settings = settings.copy(customDifficulty = it) },
                         onInfo = { infoCustom = true },
                     )
-                    if (RhythmDeriveMode.CLASSIC in settings.modes) {
-                        Text(
-                            text = stringResource(R.string.rhythm_derive_custom_classic_skipped),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
                 }
                 if (settings.difficulties.isEmpty() && custom == null) {
                     Text(
@@ -612,22 +564,10 @@ internal fun RhythmDeriveSheet(
                     stringResource(R.string.rhythm_derive_info_profile_v3)
                 RhythmDerivePreset.V4_BEAT_LOW45_REST10 ->
                     stringResource(R.string.rhythm_derive_info_profile_v4)
-                RhythmDerivePreset.CLASSIC_043 ->
-                    stringResource(R.string.rhythm_derive_info_profile_classic_043)
                 RhythmDerivePreset.RECOMMENDED ->
                     stringResource(R.string.rhythm_derive_info_profile_recommended)
             },
             onDismiss = { infoPreset = null },
-        )
-    }
-    infoTiming?.let { key ->
-        DeriveInfoDialog(
-            title = timingLabels[key] ?: key,
-            body = when (key) {
-                RhythmTimingVariantKey.CLASSIC -> stringResource(R.string.rhythm_derive_info_timing_classic)
-                else -> stringResource(R.string.rhythm_derive_info_timing_tracked)
-            },
-            onDismiss = { infoTiming = null },
         )
     }
     infoMode?.let { mode ->
@@ -637,7 +577,6 @@ internal fun RhythmDeriveSheet(
                 RhythmDeriveMode.GRID -> stringResource(R.string.rhythm_derive_info_grid)
                 RhythmDeriveMode.ONSET -> stringResource(R.string.rhythm_derive_info_onset)
                 RhythmDeriveMode.BEAT_FIRST -> stringResource(R.string.rhythm_derive_info_beat_first)
-                RhythmDeriveMode.CLASSIC -> stringResource(R.string.rhythm_derive_info_classic)
             },
             onDismiss = { infoMode = null },
         )
@@ -677,8 +616,6 @@ private fun profileSummary(
     laneLabels: Map<LaneStrategy, String>,
     loudnessLabels: Map<Int?, String>,
     densityLabels: Map<Double?, String>,
-    classicApproximate: Boolean,
-    approxShort: String,
 ): String {
     val modes = settings.modes.sorted().joinToString(" / ") { modeLabels.getValue(it) }
     val selection = if (RhythmDeriveMode.ONSET in settings.modes) {
@@ -700,12 +637,7 @@ private fun profileSummary(
     val difficulties = difficultyNames.joinToString(", ")
     return stringResource(
         R.string.rhythm_derive_profile_summary_format,
-        (timingLabels[settings.timingVariant] ?: settings.timingVariant) +
-            if (settings.timingVariant == RhythmTimingVariantKey.CLASSIC && classicApproximate) {
-                " · $approxShort"
-            } else {
-                ""
-            },
+        timingLabels[settings.timingVariant] ?: settings.timingVariant,
         modes,
         selection,
         laneLabels.getValue(settings.laneStrategy),

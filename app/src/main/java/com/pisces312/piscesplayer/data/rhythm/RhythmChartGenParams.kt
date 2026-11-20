@@ -35,13 +35,16 @@ data class DspDeriveProfile(
 }
 
 /**
- * Difficulty ladder for the DSP generator.
+ * Legacy difficulty naming / subdivision vocabulary of already-stored charts, kept so old charts
+ * stay playable and their meta ([RhythmChartMeta.difficultyKey] / difficulty name fallback)
+ * keeps resolving. New derivations pick from [DspDifficultySpec]; this ladder only feeds the
+ * legacy `RhythmChartDeriver.derive`/`RhythmChartGenerator.render` conveniences and
+ * [DspDifficulty.spec].
  *
  * [deriveProfile] is the v3 definition: a difficulty is a note-density budget with no grid.
- * [gridDiv] and [slotName] are the v2 quantization grid, kept only for the legacy
- * `RhythmChartDeriver.derive`/`RhythmChartGenerator.render` path (osu-style grids and the golden
- * fixtures). Measured v2 densities on the reference song (261.9 s / 90.84 BPM): 1/1 -> 1.55 NPS,
- * 1/2 -> 3.03 NPS, 1/4 -> 5.54 NPS, which is what the v3 caps below start from.
+ * [gridDiv] and [slotName] are the v2 quantization grid. Measured v2 densities on the reference
+ * song (261.9 s / 90.84 BPM): 1/1 -> 1.55 NPS, 1/2 -> 3.03 NPS, 1/4 -> 5.54 NPS, which is what
+ * the v3 caps below start from.
  */
 enum class DspDifficulty(
     val gridDiv: Int,
@@ -124,8 +127,7 @@ data class DspDifficultySpec(
         /**
          * The built-in ladder as of 2026-11-20: two rungs only (three auto levels were too hard
          * to control). HARD is the old Easy density (one slot per beat), EASY is the new sparser
-         * rung (one slot per two beats). On the classic path they map to the frozen ladder's
-         * NORMAL (= the 544-note golden density) and EASY (doubled beat) rungs respectively.
+         * rung (one slot per two beats).
          */
         val EASY = DspDifficultySpec(
             key = "easy",
@@ -211,14 +213,6 @@ enum class RhythmDeriveMode {
      * configuration family of the hand-tap config fit.
      */
     BEAT_FIRST,
-
-    /**
-     * Frozen replica of the 0.4.3-pisces.1-era default (`RhythmClassicGridDeriver`): one
-     * fixed-rate beat grid for the whole song, quantized the way the original build did it.
-     * Independent implementation on purpose — the other modes may keep evolving, this one
-     * must not move.
-     */
-    CLASSIC,
 }
 
 /** How [RhythmDeriveMode.ONSET] spends its density budget across voice classes. */

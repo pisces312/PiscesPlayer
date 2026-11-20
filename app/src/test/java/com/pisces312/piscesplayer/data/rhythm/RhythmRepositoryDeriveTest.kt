@@ -18,8 +18,8 @@ import org.junit.Test
 import org.junit.rules.TemporaryFolder
 
 /**
- * Repository-level derivation wiring: filters resolve stored cutoffs, the selected timing variant
- * reaches every mode, and derived charts do not keep master-only fields.
+ * Repository-level derivation wiring: filters resolve stored cutoffs, derivation resolves the
+ * tracked timing variant, and derived charts do not keep master-only fields.
  */
 class RhythmRepositoryDeriveTest {
 
@@ -99,11 +99,11 @@ class RhythmRepositoryDeriveTest {
 
         val counts = preview(
             chart,
-            modes = setOf(RhythmDeriveMode.CLASSIC),
+            modes = setOf(RhythmDeriveMode.ONSET),
             options = RhythmDeriveOptions(minRmsPercentile = 25),
         )
 
-        assertEquals(1, counts.getValue(DspDifficulty.EASY.spec to RhythmDeriveMode.CLASSIC))
+        assertEquals(1, counts.getValue(DspDifficulty.EASY.spec to RhythmDeriveMode.ONSET))
     }
 
     @Test
@@ -113,37 +113,41 @@ class RhythmRepositoryDeriveTest {
             rms = listOf(0.1f, 0.11f, 0.12f, 0.9f),
         )
 
-        // Normal keeps the one-beat cell, so with the filter off all four onsets survive in
-        // their own cells. (Easy now uses two-beat cells and would merge them.)
+        // The master stores no cutoffs, so the loudness filter is off and all four onsets reach
+        // the derivation (Normal's density budget fits them).
         val counts = preview(
             chart,
-            modes = setOf(RhythmDeriveMode.CLASSIC),
+            modes = setOf(RhythmDeriveMode.ONSET),
             options = RhythmDeriveOptions(minRmsPercentile = 25),
             difficulties = listOf(DspDifficulty.NORMAL.spec),
         )
 
-        assertEquals(4, counts.getValue(DspDifficulty.NORMAL.spec to RhythmDeriveMode.CLASSIC))
+        assertEquals(4, counts.getValue(DspDifficulty.NORMAL.spec to RhythmDeriveMode.ONSET))
     }
 
     @Test
     fun densityCapIsAppliedBeforeDerivation() = runBlocking {
-        val chart = master(times = listOf(1_000, 1_010, 1_500))
+        val points = listOf(RhythmTimingPoint(0, 500.0))
+        val chart = master(
+            times = listOf(1_000, 1_010, 1_500),
+            variants = listOf(RhythmTimingVariant(RhythmTimingVariantKey.TRACKED, points)),
+        )
 
-        val off = preview(chart, modes = setOf(RhythmDeriveMode.CLASSIC))
+        val off = preview(chart, modes = setOf(RhythmDeriveMode.GRID))
         val on = preview(
             chart,
-            modes = setOf(RhythmDeriveMode.CLASSIC),
+            modes = setOf(RhythmDeriveMode.GRID),
             options = RhythmDeriveOptions(maxLocalNps = 1.0),
         )
 
-        // Without the cap 1000/1010 share a cell but 1500 is a second cell. The cap drops 1500
-        // because it sits exactly 500 ms from the kept 1000, leaving a single note.
-        assertEquals(2, off.getValue(DspDifficulty.EASY.spec to RhythmDeriveMode.CLASSIC))
-        assertEquals(1, on.getValue(DspDifficulty.EASY.spec to RhythmDeriveMode.CLASSIC))
+        // Without the cap 1000/1010 share a cell but 1500 is a second cell. The cap keeps only
+        // the strongest onset (both others sit within 500 ms of it), leaving a single note.
+        assertEquals(2, off.getValue(DspDifficulty.EASY.spec to RhythmDeriveMode.GRID))
+        assertEquals(1, on.getValue(DspDifficulty.EASY.spec to RhythmDeriveMode.GRID))
     }
 
     @Test
-    fun selectedTimingVariantReachesTheGridDerivation() = runBlocking {
+    fun derivationAlwaysUsesTheTrackedTimingVariant() = runBlocking {
         val tracked = listOf(RhythmTimingPoint(0, 500.0), RhythmTimingPoint(4_000, 400.0))
         val chart = master(
             times = listOf(5_200),
@@ -154,13 +158,42 @@ class RhythmRepositoryDeriveTest {
             ),
         )
 
+        // Tracked segment (400 ms from 4000) leaves 5200 on the beat; the stored classic 500 ms
+        // grid rounds it to 5000. Derivation resolves the tracked variant even when a
+        // deserialized setting still names "classic".
         val trackedChart = deriveSingle(chart, RhythmDeriveOptions(RhythmTimingVariantKey.TRACKED))
-        // Tracked segment (400 ms from 4000) leaves 5200 on the beat; the classic 500 ms grid
-        // rounds it to 5000. The two must not be interchangeable.
         assertEquals(listOf(5_200), trackedChart.notes.map { it.timeMs })
 
-        val classicChart = deriveSingle(chart, RhythmDeriveOptions(RhythmTimingVariantKey.CLASSIC))
-        assertEquals(listOf(5_000), classicChart.notes.map { it.timeMs })
+        val legacySettingChart = deriveSingle(chart, RhythmDeriveOptions(RhythmTimingVariantKey.CLASSIC))
+        assertEquals(listOf(5_200), legacySettingChart.notes.map { it.timeMs })
+    }
+
+    @Test
+    fun aLegacyMasterDerivesOnItsOwnTiming() = runBlocking {
+        val tracked = listOf(RhythmTimingPoint(0, 500.0), RhythmTimingPoint(4_000, 400.0))
+        val chart = master(times = listOf(5_200), timing = tracked)
+
+        // No stored variants: the synthesized tracked choice is the master's own timing, so a
+        // legacy master derives exactly as it did when "tracked" was selected.
+        val derived = deriveSingle(chart, RhythmDeriveOptions())
+        assertEquals(listOf(5_200), derived.notes.map { it.timeMs })
+    }
+
+    @Test
+    fun aVariantListWithoutTrackedFallsBackToTheFirstEntry() = runBlocking {
+        val tracked = listOf(RhythmTimingPoint(0, 500.0), RhythmTimingPoint(4_000, 400.0))
+        val chart = master(
+            times = listOf(5_200),
+            timing = tracked,
+            variants = listOf(
+                RhythmTimingVariant(RhythmTimingVariantKey.CLASSIC, listOf(RhythmTimingPoint(0, 500.0))),
+            ),
+        )
+
+        // The first (here only) stored variant wins over the primary timing: 5200 lands on the
+        // 500 ms grid of that entry instead of the master's piecewise one.
+        val derived = deriveSingle(chart, RhythmDeriveOptions())
+        assertEquals(listOf(5_000), derived.notes.map { it.timeMs })
     }
 
     @Test
@@ -252,20 +285,6 @@ class RhythmRepositoryDeriveTest {
     }
 
     @Test
-    fun customDifficultySkipsTheFrozenClassicLadder() = runBlocking {
-        val custom = RhythmCustomDifficulty(gridDiv = 8)
-        val chart = master(times = listOf(1_500, 2_500))
-
-        val counts = preview(
-            chart,
-            modes = setOf(RhythmDeriveMode.CLASSIC),
-            difficulties = listOf(custom.spec("Custom")),
-        )
-
-        assertTrue(counts.isEmpty())
-    }
-
-    @Test
     fun theTwoRungLadderHalvesEasyThroughTwoBeatSlots() = runBlocking {
         val points = listOf(RhythmTimingPoint(0, 500.0))
         val chart = master(
@@ -288,17 +307,21 @@ class RhythmRepositoryDeriveTest {
     }
 
     @Test
-    fun theClassicHardRungIsTheOneBeatReplica() = runBlocking {
-        val chart = master(times = listOf(1_500, 2_000, 2_500, 3_000))
+    fun theHardRungKeepsTheOneBeatCell() = runBlocking {
+        val points = listOf(RhythmTimingPoint(0, 500.0))
+        val chart = master(
+            times = listOf(1_500, 2_000, 2_500, 3_000),
+            variants = listOf(RhythmTimingVariant(RhythmTimingVariantKey.TRACKED, points)),
+        )
 
         val counts = preview(
             chart,
-            modes = setOf(RhythmDeriveMode.CLASSIC),
+            modes = setOf(RhythmDeriveMode.GRID),
             difficulties = listOf(DspDifficultySpec.HARD),
         )
 
-        // The 544-note golden density: the ladder's NORMAL rung keeps the one-beat cell.
-        assertEquals(4, counts.getValue(DspDifficultySpec.HARD to RhythmDeriveMode.CLASSIC))
+        // The Hard rung keeps the one-beat cell: four onsets one beat apart fill four cells.
+        assertEquals(4, counts.getValue(DspDifficultySpec.HARD to RhythmDeriveMode.GRID))
     }
 
     private suspend fun deriveSingle(

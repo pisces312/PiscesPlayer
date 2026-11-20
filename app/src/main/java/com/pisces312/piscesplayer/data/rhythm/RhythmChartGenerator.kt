@@ -498,7 +498,9 @@ internal object RhythmChartGenerator {
     /**
      * FROZEN REPLICA of the 0.4.3-pisces.1 single-point timing (commit 8250c1bb): comb-fold
      * phase + median offset of the strongest onsets. Do not "improve" or share with the live
-     * tracker — CLASSIC derivation off this grid must keep reproducing the old build's charts.
+     * tracker — the stored `classic` variant keeps master export hashes and old-chart
+     * compatibility stable. Derivation never selects it (RhythmChartLab docs/experiments/
+     * 2026-11-20 hand-tap baselines + half-beat verdict).
      */
     private fun classicTimingPoint(
         novn: FloatArray,

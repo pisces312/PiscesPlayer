@@ -157,7 +157,8 @@ class RhythmRepository @Inject constructor(
      * filters run here ([RhythmDeriveFilters]), followed by the timing-variant choice, then the
      * mode rule: [RhythmDeriveMode.GRID] snaps onto the chosen grid ([RhythmTimingRefiner] only
      * as a legacy single-point fallback), [RhythmDeriveMode.ONSET] keeps the onset timestamps,
-     * [RhythmDeriveMode.CLASSIC] is the frozen 0.4.3-pisces.1-era quantization. [displayNames]
+     * [RhythmDeriveMode.BEAT_FIRST] gates beat cells. Derivation always resolves the tracked
+     * timing variant ([selectedTiming]). [displayNames]
      * carries the localized, timestamped difficulty and mode names; it is part of the chart body,
      * which is what gives each derivation its own content hash and therefore its own entry.
      */
@@ -178,8 +179,8 @@ class RhythmRepository @Inject constructor(
         val notes = filteredNotes(master, options)
         if (notes.isEmpty()) return emptyList()
         val source = master.copy(notes = notes)
-        val timing = selectedTiming(master, options)
-        val gridTiming = gridTimingFor(master, modes, options, timing)
+        val timing = selectedTiming(master)
+        val gridTiming = gridTimingFor(master, modes, timing)
         val charts = withContext(Dispatchers.Default) {
             jobs.map { (difficulty, mode) ->
                 deriveOne(source, difficulty, mode, laneStrategy, maxChord, gridTiming, timing, onsetSelection, options)
@@ -232,8 +233,8 @@ class RhythmRepository @Inject constructor(
         val notes = filteredNotes(master, options)
         if (notes.isEmpty()) return@withContext emptyMap()
         val source = master.copy(notes = notes)
-        val timing = selectedTiming(master, options)
-        val gridTiming = gridTimingFor(master, modes, options, timing)
+        val timing = selectedTiming(master)
+        val gridTiming = gridTimingFor(master, modes, timing)
         jobs.map { (difficulty, mode) ->
             (difficulty to mode) to
                 deriveOne(source, difficulty, mode, laneStrategy, maxChord, gridTiming, timing, onsetSelection, options)
@@ -244,8 +245,6 @@ class RhythmRepository @Inject constructor(
     /**
      * Difficulty x mode pairs in creation order: hardest difficulty first (so the easiest chart
      * lands on top of the newest-first list), modes in reverse declaration order (grid last).
-     * The custom difficulty cannot run on the frozen classic quantizer, so that one pair is
-     * skipped ([RhythmClassicGridDeriver] pins the 0.4.3 ladder and must not grow).
      */
     private fun deriveJobs(
         difficulties: List<DspDifficultySpec>,
@@ -255,7 +254,6 @@ class RhythmRepository @Inject constructor(
         .flatMap { difficulty ->
             RhythmDeriveMode.entries.reversed()
                 .filter { it in modes }
-                .filterNot { difficulty.key == DspDifficultySpec.KEY_CUSTOM && it == RhythmDeriveMode.CLASSIC }
                 .map { difficulty to it }
         }
 
@@ -275,15 +273,20 @@ class RhythmRepository @Inject constructor(
         )
     }
 
-    /** The chosen timing variant, falling back to the master's primary timing. */
+    /**
+     * The timing derivation works on: always the tracked variant, never the stored `classic`
+     * one (its anchor phase is half a beat off the beat the hands tap; see RhythmChartLab
+     * docs/experiments/2026-11-20 hand-tap baselines + half-beat verdict). The `classic` variant
+     * stays on the master only for export hashes and old-chart compatibility. A master without a
+     * tracked entry falls back to the first variant, then to the primary timing — for a legacy
+     * single-point master that tracked choice is exactly the original timing.
+     */
     private fun selectedTiming(
         master: RhythmChart,
-        options: RhythmDeriveOptions,
     ): List<RhythmTimingPoint> {
         val variants = master.timingVariantsFor()
-        val chosen = options.timingVariant
-            ?.let { key -> variants.firstOrNull { it.key == key } }
-            ?: variants.firstOrNull { it.key == RhythmTimingVariantKey.TRACKED }
+        val chosen = variants.firstOrNull { it.key == RhythmTimingVariantKey.TRACKED }
+            ?: variants.firstOrNull()
         return chosen?.timing ?: master.timing
     }
 
@@ -314,7 +317,7 @@ class RhythmRepository @Inject constructor(
             timing = timing,
         )
         // The beat-grid skeleton with a gate per beat: the v2-v4 configurations of the hand-tap
-        // config fit. Same timing source as ONSET (the selected variant).
+        // config fit. Same timing source as ONSET (the tracked variant).
         RhythmDeriveMode.BEAT_FIRST -> RhythmChartDeriver.deriveBeatFirst(
             master = master,
             difficulty = difficulty,
@@ -323,34 +326,22 @@ class RhythmRepository @Inject constructor(
             timing = timing,
             params = options.beatParams,
         )
-        // Frozen replica of the 0.4.3-pisces.1-era grid quantization, reached through the
-        // current (easier) classic ladder. The replica itself stays byte-identical; the
-        // ladder maps difficulties onto it and reads only the master and selected timing.
-        RhythmDeriveMode.CLASSIC -> RhythmClassicLadder.derive(
-            master = master,
-            difficulty = classicLadderDifficulty(difficulty),
-            laneStrategy = laneStrategy,
-            maxChord = maxChord,
-            timing = timing,
-        )
     }
 
     /**
      * Empty unless the grid mode is requested.
      *
-     * A current master stores both variants, so the chosen one is used as-is. A legacy master
-     * predates them: selecting its synthesized classic grid works directly, while the default
-     * tracked choice keeps the historical behaviour of refining a piecewise grid from its onsets.
+     * A current master stores both variants, so the tracked one is used as-is. A legacy master
+     * predates them: the default tracked choice keeps the historical behaviour of refining a
+     * piecewise grid from its onsets.
      */
     private fun gridTimingFor(
         master: RhythmChart,
         modes: Set<RhythmDeriveMode>,
-        options: RhythmDeriveOptions,
         timing: List<RhythmTimingPoint>,
     ): List<RhythmTimingPoint> {
         if (RhythmDeriveMode.GRID !in modes) return emptyList()
         if (master.timingVariants.isNotEmpty()) return timing
-        if (options.timingVariant == RhythmTimingVariantKey.CLASSIC) return timing
         if (master.timing.size > 1) return master.timing
         val global = master.timing.firstOrNull() ?: RhythmTimingPoint(0, FALLBACK_BEAT_MS)
         return RhythmTimingRefiner.refine(
@@ -372,19 +363,5 @@ class RhythmRepository @Inject constructor(
 
         /** 120 BPM, only for a master that somehow carries no timing point at all. */
         private const val FALLBACK_BEAT_MS = 500.0
-
-    /**
-     * The frozen classic ladder only knows the built-in rungs; the custom difficulty never
-     * reaches it ([deriveJobs] drops that pair before it starts). Since the 2026-11-20 two-rung
-     * ladder the Hard key (one slot per beat) maps to the ladder's NORMAL — the replica Easy,
-     * the 544-note golden density — while every other key keeps the historical name match
-     * ("easy" -> the ladder's doubled-beat EASY, one slot per two beats).
-     */
-    private fun classicLadderDifficulty(difficulty: DspDifficultySpec): DspDifficulty =
-        when (difficulty.key) {
-            DspDifficultySpec.HARD.key -> DspDifficulty.NORMAL
-            else -> DspDifficulty.entries.firstOrNull { it.name.lowercase() == difficulty.key }
-                ?: error("the classic ladder has no rung for ${difficulty.key}")
-        }
     }
 }

@@ -8,7 +8,10 @@ package com.pisces312.piscesplayer.data.rhythm
 
 /** How a derivation treats the master beyond picking a difficulty and a mode. */
 data class RhythmDeriveOptions(
-    /** Timing variant key ([RhythmTimingVariantKey]); null uses the master's primary timing. */
+    /**
+     * Legacy settings field, kept so older serialized settings still deserialize. Derivation
+     * ignores it and always resolves the tracked variant ([RhythmTimingVariantKey.TRACKED]).
+     */
     val timingVariant: String? = null,
     /** Percentile of the master's stored loudness cutoffs; null = loudness filter off. */
     val minRmsPercentile: Int? = null,
@@ -27,6 +30,10 @@ data class RhythmDeriveOptions(
  * is "how to pick and place notes", the ladder is "how dense", and the two are chosen separately.
  */
 data class RhythmDeriveSettings(
+    /**
+     * Kept so older serialized settings still deserialize; derivation always resolves the
+     * tracked variant and does not respond to other keys any more.
+     */
     val timingVariant: String = RhythmTimingVariantKey.TRACKED,
     val modes: Set<RhythmDeriveMode> = RhythmDeriveMode.entries.toSet(),
     val selection: OnsetSelection = OnsetSelection.MELODY_FIRST,
@@ -65,10 +72,14 @@ data class RhythmDeriveSettings(
 
 /**
  * Built-in derive presets: the four configurations measured against the user's hand-tapped chart
- * (v1-v4 of `RhythmChartLab/docs/experiments/2026-11-20-handtap-config-fit.md`), plus the two
- * historical ones. All are fixed field tables (not "whatever the defaults are today"), so a future
- * default change can not silently move what a preset reproduces. The PC lab's
+ * (v1-v4 of `RhythmChartLab/docs/experiments/2026-11-20-handtap-config-fit.md`), plus the
+ * historical [RECOMMENDED]. All are fixed field tables (not "whatever the defaults are today"),
+ * so a future default change can not silently move what a preset reproduces. The PC lab's
  * `scripts/pps_matrix.py` carries the same tables, so phone output can be diffed against PC output.
+ *
+ * The former classic-reproduction preset is gone: its anchor phase sat half a beat off the
+ * grid the hands tap to (RhythmChartLab docs/experiments/2026-11-20 hand-tap baselines +
+ * half-beat verdict).
  *
  * A preset fixes the *configuration* (grid choice, mode, gate, sparsification); the difficulty
  * ladder (1/1, 1/2, 1/4 per rung) is chosen separately and applies inside every preset. The
@@ -92,10 +103,8 @@ enum class RhythmDerivePreset(
      * v1-grid-tracked — GRID mode over the tracked piecewise grid, one note per beat cell, no
      * selection gate. The default preset: measured closest to the user's hand-tapped chart
      * (F1 0.913, tap-to-note p50 16 ms on the reference song) and confirmed by real-device
-     * A/B play (the classic phase needs added per-chart delay to match the music, this one
-     * does not). Its tracked phase can not reproduce the classic-phase charts like the
-     * 544-note golden (566 notes, half-a-grid phase, best-shift F1 0.887) — use [CLASSIC_043]
-     * for that; feel was chosen over reproducibility for the default (2026-11-20).
+     * A/B play (it sits on the beat with delay 0). Feel was chosen over reproducibility for
+     * the default (2026-11-20).
      */
     V1_GRID_TRACKED(
         timingVariant = RhythmTimingVariantKey.TRACKED,
@@ -166,27 +175,6 @@ enum class RhythmDerivePreset(
         beatLowRatioMin = 0.45,
     ),
 
-    /**
-     * 0.4.3-pisces.1 output: classic grid, frozen quantization rules, old lane/chord defaults.
-     * The compatibility preset: it is the only configuration that reproduces the accepted
-     * classic-phase charts — the 544-note golden comes out of this path note for note — which
-     * none of the tracked-phase variants (v1-v4) can do. Kept on the side, not the default:
-     * real-device play showed the classic phase needs added delay to match the music.
-     */
-    CLASSIC_043(
-        timingVariant = RhythmTimingVariantKey.CLASSIC,
-        modes = setOf(RhythmDeriveMode.CLASSIC),
-        selection = OnsetSelection.BALANCED,
-        laneStrategy = LaneStrategy.BAND_ORDER,
-        maxChord = 2,
-        minRmsPercentile = null,
-        maxLocalNps = null,
-        beatDrumGate = BeatDrumGate.BAND,
-        beatRestThreshold = 0.10,
-        beatDensityCap = null,
-        beatLowRatioMin = 0.45,
-    ),
-
     /** Earlier measured-best combination: tracked grid + onset selection with melody priority. */
     RECOMMENDED(
         timingVariant = RhythmTimingVariantKey.TRACKED,
@@ -235,8 +223,6 @@ enum class RhythmDerivePreset(
         /**
          * The default the derive sheet opens on: [V1_GRID_TRACKED], the configuration closest
          * to the hand-tapped feel and the one that plays on-beat without per-chart delay.
-         * [CLASSIC_043] stays one tap away for reproducing classic-phase charts like the
-         * 544-note golden.
          */
         fun defaultSettings(): RhythmDeriveSettings =
             V1_GRID_TRACKED.applyTo(RhythmDeriveSettings())

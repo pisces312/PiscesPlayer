@@ -18,9 +18,7 @@ class RhythmDerivePresetTest {
         val settings = RhythmDerivePreset.defaultSettings()
 
         // Feel beats reproducibility for the default (2026-11-20, real-device A/B): v1 hugs the
-        // hand-taps and plays on-beat with delay 0, while the classic phase needs added delay.
-        // Reproducing the 544-note golden stays CLASSIC_043's job (the legacy fixture test pins
-        // it note for note), one tap away but not the default.
+        // hand-taps and plays on-beat with delay 0.
         assertEquals(RhythmDerivePreset.V1_GRID_TRACKED, RhythmDerivePreset.match(settings))
         assertEquals(RhythmTimingVariantKey.TRACKED, settings.timingVariant)
         assertEquals(setOf(RhythmDeriveMode.GRID), settings.modes)
@@ -65,11 +63,6 @@ class RhythmDerivePresetTest {
 
     @Test
     fun legacyPresetsKeepTheirFrozenFieldTables() {
-        val classic = RhythmDerivePreset.CLASSIC_043.applyTo(RhythmDeriveSettings())
-        assertEquals(RhythmTimingVariantKey.CLASSIC, classic.timingVariant)
-        assertEquals(setOf(RhythmDeriveMode.CLASSIC), classic.modes)
-        assertEquals(RhythmDerivePreset.CLASSIC_043, RhythmDerivePreset.match(classic))
-
         val recommended = RhythmDerivePreset.RECOMMENDED.applyTo(RhythmDeriveSettings())
         assertEquals(setOf(RhythmDeriveMode.ONSET), recommended.modes)
         assertEquals(OnsetSelection.MELODY_FIRST, recommended.selection)
@@ -112,7 +105,7 @@ class RhythmDerivePresetTest {
     @Test
     fun defaultsAreCustomUntilAPresetIsChosen() {
         assertNull(RhythmDerivePreset.match(RhythmDeriveSettings()))
-        assertTrue(RhythmDerivePreset.entries.size >= 6)
+        assertTrue(RhythmDerivePreset.entries.size >= 5)
     }
 
     @Test
