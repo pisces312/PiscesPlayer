@@ -48,12 +48,18 @@ internal fun RhythmChartSettingsSheet(
     onDismiss: () -> Unit,
 ) {
     var delayMs by remember(chartName) { mutableIntStateOf(settings.delayMs) }
+    var leadInMs by remember(chartName) { mutableIntStateOf(settings.leadInMs) }
     var approachMs by remember(chartName) { mutableIntStateOf(settings.approachMs) }
 
-    fun commit(newDelay: Int = delayMs, newApproach: Int = approachMs) {
+    fun commit(
+        newDelay: Int = delayMs,
+        newLeadIn: Int = leadInMs,
+        newApproach: Int = approachMs,
+    ) {
         delayMs = newDelay
+        leadInMs = newLeadIn
         approachMs = newApproach
-        onChange(settings.copy(delayMs = newDelay, approachMs = newApproach))
+        onChange(settings.copy(delayMs = newDelay, leadInMs = newLeadIn, approachMs = newApproach))
     }
 
     ModalBottomSheet(onDismissRequest = onDismiss) {
@@ -98,6 +104,40 @@ internal fun RhythmChartSettingsSheet(
             }
             Text(
                 text = stringResource(R.string.rhythm_settings_delay_hint),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+
+            Text(
+                text = stringResource(R.string.rhythm_settings_lead_in),
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.primary,
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = stringResource(R.string.rhythm_settings_lead_in_value, leadInMs / 1000),
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.weight(1f),
+                )
+                OutlinedButton(
+                    onClick = { commit(newLeadIn = (leadInMs - 1000).coerceAtLeast(0)) },
+                ) {
+                    Text("-1s")
+                }
+                Spacer(Modifier.width(8.dp))
+                OutlinedButton(onClick = { commit(newLeadIn = leadInMs + 1000) }) {
+                    Text("+1s")
+                }
+                Spacer(Modifier.width(8.dp))
+                TextButton(onClick = { commit(newLeadIn = 0) }) {
+                    Text(stringResource(R.string.rhythm_settings_reset))
+                }
+            }
+            Text(
+                text = stringResource(R.string.rhythm_settings_lead_in_hint),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

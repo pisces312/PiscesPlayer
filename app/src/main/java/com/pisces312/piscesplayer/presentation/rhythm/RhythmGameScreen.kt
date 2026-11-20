@@ -236,6 +236,7 @@ fun RhythmGameScreen(
                     chart = chart,
                     clock = clock,
                     approachMs = settings.approachMs.toDouble(),
+                    leadInMs = settings.leadInMs.toDouble(),
                 )
             } catch (e: Exception) {
                 errorMessage = e.message ?: e.javaClass.simpleName

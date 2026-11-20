@@ -440,7 +440,7 @@
     <string name="rhythm_record_discard_message">%1$d taps recorded — leaving now saves nothing.</string>
     <string name="rhythm_record_warn_merged">%1$d duplicate taps merged</string>
     <string name="rhythm_record_warn_close">%1$d same-lane pairs are under 140 ms apart and may be impossible to hit fully</string>
-    <string name="rhythm_record_warn_lead_in">%1$d taps fall inside the 1 s lead-in and will not appear in play</string>
+    <string name="rhythm_record_warn_lead_in">%1$d taps fall inside the first second of the song; hide them later with the chart’s skip-intro setting</string>
     <string name="rhythm_empty_hint">Import an osu!mania 4-key tap chart for this song, then play it here. Hold notes and other key modes are not supported yet.</string>
     <string name="rhythm_chart_stats">%1$d notes · %2$s notes/s</string>
     <string name="rhythm_best_score">Best score: %1$d</string>
@@ -623,7 +623,7 @@
     <string name="rhythm_derive_profile_v2">v2 · Drum beats only</string>
     <string name="rhythm_derive_profile_v3">v3 · Drum beats + rests</string>
     <string name="rhythm_derive_profile_v4">v4 · Low-end beats</string>
-    <string name="rhythm_derive_info_profile_v1" formatted="false">The default preset, and the configuration closest to the hand-tapped chart: Beat-grid derivation over the tracked piecewise grid, one note per beat slot, no selection gate — every beat gets its strongest onset.\n\nMeasured against a hand-tapped chart of the same song (358 taps): 91% agreement, 95% of these notes were tapped, and taps land 16 ms from the notes at the median. It is essentially the chart the player’s hands expect.\n\nReal-device A/B play confirmed it: this one sits on the beat with the delay setting at 0, while the classic phase needs added per-chart delay to match the music. The only thing it can not do is reproduce the accepted classic-phase charts — against the 544-note golden it yields 566 notes on the other phase (best-shift F1 0.887, never exact); switch to the Classic preset for that. A preset fixes how notes are picked; the difficulty ladder below is chosen separately.</string>
+    <string name="rhythm_derive_info_profile_v1" formatted="false">The default preset, and the configuration closest to the hand-tapped chart: Beat-grid derivation over the tracked piecewise grid, one note per beat slot, no selection gate — every beat gets its strongest onset. Quiet slots whose best hit sits far below the song’s own level (fade-outs, drumless outros) stay empty instead of being filled.\n\nMeasured against a hand-tapped chart of the same song (358 taps): 91% agreement, 95% of these notes were tapped, and taps land 16 ms from the notes at the median. It is essentially the chart the player’s hands expect.\n\nReal-device A/B play confirmed it: this one sits on the beat with the delay setting at 0, while the classic phase needs added per-chart delay to match the music. The only thing it can not do is reproduce the accepted classic-phase charts — against the 544-note golden it yields 566 notes on the other phase (best-shift F1 0.887, never exact); switch to the Classic preset for that. A preset fixes how notes are picked; the difficulty ladder below is chosen separately.</string>
     <string name="rhythm_derive_info_profile_v2">Beat-first derivation with the drum-band gate: snap onsets into beat slots and keep a slot only when its strongest onset sits in the drum bands 0–3 (kick, snare, toms, bass); every other slot stays empty. No quiet-passage skipping.\n\nOn the reference song this lands at about 70% of v1’s notes, all of them on drum beats — a chart that reads as “the beat” instead of “the melody”. Simpler to play than v1; use it when v1 feels too busy.</string>
     <string name="rhythm_derive_info_profile_v3">v2 plus quiet-passage skipping: a slot whose drum score is below 10% of its neighbourhood’s p90 is left empty, so long quiet stretches stay rests.\n\nOn the reference song: the same notes as v2 with the quiet tails cut. Use it when v2 keeps tapping through breaks where the music breathes.</string>
     <string name="rhythm_derive_info_profile_v4">v3 with the gate swapped to low-frequency share: keep a slot only when its primary onset puts at least 45% of its band energy in the low bands.\n\nOn instrumental material this is equivalent to v1 (5 notes apart on the reference song) — the band gate does nothing there. On vocal-heavy material it drops sung beats that the drum-band gate would keep. If you want v1’s feel plus a tone filter, this is the one.</string>
@@ -661,6 +661,9 @@
     <string name="rhythm_settings_title">Chart settings · %1$s</string>
     <string name="rhythm_settings_delay">Latency offset</string>
     <string name="rhythm_settings_delay_hint">Raise it when the beat is heard later than it is seen.</string>
+    <string name="rhythm_settings_lead_in">Skip intro</string>
+    <string name="rhythm_settings_lead_in_value">%1$d s</string>
+    <string name="rhythm_settings_lead_in_hint">Hides notes charted in the first moments of the song. 0 shows everything; the chart keeps its notes, so this can change at any time.</string>
     <string name="rhythm_settings_approach">Note fall time</string>
     <string name="rhythm_settings_reset">Reset</string>
     <string name="rhythm_settings_auto_saved">Changes are saved as you go.</string>

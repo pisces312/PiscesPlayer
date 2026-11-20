@@ -24,6 +24,12 @@ data class RhythmChartSettings(
      * when the beat is heard later than it is seen.
      */
     val delayMs: Int = 0,
+    /**
+     * Hide every note charted in the first ms of the song (the per-chart replacement for the
+     * old fixed 1 s lead-in; default 0 = show everything). Purely a play-time filter: the chart
+     * keeps its notes, so the value can change at any time.
+     */
+    val leadInMs: Int = 0,
     /** Note fall time in ms, fed to `RhythmPlaySession.approachMs`. */
     val approachMs: Int = 1500,
     val updatedAtMs: Long = 0,
@@ -35,6 +41,7 @@ data class RhythmChartSettings(
     fun clamped(): RhythmChartSettings = copy(
         // Delay is intentionally unbounded: compensation must be able to reach any value on
         // badly out-of-sync devices (plan §14), and an extreme offset only shifts the clock.
+        leadInMs = leadInMs.coerceAtLeast(0),
         approachMs = approachMs.coerceIn(MIN_APPROACH_MS, MAX_APPROACH_MS),
     )
 

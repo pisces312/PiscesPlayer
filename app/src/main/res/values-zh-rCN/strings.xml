@@ -439,7 +439,7 @@
     <string name="rhythm_record_discard_message">已录制 %1$d 次敲击，现在退出不会保存。</string>
     <string name="rhythm_record_warn_merged">已合并 %1$d 次重复敲击</string>
     <string name="rhythm_record_warn_close">%1$d 对同轨点间隔不足 140ms，可能无法全部击中</string>
-    <string name="rhythm_record_warn_lead_in">%1$d 个点在开头 1 秒内，游玩时不会出现</string>
+    <string name="rhythm_record_warn_lead_in">%1$d 个点落在歌曲开头 1 秒内，可用谱面设置的「屏蔽开头」隐藏</string>
     <string name="rhythm_empty_hint">为这首歌导入 osu!mania 4K 单点谱面后即可游玩。暂不支持长按谱面和其他键数。</string>
     <string name="rhythm_chart_stats">%1$d 个音符 · 每秒 %2$s 个</string>
     <string name="rhythm_best_score">最高分：%1$d</string>
@@ -622,7 +622,7 @@
     <string name="rhythm_derive_profile_v2">v2 · 只留鼓点拍</string>
     <string name="rhythm_derive_profile_v3">v3 · 鼓点拍 + 留白</string>
     <string name="rhythm_derive_profile_v4">v4 · 低频拍</string>
-    <string name="rhythm_derive_info_profile_v1" formatted="false">默认预设，也是与手打谱最贴的配置：跟拍网格（tracked）+ 拍格派生（Beat grid），每拍一音、不设选音门——每个拍面取格内最强的音。\n\n与同一首歌的手打谱（358 次敲击）实测吻合度 91%：这些音 95% 都被敲中，敲击落点距音符中位仅 16ms，几乎就是手想要的那张谱。\n\n真机 A/B 游玩再次确认：它在延迟为 0 时就合拍，而经典相位要额外加延迟才合拍。它唯一做不到的是复现已接受的经典相位谱——对 544 音金标准它出 566 音、落在另一个相位（最优平移 F1 0.887，无法逐音对上）；要复现旧谱时切到经典版预设。预设只决定「怎么选音、怎么放」，下方的难度档（密度）单独选择。</string>
+    <string name="rhythm_derive_info_profile_v1" formatted="false">默认预设，也是与手打谱最贴的配置：跟拍网格（tracked）+ 拍格派生（Beat grid），每拍一音、不设选音门——每个拍面取格内最强的音。格内最强的音也明显弱于全曲水平时（渐弱收尾、无鼓段落）留空，不硬铺满。\n\n与同一首歌的手打谱（358 次敲击）实测吻合度 91%：这些音 95% 都被敲中，敲击落点距音符中位仅 16ms，几乎就是手想要的那张谱。\n\n真机 A/B 游玩再次确认：它在延迟为 0 时就合拍，而经典相位要额外加延迟才合拍。它唯一做不到的是复现已接受的经典相位谱——对 544 音金标准它出 566 音、落在另一个相位（最优平移 F1 0.887，无法逐音对上）；要复现旧谱时切到经典版预设。预设只决定「怎么选音、怎么放」，下方的难度档（密度）单独选择。</string>
     <string name="rhythm_derive_info_profile_v2">拍点优先 + 鼓点频带门：音符吸附到拍格，只有格内最强音落在鼓点频带（0–3：底鼓/军鼓/嗵鼓/贝斯）的拍才留音，其余拍留空。不做静音段跳拍。\n\n参考曲上约为 v1 音符数的七成，且全是鼓点拍——一张「打拍子」而不是「弹旋律」的谱。比 v1 简单，v1 觉得太密时用它。</string>
     <string name="rhythm_derive_info_profile_v3">在 v2 之上增加静音留白：格子的鼓点评分低于邻域（±4 秒）p90 的 10% 时留空，长静音段保持休止。\n\n参考曲上与 v2 音符相同，但安静的尾巴被剪掉。v2 会在音乐留白处继续出音时改用它。</string>
     <string name="rhythm_derive_info_profile_v4">把 v3 的门换成低频占比：主音的频带能量中低频占比 ≥ 45% 的拍才留音。\n\n在纯乐曲上与 v1 等价（参考曲上仅差 5 音）——鼓点门在纯乐曲上不起筛选作用；在人声多的曲子上，它会把鼓点门留下的演唱拍筛掉。想要 v1 手感又想要音色筛选时用它。</string>
@@ -660,6 +660,9 @@
     <string name="rhythm_settings_title">谱面设置 · %1$s</string>
     <string name="rhythm_settings_delay">延迟补偿</string>
     <string name="rhythm_settings_delay_hint">听证听到的拍比看到晚，就往正调。</string>
+    <string name="rhythm_settings_lead_in">屏蔽开头</string>
+    <string name="rhythm_settings_lead_in_value">%1$d 秒</string>
+    <string name="rhythm_settings_lead_in_hint">屏蔽歌曲开头一段时间内的音符。0 = 全部显示；谱面不删音符，随时可改。</string>
     <string name="rhythm_settings_approach">下落时间</string>
     <string name="rhythm_settings_reset">归零</string>
     <string name="rhythm_settings_auto_saved">改动即时保存。</string>

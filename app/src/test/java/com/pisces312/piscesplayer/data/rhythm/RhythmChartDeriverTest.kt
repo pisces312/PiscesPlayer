@@ -32,6 +32,35 @@ class RhythmChartDeriverTest {
     )
 
     @Test
+    fun quietCellsStayEmptyInsteadOfFillingEverySlot() {
+        // Real-device feedback: the song's end must not be filled slot by slot once the music
+        // has gone quiet. Cells whose best onset sits far below the song's own level stay empty;
+        // notes without rms data never trigger the rule.
+        val notes = (0 until 20).map { index ->
+            RhythmNote(
+                id = index,
+                timeMs = offsetMs + index * 500,
+                lane = index % 4,
+                strength = 1f,
+                band = 0,
+                rms = if (index < 15) 0.5f else 0.1f,
+            )
+        }
+        val chart = RhythmChart(
+            source = RhythmChart.SOURCE_DSP,
+            difficultyName = "DSP Raw",
+            timing = listOf(RhythmTimingPoint(offsetMs, beatMs)),
+            notes = notes,
+            durationMs = 20_000,
+        )
+
+        val derived = RhythmChartDeriver.derive(chart, DspDifficulty.EASY)
+
+        assertEquals(15, derived.noteCount())
+        assertTrue(derived.notes.all { it.timeMs <= offsetMs + 14 * 500 })
+    }
+
+    @Test
     fun easyKeepsOneNotePerBeat() {
         // Four onsets well inside one beat cell (grid = 500 ms at 120 BPM).
         val times = listOf(offsetMs, offsetMs + 50, offsetMs + 100, offsetMs + 150)

@@ -55,6 +55,15 @@ internal object RhythmChartDeriver {
     internal const val CHORD_WINDOW_MS = 70.0
 
     /**
+     * Quiet-cell rule: a cell whose best onset's rms is below this fraction of the median cell
+     * rms stays empty instead of filling the slot — a fade-out tail or a drumless outro does not
+     * need a note on every beat (real-device feedback 2026-11-20). The 35% cut matches the
+     * hand-tap chart: its skipped quiet cells sat at rms 0.15 against 0.53 for the tapped ones.
+     * Notes without rms data (0 = unknown, legacy masters) never trigger the rule.
+     */
+    internal const val QUIET_CELL_RMS_FRACTION = 0.35
+
+    /**
      * @param maxChord notes allowed per cell, 1..[MAX_CHORD_NOTES]. 1 reproduces the single-note
      *   ladder exactly, which is what the golden fixture (and the Python reference) expects.
      * @param timing beat grid to snap to. The default is the master's own timing — the tracked
@@ -87,6 +96,14 @@ internal object RhythmChartDeriver {
             cells.getOrPut(cell) { ArrayList(2) } += note
         }
 
+        // The quiet-cell gate compares against the median cell's own level, so a song that has
+        // gone quiet keeps its slots empty while loud material is untouched.
+        val cellRms = cells.values
+            .map { list -> list.sortedWith(CANDIDATE_ORDER).first().rms }
+            .filter { it > 0f }
+            .sorted()
+        val quietRmsGate = cellRms.getOrNull(cellRms.size / 2)?.times(QUIET_CELL_RMS_FRACTION)
+
         val notes = ArrayList<RhythmNote>(master.notes.size)
         var lastLane = -1
         for (timeMs in cells.keys.sorted()) {
@@ -97,6 +114,7 @@ internal object RhythmChartDeriver {
             // Strongest first, ties to the earlier onset: that is the generator's tie-break.
             val candidates = cells.getValue(timeMs).sortedWith(CANDIDATE_ORDER)
             val primary = candidates.first()
+            if (quietRmsGate != null && primary.rms > 0f && primary.rms < quietRmsGate) continue
             val primaryLane = avoidRepeatedLane(laneOf(primary, laneStrategy), lastLane, primary.band)
             notes += RhythmNote(
                 id = notes.size,

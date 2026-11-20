@@ -11,16 +11,17 @@ import com.pisces312.piscesplayer.data.rhythm.RhythmSongClock
 /**
  * One gameplay run: one chart + injected clock + judgement engine.
  *
- * Notes charted before [leadInMs] are dropped from the run. Derived charts are already stored
- * trimmed, so this only bites for the master chart and for osu imports; the dropped notes are
- * also excluded from the score denominator.
+ * Notes charted before [leadInMs] are dropped from the run (the per-chart skip-prefix setting,
+ * default 0 = show everything); the dropped notes are also excluded from the score denominator.
+ * Purely a play-time filter: the chart keeps every note, so the value is free to change between
+ * runs.
  */
 class RhythmPlaySession(
     chart: RhythmChart,
     val clock: RhythmSongClock,
     val approachMs: Double = 1500.0,
     val config: RhythmJudgementConfig = RhythmJudgementConfig(),
-    leadInMs: Double = RhythmChart.LEAD_IN_MS,
+    leadInMs: Double = 0.0,
 ) {
     val chart: RhythmChart = chart.withoutLeadIn(leadInMs)
 

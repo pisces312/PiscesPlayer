@@ -376,6 +376,21 @@ internal object RhythmChartGenerator {
             cellOnsets.getOrPut(cell) { ArrayList(2) } += index
         }
 
+        // Same quiet-cell rule as RhythmChartDeriver.derive (the two paths must stay in lock
+        // step): a cell whose best onset sits far below the song's own level — a fade-out tail
+        // or a drumless outro — stays empty instead of filling the slot.
+        val cellRms = cellOnsets.values
+            .map { list ->
+                val primary = list.sortedWith(
+                    compareByDescending<Int> { analysis.onsetStrength[it] }.thenBy { it }
+                ).first()
+                analysis.onsetRms[primary]
+            }
+            .filter { it > 0f }
+            .sorted()
+        val quietRmsGate =
+            cellRms.getOrNull(cellRms.size / 2)?.toDouble()?.times(RhythmChartDeriver.QUIET_CELL_RMS_FRACTION)
+
         val notes = ArrayList<RhythmNote>(cellOnsets.size)
         var lastLane = -1
         for (timeMs in cellOnsets.keys.sorted()) {
@@ -386,6 +401,12 @@ internal object RhythmChartGenerator {
                 compareByDescending<Int> { analysis.onsetStrength[it] }.thenBy { it }
             )
             val primary = candidates.first()
+            if (quietRmsGate != null &&
+                analysis.onsetRms[primary] > 0f &&
+                analysis.onsetRms[primary] < quietRmsGate
+            ) {
+                continue
+            }
             val primaryBand = analysis.onsetBands[primary]
             var lane = avoidRepeatedLane(
                 laneStrategy.laneFor(primaryBand),

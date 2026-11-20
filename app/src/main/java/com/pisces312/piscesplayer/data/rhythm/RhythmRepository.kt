@@ -183,9 +183,8 @@ class RhythmRepository @Inject constructor(
         val charts = withContext(Dispatchers.Default) {
             jobs.map { (difficulty, mode) ->
                 deriveOne(source, difficulty, mode, laneStrategy, maxChord, gridTiming, timing, onsetSelection, options)
-                    // Derived charts are stored playable: the first lead-in stays only in the
-                    // master, so a difficulty starts exactly where the run has runway.
-                    .withoutLeadIn()
+                    // The chart keeps every note; hiding the song's opening is the per-chart
+                    // `RhythmChartSettings.leadInMs` play filter (default 0).
                     .copy(
                         difficultyName = displayNames[difficulty to mode]
                             ?: "${difficulty.label} ${mode.name.lowercase()}",
@@ -238,7 +237,6 @@ class RhythmRepository @Inject constructor(
         jobs.map { (difficulty, mode) ->
             (difficulty to mode) to
                 deriveOne(source, difficulty, mode, laneStrategy, maxChord, gridTiming, timing, onsetSelection, options)
-                    .withoutLeadIn()
                     .noteCount()
         }.toMap()
     }

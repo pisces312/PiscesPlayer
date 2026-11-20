@@ -82,7 +82,11 @@ class RhythmPlaySessionTest {
             ),
             durationMs = 5000,
         )
-        val session = RhythmPlaySession(early, RhythmManualSongClock(durationMs = 5000.0))
+        val session = RhythmPlaySession(
+            early,
+            RhythmManualSongClock(durationMs = 5000.0),
+            leadInMs = RhythmChart.LEAD_IN_MS,
+        )
 
         assertEquals(listOf(1), session.chart.notes.map { it.id })
         assertEquals(1, session.engine.totalNotes)
