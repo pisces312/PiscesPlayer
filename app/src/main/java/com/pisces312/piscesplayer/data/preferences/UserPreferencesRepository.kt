@@ -144,6 +144,7 @@ constructor(
 
         val GLOBAL_TRANSITION_SETTINGS = stringPreferencesKey("global_transition_settings_json")
         val LIBRARY_TABS_ORDER = stringPreferencesKey("library_tabs_order")
+        val CLASSICAL_TRANSLATION_ENABLED = booleanPreferencesKey("classical_translation_enabled")
         val IS_FOLDER_FILTER_ACTIVE = booleanPreferencesKey("is_folder_filter_active")
         val IS_FOLDERS_PLAYLIST_VIEW = booleanPreferencesKey("is_folders_playlist_view")
         val HIDE_LOCAL_MEDIA = booleanPreferencesKey("hide_local_media")
@@ -1654,6 +1655,18 @@ constructor(
         .map { preferences ->
             preferences[PreferencesKeys.LIBRARY_TABS_ORDER]
         }
+
+    /** 古典曲库浏览界面的「翻译」开关：译名为主（true）或原文为主（false），副标题始终双显另一层。 */
+    val classicalTranslationEnabledFlow: Flow<Boolean> = dataStore.data
+        .map { preferences ->
+            preferences[PreferencesKeys.CLASSICAL_TRANSLATION_ENABLED] ?: true
+        }
+
+    suspend fun setClassicalTranslationEnabled(enabled: Boolean) {
+        dataStore.edit { preferences ->
+            preferences[PreferencesKeys.CLASSICAL_TRANSLATION_ENABLED] = enabled
+        }
+    }
 
     suspend fun saveLibraryTabsOrder(order: String) {
         dataStore.edit { preferences -> preferences[PreferencesKeys.LIBRARY_TABS_ORDER] = order }

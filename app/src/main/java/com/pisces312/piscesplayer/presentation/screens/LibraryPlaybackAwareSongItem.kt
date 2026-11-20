@@ -31,6 +31,8 @@ internal fun LibraryPlaybackAwareSongItem(
     isSelected: Boolean = false,
     selectionIndex: Int? = null,
     isSelectionMode: Boolean = false,
+    titleOverride: String? = null,
+    subtitleOverride: String? = null,
     onLongPress: () -> Unit = {},
     onMoreOptionsClick: (Song) -> Unit,
     onClick: () -> Unit
@@ -57,6 +59,8 @@ internal fun LibraryPlaybackAwareSongItem(
         isSelected = isSelected,
         selectionIndex = selectionIndex,
         isSelectionMode = isSelectionMode,
+        titleOverride = titleOverride,
+        subtitleOverride = subtitleOverride,
         onLongPress = onLongPress,
         onMoreOptionsClick = onMoreOptionsClick,
         onClick = onClick

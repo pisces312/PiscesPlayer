@@ -44,7 +44,8 @@ class ClassicalLibraryInitializer @Inject constructor(
     @ApplicationContext private val context: Context,
     private val musicDao: MusicDao,
     private val engagementDao: EngagementDao,
-    private val playbackStatsRepository: PlaybackStatsRepository
+    private val playbackStatsRepository: PlaybackStatsRepository,
+    private val nameCatalog: ClassicalNameCatalog
 ) {
     private val mutex = Mutex()
 
@@ -71,6 +72,7 @@ class ClassicalLibraryInitializer @Inject constructor(
         if (installedVersion == ClassicalLibrary.RESOURCE_VERSION &&
             File(root, ClassicalLibrary.INDEX_ENTRY).exists()
         ) {
+            loadNames(root)
             return
         }
         Timber.d(
@@ -181,6 +183,16 @@ class ClassicalLibraryInitializer @Inject constructor(
         // ---- 5. done; only now is the version marker written ---------------
         prefs.edit().putInt(ClassicalLibrary.PREF_VERSION, ClassicalLibrary.RESOURCE_VERSION).apply()
         Timber.d("Classical library installed: %d tracks, %d composers", tracks.size, composers.size)
+        loadNames(root)
+    }
+
+    /** 装载运行时曲名目录（每次启动都要装，含快速路径）。 */
+    private fun loadNames(root: File) {
+        val namesFile = File(root, ClassicalLibrary.NAMES_ENTRY)
+        if (!namesFile.exists()) return
+        runCatching {
+            nameCatalog.load(ClassicalLibrary.parseNames(namesFile.readText()))
+        }.onFailure { Timber.e(it, "Failed to load %s", ClassicalLibrary.NAMES_ENTRY) }
     }
 
     /**

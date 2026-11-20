@@ -10,6 +10,7 @@
     <string name="library_tab_classical">Classical</string>
     <string name="classical_tab_summary_format">%1$d tracks · %2$d composers</string>
     <string name="classical_tab_play_all">Play all</string>
+    <string name="classical_tab_translate">Translate titles</string>
     <string name="classical_card_track_count_format">%1$d tracks</string>
     <string name="lib_empty_classical_title">Classical library unavailable</string>
     <string name="lib_empty_classical_subtitle">Built-in classical tracks will appear here after installation.</string>

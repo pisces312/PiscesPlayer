@@ -128,6 +128,8 @@ fun AlbumDetailScreen(
     val favoriteIds by playerViewModel.favoriteSongIds.collectAsStateWithLifecycle()
     val navBarCompactMode by playerViewModel.navBarCompactMode.collectAsStateWithLifecycle()
     val completedOfflineUris by viewModel.completedOfflineUris.collectAsStateWithLifecycle()
+    val classicalTranslationEnabled by viewModel.translationEnabled.collectAsStateWithLifecycle()
+    val isClassicalAlbum = (uiState.album?.id ?: 0L) >= com.pisces312.piscesplayer.data.classical.ClassicalLibrary.ALBUM_ID_BASE
 
     var showSongInfoBottomSheet by remember { mutableStateOf(false) }
     val selectedSongForInfo by playerViewModel.selectedSongForInfo.collectAsStateWithLifecycle()
@@ -348,10 +350,22 @@ fun AlbumDetailScreen(
                                 key = { song -> "album_song_${song.id}" },
                                 contentType = { "album_song" }
                             ) { song ->
+                                // 内置古典曲目：主副标题双显（原文/译名），由「翻译」开关决定主次
+                                val classicalDisplay = if (isClassicalAlbum) {
+                                    viewModel.nameCatalog.songName(song.id)?.let {
+                                        com.pisces312.piscesplayer.data.classical.ClassicalDisplay.resolve(
+                                            it, translate = classicalTranslationEnabled
+                                        )
+                                    }
+                                } else {
+                                    null
+                                }
                                 LibraryPlaybackAwareSongItem(
                                     song = song,
                                     playerViewModel = playerViewModel,
                                     showAlbumArt = false,
+                                    titleOverride = classicalDisplay?.primary,
+                                    subtitleOverride = classicalDisplay?.subtitle,
                                     onMoreOptionsClick = {
                                         playerViewModel.selectSongForInfo(song)
                                         showSongInfoBottomSheet = true

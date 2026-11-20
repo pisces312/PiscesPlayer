@@ -10,6 +10,7 @@
     <string name="library_tab_classical">古典熏陶</string>
     <string name="classical_tab_summary_format">%1$d 首曲目 · %2$d 位作曲家</string>
     <string name="classical_tab_play_all">全部播放</string>
+    <string name="classical_tab_translate">曲名翻译</string>
     <string name="classical_card_track_count_format">%1$d 首</string>
     <string name="lib_empty_classical_title">古典曲库暂不可用</string>
     <string name="lib_empty_classical_subtitle">内置曲目安装完成后将显示在这里。</string>

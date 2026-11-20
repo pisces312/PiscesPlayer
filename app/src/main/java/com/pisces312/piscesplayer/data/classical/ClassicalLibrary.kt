@@ -16,7 +16,7 @@ object ClassicalLibrary {
     const val URI_PREFIX = "piscesmidi://"
 
     /** Bump when the shipped resource pack changes; drives the first-launch installer. */
-    const val RESOURCE_VERSION = 1
+    const val RESOURCE_VERSION = 2
 
     const val PREFS_NAME = "classical_library"
     const val PREF_VERSION = "classical_library_version"
@@ -30,6 +30,7 @@ object ClassicalLibrary {
 
     const val ASSET_ZIP = "classical.zip"
     const val INDEX_ENTRY = "classical_index.json"
+    const val NAMES_ENTRY = "classical_names.json"
     const val EXTRACT_DIR_NAME = "classical"
 
     fun contentUri(songId: Long): String = "$URI_PREFIX$songId"
@@ -43,11 +44,14 @@ object ClassicalLibrary {
         return buildList {
             for (i in 0 until tracksJson.length()) {
                 val t = tracksJson.getJSONObject(i)
+                val title = t.getString("title")
                 add(
                     ClassicalTrack(
                         id = t.getLong("id"),
                         file = t.getString("file"),
-                        title = t.getString("title"),
+                        title = title,
+                        titleOriginal = t.optString("titleOriginal").ifBlank { title },
+                        titleEn = t.optString("titleEn"),
                         titleZh = t.optString("titleZh"),
                         composer = t.getString("composer"),
                         albumName = t.optString("albumName").ifBlank { "古典熏陶 · " + t.getString("composer") },
@@ -61,12 +65,60 @@ object ClassicalLibrary {
             }
         }
     }
+
+    /** 解析 `classical_names.json`（song/artist/album id → 原文/英文/中文 曲名目录）。 */
+    fun parseNames(json: String): ClassicalNames {
+        val root = org.json.JSONObject(json)
+
+        fun section(key: String): Map<Long, NameSet> {
+            val obj = root.optJSONObject(key) ?: return emptyMap()
+            return buildMap {
+                for (k in obj.keys()) {
+                    val n = obj.getJSONObject(k)
+                    put(
+                        k.toLongOrNull() ?: continue,
+                        NameSet(
+                            original = n.optString("original"),
+                            en = n.optString("en"),
+                            zh = n.optString("zh")
+                        )
+                    )
+                }
+            }
+        }
+
+        return ClassicalNames(
+            songs = section("songs"),
+            artists = section("artists"),
+            albums = section("albums")
+        )
+    }
+}
+
+/** 同一实体的三层曲名：原文（原语言）、英文、中文。 */
+data class NameSet(
+    val original: String,
+    val en: String,
+    val zh: String
+)
+
+/** 运行时曲名目录（来自 `classical_names.json`）。 */
+data class ClassicalNames(
+    val songs: Map<Long, NameSet>,
+    val artists: Map<Long, NameSet>,
+    val albums: Map<Long, NameSet>
+) {
+    companion object {
+        val EMPTY = ClassicalNames(emptyMap(), emptyMap(), emptyMap())
+    }
 }
 
 data class ClassicalTrack(
     val id: Long,
     val file: String,
     val title: String,
+    val titleOriginal: String,
+    val titleEn: String,
     val titleZh: String,
     val composer: String,
     val albumName: String,

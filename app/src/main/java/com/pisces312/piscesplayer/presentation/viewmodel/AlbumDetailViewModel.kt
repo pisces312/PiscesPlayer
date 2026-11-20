@@ -35,6 +35,8 @@ class AlbumDetailViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
     private val musicRepository: MusicRepository,
     private val cloudOfflineRepository: CloudOfflineRepository,
+    private val userPreferencesRepository: com.pisces312.piscesplayer.data.preferences.UserPreferencesRepository,
+    val nameCatalog: com.pisces312.piscesplayer.data.classical.ClassicalNameCatalog,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -43,6 +45,10 @@ class AlbumDetailViewModel @Inject constructor(
     val completedOfflineUris: StateFlow<Set<String>> = cloudOfflineRepository.observeCompleted()
         .map { downloads -> downloads.mapTo(mutableSetOf()) { it.sourceUri } }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptySet())
+
+    /** 内置古典曲目双语展示的「翻译」开关（与古典 Tab 共享同一偏好）。 */
+    val translationEnabled: StateFlow<Boolean> = userPreferencesRepository.classicalTranslationEnabledFlow
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
 
     private var loadedAlbumId: Long? = null
 

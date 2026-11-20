@@ -102,6 +102,10 @@ fun EnhancedSongListItem(
     selectionIndex: Int? = null,
     isSelectionMode: Boolean = false,
     showMoreOptionsButton: Boolean = true,
+    /** 双语曲名展示（内置古典曲目）：覆盖主标题 */
+    titleOverride: String? = null,
+    /** 双语曲名展示（内置古典曲目）：覆盖副标题行（默认是 displayArtist） */
+    subtitleOverride: String? = null,
     onLongPress: () -> Unit = {},
     onMoreOptionsClick: (Song) -> Unit,
     onClick: () -> Unit
@@ -341,16 +345,17 @@ fun EnhancedSongListItem(
                     modifier = Modifier
                         .weight(1f)
                 ) {
+                    val displayTitle = titleOverride ?: song.title
                     if (isHighlighted && !isSelectionMode) {
                         AutoScrollingText(
-                            text = song.title,
+                            text = displayTitle,
                             style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
                             gradientEdgeColor = containerColor,
                         )
 
                     } else {
                         Text(
-                            text = song.title,
+                            text = displayTitle,
                             style = MaterialTheme.typography.bodyLarge,
                             fontWeight = FontWeight.SemiBold,
                             maxLines = 1,
@@ -360,7 +365,7 @@ fun EnhancedSongListItem(
                     }
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = song.displayArtist,
+                        text = subtitleOverride ?: song.displayArtist,
                         style = MaterialTheme.typography.bodyMedium,
                         color = contentColor.copy(alpha = 0.7f),
                         maxLines = 1,

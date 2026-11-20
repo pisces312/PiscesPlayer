@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
@@ -31,6 +32,7 @@ import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
@@ -51,6 +53,9 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.pisces312.piscesplayer.R
+import com.pisces312.piscesplayer.data.classical.ClassicalDisplay
+import com.pisces312.piscesplayer.data.classical.ClassicalDisplayNames
+import com.pisces312.piscesplayer.data.classical.ClassicalNameCatalog
 import com.pisces312.piscesplayer.data.model.Album
 import com.pisces312.piscesplayer.data.model.LibraryTabId
 import com.pisces312.piscesplayer.data.model.StorageFilter
@@ -76,6 +81,7 @@ fun ClassicalTabContent(
     val albums by viewModel.albums.collectAsStateWithLifecycle()
     val songs by viewModel.songs.collectAsStateWithLifecycle()
     val trackCount by viewModel.trackCount.collectAsStateWithLifecycle()
+    val translationEnabled by viewModel.translationEnabled.collectAsStateWithLifecycle()
     val pullState = rememberPullToRefreshState()
     val queueName = stringResource(R.string.library_tab_classical)
 
@@ -117,6 +123,8 @@ fun ClassicalTabContent(
                 ClassicalTabHeader(
                     trackCount = trackCount,
                     composerCount = albums.size,
+                    translationEnabled = translationEnabled,
+                    onTranslationToggle = { viewModel.setTranslationEnabled(it) },
                     onPlayAll = {
                         songs.firstOrNull()?.let { first ->
                             playerViewModel.playSongs(songs, first, queueName = queueName)
@@ -127,6 +135,8 @@ fun ClassicalTabContent(
             items(albums, key = { it.id }) { album ->
                 ClassicalComposerCard(
                     album = album,
+                    nameCatalog = viewModel.nameCatalog,
+                    translationEnabled = translationEnabled,
                     onClick = {
                         navController.navigateSafely(Screen.AlbumDetail.createRoute(album.id))
                     }
@@ -140,33 +150,48 @@ fun ClassicalTabContent(
 private fun ClassicalTabHeader(
     trackCount: Int,
     composerCount: Int,
+    translationEnabled: Boolean,
+    onTranslationToggle: (Boolean) -> Unit,
     onPlayAll: () -> Unit
 ) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(
-            text = stringResource(R.string.classical_tab_summary_format, trackCount, composerCount),
-            style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.weight(1f)
-        )
-        FilledTonalButton(
-            onClick = onPlayAll,
-            colors = ButtonDefaults.filledTonalButtonColors(
-                containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+    Column(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = stringResource(R.string.classical_tab_summary_format, trackCount, composerCount),
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.weight(1f)
             )
+            FilledTonalButton(
+                onClick = onPlayAll,
+                colors = ButtonDefaults.filledTonalButtonColors(
+                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                )
+            ) {
+                Icon(
+                    Icons.Rounded.PlayArrow,
+                    contentDescription = stringResource(R.string.classical_tab_play_all)
+                )
+                Spacer(Modifier.width(6.dp))
+                Text(stringResource(R.string.classical_tab_play_all))
+            }
+        }
+        // 「翻译」开关：译名为主/原文为主，副标题始终双显另一层（见 ClassicalDisplay）
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth()
         ) {
-            Icon(
-                Icons.Rounded.PlayArrow,
-                contentDescription = stringResource(R.string.classical_tab_play_all)
+            Text(
+                text = stringResource(R.string.classical_tab_translate),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.weight(1f)
             )
-            Spacer(Modifier.width(6.dp))
-            Text(stringResource(R.string.classical_tab_play_all))
+            Switch(
+                checked = translationEnabled,
+                onCheckedChange = onTranslationToggle
+            )
         }
     }
 }
@@ -185,10 +210,16 @@ private val composerPalette = listOf(
 @Composable
 private fun ClassicalComposerCard(
     album: Album,
+    nameCatalog: ClassicalNameCatalog,
+    translationEnabled: Boolean,
     onClick: () -> Unit
 ) {
-    val composer = album.artist.ifBlank { album.title }
-    val palette = composerPalette[(composer.hashCode() and Int.MAX_VALUE) % composerPalette.size]
+    val fallback = album.artist.ifBlank { album.title }
+    val names = nameCatalog.albumName(album.id)?.let {
+        ClassicalDisplay.resolve(it, translate = translationEnabled)
+    } ?: ClassicalDisplayNames(primary = fallback, subtitle = null)
+    val composer = names.primary
+    val palette = composerPalette[(fallback.hashCode() and Int.MAX_VALUE) % composerPalette.size]
     Surface(
         shape = RoundedCornerShape(18.dp),
         color = MaterialTheme.colorScheme.surfaceContainerLow,
@@ -226,6 +257,15 @@ private fun ClassicalComposerCard(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
+                names.subtitle?.let { sub ->
+                    Text(
+                        text = sub,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
                 Spacer(Modifier.height(2.dp))
                 Text(
                     text = stringResource(R.string.classical_card_track_count_format, album.songCount),
