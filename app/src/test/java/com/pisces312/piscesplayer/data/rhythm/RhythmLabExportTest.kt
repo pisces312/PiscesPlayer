@@ -88,6 +88,22 @@ class RhythmLabExportTest {
                 RhythmChartDeriver.deriveOnsetNative(master, difficulty),
             )
         }
+
+        // Generated-chart baseline for RhythmChartLab/baselines/generated-v1-grid-tracked:
+        // the v1 preset (GRID + tracked + BAND_ORDER + maxChord 2) on the hard rung — the
+        // chart shape the phone derives today, quiet-cell gate and phase-pulled lattice
+        // included. The lab freezes this export as its golden.
+        writeJson(
+            outDir,
+            "v1_grid_tracked_hard.json",
+            RhythmChartDeriver.derive(
+                master = master,
+                difficulty = DspDifficultySpec.HARD,
+                laneStrategy = LaneStrategy.BAND_ORDER,
+                maxChord = 2,
+                timing = master.timing,
+            ),
+        )
     }
 
     private fun writeJson(dir: File, name: String, chart: RhythmChart) {
