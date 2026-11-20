@@ -105,6 +105,11 @@ enum class LibraryTabId(
             SortOption.GenreNameAZ,
             SortOption.GenreNameZA
         )
+    ),
+    Classical(
+        stableKey = "CLASSICAL",
+        labelRes = R.string.library_tab_classical,
+        sortOptions = emptyList()
     );
 
     companion object {

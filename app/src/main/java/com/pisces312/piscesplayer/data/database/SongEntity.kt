@@ -19,10 +19,14 @@ object SourceType {
     const val NAVIDROME = 5
     const val JELLYFIN = 6
 
+    /** Built-in classical MIDI library (assets/classical.zip, extracted to filesDir). */
+    const val CLASSICAL = 7
+
     /** Derive source type from a content URI string (fallback for migration / conversion). */
     fun fromContentUri(uri: String): Int = when {
         uri.startsWith("navidrome://") -> NAVIDROME
         uri.startsWith("jellyfin://") -> JELLYFIN
+        uri.startsWith("piscesmidi://") -> CLASSICAL
         else -> LOCAL
     }
 }

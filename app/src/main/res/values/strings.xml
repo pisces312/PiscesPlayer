@@ -177,6 +177,7 @@
     <string name="player_delete_file_not_found">Can\'t delete the file or file not found</string>
     <string name="player_deletion_cancelled">Deletion cancelled</string>
     <string name="song_deletion_protection_blocked">Deletion is blocked in protection mode.</string>
+    <string name="builtin_song_cannot_delete">Built-in tracks cannot be deleted.</string>
     <string name="player_permission_denied_edit_files">Permission denied – cannot edit files</string>
     <string name="player_permission_denied_save_lyrics">Permission denied – cannot save lyrics</string>
     <string name="player_permission_denied_edit_this_file">Permission denied – cannot edit this file</string>

@@ -310,6 +310,22 @@ interface MusicDao {
     @Query("SELECT id FROM songs WHERE source_type = 6")
     suspend fun getAllJellyfinSongIds(): List<Long>
 
+    @Query("SELECT id FROM songs WHERE source_type = 7")
+    suspend fun getClassicalSongIds(): List<Long>
+
+    @Query("SELECT * FROM songs WHERE source_type = 7 ORDER BY album_id, title")
+    fun getClassicalSongs(): Flow<List<SongEntity>>
+
+    @Query("SELECT COUNT(*) FROM songs WHERE source_type = 7")
+    fun getClassicalSongCount(): Flow<Int>
+
+    @Query("""
+        SELECT * FROM albums
+        WHERE id IN (SELECT DISTINCT album_id FROM songs WHERE source_type = 7)
+        ORDER BY artist_name
+    """)
+    fun getClassicalAlbums(): Flow<List<AlbumEntity>>
+
     @Transaction
     suspend fun deleteSongsAndRelatedData(songIds: List<Long>) {
         if (songIds.isEmpty()) return

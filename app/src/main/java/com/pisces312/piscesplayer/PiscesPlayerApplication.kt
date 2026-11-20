@@ -73,6 +73,9 @@ class PiscesPlayerApplication : Application(), ImageLoaderFactory, Configuration
     lateinit var syncManager: dagger.Lazy<com.pisces312.piscesplayer.data.worker.SyncManager>
 
     @Inject
+    lateinit var classicalLibraryInitializer: dagger.Lazy<com.pisces312.piscesplayer.data.classical.ClassicalLibraryInitializer>
+
+    @Inject
     lateinit var playlistRestoreResolver: dagger.Lazy<com.pisces312.piscesplayer.data.backup.restore.PlaylistRestoreResolver>
 
     @Inject
@@ -177,6 +180,8 @@ class PiscesPlayerApplication : Application(), ImageLoaderFactory, Configuration
 
         syncManager.get().start()
         playlistRestoreResolver.get().start()
+
+        classicalLibraryInitializer.get().start(startupScope)
 
         m3uSyncCoordinator.get().start()
 

@@ -61,6 +61,7 @@ class SongRemovalStateHolder @Inject constructor(
     }
 
     suspend fun removeSongFromLibrary(song: Song) {
+        if (song.isBuiltIn) return
         libraryStateHolder.removeSong(song.id)
         musicRepository.deleteById(song.id.toLong())
         playlistPreferencesRepository.removeSongFromAllPlaylists(song.id)

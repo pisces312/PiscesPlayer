@@ -98,7 +98,7 @@ class MetadataMatchStateHolder @Inject constructor(
         snapshot = null
 
         val isCloud = CloudOfflineRepository.isCloudSong(song)
-        val canWriteFile = !isCloud && song.path.isNotBlank() && File(song.path).exists()
+        val canWriteFile = !isCloud && !song.isBuiltIn && song.path.isNotBlank() && File(song.path).exists()
         val query = MetadataQueryBuilder.fromSong(
             title = song.title,
             artist = song.displayArtist,
@@ -146,7 +146,7 @@ class MetadataMatchStateHolder @Inject constructor(
     fun useFileTags() {
         val song = _state.value.song ?: return
         val isCloud = CloudOfflineRepository.isCloudSong(song)
-        val canWriteFile = !isCloud && song.path.isNotBlank() && File(song.path).exists()
+        val canWriteFile = !isCloud && !song.isBuiltIn && song.path.isNotBlank() && File(song.path).exists()
         _state.value = _state.value.copy(
             query = MetadataQuery(
                 title = song.title.takeUnless(MetadataQueryBuilder::isPlaceholder).orEmpty(),

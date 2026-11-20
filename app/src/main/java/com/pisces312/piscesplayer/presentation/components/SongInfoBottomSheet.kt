@@ -154,6 +154,7 @@ fun SongInfoBottomSheet(
         ratingSongId?.let { songInfoViewModel.observeRatingForSong(it) } ?: flowOf<Int?>(null)
     }.collectAsStateWithLifecycle(initialValue = null)
     val isCloudSong = remember(song.contentUriString) { CloudOfflineRepository.isCloudSong(song) }
+    val isBuiltIn = remember(song.contentUriString) { song.isBuiltIn }
     val ringtonePermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
     ) {
@@ -604,7 +605,7 @@ fun SongInfoBottomSheet(
                                             ) {
                                                 FilledTonalButton(
                                                     modifier = Modifier
-                                                        .weight(0.5f)
+                                                        .weight(if (isBuiltIn) 1f else 0.5f)
                                                         .heightIn(min = 66.dp),
                                                     colors = ButtonDefaults.filledTonalButtonColors(
                                                         containerColor = MaterialTheme.colorScheme.secondaryContainer,
@@ -621,6 +622,7 @@ fun SongInfoBottomSheet(
                                                     Text(stringResource(R.string.shortcut_playlist_short))
                                                 }
 
+                                                if (isCloudSong || !isBuiltIn) {
                                                 FilledTonalButton(
                                                     modifier = Modifier
                                                         .weight(0.5f)
@@ -683,6 +685,7 @@ fun SongInfoBottomSheet(
                                                         maxLines = 1,
                                                         overflow = TextOverflow.Ellipsis
                                                     )
+                                                }
                                                 }
                                             }
                                         }

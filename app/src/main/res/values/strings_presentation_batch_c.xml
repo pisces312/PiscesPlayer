@@ -7,6 +7,12 @@
     <string name="library_tab_folders">Folders</string>
     <string name="library_tab_liked">Liked</string>
     <string name="library_tab_genres">Genres</string>
+    <string name="library_tab_classical">Classical</string>
+    <string name="classical_tab_summary_format">%1$d tracks · %2$d composers</string>
+    <string name="classical_tab_play_all">Play all</string>
+    <string name="classical_card_track_count_format">%1$d tracks</string>
+    <string name="lib_empty_classical_title">Classical library unavailable</string>
+    <string name="lib_empty_classical_subtitle">Built-in classical tracks will appear here after installation.</string>
 
     <string name="library_error_loading_songs">Error loading songs</string>
     <string name="library_error_loading_albums">Error loading albums</string>

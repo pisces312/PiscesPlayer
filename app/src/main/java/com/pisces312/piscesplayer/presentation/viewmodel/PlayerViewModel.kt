@@ -1022,6 +1022,7 @@ class PlayerViewModel @Inject constructor(
                     LibraryTabId.FOLDERS -> SortOption.FOLDERS
                     LibraryTabId.LIKED -> SortOption.LIKED
                     LibraryTabId.GENRES -> SortOption.GENRES
+                    LibraryTabId.CLASSICAL -> emptyList()
                 }
             } finally {
                 Trace.endSection()
@@ -3685,7 +3686,7 @@ class PlayerViewModel @Inject constructor(
             }
 
             val currentSongId = playbackStateHolder.stablePlayerState.value.currentSong?.id
-            val deletableSongs = songs.filter { it.id != currentSongId }
+            val deletableSongs = songs.filter { it.id != currentSongId && !it.isBuiltIn }
 
             if (deletableSongs.isEmpty()) {
                 _toastEvents.emit(context.getString(R.string.player_cannot_delete_currently_playing))
@@ -3823,6 +3824,12 @@ class PlayerViewModel @Inject constructor(
 
             if (playbackStateHolder.stablePlayerState.value.currentSong?.id == song.id) {
                 _toastEvents.emit(context.getString(R.string.player_cannot_delete_currently_playing))
+                onResult(false)
+                return@launch
+            }
+
+            if (song.isBuiltIn) {
+                _toastEvents.emit(context.getString(R.string.builtin_song_cannot_delete))
                 onResult(false)
                 return@launch
             }

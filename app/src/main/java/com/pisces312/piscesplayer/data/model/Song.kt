@@ -44,6 +44,13 @@ data class Song(
     val jellyfinId: String? = null,
 ) : Parcelable {
     /**
+     * Built-in classical MIDI track (`piscesmidi://`): undeletable and without
+     * writable file tags — everything else behaves like a normal song.
+     */
+    val isBuiltIn: Boolean
+        get() = contentUriString.startsWith("piscesmidi://")
+
+    /**
      * Returns the display string for artists.
      * If multiple artists exist (populated during sync), joins them with ", ".
      * Falls back to the raw artist field (splitting is done at sync time, not display time).

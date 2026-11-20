@@ -77,7 +77,15 @@ class MetadataEditStateHolder @Inject constructor(
         coverArtUpdate: CoverArtUpdate?,
         customMetadataChanges: CustomMetadataChanges = CustomMetadataChanges()
     ): MetadataEditResult = withContext(Dispatchers.IO) {
-        
+        if (song.isBuiltIn) {
+            // MIDI files carry no writable ID3/Vorbis tags; writing would corrupt them.
+            return@withContext MetadataEditResult(
+                success = false,
+                error = MetadataEditError.INVALID_INPUT,
+                errorMessage = "Built-in tracks cannot write file tags."
+            )
+        }
+
         Timber.tag("MetadataEditStateHolder").d("Starting saveMetadata for: ${song.title}")
 
         val finalCoverArtUpdate = if (coverArtUpdate == null) {
@@ -218,11 +226,11 @@ class MetadataEditStateHolder @Inject constructor(
         }
 
         val isCloudSong = CloudOfflineRepository.isCloudSong(song)
-        if (target == MetadataApplyTarget.FILE_AND_DATABASE && isCloudSong) {
+        if (target == MetadataApplyTarget.FILE_AND_DATABASE && (isCloudSong || song.isBuiltIn)) {
             return@withContext MetadataEditResult(
                 success = false,
                 error = MetadataEditError.INVALID_INPUT,
-                errorMessage = "Cloud tracks can only update the library database."
+                errorMessage = "This track can only update the library database."
             )
         }
 
@@ -359,6 +367,7 @@ class MetadataEditStateHolder @Inject constructor(
     }
 
     suspend fun deleteSong(song: Song): Boolean = withContext(Dispatchers.IO) {
+        if (song.isBuiltIn) return@withContext false
         val fileInfo = FileDeletionUtils.getFileInfo(song.path)
         if (fileInfo.exists && fileInfo.canWrite) {
             val success = FileDeletionUtils.deleteFile(context, song.path)

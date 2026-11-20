@@ -661,4 +661,5 @@
 
     <!-- Song deletion protection -->
     <string name="song_deletion_protection_blocked">保护模式已开启，删除已被阻止。</string>
+    <string name="builtin_song_cannot_delete">内置曲目不可删除。</string>
 </resources>

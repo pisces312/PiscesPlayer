@@ -233,7 +233,7 @@ class DualPlayerEngine @Inject constructor(
         private const val MAX_AUXILIARY_TIMELINE_ITEMS = 200
         private const val OFFLINE_LOOKUP_TIMEOUT_MS = 200L
         private const val INLINE_RESOLVE_TIMEOUT_MS = 200L
-        private val LOCAL_MEDIA_SCHEMES = setOf("content", "file", "android.resource")
+        private val LOCAL_MEDIA_SCHEMES = setOf("content", "file", "android.resource", "piscesmidi")
         private val REMOTE_MEDIA_SCHEMES = setOf("http", "https", "navidrome", "jellyfin")
         private val CLOUD_PROXY_SCHEMES = setOf("navidrome", "jellyfin")
     }
@@ -1079,6 +1079,17 @@ class DualPlayerEngine @Inject constructor(
             override fun resolveDataSpec(dataSpec: DataSpec): DataSpec {
                 val uri = dataSpec.uri
                 val scheme = uri.scheme
+                if (scheme == "piscesmidi") {
+                    // Built-in classical library: piscesmidi://<songId> -> extracted file.
+                    val id = uri.authority ?: uri.lastPathSegment
+                    val file = id?.toLongOrNull()?.let {
+                        java.io.File(context.filesDir, "classical/${it}.mid")
+                    }
+                    if (file == null || !file.isFile) {
+                        throw IOException("Built-in MIDI not extracted yet: $uri")
+                    }
+                    return dataSpec.buildUpon().setUri(Uri.fromFile(file)).build()
+                }
                 if (scheme in CLOUD_PROXY_SCHEMES) {
                     val originalUri = uri.toString()
                     val offlineUri = try {

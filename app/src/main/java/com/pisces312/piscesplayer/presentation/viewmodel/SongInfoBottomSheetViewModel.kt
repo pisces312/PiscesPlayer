@@ -236,6 +236,7 @@ class SongInfoBottomSheetViewModel @Inject constructor(
     }
 
     fun isSongEditable(song: Song): Boolean {
+        if (song.isBuiltIn) return false
         if (getCloudProviderLabel(song.contentUriString) != null) return false
 
         if (song.path.isNotBlank()) {
