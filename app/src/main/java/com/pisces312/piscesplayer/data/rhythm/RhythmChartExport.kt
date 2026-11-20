@@ -56,6 +56,15 @@ object RhythmChartExport {
     private const val GENERATOR_VERSION = "chart-4"
     private const val RECORDER = "piscesplayer-tap"
 
+    /**
+     * `generationParams.recorder` provenance label: a hand-tap chart names the phone recorder,
+     * anything else names the pipeline whose output it is (`"piscesplayer-dsp"` for a DSP master
+     * or a chart derived from it). PC-side analysis treats this field as the producer's mark, so
+     * a chart that is not a hand-tap recording must never claim to be one.
+     */
+    private fun recorderOf(chart: RhythmChart): String =
+        if (chart.source == RhythmChart.SOURCE_TAP) RECORDER else "piscesplayer-${chart.source}"
+
     fun fileName(format: Format, songTitle: String, chartName: String): String {
         val base = listOf(songTitle, chartName)
             .filter { it.isNotBlank() }
@@ -134,6 +143,7 @@ object RhythmChartExport {
         val chartSha256 = sha256Hex(canonical(chartDict))
         val diffKey = sanitizeFilePart(chart.difficultyName).ifBlank { "manual" }
         val manifestDurationMs = if (info.durationMs > 0) info.durationMs else chart.durationMs.toLong()
+        val generationParams = mapOf("recorder" to recorderOf(chart))
         val stats = mapOf(
             "noteCount" to chart.notes.size,
             // The app chart model has no hold notes (a tap is always a tap).
@@ -151,7 +161,7 @@ object RhythmChartExport {
             "modelRevision" to "",
             "sourceCommit" to "",
             "seed" to null,
-            "generationParams" to mapOf("recorder" to RECORDER),
+            "generationParams" to generationParams,
             "timingHash" to timingHash,
             "postProcessorVersion" to GENERATOR_VERSION,
             "difficulties" to mapOf(diffKey to stats),
@@ -166,7 +176,7 @@ object RhythmChartExport {
             "modelRevision" to "",
             "sourceCommit" to "",
             "seed" to null,
-            "generationParams" to mapOf("recorder" to RECORDER),
+            "generationParams" to generationParams,
             "timingHash" to timingHash,
             "postProcessorVersion" to GENERATOR_VERSION,
             "difficulties" to mapOf(diffKey to stats),
@@ -205,7 +215,7 @@ object RhythmChartExport {
                 "seed" to null,
                 "modelRevision" to "",
                 "sourceCommit" to "",
-                "generationParams" to mapOf("recorder" to RECORDER),
+                "generationParams" to mapOf("recorder" to recorderOf(chart)),
                 "timingHash" to timingHash,
                 "postProcessorVersion" to GENERATOR_VERSION,
             ),

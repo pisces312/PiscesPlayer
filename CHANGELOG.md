@@ -10,6 +10,11 @@ PixelPlayerOSS; versions up to and including 0.4.3 were published under the upst
   the search bar can be tapped directly, and that double-tapping the Search icon in the bottom
   navigation (while the Search tab is selected) brings up the keyboard. It disappears for good
   once any search history exists.
+- Rhythm game: every derived chart can now be saved out like a hand-tapped one (osu!mania,
+  `.prc` bundle or unified chart JSON, through the same file picker). The "Tap take" format is
+  only offered for charts that actually keep a raw take, and an exported file now names its real
+  producer (`piscesplayer-dsp`, not the hand-tap recorder), so PC-side analysis cannot mistake a
+  derived chart for a hand-tap recording.
 
 ### Changed
 - Music quiz: answer options are no longer truncated to a single line, so long classical titles

@@ -514,6 +514,9 @@ fun RhythmSetupScreen(
                         onPlay = { playChart(meta) },
                         onSettings = { settingsTarget = meta },
                         onDelete = { pendingDelete = meta },
+                        // A derived chart only ever exists inside the app, so every one of them
+                        // is saved out like a hand-tapped chart.
+                        onExport = { exportTarget = meta },
                     )
                 }
             }
@@ -528,8 +531,9 @@ fun RhythmSetupScreen(
                         onPlay = { playChart(meta) },
                         onSettings = { settingsTarget = meta },
                         onDelete = { pendingDelete = meta },
-                        // Export is offered for hand-tapped charts; a generated or imported
-                        // chart already exists outside the app in its source form.
+                        // Export is offered for hand-tapped charts, like the derived ones above;
+                        // a generated or imported chart already exists outside the app in its
+                        // source form.
                         onExport = if (meta.source == RhythmChart.SOURCE_TAP) {
                             { exportTarget = meta }
                         } else {
@@ -646,6 +650,9 @@ fun RhythmSetupScreen(
     exportTarget?.let { meta ->
         ExportFormatDialog(
             chartName = meta.difficultyName,
+            // Only hand-tapped charts keep a raw take; derived charts must not be offered a
+            // format that would fail after the destination is picked.
+            canExportTake = meta.source == RhythmChart.SOURCE_TAP,
             onPick = { format ->
                 exportTarget = null
                 pendingExport = meta to format
@@ -1145,38 +1152,50 @@ private fun rememberExportLaunchers(
 }
 
 /**
- * Format picker for chart export: osu!mania beatmap, `.prc` bundle, unified chart JSON or the
- * raw tap take. The selection is confirmed before the document picker opens.
+ * Format picker for chart export: osu!mania beatmap, `.prc` bundle, unified chart JSON or, when
+ * the chart keeps one ([canExportTake]), the raw tap take. The selection is confirmed before the
+ * document picker opens.
  */
 @Composable
 private fun ExportFormatDialog(
     chartName: String,
+    canExportTake: Boolean,
     onPick: (RhythmChartExport.Format) -> Unit,
     onDismiss: () -> Unit,
 ) {
     var selected by remember { mutableStateOf(RhythmChartExport.Format.OSU) }
-    val options = listOf(
-        Triple(
-            RhythmChartExport.Format.OSU,
-            R.string.rhythm_export_format_osu,
-            R.string.rhythm_export_format_osu_desc,
-        ),
-        Triple(
-            RhythmChartExport.Format.PRC,
-            R.string.rhythm_export_format_prc,
-            R.string.rhythm_export_format_prc_desc,
-        ),
-        Triple(
-            RhythmChartExport.Format.CHART_JSON,
-            R.string.rhythm_export_format_json,
-            R.string.rhythm_export_format_json_desc,
-        ),
-        Triple(
-            RhythmChartExport.Format.TAP_JSON,
-            R.string.rhythm_export_format_take,
-            R.string.rhythm_export_format_take_desc,
-        ),
-    )
+    val options = buildList {
+        add(
+            Triple(
+                RhythmChartExport.Format.OSU,
+                R.string.rhythm_export_format_osu,
+                R.string.rhythm_export_format_osu_desc,
+            ),
+        )
+        add(
+            Triple(
+                RhythmChartExport.Format.PRC,
+                R.string.rhythm_export_format_prc,
+                R.string.rhythm_export_format_prc_desc,
+            ),
+        )
+        add(
+            Triple(
+                RhythmChartExport.Format.CHART_JSON,
+                R.string.rhythm_export_format_json,
+                R.string.rhythm_export_format_json_desc,
+            ),
+        )
+        if (canExportTake) {
+            add(
+                Triple(
+                    RhythmChartExport.Format.TAP_JSON,
+                    R.string.rhythm_export_format_take,
+                    R.string.rhythm_export_format_take_desc,
+                ),
+            )
+        }
+    }
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.rhythm_export_title)) },

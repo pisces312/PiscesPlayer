@@ -220,6 +220,28 @@ class RhythmChartExportTest {
         }
     }
 
+    // ---------------------------------------------------------------- provenance
+
+    @Test
+    fun nonTapChartsNeverClaimTheTapRecorder() {
+        // Derived charts export through the same writers; their provenance must name the DSP
+        // pipeline, never the hand-tap recorder (the tap goldens above pin that one).
+        val derived = fixtureChart().copy(source = RhythmChart.SOURCE_DSP)
+        val text = RhythmChartExport.build(RhythmChartExport.Format.CHART_JSON, derived, null, fixtureInfo())
+            .toString(Charsets.UTF_8)
+        assertTrue(text.contains("\"recorder\": \"piscesplayer-dsp\""))
+        assertTrue(!text.contains("piscesplayer-tap"))
+
+        val entries = unzip(RhythmChartExport.build(RhythmChartExport.Format.PRC, derived, null, fixtureInfo()))
+        assertEquals(
+            mapOf("recorder" to "piscesplayer-dsp"),
+            parseValues(entries.getValue("manifest.json")).getValue("generationParams"),
+        )
+        @Suppress("UNCHECKED_CAST")
+        val source = parseValues(entries.getValue("手打测试.json")).getValue("source") as Map<String, Any?>
+        assertEquals(mapOf("recorder" to "piscesplayer-dsp"), source.getValue("generationParams"))
+    }
+
     // ---------------------------------------------------------------- file names
 
     @Test
