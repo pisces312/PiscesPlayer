@@ -9,17 +9,23 @@ import org.json.JSONArray
  * (see the classical-midi-library-plan design doc). It contains the verified `.mid`
  * files plus `classical_index.json`, which is the canonical id map: song / album /
  * artist ids are baked in at build time and must stay stable across resource updates.
+ *
+ * **Pack identity is self-describing**: `classical_pack.json` (the first zip entry)
+ * carries a content hash (`packHash`) over the tracks + names payload. The installer
+ * compares it against the hash stored at install time, so updating the resource pack
+ * is rebuild + swap assets with **zero app-code changes** — there is no version
+ * constant to remember to bump. Identical content reproduces the same hash, so
+ * app releases that ship an unchanged pack never trigger a reinstall.
  */
 object ClassicalLibrary {
 
     const val SCHEME = "piscesmidi"
     const val URI_PREFIX = "piscesmidi://"
 
-    /** Bump when the shipped resource pack changes; drives the first-launch installer. */
-    const val RESOURCE_VERSION = 2
-
     const val PREFS_NAME = "classical_library"
-    const val PREF_VERSION = "classical_library_version"
+
+    /** Installed pack content hash (see [PACK_ENTRY]); null = nothing installed yet. */
+    const val PREF_PACK_HASH = "classical_library_pack_hash"
 
     /** One-shot flag: pre-exclusion listening-stats rows have been purged. */
     const val PREF_STATS_PURGE_DONE = "classical_stats_purge_v1"
@@ -29,14 +35,16 @@ object ClassicalLibrary {
     const val ARTIST_ID_BASE = 17_000_000_000_000L
 
     const val ASSET_ZIP = "classical.zip"
+    const val PACK_ENTRY = "classical_pack.json"
     const val INDEX_ENTRY = "classical_index.json"
     const val NAMES_ENTRY = "classical_names.json"
     const val EXTRACT_DIR_NAME = "classical"
 
     fun contentUri(songId: Long): String = "$URI_PREFIX$songId"
 
-    fun isBuiltInUri(contentUriString: String?): Boolean =
-        contentUriString?.startsWith(URI_PREFIX) == true
+    /** `packHash` from a `classical_pack.json` document. */
+    fun parsePackHash(json: String): String =
+        org.json.JSONObject(json).optString("packHash")
 
     fun parseIndex(json: String): List<ClassicalTrack> {
         val root = org.json.JSONObject(json)

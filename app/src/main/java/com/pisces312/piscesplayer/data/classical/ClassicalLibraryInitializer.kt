@@ -33,10 +33,15 @@ import javax.inject.Singleton
  *    crash mid-extract never leaves a half-written library in place);
  * 2. Injects the tracks into Room as `SourceType.CLASSICAL` rows with the stable ids
  *    baked into `classical_index.json`;
- * 3. On resource version bumps, removes rows (and files, via the fresh extract) that
- *    are no longer part of the shipped index.
+ * 3. On pack updates (content hash mismatch), removes rows (and files, via the fresh
+ *    extract) that are no longer part of the shipped index.
  *
- * Idempotent: `classical_library_version` is only written after extraction AND
+ * Pack identity is self-describing: the first zip entry `classical_pack.json` carries
+ * the `packHash` content hash, compared against the hash stored at install time.
+ * Updating the resource pack is rebuild + swap assets with zero app-code changes —
+ * there is no version constant to bump.
+ *
+ * Idempotent: `classical_library_pack_hash` is only written after extraction AND
  * injection succeed, so an interrupted run is redone from scratch on next launch.
  */
 @Singleton
@@ -67,18 +72,17 @@ class ClassicalLibraryInitializer @Inject constructor(
     private suspend fun doInitialize() {
         val prefs = context.getSharedPreferences(ClassicalLibrary.PREFS_NAME, Context.MODE_PRIVATE)
         purgeListeningDataOnce(prefs)
-        val installedVersion = prefs.getInt(ClassicalLibrary.PREF_VERSION, 0)
+        val installedHash = prefs.getString(ClassicalLibrary.PREF_PACK_HASH, null)
         val root = File(context.filesDir, ClassicalLibrary.EXTRACT_DIR_NAME)
-        if (installedVersion == ClassicalLibrary.RESOURCE_VERSION &&
+        if (installedHash != null && installedHash == peekAssetPackHash() &&
             File(root, ClassicalLibrary.INDEX_ENTRY).exists()
         ) {
             loadNames(root)
             return
         }
         Timber.d(
-            "Installing classical library v%d (installed=%d)",
-            ClassicalLibrary.RESOURCE_VERSION,
-            installedVersion
+            "Installing classical library pack (installed=%s)",
+            installedHash?.take(12) ?: "none"
         )
 
         // ---- 1. extract the resource pack ---------------------------------
@@ -86,6 +90,7 @@ class ClassicalLibraryInitializer @Inject constructor(
         tmp.deleteRecursively()
         check(tmp.mkdirs()) { "Could not create $tmp" }
         var indexJson: String? = null
+        var packJson: String? = null
         context.assets.open(ClassicalLibrary.ASSET_ZIP).use { raw ->
             ZipInputStream(BufferedInputStream(raw)).use { zin ->
                 var entry = zin.nextEntry
@@ -98,8 +103,9 @@ class ClassicalLibraryInitializer @Inject constructor(
                         }
                         val out = File(tmp, name)
                         out.outputStream().use { zin.copyTo(it) }
-                        if (name == ClassicalLibrary.INDEX_ENTRY) {
-                            indexJson = out.readText()
+                        when (name) {
+                            ClassicalLibrary.INDEX_ENTRY -> indexJson = out.readText()
+                            ClassicalLibrary.PACK_ENTRY -> packJson = out.readText()
                         }
                     }
                     zin.closeEntry()
@@ -108,6 +114,8 @@ class ClassicalLibraryInitializer @Inject constructor(
             }
         }
         val json = indexJson ?: error("classical_index.json missing from ${ClassicalLibrary.ASSET_ZIP}")
+        val packHash = packJson?.let { ClassicalLibrary.parsePackHash(it) }
+            ?: error("classical_pack.json missing from ${ClassicalLibrary.ASSET_ZIP}")
         val tracks = ClassicalLibrary.parseIndex(json)
         check(tracks.isNotEmpty()) { "classical_index.json contains no tracks" }
 
@@ -180,11 +188,37 @@ class ClassicalLibraryInitializer @Inject constructor(
         musicDao.refreshAlbumSongCounts()
         musicDao.refreshArtistTrackCounts()
 
-        // ---- 5. done; only now is the version marker written ---------------
-        prefs.edit().putInt(ClassicalLibrary.PREF_VERSION, ClassicalLibrary.RESOURCE_VERSION).apply()
-        Timber.d("Classical library installed: %d tracks, %d composers", tracks.size, composers.size)
+        // ---- 5. done; only now is the pack hash written --------------------
+        prefs.edit().putString(ClassicalLibrary.PREF_PACK_HASH, packHash).apply()
+        Timber.d(
+            "Classical library installed: %d tracks, %d composers (pack %s)",
+            tracks.size, composers.size, packHash.take(12)
+        )
         loadNames(root)
     }
+
+    /**
+     * Reads only the tiny `classical_pack.json` entry from the shipped zip to learn the
+     * pack's content hash — no full extraction needed for the fast-path comparison.
+     * Returns null when the entry is missing or unreadable (treated as "needs install").
+     */
+    private fun peekAssetPackHash(): String? = runCatching {
+        context.assets.open(ClassicalLibrary.ASSET_ZIP).use { raw ->
+            ZipInputStream(BufferedInputStream(raw)).use { zin ->
+                var entry = zin.nextEntry
+                while (entry != null) {
+                    if (entry.name == ClassicalLibrary.PACK_ENTRY) {
+                        return@runCatching ClassicalLibrary.parsePackHash(
+                            zin.readBytes().decodeToString()
+                        )
+                    }
+                    zin.closeEntry()
+                    entry = zin.nextEntry
+                }
+            }
+        }
+        null
+    }.getOrNull()
 
     /** 装载运行时曲名目录（每次启动都要装，含快速路径）。 */
     private fun loadNames(root: File) {

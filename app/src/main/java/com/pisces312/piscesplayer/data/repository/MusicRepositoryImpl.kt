@@ -23,6 +23,7 @@ import com.pisces312.piscesplayer.data.database.MusicDao
 import com.pisces312.piscesplayer.data.database.SearchHistoryDao
 import com.pisces312.piscesplayer.data.database.SearchHistoryEntity
 import com.pisces312.piscesplayer.data.database.SongEntity
+import com.pisces312.piscesplayer.data.database.SourceType
 import com.pisces312.piscesplayer.data.database.toAlbum
 import com.pisces312.piscesplayer.data.database.toArtist
 import com.pisces312.piscesplayer.data.database.toSearchHistoryItem
@@ -756,10 +757,10 @@ class MusicRepositoryImpl @Inject constructor(
             allowedParentDirs = allowedParentDirs,
             applyDirectoryFilter = applyDirectoryFilter
         ).first().toSongsWithFavoriteStateOnce()
-            // The built-in classical MIDI collection is self-contained (own library tab) and
-            // must never enter library-wide pools: AI playlist / serendipity sampling, NLP
-            // playlist generation, daily mix & your mix, smart playlists, duplicate scanning.
-            // Quiz / rhythm deliberately read getAudioFiles() and keep it.
+            // App-provided content packs (SourceType.APP_PROVIDED / Song.isBuiltIn) must
+            // never enter library-wide pools: AI playlist / serendipity sampling, NLP
+            // playlist generation, daily mix & your mix, smart playlists, duplicate
+            // scanning. Quiz / rhythm deliberately read getAudioFiles() and keep it.
             .filter { !it.isBuiltIn }
     }
 
@@ -799,7 +800,8 @@ class MusicRepositoryImpl @Inject constructor(
                     musicDao.getHomeMixPreviewSongs(
                         limit = limit,
                         allowedParentDirs = allowedParentDirs,
-                        applyDirectoryFilter = applyDirectoryFilter
+                        applyDirectoryFilter = applyDirectoryFilter,
+                        appProvidedTypes = SourceType.APP_PROVIDED
                     )
                 )
             }.flatMapLatest { it }

@@ -277,6 +277,9 @@ interface MusicDao {
     @Query("DELETE FROM lyrics WHERE song_id IN (:songIds)")
     suspend fun deleteLyricsBySongIds(songIds: List<Long>)
 
+    @Query("DELETE FROM playlist_songs WHERE song_id IN (:songIds)")
+    suspend fun deletePlaylistSongsBySongIds(songIds: List<Long>)
+
     @Query("DELETE FROM lyrics WHERE song_id IN (SELECT id FROM songs WHERE source_type = 0)")
     suspend fun deleteLocalLyrics()
 
@@ -333,6 +336,9 @@ interface MusicDao {
             deleteCrossRefsBySongIds(chunk)
             deleteFavoritesBySongIds(chunk)
             deleteLyricsBySongIds(chunk)
+            // playlist_songs has no FK to songs: without this a deleted song leaves a
+            // dangling entry behind (same treatment as favorites / lyrics above).
+            deletePlaylistSongsBySongIds(chunk)
             deleteSongsByIds(chunk)
         }
         deleteOrphanedAlbums()
@@ -374,6 +380,7 @@ interface MusicDao {
                 deleteCrossRefsBySongIds(chunk)
                 deleteFavoritesBySongIds(chunk)
                 deleteLyricsBySongIds(chunk)
+                deletePlaylistSongsBySongIds(chunk)
                 deleteSongsByIds(chunk)
             }
         }
@@ -645,22 +652,24 @@ interface MusicDao {
     ): Flow<List<SongEntity>>
 
     /**
-     * Home "Your Mix" fallback preview. `source_type != 7` keeps the built-in classical
-     * MIDI collection out of home recommendations (Song.isBuiltIn) — it must not compete
-     * for the LIMIT slots with its fresh date_added.
+     * Home "Your Mix" fallback preview. App-provided content packs
+     * ([SourceType.APP_PROVIDED] / Song.isBuiltIn) are excluded — they must not compete
+     * for the LIMIT slots with their fresh date_added. See the policy on
+     * [SourceType.APP_PROVIDED]: future packs join that list and follow automatically.
      */
     @Query("""
         SELECT """ + SONG_LIST_PROJECTION + """
         FROM songs
         WHERE (:applyDirectoryFilter = 0 OR id < 0 OR parent_directory_path IN (:allowedParentDirs))
-        AND source_type != 7
+        AND source_type NOT IN (:appProvidedTypes)
         ORDER BY date_added DESC, id DESC
         LIMIT :limit
     """)
     fun getHomeMixPreviewSongs(
         limit: Int,
         allowedParentDirs: List<String>,
-        applyDirectoryFilter: Boolean
+        applyDirectoryFilter: Boolean,
+        appProvidedTypes: List<Int>
     ): Flow<List<SongEntity>>
 
     @Query("""

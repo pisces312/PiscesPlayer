@@ -2,6 +2,7 @@ package com.pisces312.piscesplayer.data.model
 
 import android.os.Parcelable
 import androidx.compose.runtime.Immutable
+import com.pisces312.piscesplayer.data.database.SourceType
 import kotlinx.parcelize.Parcelize
 
 @Immutable
@@ -44,11 +45,13 @@ data class Song(
     val jellyfinId: String? = null,
 ) : Parcelable {
     /**
-     * Built-in classical MIDI track (`piscesmidi://`): undeletable and without
-     * writable file tags — everything else behaves like a normal song.
+     * App-provided content pack (built-in classical MIDI, `piscesmidi://`): undeletable,
+     * without writable file tags, and excluded from user-data pools (listening stats /
+     * recently played / AI sampling / recommendations) per [SourceType.APP_PROVIDED] —
+     * everything else behaves like a normal song.
      */
     val isBuiltIn: Boolean
-        get() = contentUriString.startsWith("piscesmidi://")
+        get() = SourceType.isAppProvidedContentUri(contentUriString)
 
     /**
      * Returns the display string for artists.

@@ -42,7 +42,7 @@ import com.pisces312.piscesplayer.PiscesPlayerApplication
 import com.pisces312.piscesplayer.MainActivity
 import com.pisces312.piscesplayer.R
 import com.pisces312.piscesplayer.data.ai.SimilarRadioSession
-import com.pisces312.piscesplayer.data.classical.ClassicalLibrary
+import com.pisces312.piscesplayer.data.database.SourceType
 import com.pisces312.piscesplayer.data.diagnostics.AdvancedPerformanceDiagnostics
 import com.pisces312.piscesplayer.data.model.PlayerInfo
 import com.pisces312.piscesplayer.data.model.PlaybackQueueItemSnapshot
@@ -365,11 +365,12 @@ class MusicService : MediaSessionService() {
             return
         }
 
-        // Built-in classical MIDI (Song.isBuiltIn) is a self-contained collection that must
-        // never reach listening stats, recently played, AI song sampling or scrobbles — same
-        // treatment as quick play. Historical rows recorded before this check existed are
-        // purged once by ClassicalLibraryInitializer.
-        if (ClassicalLibrary.isBuiltInUri(
+        // App-provided content packs (SourceType.APP_PROVIDED / Song.isBuiltIn) are
+        // self-contained shipped collections that must never reach listening stats,
+        // recently played, AI song sampling or scrobbles — same treatment as quick play.
+        // Historical rows recorded before this check existed are purged once by
+        // ClassicalLibraryInitializer.
+        if (SourceType.isAppProvidedContentUri(
                 mediaItem?.mediaMetadata?.extras
                     ?.getString(MediaItemBuilder.EXTERNAL_EXTRA_CONTENT_URI)
             )

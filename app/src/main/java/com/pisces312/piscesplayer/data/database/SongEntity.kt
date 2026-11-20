@@ -22,6 +22,33 @@ object SourceType {
     /** Built-in classical MIDI library (assets/classical.zip, extracted to filesDir). */
     const val CLASSICAL = 7
 
+    /**
+     * App-provided content packs (随 app 分发的内置内容).
+     *
+     * Single policy rule for everything in this list: app-provided content behaves like a
+     * normal song everywhere it is *read* (playback, search, library tabs, manual playlists,
+     * quiz / rhythm pickers), but is never written into user-data pools and never competes
+     * as a recommendation candidate — i.e. no listening stats, no recently played, no AI /
+     * NLP / smart playlist sampling, no daily mix / your mix, no scrobbles. The reason is
+     * twofold: the pack would drown the user's own library in the pools, and user data must
+     * never depend on shipped content that resource updates may replace or remove.
+     *
+     * Future built-in packs register their source type here and everything downstream
+     * ([isAppProvided], [Song.isBuiltIn], the home-mix SQL exclusion, the stats gate in
+     * MusicService) follows automatically — no per-feature special-casing.
+     */
+    val APP_PROVIDED: List<Int> = listOf(CLASSICAL)
+
+    /** Whether [sourceType] is an app-provided content pack. See [APP_PROVIDED]. */
+    fun isAppProvided(sourceType: Int): Boolean = sourceType in APP_PROVIDED
+
+    /**
+     * URI-level view of [isAppProvided] for code paths that only hold a content URI
+     * (e.g. MediaItem extras in MusicService).
+     */
+    fun isAppProvidedContentUri(contentUriString: String?): Boolean =
+        contentUriString != null && isAppProvided(fromContentUri(contentUriString))
+
     /** Derive source type from a content URI string (fallback for migration / conversion). */
     fun fromContentUri(uri: String): Int = when {
         uri.startsWith("navidrome://") -> NAVIDROME
