@@ -6,6 +6,11 @@ PixelPlayerOSS; versions up to and including 0.4.3 were published under the upst
 ## [Unreleased]
 
 ### Added
+- Music quiz: a new "Built-in Classical" mode (内置古典) that draws 10 rounds from the
+  built-in classical MIDI library (877 tracks) — no user library needed. Each run mixes
+  five "guess the piece" questions (bilingual titles) with five "guess the composer"
+  questions; the quiz's own player now renders MIDI clips. The existing "Classical" mode
+  is renamed to "Classical (My Library)" to keep the two pools unambiguous.
 - A hint shown on the search screen while there is no search history: it tells the user that
   the search bar can be tapped directly, and that double-tapping the Search icon in the bottom
   navigation (while the Search tab is selected) brings up the keyboard. It disappears for good
