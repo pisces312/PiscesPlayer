@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material.icons.rounded.StarBorder
@@ -45,6 +44,7 @@ import com.pisces312.piscesplayer.R
 import com.pisces312.piscesplayer.data.classical.ClassicalDisplay
 import com.pisces312.piscesplayer.data.classical.ClassicalDisplayNames
 import com.pisces312.piscesplayer.data.model.Song
+import com.pisces312.piscesplayer.presentation.components.CollapsibleCommonTopBar
 import com.pisces312.piscesplayer.presentation.components.MiniPlayerHeight
 import com.pisces312.piscesplayer.presentation.viewmodel.ClassicalLibraryViewModel
 import com.pisces312.piscesplayer.presentation.viewmodel.ClassicalWorkSection
@@ -53,6 +53,9 @@ import com.pisces312.piscesplayer.presentation.viewmodel.PlayerViewModel
 /**
  * 「古典熏陶 · 作品集」页：某作曲家的曲目按作品集（作品/乐章）分组，带搜索条
  * （命中作品名/opus 显示整组，否则组内只显示命中曲目）与曲目收藏星标。见 plan §B3。
+ *
+ * 页头为 CollapsibleCommonTopBar：展开时显示作曲家大字 + 曲目数，下滑收起为紧凑顶栏。
+ * 静态头（collapseFraction=0）先落地，滚动收起动画在 commit 4 树状结构中一并补。
  */
 @Composable
 fun ClassicalComposerDetailScreen(
@@ -86,29 +89,28 @@ fun ClassicalComposerDetailScreen(
         songs.filter { it.albumId == albumId }.sortedBy { it.id.toLongOrNull() ?: 0L }
     }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = {
-                    Text(composerName, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(
-                            Icons.AutoMirrored.Rounded.ArrowBack,
-                            contentDescription = stringResource(R.string.auth_cd_back)
-                        )
-                    }
-                },
+    val isFavoriteComposer = favoriteComposers.containsKey(albumId.toString())
+
+    Scaffold { innerPadding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+        ) {
+            CollapsibleCommonTopBar(
+                title = composerName,
+                subtitle = stringResource(R.string.classical_card_track_count_format, composerSongs.size),
+                collapseFraction = 0f,
+                headerHeight = 112.dp,
+                onBackClick = onBack,
                 actions = {
-                    val isFavorite = favoriteComposers.containsKey(albumId.toString())
                     IconButton(onClick = { viewModel.toggleFavoriteComposer(albumId) }) {
                         Icon(
-                            imageVector = if (isFavorite) Icons.Rounded.Star else Icons.Rounded.StarBorder,
+                            imageVector = if (isFavoriteComposer) Icons.Rounded.Star else Icons.Rounded.StarBorder,
                             contentDescription = stringResource(
-                                if (isFavorite) R.string.classical_unfavorite else R.string.classical_favorite
+                                if (isFavoriteComposer) R.string.classical_unfavorite else R.string.classical_favorite
                             ),
-                            tint = if (isFavorite) MaterialTheme.colorScheme.primary
+                            tint = if (isFavoriteComposer) MaterialTheme.colorScheme.primary
                             else MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
@@ -131,13 +133,7 @@ fun ClassicalComposerDetailScreen(
                     }
                 }
             )
-        }
-    ) { innerPadding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-        ) {
+
             ClassicalSearchField(
                 query = query,
                 onQueryChange = { query = it },
