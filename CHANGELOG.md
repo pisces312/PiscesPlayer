@@ -38,6 +38,13 @@ PixelPlayerOSS; versions up to and including 0.4.3 were published under the upst
   and title names and silently plays the user's file.
 
 ### Changed
+- Classical browsing UI now matches the library style: the composer/favorites tabs and the
+  MIDI library tabs swipe with a `PrimaryTabRow` + `HorizontalPager` pair (each page keeps its
+  own search state); track and composer rows sit on rounded card containers with the same
+  spacing and surface colour as the library list; the composer detail page uses a collapsing
+  `CollapsibleCommonTopBar` header with the composer name and track count; and the composer's
+  catalogue renders as a two-level tree — work-set header, then work nodes (movements grouped
+  under their piece, arrangements grouped by shared title), with per-node play-all buttons.
 - Music quiz: answer options are no longer truncated to a single line, so long classical titles
   (work, opus and movement) stay readable instead of collapsing into identical prefixes; the
   round body scrolls when its content outgrows the screen.
