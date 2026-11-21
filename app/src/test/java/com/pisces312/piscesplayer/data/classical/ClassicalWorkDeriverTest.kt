@@ -25,6 +25,8 @@ class ClassicalWorkDeriverTest {
         albumId = 16000000000001L,
         artistId = 17000000000001L,
         opus = opus,
+        style = "",
+        sha256 = "",
         durationMs = 1000L
     )
 
