@@ -769,7 +769,8 @@ class MainActivity : ComponentActivity() {
                 Screen.RhythmRecord.route,
                 Screen.Updates.route,
                 Screen.ClassicalBrowse.route,
-                Screen.ClassicalComposer.route
+                Screen.ClassicalComposer.route,
+                Screen.MidiLibrary.route
             )
         }
         val shouldHideNavigationBar by remember(currentRoute, isSearchBarActive) {

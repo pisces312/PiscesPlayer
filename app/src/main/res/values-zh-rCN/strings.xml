@@ -334,6 +334,16 @@
     <string name="nav_label_library">曲库</string>
     <string name="nav_label_games">游戏</string>
     <string name="nav_label_learn">音乐学习</string>
+    <string name="midi_library_title">MIDI 曲库</string>
+    <string name="music_learning_midi_subtitle">民歌、赞美诗、爵士，以及你自己的 MIDI 文件</string>
+    <string name="midi_builtin_empty">这里还没有内置 MIDI 曲目</string>
+    <string name="midi_style_hymn">赞美诗</string>
+    <string name="midi_style_song">艺术歌曲与民歌</string>
+    <string name="midi_style_jazz">爵士</string>
+    <string name="midi_style_technique">练习曲</string>
+    <string name="midi_style_march">进行曲</string>
+    <string name="midi_style_dance">舞曲</string>
+    <string name="midi_style_other">其他</string>
     <string name="music_quiz_rule_summary">10 题一局 · 每题 10 秒 · 5 个选项</string>
     <string name="music_quiz_best_score">最高分：%1$d</string>
     <string name="music_quiz_best_streak">最佳连对：%1$d</string>

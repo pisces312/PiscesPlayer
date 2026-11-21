@@ -78,6 +78,7 @@ import com.pisces312.piscesplayer.presentation.musicquiz.MusicQuizScreen
 import com.pisces312.piscesplayer.presentation.screens.SleepSoundscapeScreen
 import com.pisces312.piscesplayer.presentation.rhythm.MusicGameHubScreen
 import com.pisces312.piscesplayer.presentation.musiclearning.MusicLearningScreen
+import com.pisces312.piscesplayer.presentation.midilibrary.MidiLibraryScreen
 import com.pisces312.piscesplayer.presentation.screens.ClassicalBrowseScreen
 import com.pisces312.piscesplayer.presentation.screens.ClassicalComposerDetailScreen
 import com.pisces312.piscesplayer.presentation.rhythm.RhythmGameScreen
@@ -832,6 +833,9 @@ fun AppNavigation(
                         onOpenClassical = {
                             navController.navigateSafely(Screen.ClassicalBrowse.route)
                         },
+                        onOpenMidiLibrary = {
+                            navController.navigateSafely(Screen.MidiLibrary.route)
+                        },
                         onComingSoon = { message ->
                             playerViewModel.sendToast(message)
                         },
@@ -849,6 +853,21 @@ fun AppNavigation(
                     ClassicalBrowseScreen(
                         playerViewModel = playerViewModel,
                         navController = navController,
+                        paddingValues = paddingValues,
+                        onBack = { navController.popBackStack() }
+                    )
+                }
+            }
+            composable(
+                Screen.MidiLibrary.route,
+                enterTransition = { enterTransition() },
+                exitTransition = { exitTransition() },
+                popEnterTransition = { popEnterTransition() },
+                popExitTransition = { popExitTransition() },
+            ) {
+                ScreenWrapper(navController = navController, playerViewModel = playerViewModel) {
+                    MidiLibraryScreen(
+                        playerViewModel = playerViewModel,
                         paddingValues = paddingValues,
                         onBack = { navController.popBackStack() }
                     )

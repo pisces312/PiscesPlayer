@@ -14,6 +14,7 @@ import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.rounded.Hearing
 import androidx.compose.material.icons.rounded.LibraryMusic
 import androidx.compose.material.icons.rounded.MusicNote
+import androidx.compose.material.icons.rounded.Timer
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -44,6 +45,7 @@ import com.pisces312.piscesplayer.presentation.components.MiniPlayerHeight
 fun MusicLearningScreen(
     paddingValues: PaddingValues,
     onOpenClassical: () -> Unit,
+    onOpenMidiLibrary: () -> Unit,
     onComingSoon: (String) -> Unit
 ) {
     val comingSoon = stringResource(R.string.music_learning_coming_soon)
@@ -74,6 +76,14 @@ fun MusicLearningScreen(
             }
             item {
                 MusicLearningCard(
+                    title = stringResource(R.string.midi_library_title),
+                    subtitle = stringResource(R.string.music_learning_midi_subtitle),
+                    icon = Icons.Rounded.MusicNote,
+                    onClick = onOpenMidiLibrary,
+                )
+            }
+            item {
+                MusicLearningCard(
                     title = stringResource(R.string.music_learning_ear_training_title),
                     subtitle = stringResource(R.string.music_learning_ear_training_subtitle),
                     icon = Icons.Rounded.Hearing,
@@ -85,7 +95,7 @@ fun MusicLearningScreen(
                 MusicLearningCard(
                     title = stringResource(R.string.music_learning_metronome_title),
                     subtitle = stringResource(R.string.music_learning_metronome_subtitle),
-                    icon = Icons.Rounded.MusicNote,
+                    icon = Icons.Rounded.Timer,
                     onClick = { onComingSoon(comingSoon) },
                     placeholder = true,
                 )

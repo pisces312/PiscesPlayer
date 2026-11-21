@@ -107,6 +107,9 @@ sealed class Screen(val route: String) {
         fun createRoute(albumId: Long) = "classical_composer/$albumId"
     }
 
+    /** 「MIDI 曲库」：内置非古典 MIDI + 用户自己的 MIDI 文件。 */
+    object MidiLibrary : Screen("midi_library")
+
     object SleepSoundscape : Screen("sleep_soundscape")
 
     object MusicQuiz : Screen("music_quiz")

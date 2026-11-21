@@ -334,6 +334,16 @@
     <string name="nav_label_library">Library</string>
     <string name="nav_label_games">Games</string>
     <string name="nav_label_learn">Learn</string>
+    <string name="midi_library_title">MIDI library</string>
+    <string name="music_learning_midi_subtitle">Hymns, songs, jazz — and your own MIDI files</string>
+    <string name="midi_builtin_empty">No built-in MIDI tracks here</string>
+    <string name="midi_style_hymn">Hymns</string>
+    <string name="midi_style_song">Art songs &amp; folk</string>
+    <string name="midi_style_jazz">Jazz</string>
+    <string name="midi_style_technique">Exercises</string>
+    <string name="midi_style_march">Marches</string>
+    <string name="midi_style_dance">Dances</string>
+    <string name="midi_style_other">Other</string>
     <string name="music_quiz_rule_summary">10 rounds · 10-second clips · 5 choices</string>
     <string name="music_quiz_best_score">Best score: %1$d</string>
     <string name="music_quiz_best_streak">Best streak: %1$d</string>
