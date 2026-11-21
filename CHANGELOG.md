@@ -26,6 +26,16 @@ PixelPlayerOSS; versions up to and including 0.4.3 were published under the upst
   "Favorite tracks" tab lists favorited tracks (newest first) with its own search. Classical
   favorites are stored apart from the global Liked list, so built-in content never leaks into
   user-data pools or the library "Liked" tab.
+- MIDI library (Music learning → MIDI library): the built-in pack's non-classical tracks —
+  hymns, art songs & folk, jazz, exercises, marches and dances (155 tracks) — live in their
+  own genre-sectioned view, and your own MIDI files join by scanning folders (SAF; files are
+  referenced, never copied) or adding single documents. User MIDI files play, join playlists
+  and count in stats like local songs; their favorite stars use the Liked list.
+- User MIDI files deduplicate against the built-ins with two-level hashing: identical file
+  SHA-256 first, then an identical music fingerprint (a metadata-stripped canonical SMF hash,
+  so re-saved copies of the same music match) — a user copy shadows its built-in twin: the
+  built-in leaves the MIDI library list while everything else keeps its curated composer, work
+  and title names and silently plays the user's file.
 
 ### Changed
 - Music quiz: answer options are no longer truncated to a single line, so long classical titles
@@ -49,6 +59,8 @@ PixelPlayerOSS; versions up to and including 0.4.3 were published under the upst
 - The classical library moved out of the library tab strip into the new Music learning tab,
   so the library tabs are back to the user's own media only. Bottom-navigation labels are now
   localized (Home / Search / Library / Games / Learn); previously they were fixed English.
+- Classical browsing shows only period classical now (877 of the 1032 built-in tracks);
+  hymns, songs, jazz and other genres moved to the MIDI library.
 
 ### Fixed
 - The first-run setup welcome page no longer shows the "β Beta" badge; it was rendered
