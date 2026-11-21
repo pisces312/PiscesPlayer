@@ -30,6 +30,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.MusicNote
 import androidx.compose.material.icons.rounded.Refresh
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DrawerValue
@@ -91,7 +92,6 @@ import com.pisces312.piscesplayer.presentation.components.AiMixSheet
 import com.pisces312.piscesplayer.presentation.components.AlbumArtCollage
 import com.pisces312.piscesplayer.presentation.jellyfin.dashboard.JellyfinDashboardViewModel
 import com.pisces312.piscesplayer.presentation.navidrome.dashboard.NavidromeDashboardViewModel
-import com.pisces312.piscesplayer.presentation.components.DailyMixSection
 import com.pisces312.piscesplayer.presentation.components.SampleConfig
 import com.pisces312.piscesplayer.presentation.components.HomeGradientTopBar
 import com.pisces312.piscesplayer.presentation.components.HomeSectionCard
@@ -153,7 +153,6 @@ fun HomeScreen(
     }
     val settingsUiState by settingsViewModel.uiState.collectAsStateWithLifecycle()
     val dailyMixSongs by playerViewModel.dailyMixSongs.collectAsStateWithLifecycle()
-    val curatedYourMixSongs by playerViewModel.yourMixSongs.collectAsStateWithLifecycle()
     val homeMixPreviewSongs by playerViewModel.homeMixPreviewSongs.collectAsStateWithLifecycle()
     val lifecycleOwner = LocalLifecycleOwner.current
     val isAiConfigured by playlistViewModel.isAiConfigured.collectAsStateWithLifecycle()
@@ -202,25 +201,25 @@ fun HomeScreen(
         }
     }
 
-    // "Discover" (home_your_mix_title) is the discovery feed; "Daily Mix" is the
-    // familiar-songs card. The preview fallback must NOT borrow from the daily mix —
-    // that made the two home sections render the exact same songs.
-    val usesFallbackHomeMix = remember(curatedYourMixSongs) {
-        curatedYourMixSongs.isEmpty()
+    // The merged daily mix ("每日推荐") is the home page's only local-recommendation
+    // card: one list blending the familiar and discovery buckets. The preview fallback
+    // fills the card only while the curated mix is still empty.
+    val usesFallbackHomeMix = remember(dailyMixSongs) {
+        dailyMixSongs.isEmpty()
     }
-    val yourMixSongs = remember(curatedYourMixSongs, homeMixPreviewSongs) {
-        if (curatedYourMixSongs.isNotEmpty()) curatedYourMixSongs else homeMixPreviewSongs
+    val mixSongs = remember(dailyMixSongs, homeMixPreviewSongs) {
+        if (dailyMixSongs.isNotEmpty()) dailyMixSongs else homeMixPreviewSongs
     }
-    // Queue name follows the section title, so "now playing" surfaces read the
+    // Queue name follows the card title, so "now playing" surfaces read the
     // localized name instead of the old hardcoded "Your Mix".
-    val yourMixQueueName = stringResource(R.string.home_your_mix_title)
+    val dailyMixQueueName = stringResource(R.string.presentation_batch_b_daily_mix_title)
     var homePlaceholderRefreshGeneration by rememberSaveable { mutableIntStateOf(0) }
     var hasHomeLoadingMinimumElapsed by rememberSaveable(homePlaceholderRefreshGeneration) {
         mutableStateOf(false)
     }
 
-    LaunchedEffect(homePlaceholderRefreshGeneration, yourMixSongs.isEmpty()) {
-        if (yourMixSongs.isEmpty()) {
+    LaunchedEffect(homePlaceholderRefreshGeneration, mixSongs.isEmpty()) {
+        if (mixSongs.isEmpty()) {
             hasHomeLoadingMinimumElapsed = false
             delay(HomeLoadingPlaceholderMinDurationMillis)
             hasHomeLoadingMinimumElapsed = true
@@ -229,10 +228,10 @@ fun HomeScreen(
         }
     }
 
-    val shouldShowYourMixLoadingPlaceholder = yourMixSongs.isEmpty() && !hasHomeLoadingMinimumElapsed
+    val shouldShowDailyMixLoadingPlaceholder = mixSongs.isEmpty() && !hasHomeLoadingMinimumElapsed
 
     ReportDrawnWhen {
-        yourMixSongs.isNotEmpty() || hasHomeLoadingMinimumElapsed || isBenchmarkMode
+        mixSongs.isNotEmpty() || hasHomeLoadingMinimumElapsed || isBenchmarkMode
     }
 
     val currentSong by remember(playerViewModel.stablePlayerState) {
@@ -288,8 +287,7 @@ fun HomeScreen(
 
     LaunchedEffect(
         needsScrollRestore,
-        yourMixSongs.isNotEmpty(),
-        dailyMixSongs.isNotEmpty(),
+        mixSongs.isNotEmpty(),
         recentAiMixes.isNotEmpty()
     ) {
         if (!needsScrollRestore) return@LaunchedEffect
@@ -338,8 +336,8 @@ fun HomeScreen(
                 // appears only after the library size is known would shift everything by one and
                 // push this card above the viewport.
                 // The AI CTA and its recent results form one card. Keeping the history inside
-                // the entry removes a redundant heading and leaves home with three clear parts:
-                // AI Playlist, Discover and Daily Mix.
+                // the entry removes a redundant heading and leaves home with two clear parts:
+                // AI Playlist and the daily mix ("每日推荐").
                 item(
                     key = "ai_playlist_entry",
                     contentType = "ai_playlist_entry"
@@ -377,15 +375,15 @@ fun HomeScreen(
                         }
                     )
                 }
-                if (yourMixSongs.isEmpty()) {
+                if (mixSongs.isEmpty()) {
                     item(
-                        key = "your_mix_placeholder",
-                        contentType = "your_mix_placeholder"
+                        key = "daily_mix_placeholder",
+                        contentType = "daily_mix_placeholder"
                     ) {
-                        if (shouldShowYourMixLoadingPlaceholder) {
-                            YourMixLoadingPlaceholder()
+                        if (shouldShowDailyMixLoadingPlaceholder) {
+                            DailyMixLoadingPlaceholder()
                         } else {
-                            YourMixEmptyPlaceholder(
+                            DailyMixEmptyPlaceholder(
                                 onRefresh = {
                                     homePlaceholderRefreshGeneration++
                                     settingsViewModel.refreshLibrary()
@@ -396,8 +394,8 @@ fun HomeScreen(
                     }
                 } else {
                     item(
-                        key = "your_mix_card",
-                        contentType = "your_mix_card"
+                        key = "daily_mix_card",
+                        contentType = "daily_mix_card"
                     ) {
                         val basePattern = settingsUiState.collagePattern
                         val isAutoRotate = settingsUiState.collageAutoRotate
@@ -414,15 +412,15 @@ fun HomeScreen(
                         }
 
                         HomeSectionCard {
-                            YourMixHeader(
+                            DailyMixHeroHeader(
                                 isShuffleEnabled = isShuffleEnabled,
                                 onPlayShuffled = {
                                     if (usesFallbackHomeMix) {
-                                        playerViewModel.shuffleAllSongs(queueName = yourMixQueueName)
+                                        playerViewModel.shuffleAllSongs(queueName = dailyMixQueueName)
                                     } else {
                                         playerViewModel.playSongsShuffled(
-                                            songsToPlay = yourMixSongs,
-                                            queueName = yourMixQueueName,
+                                            songsToPlay = mixSongs,
+                                            queueName = dailyMixQueueName,
                                             startAtZero = true,
                                         )
                                     }
@@ -431,59 +429,32 @@ fun HomeScreen(
                             Spacer(Modifier.height(12.dp))
                             AlbumArtCollage(
                                 modifier = Modifier.fillMaxWidth(),
-                                songs = yourMixSongs,
+                                songs = mixSongs,
                                 padding = 0.dp,
-                                height = 400.dp,
+                                height = 300.dp,
                                 pattern = activePattern,
                                 onSongClick = { song ->
                                     if (usesFallbackHomeMix) {
-                                        playerViewModel.showAndPlaySongFromLibrary(song, queueName = yourMixQueueName)
+                                        playerViewModel.showAndPlaySongFromLibrary(song, queueName = dailyMixQueueName)
                                     } else {
-                                        playerViewModel.showAndPlaySong(song, yourMixSongs, yourMixQueueName)
+                                        playerViewModel.showAndPlaySong(song, mixSongs, dailyMixQueueName)
                                     }
                                 }
                             )
+                            ViewAllDailyMixButton(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(
+                                        start = 10.dp,
+                                        end = 10.dp,
+                                        top = 6.dp,
+                                        bottom = 6.dp
+                                    ),
+                                onClickOpen = {
+                                    navController.navigateSafely(Screen.DailyMixScreen.route)
+                                },
+                            )
                         }
-                    }
-                }
-
-                if (dailyMixSongs.isNotEmpty()) {
-                    item(
-                        key = "daily_mix_section",
-                        contentType = "daily_mix_section"
-                    ) {
-                        DailyMixSection(
-                            songs = dailyMixSongs,
-                            onClickOpen = {
-                                navController.navigateSafely(Screen.DailyMixScreen.route)
-                            },
-                            onNavigateToAlbum = { song ->
-                                navController.navigateSafelyReplacing(
-                                    route = Screen.AlbumDetail.createRoute(song.albumId),
-                                    patternToPop = Screen.AlbumDetail.route
-                                )
-                            },
-                            onNavigateToArtist = { song ->
-                                navController.navigateSafelyReplacing(
-                                    route = Screen.ArtistDetail.createRoute(song.artistId),
-                                    patternToPop = Screen.ArtistDetail.route
-                                )
-                            },
-                            onNavigateToGenre = { song ->
-                                song.genre?.let {
-                                    navController.navigateSafely(Screen.GenreDetail.createRoute(java.net.URLEncoder.encode(it, "UTF-8")))
-                                }
-                            },
-                            onNavigateToYear = { song ->
-                                song.year.takeIf { it > 0 }?.let {
-                                    navController.navigateSafely(Screen.YearDetail.createRoute(it))
-                                }
-                            },
-                            onNavigateToRhythmGame = { song ->
-                                navController.navigateSafely(Screen.RhythmSetup.createRoute(song.id))
-                            },
-                            playerViewModel = playerViewModel
-                        )
                     }
                 }
 
@@ -719,7 +690,7 @@ fun HomeScreen(
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun YourMixLoadingPlaceholder() {
+private fun DailyMixLoadingPlaceholder() {
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -735,7 +706,7 @@ private fun YourMixLoadingPlaceholder() {
 }
 
 @Composable
-private fun YourMixEmptyPlaceholder(
+private fun DailyMixEmptyPlaceholder(
     onRefresh: () -> Unit
 ) {
     val colors = MaterialTheme.colorScheme
@@ -812,14 +783,14 @@ private fun YourMixEmptyPlaceholder(
 }
 
 @Composable
-fun YourMixHeader(
+fun DailyMixHeroHeader(
     isShuffleEnabled: Boolean = false,
     onPlayShuffled: () -> Unit
 ) {
     val colors = MaterialTheme.colorScheme
 
     HomeSectionHeader(
-        title = stringResource(R.string.home_your_mix_title),
+        title = stringResource(R.string.presentation_batch_b_daily_mix_title),
         subtitle = stringResource(R.string.home_your_mix_subtitle),
         // The card around this header already pads 16dp.
         contentPadding = PaddingValues(0.dp),
@@ -840,6 +811,51 @@ fun YourMixHeader(
             }
         }
     )
+}
+
+
+@Composable
+private fun ViewAllDailyMixButton(
+    modifier: Modifier = Modifier,
+    onClickOpen: () -> Unit
+) {
+    FilledTonalButton(
+        modifier = modifier,
+        onClick = {
+            onClickOpen()
+        },
+        colors = ButtonDefaults.filledTonalButtonColors(
+            containerColor = Color.Transparent
+        ),
+        shape = AbsoluteSmoothCornerShape(
+            cornerRadiusTL = 10.dp,
+            cornerRadiusTR = 10.dp,
+            smoothnessAsPercentTL = 70,
+            smoothnessAsPercentTR = 70,
+            cornerRadiusBL = 60.dp,
+            cornerRadiusBR = 60.dp,
+            smoothnessAsPercentBL = 70,
+            smoothnessAsPercentBR = 70
+
+        )
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = stringResource(R.string.presentation_batch_g_daily_mix_see_all),
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.Medium
+            )
+            Icon(
+                painter = painterResource(R.drawable.rounded_arrow_forward_24),
+                contentDescription = null,
+                modifier = Modifier.size(20.dp)
+            )
+        }
+    }
 }
 
 

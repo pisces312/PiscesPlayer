@@ -197,8 +197,6 @@
     <string name="presentation_batch_g_changelog_sec_whats_new">Что нового</string>
     <string name="presentation_batch_g_changelog_title">Список изменений</string>
     <string name="presentation_batch_g_changelog_view_github">На GitHub</string>
-    <string name="presentation_batch_g_daily_mix_based_on_history">На основе истории</string>
-    <string name="presentation_batch_g_daily_mix_heading">DAILY MIX</string>
     <string name="presentation_batch_g_daily_mix_queue_name">Daily Mix</string>
     <string name="presentation_batch_g_daily_mix_see_all">Посмотреть весь Daily Mix</string>
     <string name="presentation_batch_g_device_info_title">Информация об устройстве</string>

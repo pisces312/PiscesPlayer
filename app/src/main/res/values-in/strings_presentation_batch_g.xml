@@ -197,8 +197,6 @@
     <string name="presentation_batch_g_changelog_sec_whats_new">Apa yang baru</string>
     <string name="presentation_batch_g_changelog_title">Log Perubahan</string>
     <string name="presentation_batch_g_changelog_view_github">Lihat di GitHub</string>
-    <string name="presentation_batch_g_daily_mix_based_on_history">Berdasarkan Riwayat</string>
-    <string name="presentation_batch_g_daily_mix_heading">DAILY MIX</string>
     <string name="presentation_batch_g_daily_mix_queue_name">Daily Mix</string>
     <string name="presentation_batch_g_daily_mix_see_all">Lihat semua Daily Mix</string>
     <string name="presentation_batch_g_device_info_title">Info Perangkat</string>

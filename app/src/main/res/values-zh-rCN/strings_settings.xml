@@ -202,7 +202,7 @@
     <string name="setcat_test_setup_subtitle">调出首次启动引导界面用于测试</string>
     <string name="setcat_maintenance">维护工具</string>
     <string name="setcat_force_daily_mix_title">强制重新生成推荐歌单</string>
-    <string name="setcat_force_daily_mix_subtitle">立刻重新生成每日精选与新发现</string>
+    <string name="setcat_force_daily_mix_subtitle">立刻重新生成每日推荐</string>
     <string name="setcat_force_stats_title">强制重建播放统计</string>
     <string name="setcat_force_stats_subtitle">清空缓存，重新计算全部播放统计数据</string>
     <string name="setcat_force_palette_title">强制重建专辑取色配色</string>
@@ -267,7 +267,7 @@
     <string name="sync_indicator_rebuilding">正在重建数据库</string>
     <string name="toast_rebuilding_database">正在重建数据库…</string>
     <string name="dialog_regenerate_daily_mix_title">重新生成推荐歌单？</string>
-    <string name="dialog_regenerate_daily_mix_body">丢弃当前每日精选与新发现，根据近期听歌记录生成全新歌单。</string>
+    <string name="dialog_regenerate_daily_mix_body">丢弃当前每日推荐，根据近期听歌记录生成全新歌单。</string>
     <string name="toast_daily_mix_regeneration_started">开始重新生成推荐歌单</string>
     <string name="dialog_regenerate_stats_title">重建播放统计？</string>
     <string name="dialog_regenerate_stats_body">清空统计缓存，基于数据库历史重新计算播放数据。</string>

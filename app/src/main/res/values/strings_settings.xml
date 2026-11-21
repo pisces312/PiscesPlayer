@@ -232,7 +232,7 @@
     <string name="setcat_test_setup_subtitle">Launch the onboarding setup screen for testing.</string>
     <string name="setcat_maintenance">Maintenance</string>
     <string name="setcat_force_daily_mix_title">Force Mix Regeneration</string>
-    <string name="setcat_force_daily_mix_subtitle">Re-creates the Daily Mix and Discover feeds immediately.</string>
+    <string name="setcat_force_daily_mix_subtitle">Re-creates the daily picks feed immediately.</string>
     <string name="setcat_force_stats_title">Force Stats Regeneration</string>
     <string name="setcat_force_stats_subtitle">Clears cache and recalculates playback statistics.</string>
     <string name="setcat_force_palette_title">Force Album Palette Regeneration</string>
@@ -297,7 +297,7 @@
     <string name="sync_indicator_rebuilding">Rebuilding database</string>
     <string name="toast_rebuilding_database">Rebuilding database…</string>
     <string name="dialog_regenerate_daily_mix_title">Regenerate mixes?</string>
-    <string name="dialog_regenerate_daily_mix_body">This will discard the current Daily Mix and Discover feeds and generate new ones based on recent listening habits.</string>
+    <string name="dialog_regenerate_daily_mix_body">This will discard the current daily picks and generate new ones based on recent listening habits.</string>
     <string name="toast_daily_mix_regeneration_started">Mix regeneration started</string>
     <string name="dialog_regenerate_stats_title">Regenerate Stats?</string>
     <string name="dialog_regenerate_stats_body">This will clear the statistics cache and force a recalculation from the database history.</string>

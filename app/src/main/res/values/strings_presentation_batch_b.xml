@@ -32,6 +32,7 @@
     <string name="presentation_batch_b_new_name">New name</string>
 
     <string name="presentation_batch_b_daily_mix_title">Daily Mix</string>
+    <string name="presentation_batch_b_daily_mix_section_familiar">Picked for You</string>
 
     <string name="presentation_batch_b_quick_fill_select_songs">Select Songs</string>
     <string name="presentation_batch_b_quick_fill_choose_genre">Choose Genre</string>

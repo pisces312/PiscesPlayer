@@ -134,7 +134,10 @@ constructor(
         val MOCK_GENRES_ENABLED = booleanPreferencesKey("mock_genres_enabled")
         val LAST_DAILY_MIX_UPDATE = longPreferencesKey("last_daily_mix_update")
         val DAILY_MIX_SONG_IDS = stringPreferencesKey("daily_mix_song_ids")
-        val YOUR_MIX_SONG_IDS = stringPreferencesKey("your_mix_song_ids")
+        // Parallel to DAILY_MIX_SONG_IDS: per-song bucket tokens ("familiar"/"discovery"),
+        // aligned by index. Absent/short entries fall back to "familiar" — correct for
+        // ids persisted before the merge, which were the familiar-songs daily mix.
+        val DAILY_MIX_SONG_KINDS = stringPreferencesKey("daily_mix_song_kinds")
         val NAV_BAR_CORNER_RADIUS = intPreferencesKey("nav_bar_corner_radius")
         val NAV_BAR_STYLE = stringPreferencesKey("nav_bar_style")
         val NAV_BAR_COMPACT_MODE = booleanPreferencesKey("nav_bar_compact_mode")
@@ -836,15 +839,21 @@ constructor(
                 }
             }
 
-    suspend fun saveDailyMixSongIds(songIds: List<String>) {
+    suspend fun saveDailyMixSongIds(songIds: List<String>, kinds: List<String>) {
         dataStore.edit { preferences ->
             preferences[PreferencesKeys.DAILY_MIX_SONG_IDS] = json.encodeToString(songIds)
+            preferences[PreferencesKeys.DAILY_MIX_SONG_KINDS] = json.encodeToString(kinds)
         }
     }
 
-    val yourMixSongIdsFlow: Flow<List<String>> =
+    /**
+     * Bucket tokens ("familiar"/"discovery") aligned by index with [dailyMixSongIdsFlow].
+     * Missing or short entries read as "familiar" at the call site: ids persisted before
+     * the merge were the familiar-songs daily mix.
+     */
+    val dailyMixSongKindsFlow: Flow<List<String>> =
             dataStore.data.map { preferences ->
-                val jsonString = preferences[PreferencesKeys.YOUR_MIX_SONG_IDS]
+                val jsonString = preferences[PreferencesKeys.DAILY_MIX_SONG_KINDS]
                 if (jsonString != null) {
                     try {
                         json.decodeFromString<List<String>>(jsonString)
@@ -855,12 +864,6 @@ constructor(
                     emptyList()
                 }
             }
-
-    suspend fun saveYourMixSongIds(songIds: List<String>) {
-        dataStore.edit { preferences ->
-            preferences[PreferencesKeys.YOUR_MIX_SONG_IDS] = json.encodeToString(songIds)
-        }
-    }
 
     val isGenreGridViewFlow: Flow<Boolean> =
         dataStore.data.map { preferences ->

@@ -48,6 +48,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
@@ -64,18 +65,20 @@ import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontVariation
 import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.media3.common.util.UnstableApi
 import androidx.navigation.NavController
 import com.pisces312.piscesplayer.R
+import com.pisces312.piscesplayer.data.model.MixKind
+import com.pisces312.piscesplayer.data.model.MixPick
 import com.pisces312.piscesplayer.data.model.Song
 import com.pisces312.piscesplayer.presentation.components.MiniPlayerHeight
 import com.pisces312.piscesplayer.presentation.components.PlaylistBottomSheet
 import com.pisces312.piscesplayer.presentation.components.SmartImage
 import com.pisces312.piscesplayer.presentation.components.SongInfoBottomSheet
-import com.pisces312.piscesplayer.presentation.components.threeShapeSwitch
 import com.pisces312.piscesplayer.presentation.components.resolveNavBarOccupiedHeight
 import com.pisces312.piscesplayer.presentation.navigation.Screen
 import com.pisces312.piscesplayer.presentation.viewmodel.MainViewModel
@@ -83,7 +86,9 @@ import com.pisces312.piscesplayer.presentation.viewmodel.PlayerViewModel
 import com.pisces312.piscesplayer.presentation.viewmodel.PlaylistViewModel
 import com.pisces312.piscesplayer.utils.formatDuration
 import com.pisces312.piscesplayer.utils.shapes.RoundedStarShape
+import racra.compose.smooth_corner_rect_library.AbsoluteSmoothCornerShape
 import kotlinx.collections.immutable.ImmutableList
+import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import com.pisces312.piscesplayer.presentation.components.subcomps.EnhancedSongListItem
@@ -103,7 +108,28 @@ fun DailyMixScreen(
     val dailyMixTitle = stringResource(R.string.presentation_batch_b_daily_mix_title)
     val playItLabel = stringResource(R.string.presentation_batch_b_play_it)
     val shuffleLabel = stringResource(R.string.shortcut_shuffle_short)
-    val dailyMixSongs: ImmutableList<Song> by playerViewModel.dailyMixSongs.collectAsStateWithLifecycle()
+    val dailyMixPicks: ImmutableList<MixPick> by playerViewModel.dailyMixPicks.collectAsStateWithLifecycle()
+    val dailyMixSongs: ImmutableList<Song> = remember(dailyMixPicks) {
+        dailyMixPicks.map { it.song }.toImmutableList()
+    }
+    val familiarTitle = stringResource(R.string.presentation_batch_b_daily_mix_section_familiar)
+    val discoveryTitle = stringResource(R.string.home_your_mix_title)
+    // One flat display list: a header row per bucket followed by its songs, so the merged
+    // mix keeps its "familiar / discovery" split visible on this full-list screen.
+    val mixListItems: ImmutableList<MixListItem> = remember(dailyMixPicks, familiarTitle, discoveryTitle) {
+        buildList {
+            val familiar = dailyMixPicks.filter { it.kind == MixKind.FAMILIAR }.map { it.song }
+            if (familiar.isNotEmpty()) {
+                add(MixListItem.Header("familiar_header", familiarTitle, familiar.size))
+                familiar.forEach { add(MixListItem.SongRow(it)) }
+            }
+            val discovery = dailyMixPicks.filter { it.kind == MixKind.DISCOVERY }.map { it.song }
+            if (discovery.isNotEmpty()) {
+                add(MixListItem.Header("discovery_header", discoveryTitle, discovery.size))
+                discovery.forEach { add(MixListItem.SongRow(it)) }
+            }
+        }.toImmutableList()
+    }
     val currentSongId by remember { playerViewModel.stablePlayerState.map { it.currentSong?.id }.distinctUntilChanged() }.collectAsStateWithLifecycle(initialValue = null)
     val isPlaying by remember { playerViewModel.stablePlayerState.map { it.isPlaying }.distinctUntilChanged() }.collectAsStateWithLifecycle(initialValue = false)
     val isShuffleEnabled by remember { playerViewModel.stablePlayerState.map { it.isShuffleEnabled }.distinctUntilChanged() }.collectAsStateWithLifecycle(initialValue = false)
@@ -306,19 +332,25 @@ fun DailyMixScreen(
                     }
                 }
 
-                items(dailyMixSongs, key = { it.id }) { song ->
-                    EnhancedSongListItem(
-                        modifier = Modifier
-                            .padding(horizontal = 16.dp),
-                        song = song,
-                        isCurrentSong = currentSongId == song.id,
-                        isPlaying = currentSongId == song.id && isPlaying,
-                        onClick = { playerViewModel.showAndPlaySong(song, dailyMixSongs, dailyMixTitle, isVoluntaryPlay = false) },
-                        onMoreOptionsClick = {
-                            playerViewModel.selectSongForInfo(song)
-                            showSongInfoSheet = true
+                items(mixListItems, key = { it.key }) { item ->
+                    when (item) {
+                        is MixListItem.Header -> MixSectionHeader(title = item.title, count = item.count)
+                        is MixListItem.SongRow -> {
+                            val song = item.song
+                            EnhancedSongListItem(
+                                modifier = Modifier
+                                    .padding(horizontal = 16.dp),
+                                song = song,
+                                isCurrentSong = currentSongId == song.id,
+                                isPlaying = currentSongId == song.id && isPlaying,
+                                onClick = { playerViewModel.showAndPlaySong(song, dailyMixSongs, dailyMixTitle, isVoluntaryPlay = false) },
+                                onMoreOptionsClick = {
+                                    playerViewModel.selectSongForInfo(song)
+                                    showSongInfoSheet = true
+                                }
+                            )
                         }
-                    )
+                    }
                 }
             }
         }
@@ -545,5 +577,65 @@ private fun rememberDailyMixTitleStyle(): TextStyle {
             fontWeight = FontWeight(760),
             fontSize = 44.sp,
         )
+    }
+}
+
+/** One row of the merged daily-mix list: a bucket header or a song. */
+private sealed interface MixListItem {
+    val key: String
+
+    data class Header(override val key: String, val title: String, val count: Int) : MixListItem
+
+    data class SongRow(val song: Song) : MixListItem {
+        override val key: String get() = song.id
+    }
+}
+
+@Composable
+private fun MixSectionHeader(title: String, count: Int) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 22.dp, vertical = 8.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+        Text(
+            text = count.toString(),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+/**
+ * The three cover-art shapes (hex star / circle / rounded square) used by the daily-mix
+ * headers. Lived in `presentation/components/DailyMixSection.kt` before that section was
+ * merged into the single daily-mix card.
+ */
+private fun threeShapeSwitch(index: Int, thirdShapeCornerRadius: Dp = 16.dp): Shape {
+    return when (index) {
+        0 -> RoundedStarShape(
+            sides = 6,
+            rotation = 10f
+        )
+        1 -> CircleShape
+        2 -> AbsoluteSmoothCornerShape(
+            cornerRadiusBL = thirdShapeCornerRadius,
+            cornerRadiusTR = thirdShapeCornerRadius,
+            smoothnessAsPercentBL = 60,
+            smoothnessAsPercentTR = 60,
+            cornerRadiusTL = thirdShapeCornerRadius,
+            cornerRadiusBR = thirdShapeCornerRadius,
+            smoothnessAsPercentTL = 60,
+            smoothnessAsPercentBR = 60
+        )
+        else -> CircleShape
     }
 }

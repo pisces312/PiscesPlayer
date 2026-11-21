@@ -197,8 +197,6 @@
     <string name="presentation_batch_g_changelog_sec_whats_new">새로운 기능</string>
     <string name="presentation_batch_g_changelog_title">변경 로그</string>
     <string name="presentation_batch_g_changelog_view_github">GitHub에서 보기</string>
-    <string name="presentation_batch_g_daily_mix_based_on_history">재생 기록 기반</string>
-    <string name="presentation_batch_g_daily_mix_heading">DAILY MIX</string>
     <string name="presentation_batch_g_daily_mix_queue_name">데일리 믹스</string>
     <string name="presentation_batch_g_daily_mix_see_all">Daily Mix 전체 확인</string>
     <string name="presentation_batch_g_device_info_title">기기 정보</string>

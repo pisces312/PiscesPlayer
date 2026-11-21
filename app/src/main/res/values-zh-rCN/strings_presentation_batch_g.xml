@@ -245,10 +245,8 @@
     <string name="presentation_batch_g_file_explorer_empty_folders">此处没有子文件夹</string>
     <string name="presentation_batch_g_file_explorer_cd_navigate_up">返回上一级</string>
     <string name="presentation_batch_g_file_explorer_cd_go_root">回到根目录</string>
-    <string name="presentation_batch_g_daily_mix_queue_name">每日精选</string>
-    <string name="presentation_batch_g_daily_mix_heading">每日精选</string>
-    <string name="presentation_batch_g_daily_mix_based_on_history">基于收听历史</string>
-    <string name="presentation_batch_g_daily_mix_see_all">查看全部每日精选</string>
+    <string name="presentation_batch_g_daily_mix_queue_name">每日推荐</string>
+    <string name="presentation_batch_g_daily_mix_see_all">查看全部每日推荐</string>
     <string name="presentation_batch_g_selection_one_song">已选择 1 首歌曲</string>
     <string name="presentation_batch_g_selection_n_songs">已选择多首歌曲</string>
     <string name="presentation_batch_g_selection_cd_share">分享选中项</string>

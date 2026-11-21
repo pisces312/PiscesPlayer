@@ -4,6 +4,7 @@ import android.content.Context
 import com.google.common.truth.Truth.assertThat
 import com.pisces312.piscesplayer.data.database.EngagementDao
 import com.pisces312.piscesplayer.data.database.SongEngagementEntity
+import com.pisces312.piscesplayer.data.model.MixKind
 import com.pisces312.piscesplayer.data.model.Song
 import io.mockk.every
 import io.mockk.mockk
@@ -16,9 +17,9 @@ import java.io.File
 import java.nio.file.Path
 
 /**
- * Covers the discovery-oriented [DailyMixManager.generateYourMix]:
- * - it must never contain songs already picked by [DailyMixManager.generateDailyMix];
- * - it must rank undiscovered (never played) songs above worn-out favorites;
+ * Covers the merged daily mix [DailyMixManager.generateDailyMix]:
+ * - one list without duplicates, split into familiar (2/3) and discovery (1/3) buckets;
+ * - discovery picks must rank undiscovered (never played) songs above worn-out favorites;
  * - same-day generation must be deterministic (seeded shuffle + stable sort).
  */
 class DailyMixManagerTest {
@@ -72,44 +73,43 @@ class DailyMixManagerTest {
     }
 
     @Test
-    fun `your mix excludes songs picked for the daily mix`() = runTest {
-        // 40 songs, 30 of them heavily played. The daily mix (limit 30) gravitates
-        // toward the played ones; whatever it picks must be absent from your mix.
+    fun `merged mix has no duplicates and splits familiar and discovery buckets`() = runTest {
+        // 40 songs, 30 of them heavily played. The familiar bucket (20) gravitates toward
+        // the played ones; the discovery bucket (10) fills from the remaining candidates.
         val played = (1L..30L).map { song(it, artistId = 1000 + it, genre = "Rock") }
         val fresh = (31L..40L).map { song(it, artistId = 2000 + it, genre = "Jazz") }
         val all = played + fresh
         val manager = managerWith(played.map { engagement(it.id.toLong(), playCount = 20) })
 
-        val dailyMix = manager.generateDailyMix(all, limit = 30)
-        val yourMix = manager.generateYourMix(
-            allSongs = all,
-            excludeSongIds = dailyMix.map { it.id }.toSet(),
-            limit = 60
-        )
+        val mix = manager.generateDailyMix(all, limit = 30)
 
-        assertThat(dailyMix).isNotEmpty()
-        assertThat(yourMix).isNotEmpty()
-        val dailyIds = dailyMix.map { it.id }.toSet()
-        assertThat(yourMix.map { it.id }.none { it in dailyIds }).isTrue()
+        assertThat(mix).hasSize(30)
+        assertThat(mix.map { it.song.id }.distinct()).hasSize(30)
+        assertThat(mix.count { it.kind == MixKind.FAMILIAR }).isEqualTo(20)
+        assertThat(mix.count { it.kind == MixKind.DISCOVERY }).isEqualTo(10)
     }
 
     @Test
-    fun `discovery ranking prefers never played songs over worn out favorites`() = runTest {
-        // Single genre + unique artists: isolates the discovery ordering from the
-        // per-genre diversity quota (limit 5 caps the genre at 2 picks in the first
-        // pass; the quota-free second pass fills the rest in candidate order).
+    fun `discovery picks prefer never played songs over worn out favorites`() = runTest {
+        // 5 worn-out favorites + 15 untouched tracks. The familiar bucket (10) absorbs the
+        // favorites first; whatever lands in the discovery bucket must come from the
+        // never-played half: high affinity pushes the favorites' discovery scores far
+        // below the untouched tracks.
         val played = (1L..5L).map { song(it, artistId = 1000 + it, genre = "Pop") }
-        val unplayed = (6L..10L).map { song(it, artistId = 2000 + it, genre = "Pop") }
+        val unplayed = (6L..20L).map { song(it, artistId = 2000 + it, genre = "Pop") }
         val all = played + unplayed
         val manager = managerWith(played.map { engagement(it.id.toLong(), playCount = 50) })
 
-        val yourMix = manager.generateYourMix(all, favoriteSongIds = played.map { it.id }.toSet(), limit = 5)
+        val mix = manager.generateDailyMix(
+            allSongs = all,
+            favoriteSongIds = played.map { it.id }.toSet(),
+            limit = 15
+        )
 
-        assertThat(yourMix).hasSize(5)
+        val discovery = mix.filter { it.kind == MixKind.DISCOVERY }
+        assertThat(discovery).isNotEmpty()
         val unplayedIds = unplayed.map { it.id }.toSet()
-        // Every pick must come from the never-played half: high affinity pushed the
-        // worn-out favorites' discovery scores far below the untouched tracks.
-        assertThat(yourMix.map { it.id }.all { it in unplayedIds }).isTrue()
+        assertThat(discovery.map { it.song.id }.all { it in unplayedIds }).isTrue()
     }
 
     @Test
@@ -117,22 +117,24 @@ class DailyMixManagerTest {
         val all = (1L..20L).map { song(it, artistId = 1000 + it) }
         val manager = managerWith((1L..20L).map { engagement(it, playCount = (it % 4).toInt()) })
 
-        val first = manager.generateYourMix(all, limit = 10)
-        val second = manager.generateYourMix(all, limit = 10)
+        val first = manager.generateDailyMix(all, limit = 10)
+        val second = manager.generateDailyMix(all, limit = 10)
 
-        assertThat(first.map { it.id }).isEqualTo(second.map { it.id })
+        assertThat(first.map { it.song.id }).isEqualTo(second.map { it.song.id })
     }
 
     @Test
     fun `empty library returns empty mix`() = runTest {
-        assertThat(manager.generateYourMix(emptyList())).isEmpty()
+        assertThat(manager.generateDailyMix(emptyList())).isEmpty()
     }
 
     @Test
-    fun `excluding every song returns empty mix`() = runTest {
+    fun `small library returns every song once`() = runTest {
         val all = (1L..5L).map { song(it) }
-        val excludeIds = all.map { it.id }.toSet()
-        assertThat(manager.generateYourMix(all, excludeSongIds = excludeIds)).isEmpty()
+
+        val mix = manager.generateDailyMix(all, limit = 30)
+
+        assertThat(mix.map { it.song.id }).containsExactlyElementsIn(all.map { it.id })
     }
 
     private class FakeEngagementDao(

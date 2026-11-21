@@ -48,6 +48,12 @@ PixelPlayerOSS; versions up to and including 0.4.3 were published under the upst
   highlight, more menu, classical favorite star) and plays them in catalogue order.
 
 ### Changed
+- Home: the two local-recommendation sections ("Daily Mix" and "Discover") are merged into a
+  single "Daily Mix" (每日推荐) card. One 30-song feed now blends familiar picks (2/3,
+  history-driven) with discovery picks (1/3, low-affinity and recently added tracks),
+  interleaved 2:1 for playback and grouped back under "Picked for You" / "Discover" headers
+  on the full-list screen. The home page keeps one recommendation card (collage hero +
+  "Check all of Daily Mix"); the separate list card is gone.
 - Classical browsing UI now matches the library style: the four tabs (Composers | Works |
   Tracks | Favorite tracks) and the MIDI library tabs swipe with a `PrimaryScrollableTabRow`
   + `HorizontalPager` pair (each page keeps its own search state); track and composer rows

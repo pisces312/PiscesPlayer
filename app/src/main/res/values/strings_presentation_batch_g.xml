@@ -246,8 +246,6 @@ Backslash (\) can be used to escape character delimiters.</string>
     <string name="presentation_batch_g_file_explorer_cd_navigate_up">Navigate up</string>
     <string name="presentation_batch_g_file_explorer_cd_go_root">Go to root</string>
     <string name="presentation_batch_g_daily_mix_queue_name">Daily Mix</string>
-    <string name="presentation_batch_g_daily_mix_heading">DAILY MIX</string>
-    <string name="presentation_batch_g_daily_mix_based_on_history">Based on History</string>
     <string name="presentation_batch_g_daily_mix_see_all">Check all of Daily Mix</string>
     <string name="presentation_batch_g_selection_one_song">song selected</string>
     <string name="presentation_batch_g_selection_n_songs">songs selected</string>

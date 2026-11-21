@@ -1,6 +1,8 @@
 package com.pisces312.piscesplayer.presentation.viewmodel
 
 import com.pisces312.piscesplayer.data.DailyMixManager
+import com.pisces312.piscesplayer.data.model.MixKind
+import com.pisces312.piscesplayer.data.model.MixPick
 import com.pisces312.piscesplayer.data.model.Song
 import com.pisces312.piscesplayer.data.preferences.UserPreferencesRepository
 import com.pisces312.piscesplayer.data.repository.MusicRepository
@@ -17,19 +19,18 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.flowOn
-import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import javax.inject.Singleton
 import timber.log.Timber
 
 /**
- * Manages Daily Mix and Your Mix state.
- * Extracted from PlayerViewModel to improve modularity.
+ * Manages the merged daily mix ("每日推荐") state: one list that blends the familiar
+ * and discovery buckets. Extracted from PlayerViewModel to improve modularity.
  *
  * Responsibilities:
- * - Generate and update daily/your mixes
- * - Persist and restore mix state
+ * - Generate and update the daily mix
+ * - Persist and restore mix state (song ids + bucket tokens)
  * - Check if mix needs updating based on day change
  */
 @Singleton
@@ -41,11 +42,18 @@ class DailyMixStateHolder @Inject constructor(
     private var scope: CoroutineScope? = null
     private var updateJob: Job? = null
 
+    /** The full merged mix with bucket tags, for the grouped full-list screen. */
+    private val _dailyMixPicks = MutableStateFlow<ImmutableList<MixPick>>(persistentListOf())
+    val dailyMixPicks: StateFlow<ImmutableList<MixPick>> = _dailyMixPicks.asStateFlow()
+
+    /** The same mix as plain songs, for playback contexts and the home collage. */
     private val _dailyMixSongs = MutableStateFlow<ImmutableList<Song>>(persistentListOf())
     val dailyMixSongs: StateFlow<ImmutableList<Song>> = _dailyMixSongs.asStateFlow()
 
-    private val _yourMixSongs = MutableStateFlow<ImmutableList<Song>>(persistentListOf())
-    val yourMixSongs: StateFlow<ImmutableList<Song>> = _yourMixSongs.asStateFlow()
+    private fun setPicks(picks: List<MixPick>) {
+        _dailyMixPicks.value = picks.toImmutableList()
+        _dailyMixSongs.value = picks.map { it.song }.toImmutableList()
+    }
 
     /**
      * The ViewModel that owns this holder's scope. This is a `@Singleton`, so a second
@@ -74,9 +82,7 @@ class DailyMixStateHolder @Inject constructor(
      * Remove a song from the daily mix.
      */
     fun removeFromDailyMix(songId: String) {
-        _dailyMixSongs.update { currentList ->
-            currentList.filterNot { it.id == songId }.toImmutableList()
-        }
+        setPicks(_dailyMixPicks.value.filterNot { it.song.id == songId })
     }
 
     /**
@@ -91,20 +97,13 @@ class DailyMixStateHolder @Inject constructor(
                 val favoriteIds = favoriteSongIdsFlow.first()
 
                 val mix = dailyMixManager.generateDailyMix(allSongs, favoriteIds)
-                _dailyMixSongs.value = mix.toImmutableList()
-                userPreferencesRepository.saveDailyMixSongIds(mix.map { it.id })
-
-                // Discovery feed: exclude the daily mix picks so the two home
-                // sections never repeat each other.
-                val yourMix = dailyMixManager.generateYourMix(
-                    allSongs = allSongs,
-                    favoriteSongIds = favoriteIds,
-                    excludeSongIds = mix.map { it.id }.toSet()
+                setPicks(mix)
+                userPreferencesRepository.saveDailyMixSongIds(
+                    songIds = mix.map { it.song.id },
+                    kinds = mix.map { it.kind.storageToken }
                 )
-                _yourMixSongs.value = yourMix.toImmutableList()
-                userPreferencesRepository.saveYourMixSongIds(yourMix.map { it.id })
             } else {
-                _yourMixSongs.value = persistentListOf()
+                setPicks(emptyList())
             }
         }
     }
@@ -116,31 +115,20 @@ class DailyMixStateHolder @Inject constructor(
     fun loadPersistedDailyMix() {
         scope?.launch {
             val dailyMixIds = userPreferencesRepository.dailyMixSongIdsFlow.first()
-            if (dailyMixIds.isNotEmpty() && _dailyMixSongs.value.isEmpty()) {
+            if (dailyMixIds.isNotEmpty() && _dailyMixPicks.value.isEmpty()) {
+                val kinds = userPreferencesRepository.dailyMixSongKindsFlow.first()
                 val songs = withContext(Dispatchers.IO) {
                     musicRepository.getSongsByIds(dailyMixIds).first()
                 }
                 if (songs.isNotEmpty()) {
                     val songMap = songs.associateBy { it.id }
-                    // .filterNot: ids persisted before built-in classical was excluded from
+                    // .takeIf: ids persisted before built-in classical was excluded from
                     // the mix pools must not sneak back in through the restore path.
-                    val orderedSongs = dailyMixIds.mapNotNull { songMap[it] }.filterNot { it.isBuiltIn }
-                    _dailyMixSongs.value = orderedSongs.toImmutableList()
-                }
-            }
-        }
-
-        scope?.launch {
-            val yourMixIds = userPreferencesRepository.yourMixSongIdsFlow.first()
-            if (yourMixIds.isNotEmpty() && _yourMixSongs.value.isEmpty()) {
-                val songs = withContext(Dispatchers.IO) {
-                    musicRepository.getSongsByIds(yourMixIds).first()
-                }
-                if (songs.isNotEmpty()) {
-                    val songMap = songs.associateBy { it.id }
-                    // See the daily-mix restore above: keep built-in classical out.
-                    val orderedSongs = yourMixIds.mapNotNull { songMap[it] }.filterNot { it.isBuiltIn }
-                    _yourMixSongs.value = orderedSongs.toImmutableList()
+                    val picks = dailyMixIds.mapIndexedNotNull { index, id ->
+                        val song = songMap[id]?.takeIf { !it.isBuiltIn } ?: return@mapIndexedNotNull null
+                        MixPick(song, MixKind.fromStorageToken(kinds.getOrNull(index)))
+                    }
+                    setPicks(picks)
                 }
             }
         }

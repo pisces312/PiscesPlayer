@@ -7,6 +7,8 @@ import com.google.gson.JsonObject
 import com.google.gson.reflect.TypeToken
 import com.pisces312.piscesplayer.data.database.EngagementDao
 import com.pisces312.piscesplayer.data.database.SongEngagementEntity
+import com.pisces312.piscesplayer.data.model.MixKind
+import com.pisces312.piscesplayer.data.model.MixPick
 import com.pisces312.piscesplayer.data.model.Song
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.sync.Mutex
@@ -356,11 +358,32 @@ class DailyMixManager @Inject constructor(
             .sortedWith(compareByDescending<RankedSong> { it.finalScore }.thenBy { it.song.id })
     }
 
+    /**
+     * Generates the merged daily mix ("每日推荐"): one list that blends two buckets.
+     *
+     * History: the home page used to carry two separate local-recommendation sections
+     * ("Daily Mix" and "Discover") that ranked songs with the same final score and
+     * overlapped heavily. They were split apart — discovery ranked by
+     * [RankedSong.discoveryScore], surfacing what the listener has NOT bonded with yet —
+     * and are now merged back into a single feed with explicit buckets:
+     *
+     * - Familiar picks come from [RankedSong.finalScore] with the favorite-aware
+     *   diversity quotas; they fill up to 2/3 of [limit] first (the primary taste).
+     * - Discovery picks come from [RankedSong.discoveryScore] (low-affinity, recently
+     *   added, rarely played tracks) and fill the remaining third. No favorite quota
+     *   here: a favorited but never-played track is a rediscovery, not a repeat, and
+     *   competes by discovery score alone (it still influences scoring via preference).
+     * - Buckets interleave 2 familiar : 1 discovery so sequential playback mixes both
+     *   tastes; every pick carries its [MixKind] so the full-list screen can group them.
+     * - The daily-seeded shuffle runs before a stable sort on the discovery candidates:
+     *   genuinely different discovery scores keep their order while equal-score
+     *   candidates rotate day to day (discoveryScore is noise-free, unlike finalScore).
+     */
     suspend fun generateDailyMix(
         allSongs: List<Song>,
         favoriteSongIds: Set<String> = emptySet(),
         limit: Int = 30
-    ): List<Song> {
+    ): List<MixPick> {
         if (allSongs.isEmpty()) {
             return emptyList()
         }
@@ -371,92 +394,115 @@ class DailyMixManager @Inject constructor(
 
         val rankedSongs = computeRankedSongs(allSongs, favoriteSongIds, random)
         if (rankedSongs.isEmpty()) {
-            return allSongs.shuffled(random).take(limit.coerceAtMost(allSongs.size))
+            return allSongs.shuffled(random)
+                .take(limit.coerceAtMost(allSongs.size))
+                .map { MixPick(it, MixKind.FAMILIAR) }
         }
 
+        // Familiar first: it is the primary taste; discovery fills the remaining third.
+        val familiarCount = ((limit * 2) / 3).coerceAtMost(allSongs.size)
+        val discoveryCount = (limit - familiarCount).coerceAtMost(allSongs.size - familiarCount)
+
+        val familiar = pickFamiliarSongs(rankedSongs, favoriteSongIds, familiarCount, random)
+        val familiarIds = familiar.mapTo(HashSet()) { it.id }
+
+        val discoveryCandidates = rankedSongs
+            .filterNot { it.song.id in familiarIds }
+            .shuffled(random)
+            .sortedByDescending { it.discoveryScore }
+        val discovery = pickDiscoverySongs(
+            candidates = discoveryCandidates,
+            allSongs = allSongs,
+            excludedIds = familiarIds,
+            count = discoveryCount,
+            random = random
+        )
+
+        return interleaveMixPicks(
+            familiar.map { MixPick(it, MixKind.FAMILIAR) },
+            discovery.map { MixPick(it, MixKind.DISCOVERY) }
+        )
+    }
+
+    private fun pickFamiliarSongs(
+        rankedSongs: List<RankedSong>,
+        favoriteSongIds: Set<String>,
+        count: Int,
+        random: java.util.Random
+    ): List<Song> {
+        if (count <= 0 || rankedSongs.isEmpty()) return emptyList()
+
         val diversityState = DiversityState()
-        val selected = pickWithDiversity(rankedSongs, favoriteSongIds, limit, diversityState)
-        if (selected.size >= limit || selected.size == rankedSongs.size) {
+        val selected = pickWithDiversity(rankedSongs, favoriteSongIds, count, diversityState)
+        if (selected.size >= count || selected.size == rankedSongs.size) {
             return selected
         }
 
         val remainingRanked = rankedSongs.filterNot { candidate ->
             selected.any { it.id == candidate.song.id }
         }
-        val quotaFill = pickWithDiversity(remainingRanked, favoriteSongIds, limit - selected.size, diversityState)
+        val quotaFill = pickWithDiversity(remainingRanked, favoriteSongIds, count - selected.size, diversityState)
         val combined = (selected + quotaFill).distinctBy { it.id }.toMutableList()
 
-        if (combined.size < limit) {
-            val remaining = allSongs
+        if (combined.size < count) {
+            val remaining = rankedSongs
+                .map { it.song }
                 .filterNot { song -> combined.any { it.id == song.id } }
                 .shuffled(random)
             for (song in remaining) {
                 combined.add(song)
-                if (combined.size >= limit) break
+                if (combined.size >= count) break
             }
         }
 
-        return combined.take(limit.coerceAtMost(combined.size))
+        return combined.take(count.coerceAtMost(combined.size))
     }
 
-    /**
-     * Discovery-oriented home mix ("Discover"). Complements [generateDailyMix]: the
-     * two home sections used to rank songs with the same final score and overlap
-     * heavily, so this feed now surfaces what the listener has NOT bonded with yet —
-     * low-affinity, recently added, rarely played tracks.
-     *
-     * - [excludeSongIds] receives the daily mix picks so the two sections never
-     *   repeat each other (the caller generates the daily mix first).
-     * - Candidates are ranked by [RankedSong.discoveryScore] instead of finalScore.
-     * - The daily-seeded shuffle runs before a stable sort: songs with genuinely
-     *   different scores keep their order, while equal-score candidates rotate
-     *   day to day (discoveryScore itself is noise-free, unlike finalScore).
-     * - Favorite songs stay in the candidate pool: a favorited but never-played
-     *   track is a rediscovery, not a repeat.
-     */
-    suspend fun generateYourMix(
+    private fun pickDiscoverySongs(
+        candidates: List<RankedSong>,
         allSongs: List<Song>,
-        favoriteSongIds: Set<String> = emptySet(),
-        excludeSongIds: Set<String> = emptySet(),
-        limit: Int = 60
+        excludedIds: Set<String>,
+        count: Int,
+        random: java.util.Random
     ): List<Song> {
-        if (allSongs.isEmpty()) {
-            return emptyList()
-        }
-
-        val calendar = Calendar.getInstance()
-        val seed = calendar.get(Calendar.YEAR) * 1000 + calendar.get(Calendar.DAY_OF_YEAR) + 17
-        val random = java.util.Random(seed.toLong())
-        val rankedSongs = computeRankedSongs(allSongs, favoriteSongIds, random)
-
-        val candidates = rankedSongs
-            .filterNot { excludeSongIds.contains(it.song.id) }
-            .shuffled(random)
-            .sortedByDescending { it.discoveryScore }
-
-        if (candidates.isEmpty()) {
-            return emptyList()
-        }
+        if (count <= 0 || candidates.isEmpty()) return emptyList()
 
         val diversityState = DiversityState()
         // No favorite allowance here: the extra artist/genre quota for favorites exists
-        // for the familiar-songs daily mix. In the discovery feed favorites compete by
-        // discovery score alone — they still influence scoring via preference.
-        val selected = pickWithDiversity(candidates, emptySet(), limit, diversityState)
+        // for the familiar picks. In discovery, favorites compete by discovery score
+        // alone — they still influence scoring via preference.
+        val selected = pickWithDiversity(candidates, emptySet(), count, diversityState)
             .toMutableList()
 
-        if (selected.size < limit) {
+        if (selected.size < count) {
             val selectedIds = selected.mapTo(HashSet()) { it.id }
             val filler = allSongs
-                .filterNot { it.id in selectedIds || excludeSongIds.contains(it.id) }
+                .filterNot { it.id in selectedIds || it.id in excludedIds }
                 .shuffled(random)
             for (song in filler) {
                 selected.add(song)
-                if (selected.size >= limit) break
+                if (selected.size >= count) break
             }
         }
 
-        return selected.take(limit.coerceAtMost(selected.size))
+        return selected.take(count.coerceAtMost(selected.size))
+    }
+
+    /** Merges the buckets 2 familiar : 1 discovery; leftovers of either side append at the end. */
+    private fun interleaveMixPicks(
+        familiar: List<MixPick>,
+        discovery: List<MixPick>
+    ): List<MixPick> {
+        val result = mutableListOf<MixPick>()
+        var familiarIndex = 0
+        var discoveryIndex = 0
+        while (familiarIndex < familiar.size || discoveryIndex < discovery.size) {
+            repeat(2) {
+                if (familiarIndex < familiar.size) result += familiar[familiarIndex++]
+            }
+            if (discoveryIndex < discovery.size) result += discovery[discoveryIndex++]
+        }
+        return result
     }
 
     private fun pickWithDiversity(

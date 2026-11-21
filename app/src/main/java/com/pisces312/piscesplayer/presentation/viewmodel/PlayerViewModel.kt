@@ -48,6 +48,7 @@ import com.pisces312.piscesplayer.data.model.FolderSource
 import com.pisces312.piscesplayer.data.model.Genre
 import com.pisces312.piscesplayer.data.model.Lyrics
 import com.pisces312.piscesplayer.data.model.LyricsSourcePreference
+import com.pisces312.piscesplayer.data.model.MixPick
 import com.pisces312.piscesplayer.data.model.SearchFilterType
 import com.pisces312.piscesplayer.data.model.SearchHistoryItem
 import com.pisces312.piscesplayer.data.model.SearchMode
@@ -1321,7 +1322,7 @@ class PlayerViewModel @Inject constructor(
     val favoritesPagingFlow = libraryStateHolder.favoritesPagingFlow
 
     val dailyMixSongs: StateFlow<ImmutableList<Song>> = dailyMixStateHolder.dailyMixSongs
-    val yourMixSongs: StateFlow<ImmutableList<Song>> = dailyMixStateHolder.yourMixSongs
+    val dailyMixPicks: StateFlow<ImmutableList<MixPick>> = dailyMixStateHolder.dailyMixPicks
 
     fun removeFromDailyMix(songId: String) {
         dailyMixStateHolder.removeFromDailyMix(songId)

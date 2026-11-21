@@ -129,7 +129,7 @@
     <string name="dialog_delete_song_message">\"%1$s\" by %2$s\n\nThis song will be permanently deleted from your device and cannot be recovered.</string>
 
     <string name="home_your_mix_title">Discover</string>
-    <string name="home_your_mix_subtitle">Generated locally · Fresh finds from your library</string>
+    <string name="home_your_mix_subtitle">Generated locally · Familiar picks &amp; fresh finds</string>
     <string name="home_recent_ai_mixes_title">Recently generated</string>
     <string name="home_recent_ai_mixes_show_more">Show all %1$d mixes</string>
     <string name="home_empty_placeholder_title">No data to show yet</string>
