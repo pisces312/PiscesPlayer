@@ -276,7 +276,11 @@ class MusicQuizViewModel @Inject constructor(
                 nextQuestionProvider = { nextEndlessQuestion() },
             )
         } else {
-            val blueprint = questionFactory.createRun(runPool)
+            val blueprint = if (mode == MusicQuizMode.BUILTIN_CLASSICAL) {
+                questionFactory.createClassicalRun(runPool)
+            } else {
+                questionFactory.createRun(runPool)
+            }
             reserveTracks = blueprint.reserveTracks
             engine = MusicQuizGameEngine(blueprint.questions)
         }

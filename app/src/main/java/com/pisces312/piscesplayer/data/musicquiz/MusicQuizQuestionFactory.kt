@@ -20,6 +20,27 @@ internal class MusicQuizQuestionFactory(
     }
 
     /**
+     * Built-in classical run: half TITLE (guess the piece) and half COMPOSER (guess the
+     * composer). Distractors for TITLE questions exclude same-work siblings; distractors
+     * for COMPOSER questions are other composers, era-matched when possible.
+     */
+    fun createClassicalRun(tracks: List<MusicQuizTrack>): MusicQuizRunBlueprint {
+        val answerPool = answerTracks(tracks)
+        require(answerPool.size >= MUSIC_QUIZ_ROUND_COUNT) { "Not enough playable songs" }
+        val shuffled = answerPool.shuffled(random)
+        val correctTracks = shuffled.take(MUSIC_QUIZ_ROUND_COUNT)
+        val titleCount = MUSIC_QUIZ_ROUND_COUNT / 2
+        val questions = correctTracks.mapIndexed { index, track ->
+            val type = if (index < titleCount) MusicQuizQuestionType.TITLE else MusicQuizQuestionType.COMPOSER
+            createClassicalQuestion(track, tracks, type)
+        }
+        return MusicQuizRunBlueprint(
+            questions = questions.shuffled(random),
+            reserveTracks = shuffled.drop(MUSIC_QUIZ_ROUND_COUNT),
+        )
+    }
+
+    /**
      * Draws one question for endless mode. Songs are dealt without replacement until the
      * usable pool is exhausted; the caller clears [usedIds] to start a new cycle. Returns
      * null when every candidate is used or is the previous question's song.
@@ -97,6 +118,51 @@ internal class MusicQuizQuestionFactory(
             clipStartMs = random.nextLong(0L, latestStartMs + 1L),
             options = options,
         )
+    }
+
+    private fun createClassicalQuestion(
+        correctTrack: MusicQuizTrack,
+        pool: List<MusicQuizTrack>,
+        questionType: MusicQuizQuestionType,
+    ): MusicQuizQuestion {
+        return when (questionType) {
+            MusicQuizQuestionType.TITLE -> {
+                val base = createQuestion(correctTrack, pool)
+                base.copy(questionType = MusicQuizQuestionType.TITLE)
+            }
+            MusicQuizQuestionType.COMPOSER -> {
+                val correctComposer = correctTrack.artist.trim()
+                val distractors = pool
+                    .filter { it.id != correctTrack.id && it.artist.trim() != correctComposer }
+                    .distinctBy { it.artist.trim() }
+                    .shuffled(random)
+                    .take(MUSIC_QUIZ_OPTION_COUNT - 1)
+                require(distractors.size == MUSIC_QUIZ_OPTION_COUNT - 1) { "Not enough distinct composers" }
+
+                val options = (distractors + correctTrack)
+                    .shuffled(random)
+                    .map {
+                        MusicQuizOption(
+                            songId = it.id,
+                            title = it.artist.trim(),
+                            albumArtUriString = it.albumArtUriString,
+                            artist = "",
+                            year = 0,
+                        )
+                    }
+                check(options.size == MUSIC_QUIZ_OPTION_COUNT)
+                check(options.distinctBy { it.title }.size == MUSIC_QUIZ_OPTION_COUNT)
+
+                val latestStartMs = correctTrack.durationMs - MUSIC_QUIZ_CLIP_DURATION_MS - END_GUARD_MS
+                check(latestStartMs >= 0L)
+                MusicQuizQuestion(
+                    track = correctTrack,
+                    clipStartMs = random.nextLong(0L, latestStartMs + 1L),
+                    options = options,
+                    questionType = MusicQuizQuestionType.COMPOSER,
+                )
+            }
+        }
     }
 
     companion object {

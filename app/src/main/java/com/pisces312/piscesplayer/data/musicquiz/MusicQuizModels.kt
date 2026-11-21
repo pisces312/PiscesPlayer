@@ -57,11 +57,14 @@ data class MusicQuizOption(
     val year: Int = 0,
 )
 
+enum class MusicQuizQuestionType { TITLE, COMPOSER }
+
 data class MusicQuizQuestion(
     val track: MusicQuizTrack,
     val clipStartMs: Long,
     val clipDurationMs: Long = MUSIC_QUIZ_CLIP_DURATION_MS,
     val options: List<MusicQuizOption>,
+    val questionType: MusicQuizQuestionType = MusicQuizQuestionType.TITLE,
 )
 
 data class MusicQuizRunBlueprint(

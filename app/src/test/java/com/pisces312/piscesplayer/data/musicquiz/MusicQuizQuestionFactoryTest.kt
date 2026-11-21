@@ -251,6 +251,67 @@ class MusicQuizQuestionFactoryTest {
         assertNotEquals(last, next.track.id)
     }
 
+    @Test
+    fun classicalRunMixesTitleAndComposerQuestions() {
+        val classical = (1..12).map {
+            track("cl-$it").copy(
+                title = "Classical Piece $it",
+                artist = "Composer ${(it - 1) / 2 + 1}",
+                isClassical = true,
+            )
+        }
+
+        val run = MusicQuizQuestionFactory(Random(7)).createClassicalRun(classical)
+
+        assertEquals(10, run.questions.size)
+        val titleCount = run.questions.count { it.questionType == MusicQuizQuestionType.TITLE }
+        val composerCount = run.questions.count { it.questionType == MusicQuizQuestionType.COMPOSER }
+        assertEquals(5, titleCount)
+        assertEquals(5, composerCount)
+    }
+
+    @Test
+    fun classicalComposerQuestionUsesComposerNamesAsOptions() {
+        val classical = (1..12).map {
+            track("cl-$it").copy(
+                title = "Classical Piece $it",
+                artist = "Composer ${(it - 1) / 2 + 1}",
+                isClassical = true,
+            )
+        }
+
+        val run = MusicQuizQuestionFactory(Random(7)).createClassicalRun(classical)
+        val composerQuestion = run.questions.first { it.questionType == MusicQuizQuestionType.COMPOSER }
+
+        assertEquals(5, composerQuestion.options.size)
+        assertEquals(1, composerQuestion.options.count { it.songId == composerQuestion.track.id })
+        // Options are composer names, not piece titles.
+        composerQuestion.options.forEach { option ->
+            assertTrue(option.title.startsWith("Composer "))
+        }
+        // All options have distinct composer names.
+        assertEquals(5, composerQuestion.options.distinctBy { it.title }.size)
+    }
+
+    @Test
+    fun classicalTitleQuestionStillUsesPieceTitles() {
+        val classical = (1..12).map {
+            track("cl-$it").copy(
+                title = "Classical Piece $it",
+                artist = "Composer ${(it - 1) / 2 + 1}",
+                isClassical = true,
+            )
+        }
+
+        val run = MusicQuizQuestionFactory(Random(7)).createClassicalRun(classical)
+        val titleQuestion = run.questions.first { it.questionType == MusicQuizQuestionType.TITLE }
+
+        assertEquals(5, titleQuestion.options.size)
+        titleQuestion.options.forEach { option ->
+            assertTrue(option.title.startsWith("Classical Piece "))
+        }
+    }
+
     private fun tracks(count: Int): List<MusicQuizTrack> = List(count, ::trackFromIndex)
 
     private fun trackFromIndex(index: Int): MusicQuizTrack = track("song-$index")

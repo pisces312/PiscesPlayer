@@ -92,6 +92,7 @@ import com.pisces312.piscesplayer.data.musicquiz.MUSIC_QUIZ_CLIP_DURATION_MS
 import com.pisces312.piscesplayer.data.musicquiz.MusicQuizAnswerRecord
 import com.pisces312.piscesplayer.data.musicquiz.MusicQuizMode
 import com.pisces312.piscesplayer.data.musicquiz.MusicQuizOption
+import com.pisces312.piscesplayer.data.musicquiz.MusicQuizQuestionType
 import com.pisces312.piscesplayer.data.musicquiz.MusicQuizTrack
 import com.pisces312.piscesplayer.presentation.components.PlaylistBottomSheet
 import com.pisces312.piscesplayer.presentation.components.SmartImage
@@ -729,8 +730,16 @@ private fun MusicQuizRoundContent(
         // The hero band keeps a fixed height in both states - the note while listening, the cover
         // plus the answer afterwards - so the candidate list always starts at the same y.
         MusicQuizRoundHero(
-            title = question.track.title,
-            artist = question.track.artist,
+            title = if (question.questionType == MusicQuizQuestionType.COMPOSER) {
+                question.track.artist
+            } else {
+                question.track.title
+            },
+            artist = if (question.questionType == MusicQuizQuestionType.COMPOSER) {
+                ""
+            } else {
+                question.track.artist
+            },
             coverUri = question.track.albumArtUriString,
             // Only a reveal sets a resolution, so a non-null record is the same signal as
             // `revealing` while also carrying the verdict.
@@ -848,13 +857,15 @@ private fun MusicQuizRoundHero(
                     }
                 }
                 MusicQuizAnswerTitle(title)
-                Text(
-                    text = artist,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
+                if (artist.isNotBlank()) {
+                    Text(
+                        text = artist,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
             }
         } else {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
