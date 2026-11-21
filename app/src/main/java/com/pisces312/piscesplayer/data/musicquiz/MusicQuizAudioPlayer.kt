@@ -7,8 +7,15 @@ import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
+import androidx.media3.datasource.DataSpec
+import androidx.media3.datasource.DefaultDataSource
+import androidx.media3.datasource.ResolvingDataSource
+import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import timber.log.Timber
+import java.io.File
+import java.io.IOException
 
 /** A screen-owned player: no service, MediaSession, notification, queue, or listening statistics. */
 internal class MusicQuizAudioPlayer(
@@ -21,6 +28,30 @@ internal class MusicQuizAudioPlayer(
         fun onPlaybackInterrupted(token: Long)
         fun onPlaybackError(token: Long)
     }
+
+    private val appContext = context.applicationContext
+
+    private val midiResolver = object : ResolvingDataSource.Resolver {
+        override fun resolveDataSpec(dataSpec: DataSpec): DataSpec {
+            val uri = dataSpec.uri
+            if (uri.scheme != "piscesmidi") return dataSpec
+            val id = uri.authority ?: uri.lastPathSegment
+            val file = id?.toLongOrNull()?.let { File(appContext.filesDir, "classical/${it}.mid") }
+            if (file == null || !file.isFile) {
+                throw IOException("Built-in MIDI not extracted yet: $uri")
+            }
+            return dataSpec.buildUpon().setUri(Uri.fromFile(file)).build()
+        }
+    }
+
+    private val renderersFactory = object : DefaultRenderersFactory(appContext) {
+        // No video/text/camera renderers needed for a music quiz clip player.
+    }.setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON)
+
+    private val dataSourceFactory = ResolvingDataSource.Factory(
+        DefaultDataSource.Factory(appContext),
+        midiResolver
+    )
 
     private var activeToken: Long? = null
     private var hasStarted = false
@@ -64,7 +95,10 @@ internal class MusicQuizAudioPlayer(
         }
     }
 
-    private val player: ExoPlayer = ExoPlayer.Builder(context.applicationContext).build().apply {
+    private val player: ExoPlayer = ExoPlayer.Builder(appContext, renderersFactory)
+        .setMediaSourceFactory(DefaultMediaSourceFactory(dataSourceFactory))
+        .build()
+        .apply {
         setAudioAttributes(
             AudioAttributes.Builder()
                 .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
