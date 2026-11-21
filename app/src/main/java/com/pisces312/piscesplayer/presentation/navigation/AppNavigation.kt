@@ -81,6 +81,7 @@ import com.pisces312.piscesplayer.presentation.musiclearning.MusicLearningScreen
 import com.pisces312.piscesplayer.presentation.midilibrary.MidiLibraryScreen
 import com.pisces312.piscesplayer.presentation.screens.ClassicalBrowseScreen
 import com.pisces312.piscesplayer.presentation.screens.ClassicalComposerDetailScreen
+import com.pisces312.piscesplayer.presentation.screens.ClassicalWorkDetailScreen
 import com.pisces312.piscesplayer.presentation.rhythm.RhythmGameScreen
 import com.pisces312.piscesplayer.presentation.rhythm.RhythmRecordScreen
 import com.pisces312.piscesplayer.presentation.rhythm.RhythmSetupScreen
@@ -887,6 +888,31 @@ fun AppNavigation(
                         ClassicalComposerDetailScreen(
                             playerViewModel = playerViewModel,
                             albumId = albumId,
+                            paddingValues = paddingValues,
+                            onBack = { navController.popBackStack() }
+                        )
+                    }
+                }
+            }
+            composable(
+                route = Screen.ClassicalWork.route,
+                arguments = listOf(
+                    navArgument("albumId") { type = NavType.LongType },
+                    navArgument("workKey") { type = NavType.StringType },
+                ),
+                enterTransition = { enterTransition() },
+                exitTransition = { exitTransition() },
+                popEnterTransition = { popEnterTransition() },
+                popExitTransition = { popExitTransition() },
+            ) { backStackEntry ->
+                val albumId = backStackEntry.arguments?.getLong("albumId")
+                val workKey = backStackEntry.arguments?.getString("workKey")
+                if (albumId != null && workKey != null) {
+                    ScreenWrapper(navController = navController, playerViewModel = playerViewModel) {
+                        ClassicalWorkDetailScreen(
+                            playerViewModel = playerViewModel,
+                            albumId = albumId,
+                            workKey = workKey,
                             paddingValues = paddingValues,
                             onBack = { navController.popBackStack() }
                         )

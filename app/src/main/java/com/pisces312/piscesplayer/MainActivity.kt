@@ -770,6 +770,7 @@ class MainActivity : ComponentActivity() {
                 Screen.Updates.route,
                 Screen.ClassicalBrowse.route,
                 Screen.ClassicalComposer.route,
+                Screen.ClassicalWork.route,
                 Screen.MidiLibrary.route
             )
         }

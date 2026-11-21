@@ -33,6 +33,9 @@ internal fun LibraryPlaybackAwareSongItem(
     isSelectionMode: Boolean = false,
     titleOverride: String? = null,
     subtitleOverride: String? = null,
+    /** Optional favorite star in the trailing area; null keeps the plain more-vert button only. */
+    isFavorite: Boolean? = null,
+    onToggleFavorite: (() -> Unit)? = null,
     onLongPress: () -> Unit = {},
     onMoreOptionsClick: (Song) -> Unit,
     onClick: () -> Unit
@@ -61,6 +64,8 @@ internal fun LibraryPlaybackAwareSongItem(
         isSelectionMode = isSelectionMode,
         titleOverride = titleOverride,
         subtitleOverride = subtitleOverride,
+        isFavorite = isFavorite,
+        onToggleFavorite = onToggleFavorite,
         onLongPress = onLongPress,
         onMoreOptionsClick = onMoreOptionsClick,
         onClick = onClick

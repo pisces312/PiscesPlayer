@@ -107,6 +107,12 @@ sealed class Screen(val route: String) {
         fun createRoute(albumId: Long) = "classical_composer/$albumId"
     }
 
+    /** 古典熏陶：某作品集（跨作曲家「作品集」tab 点入）的详情页。 */
+    object ClassicalWork : Screen("classical_work/{albumId}/{workKey}") {
+        fun createRoute(albumId: Long, workKey: String) =
+            "classical_work/$albumId/${Uri.encode(workKey)}"
+    }
+
     /** 「MIDI 曲库」：内置非古典 MIDI + 用户自己的 MIDI 文件。 */
     object MidiLibrary : Screen("midi_library")
 
