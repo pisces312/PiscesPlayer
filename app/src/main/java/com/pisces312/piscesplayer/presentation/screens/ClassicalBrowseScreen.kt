@@ -205,7 +205,11 @@ private fun ComposerList(
                 onTranslationToggle = { viewModel.setTranslationEnabled(it) },
                 onPlayAll = {
                     songs.firstOrNull()?.let { first ->
-                        playerViewModel.playSongs(songs, first, queueName = queueName)
+                        playerViewModel.playSongs(
+                            songs.map(viewModel::playbackTarget),
+                            viewModel.playbackTarget(first),
+                            queueName = queueName
+                        )
                     }
                 }
             )
@@ -290,7 +294,11 @@ private fun FavoriteTracksList(
                 FilledTonalButton(
                     onClick = {
                         favoriteSongs.firstOrNull()?.let { first ->
-                            playerViewModel.playSongs(favoriteSongs, first, queueName = queueName)
+                            playerViewModel.playSongs(
+                                favoriteSongs.map(viewModel::playbackTarget),
+                                viewModel.playbackTarget(first),
+                                queueName = queueName
+                            )
                         }
                     },
                     colors = ButtonDefaults.filledTonalButtonColors(
@@ -315,7 +323,11 @@ private fun FavoriteTracksList(
                 isFavorite = true,
                 onToggleFavorite = { viewModel.toggleFavoriteTrack(song.id) },
                 onClick = {
-                    playerViewModel.playSongs(favoriteSongs, song, queueName = queueName)
+                    playerViewModel.playSongs(
+                        favoriteSongs.map(viewModel::playbackTarget),
+                        viewModel.playbackTarget(song),
+                        queueName = queueName
+                    )
                 }
             )
         }

@@ -4,18 +4,43 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import androidx.documentfile.provider.DocumentFile
+import com.pisces312.piscesplayer.data.classical.ClassicalWorkCatalog
 import com.pisces312.piscesplayer.data.database.MusicDao
 import com.pisces312.piscesplayer.data.database.SongEntity
 import com.pisces312.piscesplayer.data.database.SourceType
 import com.pisces312.piscesplayer.data.database.toSongs
 import com.pisces312.piscesplayer.data.model.Song
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import org.json.JSONObject
 import timber.log.Timber
 import java.io.File
+import java.util.Locale
 import javax.inject.Inject
 import javax.inject.Singleton
+
+/**
+ * 遮蔽索引（plan §2-E）：被用户文件遮蔽的内置曲目 id，及 built-in id → 用户条目映射。
+ */
+data class MidiShadowIndex(
+    val shadowedBuiltInIds: Set<Long> = emptySet(),
+    val userEntryByBuiltInId: Map<Long, MidiFileEntry> = emptyMap()
+) {
+    fun substituteFor(builtInId: Long): MidiFileEntry? = userEntryByBuiltInId[builtInId]
+
+    companion object {
+        val EMPTY = MidiShadowIndex()
+    }
+}
 
 /**
  * User MIDI library orchestration (plan §C): registers SAF directories (persistent read
@@ -29,11 +54,23 @@ class MidiLibraryRepository @Inject constructor(
     @ApplicationContext private val context: Context,
     private val musicDao: MusicDao,
     private val store: MidiLibraryStore,
-    private val scanner: MidiScanner
+    private val scanner: MidiScanner,
+    private val workCatalog: ClassicalWorkCatalog
 ) {
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val musicHashMutex = Mutex()
+
+    @Volatile
+    private var musicHashCache: Map<Long, String>? = null
+
     val directories = store.directories
 
     val files = store.files
+
+    /** 用户文件变化时重算遮蔽索引（L1 立即，L2 需要时才解析内置文件并缓存）。 */
+    val shadowIndex: StateFlow<MidiShadowIndex> = store.files
+        .map { computeShadowIndex(it) }
+        .stateIn(scope, SharingStarted.Eagerly, MidiShadowIndex.EMPTY)
 
     fun userMidiSongs(): Flow<List<Song>> = musicDao.getUserMidiSongs().map { it.toSongs() }
 
@@ -120,6 +157,52 @@ class MidiLibraryRepository @Inject constructor(
         }
     }
 
+    private suspend fun computeShadowIndex(files: List<MidiFileEntry>): MidiShadowIndex {
+        if (files.isEmpty()) return MidiShadowIndex.EMPTY
+        val byFileHash = workCatalog.fileHashes()
+        val l1 = MidiShadowMatcher.match(files, byFileHash, emptyMap())
+        if (l1.size == files.size) return MidiShadowIndex(l1.keys, l1)
+
+        // L1 未命中的走 L2：需要内置侧音乐指纹（一次性解析 + 缓存）。
+        val musicHashes = builtinMusicHashes()
+        val full = MidiShadowMatcher.match(files, byFileHash, musicHashes)
+        return MidiShadowIndex(full.keys, full)
+    }
+
+    /**
+     * 内置曲目 id → 音乐指纹（L2）。首次需要时解析 1032 个内置文件（很小、亚秒级、
+     * 后台一次），结果落盘缓存（`filesDir` JSON，随资源包重建自动重算）。
+     */
+    private suspend fun builtinMusicHashes(): Map<Long, String> = musicHashMutex.withLock {
+        musicHashCache?.let { return it }
+        val expected = workCatalog.fileHashes().keys
+        val cacheFile = File(context.filesDir, MUSIC_HASH_CACHE)
+        val cached = runCatching {
+            val obj = JSONObject(cacheFile.readText())
+            buildMap {
+                for (k in obj.keys()) {
+                    k.toLongOrNull()?.let { put(it, obj.getString(k)) }
+                }
+            }
+        }.getOrNull()
+        if (cached != null && cached.keys.containsAll(expected)) {
+            musicHashCache = cached
+            return cached
+        }
+        val computed = expected.mapNotNull { id ->
+            val bytes = runCatching { builtinMidiFile(context, id).readBytes() }.getOrNull()
+                ?: return@mapNotNull null
+            MidiFingerprint.musicHash(bytes)?.let { id to it }
+        }.toMap()
+        musicHashCache = computed
+        runCatching {
+            val obj = JSONObject()
+            computed.forEach { (id, hash) -> obj.put(id.toString(), hash) }
+            cacheFile.writeText(obj.toString())
+        }.onFailure { Timber.w(it, "Cannot cache built-in music hashes") }
+        return computed
+    }
+
     private fun MidiFileEntry.toSongEntity(): SongEntity = SongEntity(
         id = songId.toLongOrNull() ?: 0L,
         title = displayName.substringBeforeLast('.'),
@@ -142,3 +225,5 @@ class MidiLibraryRepository @Inject constructor(
 /** 内置曲目文件路径（解压目录），与 DualPlayerEngine 的 piscesmidi 解析一致。 */
 internal fun builtinMidiFile(context: Context, trackId: Long): File =
     File(File(context.filesDir, "classical"), "$trackId.mid")
+
+private const val MUSIC_HASH_CACHE = "midi_library_music_hashes.json"

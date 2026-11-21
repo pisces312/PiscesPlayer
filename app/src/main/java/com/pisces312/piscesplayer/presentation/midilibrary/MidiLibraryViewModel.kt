@@ -16,6 +16,7 @@ import com.pisces312.piscesplayer.data.preferences.UserPreferencesRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -49,10 +50,13 @@ class MidiLibraryViewModel @Inject constructor(
         .map { it.toSongs() }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
-    /** 内置非古典曲目（古典熏陶之外的内置 MIDI）。 */
-    val builtInSongs: StateFlow<List<Song>> = songs
-        .map { list -> list.filter { !workCatalog.isClassicalTrack(it.id) } }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+    /** 内置非古典曲目（古典熏陶之外的内置 MIDI）；被用户文件遮蔽的隐藏（plan §2-E）。 */
+    val builtInSongs: StateFlow<List<Song>> = combine(songs, repository.shadowIndex) { list, shadow ->
+        list.filter {
+            !workCatalog.isClassicalTrack(it.id) &&
+                it.id.toLongOrNull() !in shadow.shadowedBuiltInIds
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     /** 用户 MIDI（扫描目录 + 单曲添加，引用原文件）。 */
     val userSongs: StateFlow<List<Song>> = repository.userMidiSongs()

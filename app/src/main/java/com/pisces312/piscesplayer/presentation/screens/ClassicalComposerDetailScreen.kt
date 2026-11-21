@@ -115,7 +115,11 @@ fun ClassicalComposerDetailScreen(
                     IconButton(
                         onClick = {
                             composerSongs.firstOrNull()?.let { first ->
-                                playerViewModel.playSongs(composerSongs, first, queueName = composerName)
+                                playerViewModel.playSongs(
+                                    composerSongs.map(viewModel::playbackTarget),
+                                    viewModel.playbackTarget(first),
+                                    queueName = composerName
+                                )
                             }
                         }
                     ) {
@@ -170,8 +174,8 @@ fun ClassicalComposerDetailScreen(
                                     onPlayAll = {
                                         section.tracks.firstOrNull()?.let { first ->
                                             playerViewModel.playSongs(
-                                                section.tracks,
-                                                first,
+                                                section.tracks.map(viewModel::playbackTarget),
+                                                viewModel.playbackTarget(first),
                                                 queueName = workQueueName
                                             )
                                         }
@@ -186,8 +190,8 @@ fun ClassicalComposerDetailScreen(
                                     favoriteTracks = favoriteTracks,
                                     onClick = {
                                         playerViewModel.playSongs(
-                                            section.tracks,
-                                            song,
+                                            section.tracks.map(viewModel::playbackTarget),
+                                            viewModel.playbackTarget(song),
                                             queueName = workQueueName
                                         )
                                     }
@@ -203,8 +207,8 @@ fun ClassicalComposerDetailScreen(
                                     favoriteTracks = favoriteTracks,
                                     onClick = {
                                         playerViewModel.playSongs(
-                                            composerSongs,
-                                            song,
+                                            composerSongs.map(viewModel::playbackTarget),
+                                            viewModel.playbackTarget(song),
                                             queueName = composerName
                                         )
                                     }

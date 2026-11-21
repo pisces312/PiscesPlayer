@@ -11,6 +11,8 @@ import com.pisces312.piscesplayer.data.classical.NameSet
 import com.pisces312.piscesplayer.data.database.MusicDao
 import com.pisces312.piscesplayer.data.database.toAlbums
 import com.pisces312.piscesplayer.data.database.toSongs
+import com.pisces312.piscesplayer.data.midilibrary.MidiLibraryRepository
+import com.pisces312.piscesplayer.data.midilibrary.MidiShadowIndex
 import com.pisces312.piscesplayer.data.model.Album
 import com.pisces312.piscesplayer.data.model.Song
 import com.pisces312.piscesplayer.data.preferences.UserPreferencesRepository
@@ -44,7 +46,8 @@ class ClassicalLibraryViewModel @Inject constructor(
     private val userPreferencesRepository: UserPreferencesRepository,
     val nameCatalog: ClassicalNameCatalog,
     val workCatalog: ClassicalWorkCatalog,
-    val favorites: ClassicalFavoritesStore
+    val favorites: ClassicalFavoritesStore,
+    private val midiRepository: MidiLibraryRepository
 ) : ViewModel() {
 
     val albums: StateFlow<List<Album>> = musicDao.getClassicalAlbums()
@@ -90,6 +93,24 @@ class ClassicalLibraryViewModel @Inject constructor(
 
     fun toggleFavoriteTrack(songId: String) {
         favorites.toggleTrack(songId)
+    }
+
+    /** 用户文件遮蔽索引（plan §2-E）。 */
+    val shadowIndex: StateFlow<MidiShadowIndex> = midiRepository.shadowIndex
+
+    private val userSongsById: StateFlow<Map<String, Song>> = midiRepository.userMidiSongs()
+        .map { list -> list.associateBy { it.id } }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyMap())
+
+    /**
+     * 播放目标：被用户文件遮蔽的内置曲目改由用户的文件播放。显示身份（曲名目录、
+     * 作品分组、收藏键）保持内置条目 —— 展示上仍是「原位显示 + 继承元数据」，收藏与
+     * 播放列表引用不受遮蔽变化影响。
+     */
+    fun playbackTarget(song: Song): Song {
+        val builtInId = song.id.toLongOrNull() ?: return song
+        val entry = shadowIndex.value.substituteFor(builtInId) ?: return song
+        return userSongsById.value[entry.songId] ?: song
     }
 
     /**
