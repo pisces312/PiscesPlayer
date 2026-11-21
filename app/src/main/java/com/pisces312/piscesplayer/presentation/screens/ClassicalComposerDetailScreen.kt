@@ -63,7 +63,7 @@ fun ClassicalComposerDetailScreen(
 ) {
     val viewModel: ClassicalLibraryViewModel = hiltViewModel()
     val albums by viewModel.albums.collectAsStateWithLifecycle()
-    val songs by viewModel.songs.collectAsStateWithLifecycle()
+    val songs by viewModel.classicalSongs.collectAsStateWithLifecycle()
     val translationEnabled by viewModel.translationEnabled.collectAsStateWithLifecycle()
     val favoriteComposers by viewModel.favoriteComposers.collectAsStateWithLifecycle()
     val favoriteTracks by viewModel.favoriteTracks.collectAsStateWithLifecycle()

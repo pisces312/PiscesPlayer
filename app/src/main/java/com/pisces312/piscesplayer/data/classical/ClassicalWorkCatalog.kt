@@ -18,8 +18,9 @@ data class ClassicalWork(
 }
 
 /**
- * Runtime work catalogue for the built-in classical library, derived from
- * `classical_index.json` at startup by [ClassicalLibraryInitializer] (read-only cache).
+ * Runtime catalogue of data derived from `classical_index.json`, loaded at startup by
+ * [ClassicalLibraryInitializer]: work groupings (作品集), per-track `style`, and the
+ * per-track file `sha256` (used for user-file/built-in dedup, see the MIDI library plan).
  *
  * Works are **derived**, not stored: the pack schema may later carry precomputed
  * `workId/workTitle/movement` fields (plan P1) — when present those win; until then the
@@ -34,6 +35,12 @@ class ClassicalWorkCatalog @Inject constructor() {
     @Volatile
     private var workByTrack: Map<Long, ClassicalWork> = emptyMap()
 
+    @Volatile
+    private var styleByTrack: Map<Long, String> = emptyMap()
+
+    @Volatile
+    private var hashByTrack: Map<Long, String> = emptyMap()
+
     fun load(tracks: List<ClassicalTrack>) {
         worksByAlbum = ClassicalWorkDeriver.derive(tracks)
         workByTrack = buildMap {
@@ -41,11 +48,32 @@ class ClassicalWorkCatalog @Inject constructor() {
                 work.trackIds.forEach { put(it, work) }
             }
         }
+        styleByTrack = tracks.associate { it.id to it.style }
+        hashByTrack = tracks.filter { it.sha256.isNotEmpty() }.associate { it.id to it.sha256 }
     }
 
     fun worksForAlbum(albumId: Long): List<ClassicalWork> = worksByAlbum[albumId].orEmpty()
 
     fun workOfTrack(trackId: Long): ClassicalWork? = workByTrack[trackId]
+
+    fun styleOf(trackId: Long): String? = styleByTrack[trackId]
+
+    /**
+     * 古典熏陶收录判定：目录未装载（null）时视为古典（保持旧行为、不闪空）；
+     * 装载后按 [ClassicalStyle] 判定。
+     */
+    fun isClassicalTrack(trackId: Long): Boolean =
+        styleOf(trackId)?.let(ClassicalStyle::isClassical) ?: true
+
+    /** [com.pisces312.piscesplayer.data.model.Song.id] 是字符串型，便捷重载。 */
+    fun isClassicalTrack(songId: String): Boolean =
+        songId.toLongOrNull()?.let { isClassicalTrack(it) } ?: true
+
+    /** 全文件 SHA-256（index 自带）；无值返回 null。 */
+    fun fileSha256Of(trackId: Long): String? = hashByTrack[trackId]
+
+    /** trackId → 全文件 sha256（内置侧 L1 hash 表）。 */
+    fun fileHashes(): Map<Long, String> = hashByTrack
 }
 
 /**

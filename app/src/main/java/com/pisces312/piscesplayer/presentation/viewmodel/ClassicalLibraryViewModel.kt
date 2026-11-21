@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.pisces312.piscesplayer.data.classical.ClassicalFavoritesStore
 import com.pisces312.piscesplayer.data.classical.ClassicalNameCatalog
+import com.pisces312.piscesplayer.data.classical.ClassicalStyle
 import com.pisces312.piscesplayer.data.classical.ClassicalWork
 import com.pisces312.piscesplayer.data.classical.ClassicalWorkCatalog
 import com.pisces312.piscesplayer.data.classical.NameSet
@@ -16,6 +17,7 @@ import com.pisces312.piscesplayer.data.preferences.UserPreferencesRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -52,6 +54,19 @@ class ClassicalLibraryViewModel @Inject constructor(
     val songs: StateFlow<List<Song>> = musicDao.getClassicalSongs()
         .map { it.toSongs() }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    /**
+     * 「古典熏陶」收录范围：只保留正统古典（period styles，见 [ClassicalStyle]）；
+     * 非古典流派（赞美诗/艺术歌曲/爵士…）归「MIDI 曲库 · 内置 MIDI」。
+     */
+    val classicalSongs: StateFlow<List<Song>> = songs
+        .map { list -> list.filter { workCatalog.isClassicalTrack(it.id) } }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    /** 有古典曲目的作曲家（虚拟专辑）；纯非古典作曲家不再出现在古典熏陶。 */
+    val classicalAlbums: StateFlow<List<Album>> = combine(albums, classicalSongs) { albums, songs ->
+        albums.filter { album -> songs.any { it.albumId == album.id } }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     val trackCount: StateFlow<Int> = musicDao.getClassicalSongCount()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)

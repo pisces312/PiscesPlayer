@@ -79,9 +79,8 @@ fun ClassicalBrowseScreen(
     onBack: () -> Unit
 ) {
     val viewModel: ClassicalLibraryViewModel = hiltViewModel()
-    val albums by viewModel.albums.collectAsStateWithLifecycle()
-    val songs by viewModel.songs.collectAsStateWithLifecycle()
-    val trackCount by viewModel.trackCount.collectAsStateWithLifecycle()
+    val albums by viewModel.classicalAlbums.collectAsStateWithLifecycle()
+    val songs by viewModel.classicalSongs.collectAsStateWithLifecycle()
     val translationEnabled by viewModel.translationEnabled.collectAsStateWithLifecycle()
     val favoriteComposers by viewModel.favoriteComposers.collectAsStateWithLifecycle()
     val favoriteTracks by viewModel.favoriteTracks.collectAsStateWithLifecycle()
@@ -140,7 +139,7 @@ fun ClassicalBrowseScreen(
                     playerViewModel = playerViewModel,
                     albums = albums,
                     songs = songs,
-                    trackCount = trackCount,
+                    trackCount = songs.size,
                     translationEnabled = translationEnabled,
                     favoriteComposers = favoriteComposers,
                     query = query,
@@ -217,6 +216,7 @@ private fun ComposerList(
                 ComposerRow(
                     viewModel = viewModel,
                     album = album,
+                    songCount = songs.count { it.albumId == album.id },
                     translationEnabled = translationEnabled,
                     isFavorite = true,
                     onClick = { navController.navigateSafely(Screen.ClassicalComposer.createRoute(album.id)) }
@@ -228,6 +228,7 @@ private fun ComposerList(
             ComposerRow(
                 viewModel = viewModel,
                 album = album,
+                songCount = songs.count { it.albumId == album.id },
                 translationEnabled = translationEnabled,
                 isFavorite = false,
                 onClick = { navController.navigateSafely(Screen.ClassicalComposer.createRoute(album.id)) }
@@ -374,6 +375,7 @@ private fun ClassicalBrowseHeader(
 private fun ComposerRow(
     viewModel: ClassicalLibraryViewModel,
     album: Album,
+    songCount: Int,
     translationEnabled: Boolean,
     isFavorite: Boolean,
     onClick: () -> Unit
@@ -427,7 +429,7 @@ private fun ComposerRow(
             }
         }
         Text(
-            text = stringResource(R.string.classical_card_track_count_format, album.songCount),
+            text = stringResource(R.string.classical_card_track_count_format, songCount),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )

@@ -1,6 +1,7 @@
 package com.pisces312.piscesplayer.data.classical
 
 import org.json.JSONArray
+import java.util.Locale
 
 /**
  * Shared constants and index parsing for the built-in classical MIDI library.
@@ -68,6 +69,8 @@ object ClassicalLibrary {
                         artistId = t.optLong("artistId").takeIf { it != 0L }
                             ?: (ARTIST_ID_BASE + t.optLong("composerIndex")),
                         opus = t.optString("opus").trim(),
+                        style = t.optString("style").trim(),
+                        sha256 = t.optString("sha256").trim().lowercase(Locale.ROOT),
                         durationMs = t.getLong("durationMs")
                     )
                 )
@@ -134,5 +137,7 @@ data class ClassicalTrack(
     val albumId: Long,
     val artistId: Long,
     val opus: String,
+    val style: String,
+    val sha256: String,
     val durationMs: Long
 )
