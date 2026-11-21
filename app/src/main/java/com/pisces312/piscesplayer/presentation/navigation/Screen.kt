@@ -126,11 +126,9 @@ sealed class Screen(val route: String) {
         fun createRoute(songId: String) = "rhythm_setup/${Uri.encode(songId)}"
     }
 
-    object RhythmGame : Screen("rhythm_game/{songId}/{chartId}?logic={logic}") {
-        /** [logic] is a [com.pisces312.piscesplayer.data.rhythm.RhythmPlayLogic] name; null plays the chart as stored. */
-        fun createRoute(songId: String, chartId: String, logic: String? = null) =
-            "rhythm_game/${Uri.encode(songId)}/${Uri.encode(chartId)}" +
-                (logic?.let { "?logic=${Uri.encode(it)}" } ?: "")
+    object RhythmGame : Screen("rhythm_game/{songId}/{chartId}") {
+        fun createRoute(songId: String, chartId: String) =
+            "rhythm_game/${Uri.encode(songId)}/${Uri.encode(chartId)}"
     }
 
     object RhythmRecord : Screen("rhythm_record/{songId}") {

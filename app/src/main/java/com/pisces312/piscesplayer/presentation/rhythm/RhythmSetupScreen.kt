@@ -77,7 +77,7 @@ import com.pisces312.piscesplayer.data.rhythm.RhythmChartMeta
 import com.pisces312.piscesplayer.data.rhythm.RhythmChartSettings
 import com.pisces312.piscesplayer.data.rhythm.RhythmDeriveMode
 import com.pisces312.piscesplayer.data.rhythm.RhythmDeriveSettings
-import com.pisces312.piscesplayer.data.rhythm.RhythmPlayLogic
+
 import com.pisces312.piscesplayer.data.rhythm.RhythmRepository
 import com.pisces312.piscesplayer.presentation.components.MiniPlayerBottomSpacer
 import com.pisces312.piscesplayer.presentation.components.MiniPlayerHeight
@@ -150,8 +150,6 @@ fun RhythmSetupScreen(
     var pendingDelete by remember { mutableStateOf<RhythmChartMeta?>(null) }
     var pendingDeleteDerived by remember { mutableStateOf(false) }
     var settingsTarget by remember { mutableStateOf<RhythmChartMeta?>(null) }
-    var playTarget by remember { mutableStateOf<RhythmChartMeta?>(null) }
-    var playLogicName by rememberSaveable { mutableStateOf(RhythmPlayLogic.AS_STORED.name) }
 
     // Chart export: the format dialog parks the target here until the SAF create-document
     // round trip returns the destination uri.
@@ -195,13 +193,9 @@ fun RhythmSetupScreen(
         scope.launch { reload() }
     }
 
-    /** Start a run: authored charts play as mapped, DSP charts first ask for the A/B logic. */
+    /** Start a run: every chart plays as stored (the play-time A/B re-bake was retired). */
     fun playChart(meta: RhythmChartMeta) {
-        if (meta.source != RhythmChart.SOURCE_DSP) {
-            navController.navigateSafely(Screen.RhythmGame.createRoute(songId, meta.chartId))
-            return
-        }
-        playTarget = meta
+        navController.navigateSafely(Screen.RhythmGame.createRoute(songId, meta.chartId))
     }
 
     fun startGeneration(params: RhythmAnalysisParams) {
@@ -632,21 +626,6 @@ fun RhythmSetupScreen(
         )
     }
 
-    playTarget?.let { meta ->
-        PlayLogicDialog(
-            chartName = meta.difficultyName,
-            selected = RhythmPlayLogic.from(playLogicName) ?: RhythmPlayLogic.AS_STORED,
-            onSelect = { playLogicName = it.name },
-            onConfirm = {
-                playTarget = null
-                navController.navigateSafely(
-                    Screen.RhythmGame.createRoute(songId, meta.chartId, playLogicName),
-                )
-            },
-            onDismiss = { playTarget = null },
-        )
-    }
-
     exportTarget?.let { meta ->
         ExportFormatDialog(
             chartName = meta.difficultyName,
@@ -738,87 +717,6 @@ fun RhythmSetupScreen(
             },
         )
     }
-}
-
-/**
- * Game-start A/B picker: which grid logic places the notes for this run. The choice is
- * remembered across opens and passed to the game screen as a route arg; the run re-bakes the
- * note times in memory, so nothing on disk changes.
- */
-@Composable
-private fun PlayLogicDialog(
-    chartName: String,
-    selected: RhythmPlayLogic,
-    onSelect: (RhythmPlayLogic) -> Unit,
-    onConfirm: () -> Unit,
-    onDismiss: () -> Unit,
-) {
-    val options = listOf(
-        RhythmPlayLogic.AS_STORED to (
-            stringResource(R.string.rhythm_play_logic_as_stored) to
-                stringResource(R.string.rhythm_play_logic_as_stored_desc)
-            ),
-        RhythmPlayLogic.ADAPTIVE_GRID to (
-            stringResource(R.string.rhythm_play_logic_adaptive) to
-                stringResource(R.string.rhythm_play_logic_adaptive_desc)
-            ),
-        RhythmPlayLogic.OSU_STYLE to (
-            stringResource(R.string.rhythm_play_logic_osu) to
-                stringResource(R.string.rhythm_play_logic_osu_desc)
-            ),
-        RhythmPlayLogic.LEGACY_REFINE to (
-            stringResource(R.string.rhythm_play_logic_legacy) to
-                stringResource(R.string.rhythm_play_logic_legacy_desc)
-            ),
-    )
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.rhythm_play_logic_title)) },
-        text = {
-            Column {
-                Text(
-                    text = stringResource(R.string.rhythm_play_logic_message),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Spacer(Modifier.height(8.dp))
-                Text(
-                    text = chartName,
-                    style = MaterialTheme.typography.labelLarge,
-                )
-                Spacer(Modifier.height(4.dp))
-                for ((logic, labels) in options) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { onSelect(logic) }
-                            .padding(vertical = 2.dp),
-                    ) {
-                        RadioButton(selected = logic == selected, onClick = { onSelect(logic) })
-                        Column {
-                            Text(labels.first, style = MaterialTheme.typography.bodyMedium)
-                            Text(
-                                text = labels.second,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = onConfirm) {
-                Text(stringResource(R.string.rhythm_play_logic_start))
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.rhythm_play_logic_cancel))
-            }
-        },
-    )
 }
 
 @Composable

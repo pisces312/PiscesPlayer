@@ -56,15 +56,12 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.pisces312.piscesplayer.R
 import com.pisces312.piscesplayer.data.offline.CloudOfflineRepository
-import com.pisces312.piscesplayer.data.rhythm.DspDifficulty
 import com.pisces312.piscesplayer.data.rhythm.RhythmAudioClock
-import com.pisces312.piscesplayer.data.rhythm.RhythmChart
 import com.pisces312.piscesplayer.data.rhythm.RhythmChartSettings
 import com.pisces312.piscesplayer.data.rhythm.RhythmDriftKind
 import com.pisces312.piscesplayer.data.rhythm.RhythmDriftRecorder
 import com.pisces312.piscesplayer.data.rhythm.RhythmDriftReport
 import com.pisces312.piscesplayer.data.rhythm.RhythmPcmDecoder
-import com.pisces312.piscesplayer.data.rhythm.RhythmPlayLogic
 import com.pisces312.piscesplayer.data.rhythm.RhythmRepository
 import com.pisces312.piscesplayer.data.rhythm.delayAfterTap
 import java.io.File
@@ -98,7 +95,6 @@ private val DANGER_TEXT = Color(0xFFFF8A9B)
 fun RhythmGameScreen(
     songId: String,
     chartId: String,
-    playLogic: String? = null,
     playerViewModel: com.pisces312.piscesplayer.presentation.viewmodel.PlayerViewModel,
     onExit: () -> Unit,
 ) {
@@ -135,18 +131,6 @@ fun RhythmGameScreen(
     val cloudUnavailableMessage = stringResource(R.string.rhythm_cloud_not_supported)
     val chartMissingMessage = stringResource(R.string.rhythm_chart_missing)
     val songMissingMessage = stringResource(R.string.rhythm_song_missing)
-
-    // A/B placement logic (the game-start dialog): the run re-bakes the note times in memory,
-    // and the label is appended to the run title so the result screen records which logic won.
-    val logic = remember(playLogic) {
-        RhythmPlayLogic.from(playLogic) ?: RhythmPlayLogic.AS_STORED
-    }
-    val logicLabel = when (logic) {
-        RhythmPlayLogic.AS_STORED -> null
-        RhythmPlayLogic.ADAPTIVE_GRID -> stringResource(R.string.rhythm_play_logic_adaptive)
-        RhythmPlayLogic.OSU_STYLE -> stringResource(R.string.rhythm_play_logic_osu)
-        RhythmPlayLogic.LEGACY_REFINE -> stringResource(R.string.rhythm_play_logic_legacy)
-    }
 
     fun presentJudgement(event: RhythmJudgementEvent?) {
         if (event == null || event.judgement == RhythmJudgement.EMPTY) return
@@ -191,33 +175,14 @@ fun RhythmGameScreen(
         }
     }
 
-    // Load chart, decode audio, and build the injected-clock session.
+    // Load chart, decode audio, and build the injected-clock session. Charts always play as
+    // stored: the play-time A/B re-bake was retired after the timing-estimator experiments
+    // concluded (see RhythmChartLab docs/design/rhythm-play-logic-retirement.md).
     LaunchedEffect(songId, chartId) {
         withContext(Dispatchers.IO) {
             try {
-                val stored = repository.loadChart(chartId)
+                val chart = repository.loadChart(chartId)
                     ?: error(chartMissingMessage)
-                val chart = if (logic != RhythmPlayLogic.AS_STORED &&
-                    stored.source == RhythmChart.SOURCE_DSP
-                ) {
-                    // The re-bake needs the difficulty's snap divisor and, for the legacy
-                    // refiner, the master's full onset set. Custom difficulties record their
-                    // divisor directly; older metas recover it from the ladder key.
-                    val meta = repository.chartsForSong(songId).firstOrNull { it.chartId == chartId }
-                    val master = meta?.parentChartId?.let { repository.loadChart(it) }
-                    val gridDiv = meta?.difficultyGridDiv
-                        ?: DspDifficulty.entries
-                            .firstOrNull { it.name.equals(meta?.difficultyKey, ignoreCase = true) }
-                            ?.gridDiv
-                        ?: DspDifficulty.HARD.gridDiv
-                    logic.retime(stored, master, gridDiv).copy(
-                        difficultyName = logicLabel
-                            ?.let { "${stored.difficultyName} · $it" }
-                            ?: stored.difficultyName,
-                    )
-                } else {
-                    stored
-                }
                 val song = playerViewModel.observeSong(songId).first()
                     ?: error(songMissingMessage)
                 if (CloudOfflineRepository.isCloudSong(song)) {
@@ -286,6 +251,10 @@ fun RhythmGameScreen(
         touchTracker.clear()
         driftReport = null
         currentSession.clock.stop()
+        // Baseline the render time at the stopped clock (including the calibrated offset) so
+        // the countdown freeze and the first post-restart frame agree; otherwise notes jump by
+        // offsetMs when the loop starts sampling after the countdown.
+        songMs = currentSession.clock.nowMs()
         countdown = 3
         repeat(3) {
             delay(1000)
@@ -311,6 +280,9 @@ fun RhythmGameScreen(
                 }
             }
             if (!paused) {
+                // The clock runs continuously from the play anchor and its output is monotonic
+                // (see RhythmFrameEstimator), so every sampled frame is directly usable — there
+                // is no startup sync state to gate on.
                 val now = currentSession.clock.nowMs()
                 songMs = now
                 audioClock?.let { driftRecorder.recordFrame(it.diagnosticsSample(), animationNow) }
