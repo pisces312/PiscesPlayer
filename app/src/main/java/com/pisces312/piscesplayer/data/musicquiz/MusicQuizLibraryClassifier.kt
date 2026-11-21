@@ -22,47 +22,58 @@ internal object MusicQuizLibraryClassifier {
         .map { it.toMusicQuizTrack() }
         .let { MusicQuizQuestionFactory.eligibleTracks(it.toList()) }
 
+    /**
+     * 逐曲目分类证据：只依赖该曲目自身元数据 + 内置目录的纯函数结果。
+     * 儿童判定的「库级闸门」（tierA 是否够量决定要不要关键词兜底）不是逐曲目纯函数，
+     * 所以缓存证据而非最终 flag，每次从证据重算闸门（见 [applyEvidence]）。
+     */
+    data class TrackEvidence(
+        val isClassical: Boolean,
+        val kidsTierA: Boolean,
+        val kidsKeyword: Boolean,
+    )
+
+    fun evidenceOf(track: MusicQuizTrack): TrackEvidence = TrackEvidence(
+        isClassical = track.isClassical || ClassicalSongClassifier.isClassical(track),
+        kidsTierA = KidsSongClassifier.matchesCatalog(track.title) ||
+            KidsSongClassifier.matchesArtistLabel(track.artist),
+        kidsKeyword = KidsSongClassifier.matchesKeywords(
+            title = track.title,
+            artist = track.artist,
+            album = track.album,
+        ),
+    )
+
     /** Classification pass: classical flags + kids flags over [base]. */
-    fun classify(base: List<MusicQuizTrack>): List<MusicQuizTrack> {
-        val withClassical = base.map { track ->
+    fun classify(base: List<MusicQuizTrack>): List<MusicQuizTrack> =
+        applyEvidence(base, base.map(::evidenceOf))
+
+    /** 从逐曲目证据组装最终 flag（含儿童库级闸门），与 [classify] 完全同语义。 */
+    fun applyEvidence(
+        base: List<MusicQuizTrack>,
+        evidence: List<TrackEvidence>,
+    ): List<MusicQuizTrack> {
+        val withClassical = base.mapIndexed { index, track ->
             if (track.isClassical) {
                 track
             } else {
-                track.copy(isClassical = ClassicalSongClassifier.isClassical(track))
+                track.copy(isClassical = evidence[index].isClassical)
             }
         }
-        val kidsIds = kidsIdsOf(withClassical)
-        return withClassical.map { it.copy(isKidsSong = it.id in kidsIds) }
-    }
-
-    /**
-     * Tier A first (catalog names + the always-on performer-label rule); keyword
-     * fallback only when those hits cannot fill a kids pool. The fallback matches on
-     * title/artist/album metadata alone — no lyrics lookup.
-     */
-    private fun kidsIdsOf(tracks: List<MusicQuizTrack>): Set<String> {
-        val tierA = tracks.filter {
-            KidsSongClassifier.matchesCatalog(it.title) ||
-                KidsSongClassifier.matchesArtistLabel(it.artist)
-        }
+        val tierA = withClassical.filterIndexed { index, _ -> evidence[index].kidsTierA }
         val kidsEnough = tierA.size >= MUSIC_QUIZ_ROUND_COUNT &&
             tierA.map { MusicQuizQuestionFactory.normalizedTitle(it.title) }.distinct().size >=
             MUSIC_QUIZ_OPTION_COUNT
-        return if (kidsEnough) {
+        val kidsIds = if (kidsEnough) {
             tierA.mapTo(mutableSetOf()) { it.id }
         } else {
-            val tierAIds = tierA.mapTo(mutableSetOf()) { it.id }
-            tracks.asSequence()
-                .filter { it.id !in tierAIds }
-                .filter {
-                    KidsSongClassifier.matchesKeywords(
-                        title = it.title,
-                        artist = it.artist,
-                        album = it.album,
-                    )
-                }
-                .mapTo(tierAIds) { it.id }
+            val ids = tierA.mapTo(mutableSetOf()) { it.id }
+            withClassical.forEachIndexed { index, track ->
+                if (track.id !in ids && evidence[index].kidsKeyword) ids += track.id
+            }
+            ids
         }
+        return withClassical.map { it.copy(isKidsSong = it.id in kidsIds) }
     }
 
     private fun Song.toMusicQuizTrack(): MusicQuizTrack {

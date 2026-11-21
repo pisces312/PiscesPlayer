@@ -200,7 +200,14 @@ class MusicQuizViewModel @Inject constructor(
     fun updateLibrary(songs: List<Song>, force: Boolean = false) {
         // LaunchedEffect(allSongs) re-fires on every composition entry; skip when the
         // snapshot is already current so re-entering the screen never reclassifies.
-        if (!force && libraryLoaded && songs === librarySource) return
+        // Structural equality counts too (re-created but unchanged list): keep the new
+        // instance as the source token without flashing the classifying state.
+        if (!force && libraryLoaded &&
+            (songs === librarySource || libraryCache.matchesCurrentSource(songs))
+        ) {
+            librarySource = songs
+            return
+        }
         classificationJob?.cancel()
         classificationJob = viewModelScope.launch {
             _uiState.update { it.copy(isClassifying = true) }
