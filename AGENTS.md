@@ -248,7 +248,7 @@ OSS 有**设置搜索**，开关不注册就搜不到：
 2. `presentation/viewmodel/SettingsViewModel.kt`：`SettingsUiState` 字段 → `SettingsUiUpdate.Group2` 字段 → `init` 里 combine 的 flow 列表**末尾**追加 → `values[N]`（索引按位置对应，只能追加不能插队）→ `state.copy()` → `setXxx()`。
 3. `presentation/screens/SettingsCategoryScreen.kt`：对应 `SettingsCategory` 分支里加 `SettingsSubsection` + `SwitchSettingItem`，带 `Modifier.settingHighlight("item_xxx", highlightKey)`。
 4. `presentation/settings/search/SettingsRegistry.kt`：注册 `SettingSpec`（`type = SettingType.SWITCH`，带 `getValue` / `onToggle` 与关键词），`itemKey` 与第 3 步的 highlight key 一致。
-5. `res/values/strings_settings.xml` 加 title/subtitle，同时加 `values-zh-rCN/` 中文版；其他语言留给翻译流程，不要手写。
+5. `res/values/strings_settings.xml` 加 title/subtitle，同时加 `values-zh-rCN/` 中文版；只维护中英两语，不加其他语言。
 
 ## 共享 PlayerViewModel（必读：别加回 `= hiltViewModel()` 默认值）
 
@@ -303,5 +303,8 @@ OSS 有**设置搜索**，开关不注册就搜不到：
 - **合并上游后必须人工补 CHANGELOG**：上游的条目写在它自己的 `## [Unreleased]` 段，合并时只有上下文能对上 fork 段落的那条会被带进来，**其余 `### Fixed` 会静默丢失**（2026-10-11 那次丢了 4 条，只捞回 Updates 一条）。
   合并后先 `git show upstream/main:CHANGELOG.md` 看它的 Unreleased 段，把丢掉的条目补进 fork 的 `## [Unreleased]` 段（`ChangelogParser` 会跳过无日期的块，应用内 changelog 不显示）；发版时把该段标题改成 `## [<版本名>] - <日期>`。
   上游条目里与 fork 已有条目重复的（例：Jellyfin playlists 那条 0.3.0 段已有）不重复补。
-- 新功能字符串同时加中文（`values-zh-rCN/`）与英文（`values/`）两种语言，不手写其他语言。
+- **应用内语言只支持中文和英文两种**（2026-11-21 定）：跟随系统 / English / 简体中文。
+  新功能字符串同时加中文（`values-zh-rCN/`）与英文（`values/`）两种语言，不手写其他语言；
+  上游的其他语言译文（`values-ar` 等 10 个目录）已删除 —— 它们只覆盖 ~63% 字符串，
+  会造成本 fork 新界面半中半英的混杂观感。合并上游时若这些目录被带回来，保持删除。
 - 改动后至少跑 `assembleRelease`（默认构建）；UI 类改动装真机验证（**验收范围见「目标设备与屏幕尺寸」**，小屏被裁不算缺陷）。需要逐行调试时才额外构建 `debug`。

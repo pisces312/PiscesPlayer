@@ -48,6 +48,12 @@ PixelPlayerOSS; versions up to and including 0.4.3 were published under the upst
   highlight, more menu, classical favorite star) and plays them in catalogue order.
 
 ### Changed
+- The app now supports exactly two interface languages: English and Simplified Chinese,
+  plus "System default". The in-app language picker, `locales_config.xml` and the translated
+  resource folders of the ten stale upstream locales (ar/de/es/fr/in/it/ko/nb/ru/tr) are
+  removed: those translations covered only ~63% of all strings, so every fork-added screen
+  fell back to English and produced a mixed-language UI. A user who had picked one of the
+  removed languages falls back to "System default" automatically.
 - Home: the two local-recommendation sections ("Daily Mix" and "Discover") are merged into a
   single "Daily Mix" (每日推荐) card. One 30-song feed now blends familiar picks (2/3,
   history-driven) with discovery picks (1/3, low-affinity and recently added tracks),

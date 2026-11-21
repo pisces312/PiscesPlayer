@@ -7,16 +7,6 @@ import com.pisces312.piscesplayer.R
 enum class AppLanguage(val tag: String, @StringRes val labelRes: Int) {
     SYSTEM("", R.string.setcat_language_system),
     ENGLISH("en", R.string.setcat_language_english),
-    ARABIC("ar", R.string.setcat_language_arabic),
-    GERMAN("de", R.string.setcat_language_german),
-    SPANISH("es", R.string.setcat_language_spanish),
-    FRENCH("fr", R.string.setcat_language_french),
-    INDONESIAN("in", R.string.setcat_language_indonesian),
-    ITALIAN("it", R.string.setcat_language_italian),
-    KOREAN("ko", R.string.setcat_language_korean),
-    NORWEGIAN_BOKMAL("nb", R.string.setcat_language_norwegian_bokmal),
-    RUSSIAN("ru", R.string.setcat_language_russian),
-    TURKISH("tr", R.string.setcat_language_turkish),
     ZH_RCN("zh-CN", R.string.language_zh_rCN);
 
     companion object {
