@@ -16,6 +16,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.CreateNewFolder
@@ -27,14 +29,16 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -64,6 +68,9 @@ import com.pisces312.piscesplayer.presentation.viewmodel.PlayerViewModel
  *   按风格分节 + 搜索 + 收藏；
  * - **我的 MIDI**：SAF 扫描目录 + 单曲添加（引用原文件），按目录分节 + 搜索，
  *   收藏走全局 Liked。
+ *
+ * Tab 切换与曲库同款（PrimaryTabRow + HorizontalPager 双向同步、可滑动；
+ * 两页搜索状态互相独立）。
  */
 @Composable
 fun MidiLibraryScreen(
@@ -72,8 +79,17 @@ fun MidiLibraryScreen(
     onBack: () -> Unit
 ) {
     val viewModel: MidiLibraryViewModel = hiltViewModel()
-    var selectedTab by rememberSaveable { mutableStateOf(0) }
-    var query by rememberSaveable { mutableStateOf("") }
+    val pagerState = rememberPagerState(pageCount = { 2 })
+    var selectedTab by rememberSaveable { mutableIntStateOf(0) }
+    LaunchedEffect(pagerState.currentPage) {
+        selectedTab = pagerState.currentPage
+    }
+    LaunchedEffect(selectedTab) {
+        if (pagerState.currentPage != selectedTab) {
+            pagerState.animateScrollToPage(selectedTab)
+        }
+    }
+
     val queueName = stringResource(R.string.midi_library_title)
     val listBottomPadding = paddingValues.calculateBottomPadding() + MiniPlayerHeight + 24.dp
 
@@ -97,7 +113,7 @@ fun MidiLibraryScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            TabRow(selectedTabIndex = selectedTab) {
+            PrimaryTabRow(selectedTabIndex = selectedTab) {
                 Tab(
                     selected = selectedTab == 0,
                     onClick = { selectedTab = 0 },
@@ -109,28 +125,27 @@ fun MidiLibraryScreen(
                     text = { Text(stringResource(R.string.midi_tab_mine)) }
                 )
             }
-            ClassicalSearchField(
-                query = query,
-                onQueryChange = { query = it },
-                hint = stringResource(R.string.classical_search_tracks_hint),
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-            )
 
-            when (selectedTab) {
-                0 -> BuiltinMidiTab(
-                    viewModel = viewModel,
-                    playerViewModel = playerViewModel,
-                    query = query,
-                    queueName = queueName,
-                    bottomPadding = listBottomPadding
-                )
-                else -> MyMidiTab(
-                    viewModel = viewModel,
-                    playerViewModel = playerViewModel,
-                    query = query,
-                    queueName = queueName,
-                    bottomPadding = listBottomPadding
-                )
+            HorizontalPager(
+                state = pagerState,
+                modifier = Modifier.fillMaxSize()
+            ) { page ->
+                when (page) {
+                    0 -> BuiltinMidiTab(
+                        viewModel = viewModel,
+                        playerViewModel = playerViewModel,
+                        query = "",
+                        queueName = queueName,
+                        bottomPadding = listBottomPadding
+                    )
+                    else -> MyMidiTab(
+                        viewModel = viewModel,
+                        playerViewModel = playerViewModel,
+                        query = "",
+                        queueName = queueName,
+                        bottomPadding = listBottomPadding
+                    )
+                }
             }
         }
     }
@@ -140,6 +155,32 @@ fun MidiLibraryScreen(
 
 @Composable
 private fun BuiltinMidiTab(
+    viewModel: MidiLibraryViewModel,
+    playerViewModel: PlayerViewModel,
+    query: String,
+    queueName: String,
+    bottomPadding: Dp
+) {
+    var query by rememberSaveable { mutableStateOf(query) }
+    Column(modifier = Modifier.fillMaxSize()) {
+        ClassicalSearchField(
+            query = query,
+            onQueryChange = { query = it },
+            hint = stringResource(R.string.classical_search_tracks_hint),
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+        )
+        BuiltinMidiTabBody(
+            viewModel = viewModel,
+            playerViewModel = playerViewModel,
+            query = query,
+            queueName = queueName,
+            bottomPadding = bottomPadding
+        )
+    }
+}
+
+@Composable
+private fun BuiltinMidiTabBody(
     viewModel: MidiLibraryViewModel,
     playerViewModel: PlayerViewModel,
     query: String,
@@ -219,6 +260,32 @@ private fun BuiltinMidiTab(
 
 @Composable
 private fun MyMidiTab(
+    viewModel: MidiLibraryViewModel,
+    playerViewModel: PlayerViewModel,
+    query: String,
+    queueName: String,
+    bottomPadding: Dp
+) {
+    var query by rememberSaveable { mutableStateOf(query) }
+    Column(modifier = Modifier.fillMaxSize()) {
+        ClassicalSearchField(
+            query = query,
+            onQueryChange = { query = it },
+            hint = stringResource(R.string.classical_search_tracks_hint),
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+        )
+        MyMidiTabBody(
+            viewModel = viewModel,
+            playerViewModel = playerViewModel,
+            query = query,
+            queueName = queueName,
+            bottomPadding = bottomPadding
+        )
+    }
+}
+
+@Composable
+private fun MyMidiTabBody(
     viewModel: MidiLibraryViewModel,
     playerViewModel: PlayerViewModel,
     query: String,

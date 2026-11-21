@@ -16,6 +16,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
@@ -27,14 +29,16 @@ import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -69,7 +73,8 @@ import com.pisces312.piscesplayer.presentation.viewmodel.PlayerViewModel
  *   [ClassicalComposerDetailScreen]；
  * - **收藏乐曲**：只显示收藏的乐曲（收藏时间倒序）+ 搜索条。
  *
- * 顶部保留原有「播放全部 / 曲名翻译」头部。见 plan §B2。
+ * 顶部保留原有「播放全部 / 曲名翻译」头部。Tab 切换与曲库同款（PrimaryTabRow +
+ * HorizontalPager 双向同步、可滑动；两页搜索状态互相独立）。见 plan §B2。
  */
 @Composable
 fun ClassicalBrowseScreen(
@@ -85,8 +90,19 @@ fun ClassicalBrowseScreen(
     val favoriteComposers by viewModel.favoriteComposers.collectAsStateWithLifecycle()
     val favoriteTracks by viewModel.favoriteTracks.collectAsStateWithLifecycle()
 
-    var selectedTab by rememberSaveable { mutableStateOf(0) }
-    var query by rememberSaveable { mutableStateOf("") }
+    val pagerState = rememberPagerState(pageCount = { 2 })
+    var selectedTab by rememberSaveable { mutableIntStateOf(0) }
+    LaunchedEffect(pagerState.currentPage) {
+        selectedTab = pagerState.currentPage
+    }
+    LaunchedEffect(selectedTab) {
+        if (pagerState.currentPage != selectedTab) {
+            pagerState.animateScrollToPage(selectedTab)
+        }
+    }
+
+    var composerQuery by rememberSaveable { mutableStateOf("") }
+    var favoritesQuery by rememberSaveable { mutableStateOf("") }
     val queueName = stringResource(R.string.library_tab_classical)
     val favoritesQueueName = stringResource(R.string.classical_tab_favorites)
     val listBottomPadding = paddingValues.calculateBottomPadding() + MiniPlayerHeight + 24.dp
@@ -111,7 +127,7 @@ fun ClassicalBrowseScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            TabRow(selectedTabIndex = selectedTab) {
+            PrimaryTabRow(selectedTabIndex = selectedTab) {
                 Tab(
                     selected = selectedTab == 0,
                     onClick = { selectedTab = 0 },
@@ -123,40 +139,36 @@ fun ClassicalBrowseScreen(
                     text = { Text(stringResource(R.string.classical_tab_favorites)) }
                 )
             }
-            ClassicalSearchField(
-                query = query,
-                onQueryChange = { query = it },
-                hint = stringResource(
-                    if (selectedTab == 0) R.string.classical_search_composers_hint
-                    else R.string.classical_search_tracks_hint
-                ),
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-            )
 
-            when (selectedTab) {
-                0 -> ComposerList(
-                    viewModel = viewModel,
-                    playerViewModel = playerViewModel,
-                    albums = albums,
-                    songs = songs,
-                    trackCount = songs.size,
-                    translationEnabled = translationEnabled,
-                    favoriteComposers = favoriteComposers,
-                    query = query,
-                    queueName = queueName,
-                    navController = navController,
-                    bottomPadding = listBottomPadding
-                )
-                else -> FavoriteTracksList(
-                    viewModel = viewModel,
-                    playerViewModel = playerViewModel,
-                    songs = songs,
-                    translationEnabled = translationEnabled,
-                    favoriteTracks = favoriteTracks,
-                    query = query,
-                    queueName = favoritesQueueName,
-                    bottomPadding = listBottomPadding
-                )
+            HorizontalPager(
+                state = pagerState,
+                modifier = Modifier.fillMaxSize()
+            ) { page ->
+                when (page) {
+                    0 -> ComposerList(
+                        viewModel = viewModel,
+                        playerViewModel = playerViewModel,
+                        albums = albums,
+                        songs = songs,
+                        trackCount = songs.size,
+                        translationEnabled = translationEnabled,
+                        favoriteComposers = favoriteComposers,
+                        query = composerQuery,
+                        queueName = queueName,
+                        navController = navController,
+                        bottomPadding = listBottomPadding
+                    )
+                    else -> FavoriteTracksList(
+                        viewModel = viewModel,
+                        playerViewModel = playerViewModel,
+                        songs = songs,
+                        translationEnabled = translationEnabled,
+                        favoriteTracks = favoriteTracks,
+                        query = favoritesQuery,
+                        queueName = favoritesQueueName,
+                        bottomPadding = listBottomPadding
+                    )
+                }
             }
         }
     }
@@ -164,6 +176,44 @@ fun ClassicalBrowseScreen(
 
 @Composable
 private fun ComposerList(
+    viewModel: ClassicalLibraryViewModel,
+    playerViewModel: PlayerViewModel,
+    albums: List<Album>,
+    songs: List<Song>,
+    trackCount: Int,
+    translationEnabled: Boolean,
+    favoriteComposers: Map<String, Long>,
+    query: String,
+    queueName: String,
+    navController: NavController,
+    bottomPadding: Dp
+) {
+    var query by rememberSaveable { mutableStateOf(query) }
+    Column(modifier = Modifier.fillMaxSize()) {
+        ClassicalSearchField(
+            query = query,
+            onQueryChange = { query = it },
+            hint = stringResource(R.string.classical_search_composers_hint),
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+        )
+        ComposerListBody(
+            viewModel = viewModel,
+            playerViewModel = playerViewModel,
+            albums = albums,
+            songs = songs,
+            trackCount = trackCount,
+            translationEnabled = translationEnabled,
+            favoriteComposers = favoriteComposers,
+            query = query,
+            queueName = queueName,
+            navController = navController,
+            bottomPadding = bottomPadding
+        )
+    }
+}
+
+@Composable
+private fun ComposerListBody(
     viewModel: ClassicalLibraryViewModel,
     playerViewModel: PlayerViewModel,
     albums: List<Album>,
@@ -243,6 +293,38 @@ private fun ComposerList(
 
 @Composable
 private fun FavoriteTracksList(
+    viewModel: ClassicalLibraryViewModel,
+    playerViewModel: PlayerViewModel,
+    songs: List<Song>,
+    translationEnabled: Boolean,
+    favoriteTracks: Map<String, Long>,
+    query: String,
+    queueName: String,
+    bottomPadding: Dp
+) {
+    var query by rememberSaveable { mutableStateOf(query) }
+    Column(modifier = Modifier.fillMaxSize()) {
+        ClassicalSearchField(
+            query = query,
+            onQueryChange = { query = it },
+            hint = stringResource(R.string.classical_search_tracks_hint),
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+        )
+        FavoriteTracksListBody(
+            viewModel = viewModel,
+            playerViewModel = playerViewModel,
+            songs = songs,
+            translationEnabled = translationEnabled,
+            favoriteTracks = favoriteTracks,
+            query = query,
+            queueName = queueName,
+            bottomPadding = bottomPadding
+        )
+    }
+}
+
+@Composable
+private fun FavoriteTracksListBody(
     viewModel: ClassicalLibraryViewModel,
     playerViewModel: PlayerViewModel,
     songs: List<Song>,
