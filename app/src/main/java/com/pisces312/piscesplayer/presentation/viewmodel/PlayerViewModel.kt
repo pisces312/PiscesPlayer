@@ -193,7 +193,7 @@ data class PlaybackAudioMetadata(
 )
 
 private val DEFAULT_LIBRARY_TAB_ORDER: List<String> =
-    listOf("SONGS", "ALBUMS", "YEARS", "ARTIST", "PLAYLISTS", "FOLDERS", "LIKED", "GENRES", "CLASSICAL")
+    listOf("SONGS", "ALBUMS", "YEARS", "ARTIST", "PLAYLISTS", "FOLDERS", "LIKED", "GENRES")
 
 private data class SortOptionsSnapshot(
     val songSort: SortOption,
@@ -1022,7 +1022,6 @@ class PlayerViewModel @Inject constructor(
                     LibraryTabId.FOLDERS -> SortOption.FOLDERS
                     LibraryTabId.LIKED -> SortOption.LIKED
                     LibraryTabId.GENRES -> SortOption.GENRES
-                    LibraryTabId.CLASSICAL -> emptyList()
                 }
             } finally {
                 Trace.endSection()

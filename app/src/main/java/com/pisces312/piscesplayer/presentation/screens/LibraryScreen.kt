@@ -640,8 +640,7 @@ fun LibraryScreen(
         LibraryTabId.FOLDERS -> isSelectionMode
         LibraryTabId.ARTISTS -> isArtistSelectionMode
         LibraryTabId.YEARS,
-        LibraryTabId.GENRES,
-        LibraryTabId.CLASSICAL -> false
+        LibraryTabId.GENRES -> false
     }
     val canHandleFolderBack by remember {
         derivedStateOf {
@@ -687,8 +686,7 @@ fun LibraryScreen(
                     }
 
                     LibraryTabId.YEARS,
-                    LibraryTabId.GENRES,
-                    LibraryTabId.CLASSICAL -> Unit
+                    LibraryTabId.GENRES -> Unit
                 }
             }
 
@@ -1006,20 +1004,19 @@ fun LibraryScreen(
                             LibraryTabId.LIKED -> playerUiState.currentFavoriteSortOption
                             LibraryTabId.FOLDERS -> playerUiState.currentFolderSortOption
                             LibraryTabId.GENRES -> playerUiState.currentGenreSortOption
-                            LibraryTabId.CLASSICAL -> null
                         }
 
                         val showLocateButton = when (currentTabId) {
                             LibraryTabId.SONGS -> songsShowLocateButton
                             LibraryTabId.LIKED -> likedShowLocateButton
                             LibraryTabId.FOLDERS -> foldersShowLocateButton
-                            LibraryTabId.ALBUMS, LibraryTabId.YEARS, LibraryTabId.ARTISTS, LibraryTabId.PLAYLISTS, LibraryTabId.GENRES, LibraryTabId.CLASSICAL -> false
+                            LibraryTabId.ALBUMS, LibraryTabId.YEARS, LibraryTabId.ARTISTS, LibraryTabId.PLAYLISTS, LibraryTabId.GENRES -> false
                         }
                         val locateAction = when (currentTabId) {
                             LibraryTabId.SONGS -> songsLocateAction
                             LibraryTabId.LIKED -> likedLocateAction
                             LibraryTabId.FOLDERS -> foldersLocateAction
-                            LibraryTabId.ALBUMS, LibraryTabId.YEARS, LibraryTabId.ARTISTS, LibraryTabId.PLAYLISTS, LibraryTabId.GENRES, LibraryTabId.CLASSICAL -> null
+                            LibraryTabId.ALBUMS, LibraryTabId.YEARS, LibraryTabId.ARTISTS, LibraryTabId.PLAYLISTS, LibraryTabId.GENRES -> null
                         }
 
                         val onSortOptionChanged: (SortOption) -> Unit = remember(playerViewModel, playlistViewModel, currentTabId) {
@@ -1033,7 +1030,6 @@ fun LibraryScreen(
                                     LibraryTabId.LIKED -> playerViewModel.sortFavoriteSongs(option)
                                     LibraryTabId.FOLDERS -> playerViewModel.sortFolders(option)
                                     LibraryTabId.GENRES -> playerViewModel.sortGenres(option)
-                                    LibraryTabId.CLASSICAL -> Unit
                                 }
                             }
                         }
@@ -1463,16 +1459,6 @@ fun LibraryScreen(
                                         )
                                     }
 
-                                    LibraryTabId.CLASSICAL -> {
-                                        ClassicalTabContent(
-                                            playerViewModel = playerViewModel,
-                                            navController = navController,
-                                            bottomBarHeight = bottomBarHeightDp,
-                                            isRefreshing = isRefreshing,
-                                            onRefresh = onRefresh
-                                        )
-                                    }
-
                                     LibraryTabId.LIKED -> {
                                         val favoritePagingItems = libraryViewModel.favoritesPagingFlow.collectAsLazyPagingItems()
                                         LibraryFavoritesTab(
@@ -1562,8 +1548,7 @@ fun LibraryScreen(
                                 LibraryTabId.LIKED,
                                 LibraryTabId.FOLDERS -> selectedSongs.size
                                 LibraryTabId.YEARS,
-                                LibraryTabId.GENRES,
-                                LibraryTabId.CLASSICAL -> 0
+                                LibraryTabId.GENRES -> 0
                             }
                             SelectionCountPill(
                                 selectedCount = selectionCount,
@@ -2668,7 +2653,6 @@ private fun LibraryTabId.iconRes(): Int = when (this) {
     LibraryTabId.FOLDERS -> R.drawable.rounded_folder_24
     LibraryTabId.LIKED -> R.drawable.round_favorite_24
     LibraryTabId.GENRES -> R.drawable.rounded_library_music_24
-    LibraryTabId.CLASSICAL -> R.drawable.rounded_queue_music_24
 }
 
 @Composable

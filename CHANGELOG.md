@@ -15,6 +15,17 @@ PixelPlayerOSS; versions up to and including 0.4.3 were published under the upst
   only offered for charts that actually keep a raw take, and an exported file now names its real
   producer (`piscesplayer-dsp`, not the hand-tap recorder), so PC-side analysis cannot mistake a
   derived chart for a hand-tap recording.
+- Music learning: a fifth bottom-navigation tab ("Learn" / 音乐学习) that hosts the built-in
+  classical library today and learning tools later — ear training and metronome appear as
+  placeholder cards that show a "Coming soon" toast when tapped.
+- Classical browsing is now two-level: a compact composer list (favorited composers pinned on
+  top) and, per composer, tracks grouped by work — opus sets, numbered series such as
+  "La Traviata - N1 …", or single pieces — instead of one flat list per composer. The composer
+  list and the work screen both get a live search field matching original/English/Chinese names.
+- Classical favorites: composers and tracks can be starred inside the classical screens, and a
+  "Favorite tracks" tab lists favorited tracks (newest first) with its own search. Classical
+  favorites are stored apart from the global Liked list, so built-in content never leaks into
+  user-data pools or the library "Liked" tab.
 
 ### Changed
 - Music quiz: answer options are no longer truncated to a single line, so long classical titles
@@ -35,6 +46,9 @@ PixelPlayerOSS; versions up to and including 0.4.3 were published under the upst
   edits and file deletion fall back to direct file access through legacy external storage
   (write access is requested together with read access during setup); Android 11+ behaviour
   is unchanged.
+- The classical library moved out of the library tab strip into the new Music learning tab,
+  so the library tabs are back to the user's own media only. Bottom-navigation labels are now
+  localized (Home / Search / Library / Games / Learn); previously they were fixed English.
 
 ### Fixed
 - The first-run setup welcome page no longer shows the "β Beta" badge; it was rendered
