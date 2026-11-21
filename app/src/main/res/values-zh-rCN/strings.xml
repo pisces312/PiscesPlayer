@@ -406,12 +406,14 @@
     <string name="music_quiz_playlist_default_name">猜歌游戏 %1$s</string>
     <string name="music_quiz_mode_standard">标准模式</string>
     <string name="music_quiz_mode_kids">儿童模式</string>
-    <string name="music_quiz_mode_classical">古典音乐模式</string>
+    <string name="music_quiz_mode_classical">古典音乐（我的曲库）</string>
+    <string name="music_quiz_mode_builtin_classical">内置古典</string>
     <string name="music_quiz_mode_endless">无尽模式</string>
     <string name="music_quiz_mode_current">模式：%1$s</string>
     <string name="music_quiz_mode_cd">游戏模式</string>
     <string name="music_quiz_rule_summary_kids">从儿歌里出 10 题，适合小朋友</string>
-    <string name="music_quiz_rule_summary_classical">从古典音乐里出 10 题，同一题的选项都是古典曲目</string>
+    <string name="music_quiz_rule_summary_classical">从曲库中的古典音乐出 10 题，同一题的选项都是古典曲目</string>
+    <string name="music_quiz_rule_summary_builtin_classical">从内置古典曲库（877 首）出 10 题，无需用户曲库</string>
     <string name="music_quiz_rule_summary_endless">一直出题，随时结束并结算成绩</string>
     <string name="music_quiz_not_enough_kids_songs">儿童歌曲太少，无法开始游戏。可以添加更多儿歌，或切换到标准模式。</string>
     <string name="music_quiz_not_enough_classical_songs">古典曲目太少，无法开始游戏。可以添加更多古典音乐，或切换到标准模式。</string>

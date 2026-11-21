@@ -444,6 +444,16 @@ class MusicQuizViewModel @Inject constructor(
         // v3: the kids pool is kids songs only — classical music is not mixed in.
         MusicQuizMode.KIDS -> libraryTracks.filter { it.isKidsSong }
         MusicQuizMode.CLASSICAL -> libraryTracks.filter { it.isClassical }
+        // Built-in classical pack: sourced from ClassicalLibrary, not the user's library.
+        MusicQuizMode.BUILTIN_CLASSICAL -> builtInClassicalTracks
+    }
+
+    /** Built-in classical library tracks, mapped once the pack index is available. */
+    private var builtInClassicalTracks: List<MusicQuizTrack> = emptyList()
+
+    fun setBuiltInClassicalTracks(tracks: List<MusicQuizTrack>) {
+        builtInClassicalTracks = tracks
+        refreshLibraryState()
     }
 
     private fun computeIssue(mode: MusicQuizMode): MusicQuizLibraryIssue? {
@@ -454,7 +464,9 @@ class MusicQuizViewModel @Inject constructor(
         if (!notEnoughTitles && !notEnoughSongs) return null
         return when (mode) {
             MusicQuizMode.KIDS -> MusicQuizLibraryIssue.NOT_ENOUGH_KIDS_SONGS
-            MusicQuizMode.CLASSICAL -> MusicQuizLibraryIssue.NOT_ENOUGH_CLASSICAL_SONGS
+            MusicQuizMode.CLASSICAL,
+            MusicQuizMode.BUILTIN_CLASSICAL,
+            -> MusicQuizLibraryIssue.NOT_ENOUGH_CLASSICAL_SONGS
             else -> if (notEnoughTitles) {
                 MusicQuizLibraryIssue.NOT_ENOUGH_TITLES
             } else {

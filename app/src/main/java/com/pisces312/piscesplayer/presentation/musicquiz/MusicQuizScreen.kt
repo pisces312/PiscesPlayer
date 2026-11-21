@@ -97,6 +97,11 @@ import com.pisces312.piscesplayer.presentation.components.PlaylistBottomSheet
 import com.pisces312.piscesplayer.presentation.components.SmartImage
 import com.pisces312.piscesplayer.presentation.components.SmartImageListTargetSize
 import com.pisces312.piscesplayer.presentation.viewmodel.PlayerViewModel
+import com.pisces312.piscesplayer.data.classical.ClassicalDisplay
+import com.pisces312.piscesplayer.data.classical.ClassicalLibrary
+import com.pisces312.piscesplayer.data.classical.ClassicalStyle
+import com.pisces312.piscesplayer.data.classical.ClassicalWorkCatalog
+import com.pisces312.piscesplayer.presentation.viewmodel.ClassicalLibraryViewModel
 import com.pisces312.piscesplayer.presentation.viewmodel.PlaylistViewModel
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -126,6 +131,32 @@ fun MusicQuizScreen(
 
     LaunchedEffect(allSongs) {
         quizViewModel.updateLibrary(allSongs)
+    }
+    // Feed the built-in classical pool once the pack index is ready.
+    val classicalViewModel: ClassicalLibraryViewModel = hiltViewModel()
+    val classicalSongs by classicalViewModel.classicalSongs.collectAsStateWithLifecycle()
+    val translationEnabled by classicalViewModel.translationEnabled.collectAsStateWithLifecycle()
+    val workCatalog = classicalViewModel.workCatalog
+    LaunchedEffect(classicalSongs, translationEnabled) {
+        val tracks = classicalSongs.mapNotNull { song ->
+            val id = song.id.toLongOrNull() ?: return@mapNotNull null
+            val names = classicalViewModel.nameCatalog.songName(id)
+            val display = names?.let { ClassicalDisplay.resolve(it, translate = translationEnabled) }
+            MusicQuizTrack(
+                id = song.id,
+                title = display?.primary ?: song.title,
+                artist = song.artist,
+                albumArtUriString = song.albumArtUriString,
+                durationMs = song.duration,
+                playbackUri = song.contentUriString,
+                year = 0,
+                genre = workCatalog.styleOf(id),
+                album = song.album,
+                isClassical = true,
+                isKidsSong = false,
+            )
+        }
+        quizViewModel.setBuiltInClassicalTracks(tracks)
     }
     LaunchedEffect(Unit) {
         if (!mainPlayerCaptured) {
@@ -426,6 +457,7 @@ private fun MusicQuizIdleContent(
                     MusicQuizMode.KIDS -> R.string.music_quiz_rule_summary_kids
                     MusicQuizMode.CLASSICAL -> R.string.music_quiz_rule_summary_classical
                     MusicQuizMode.ENDLESS -> R.string.music_quiz_rule_summary_endless
+                    MusicQuizMode.BUILTIN_CLASSICAL -> R.string.music_quiz_rule_summary_builtin_classical
                 },
             ),
             style = MaterialTheme.typography.bodyLarge,
@@ -602,6 +634,7 @@ private fun musicQuizModeLabel(mode: MusicQuizMode): Int = when (mode) {
     MusicQuizMode.KIDS -> R.string.music_quiz_mode_kids
     MusicQuizMode.CLASSICAL -> R.string.music_quiz_mode_classical
     MusicQuizMode.ENDLESS -> R.string.music_quiz_mode_endless
+    MusicQuizMode.BUILTIN_CLASSICAL -> R.string.music_quiz_mode_builtin_classical
 }
 
 @Composable

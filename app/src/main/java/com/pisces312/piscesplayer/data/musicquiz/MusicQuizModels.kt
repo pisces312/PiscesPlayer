@@ -15,6 +15,8 @@ enum class MusicQuizMode(val key: String) {
     KIDS("kids"),
     CLASSICAL("classical"),
     ENDLESS("endless"),
+    /** Built-in classical library (877 tracks) — never depends on the user's library. */
+    BUILTIN_CLASSICAL("builtin_classical"),
     ;
 
     val isEndless: Boolean get() = this == ENDLESS
