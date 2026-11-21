@@ -3,15 +3,20 @@ package com.pisces312.piscesplayer.presentation.screens
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material.icons.rounded.StarBorder
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -22,6 +27,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.pisces312.piscesplayer.R
@@ -30,6 +36,8 @@ import com.pisces312.piscesplayer.data.classical.ClassicalDisplayNames
 import com.pisces312.piscesplayer.data.classical.ClassicalNameCatalog
 import com.pisces312.piscesplayer.data.classical.NameSet
 import com.pisces312.piscesplayer.data.model.Song
+import com.pisces312.piscesplayer.presentation.viewmodel.ClassicalLibraryViewModel
+import com.pisces312.piscesplayer.presentation.viewmodel.ClassicalWorkSetNode
 import java.util.Locale
 
 /**
@@ -151,4 +159,68 @@ internal fun ClassicalTrackRow(
             }
         }
     }
+}
+
+/** 作品节点子组头（作品集详情页 / 作曲家详情的组内细分）：名称 + 曲目数 + 播放全部。 */
+@Composable
+internal fun WorkNodeHeader(
+    node: ClassicalWorkSetNode,
+    translationEnabled: Boolean,
+    onPlayAll: () -> Unit
+) {
+    val names = ClassicalDisplay.resolve(node.node.names, translate = translationEnabled)
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(start = 32.dp, end = 8.dp, top = 6.dp, bottom = 2.dp)
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = names.primary,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Medium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            if (node.tracks.size > 1) {
+                Text(
+                    text = stringResource(R.string.classical_card_track_count_format, node.tracks.size),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
+        FilledTonalButton(
+            onClick = onPlayAll,
+            colors = ButtonDefaults.filledTonalButtonColors(
+                containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+            )
+        ) {
+            Icon(Icons.Rounded.PlayArrow, contentDescription = null)
+            Spacer(Modifier.width(4.dp))
+            Text(stringResource(R.string.classical_tab_play_all))
+        }
+    }
+}
+
+/** 曲目行（乐章/单曲）：双语标题 + 收藏星标；点按整行触发 [onClick]。 */
+@Composable
+internal fun WorkTrackRow(
+    song: Song,
+    viewModel: ClassicalLibraryViewModel,
+    translationEnabled: Boolean,
+    favoriteTracks: Map<String, Long>,
+    onClick: () -> Unit
+) {
+    ClassicalTrackRow(
+        title = trackDisplayNames(song, viewModel.nameCatalog, translationEnabled),
+        subtitle = null,
+        isFavorite = favoriteTracks.containsKey(song.id),
+        onToggleFavorite = { viewModel.toggleFavoriteTrack(song.id) },
+        onClick = onClick
+    )
 }
