@@ -117,6 +117,10 @@ fun MusicQuizScreen(
     quizViewModel: MusicQuizViewModel = hiltViewModel(),
 ) {
     val allSongs by playerViewModel.allSongsFlow.collectAsStateWithLifecycle()
+    // 内置曲目只归「内置古典」模式（独立池，见下方 setBuiltInClassicalTracks）；
+    // 其余模式的题目/干扰项一律来自用户曲库（Song.isBuiltIn 排除整个内置 MIDI 包，
+    // 与听歌统计/AI 选歌的内置排除规则一致）。
+    val quizSongs = remember(allSongs) { allSongs.filterNot { it.isBuiltIn } }
     val uiState by quizViewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val view = LocalView.current
@@ -130,8 +134,8 @@ fun MusicQuizScreen(
     var playlistSongs by remember { mutableStateOf<List<Song>>(emptyList()) }
     var pendingPlaylistName by remember { mutableStateOf("") }
 
-    LaunchedEffect(allSongs) {
-        quizViewModel.updateLibrary(allSongs)
+    LaunchedEffect(quizSongs) {
+        quizViewModel.updateLibrary(quizSongs)
     }
     // Feed the built-in classical pool once the pack index is ready.
     val classicalViewModel: ClassicalLibraryViewModel = hiltViewModel()
@@ -299,7 +303,7 @@ fun MusicQuizScreen(
                     onSelectMode = quizViewModel::setMode,
                     onStart = quizViewModel::startGame,
                     onRefreshLibrary = {
-                        quizViewModel.refreshLibrary(allSongs)
+                        quizViewModel.refreshLibrary(quizSongs)
                         playerViewModel.sendToast(
                             context.getString(R.string.music_quiz_library_refreshed),
                         )
