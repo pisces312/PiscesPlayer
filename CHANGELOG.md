@@ -41,15 +41,21 @@ PixelPlayerOSS; versions up to and including 0.4.3 were published under the upst
   so re-saved copies of the same music match) — a user copy shadows its built-in twin: the
   built-in leaves the MIDI library list while everything else keeps its curated composer, work
   and title names and silently plays the user's file.
+- Classical browsing gains two flat tabs beside the composer list: "Works" lists every work
+  set across composers (bilingual title, composer, opus, track count) and opens a work-set
+  detail page whose movements/arrangements group under their piece, each node with its own
+  play-all; "Tracks" lists all classical tracks with the library's song rows (playback
+  highlight, more menu, classical favorite star) and plays them in catalogue order.
 
 ### Changed
-- Classical browsing UI now matches the library style: the composer/favorites tabs and the
-  MIDI library tabs swipe with a `PrimaryTabRow` + `HorizontalPager` pair (each page keeps its
-  own search state); track and composer rows sit on rounded card containers with the same
-  spacing and surface colour as the library list; the composer detail page uses a collapsing
-  `CollapsibleCommonTopBar` header with the composer name and track count; and the composer's
-  catalogue renders as a two-level tree — work-set header, then work nodes (movements grouped
-  under their piece, arrangements grouped by shared title), with per-node play-all buttons.
+- Classical browsing UI now matches the library style: the four tabs (Composers | Works |
+  Tracks | Favorite tracks) and the MIDI library tabs swipe with a `PrimaryScrollableTabRow`
+  + `HorizontalPager` pair (each page keeps its own search state); track and composer rows
+  sit on rounded card containers with the same spacing and surface colour as the library
+  list; the composer and work-set detail pages use a collapsing `CollapsibleCommonTopBar`
+  header with the name and track count. The composer's catalogue is now a single level —
+  work headers over movement rows, single-track works as plain rows — with the
+  movement/piece layer living in the new work-set detail page instead of a two-level tree.
 - Music quiz: answer options are no longer truncated to a single line, so long classical titles
   (work, opus and movement) stay readable instead of collapsing into identical prefixes; the
   round body scrolls when its content outgrows the screen.
@@ -73,6 +79,13 @@ PixelPlayerOSS; versions up to and including 0.4.3 were published under the upst
   localized (Home / Search / Library / Games / Learn); previously they were fixed English.
 - Classical browsing shows only period classical now (877 of the 1032 built-in tracks);
   hymns, songs, jazz and other genres moved to the MIDI library.
+- Music quiz: built-in MIDI pack tracks now feed only the "Built-in Classical" mode; every
+  other mode draws questions and distractors exclusively from the user's own library (the
+  same built-in exclusion as listening stats and AI picking).
+- Music quiz: library classification is cached per track instead of for the whole library,
+  so a rescan or a metadata edit reclassifies only the changed tracks (the kids-pool
+  threshold is recomputed from the cached per-track evidence on every run), and the manual
+  refresh reclassifies in parallel across CPU cores.
 
 ### Fixed
 - The first-run setup welcome page no longer shows the "β Beta" badge; it was rendered
