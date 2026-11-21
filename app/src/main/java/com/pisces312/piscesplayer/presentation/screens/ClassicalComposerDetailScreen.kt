@@ -47,7 +47,7 @@ import com.pisces312.piscesplayer.data.model.Song
 import com.pisces312.piscesplayer.presentation.components.CollapsibleCommonTopBar
 import com.pisces312.piscesplayer.presentation.components.MiniPlayerHeight
 import com.pisces312.piscesplayer.presentation.viewmodel.ClassicalLibraryViewModel
-import com.pisces312.piscesplayer.presentation.viewmodel.ClassicalWorkSection
+import com.pisces312.piscesplayer.presentation.viewmodel.ClassicalWorkSetSection
 import com.pisces312.piscesplayer.presentation.viewmodel.PlayerViewModel
 
 /**
@@ -81,7 +81,7 @@ fun ClassicalComposerDetailScreen(
         } ?: it.artist
     } ?: stringResource(R.string.library_tab_classical)
 
-    val allSections = remember(songs, albumId) { viewModel.workSections(albumId, songs) }
+    val allSections = remember(songs, albumId) { viewModel.workSetSections(albumId, songs) }
     val sections = remember(allSections, query, translationEnabled) {
         filterSections(allSections, viewModel, query)
     }
@@ -160,55 +160,73 @@ fun ClassicalComposerDetailScreen(
                     modifier = Modifier.fillMaxSize()
                 ) {
                     sections.forEach { section ->
-                        if (section.work.isMultiTrack) {
-                            val workQueueName =
-                                workDisplayName(section, translationEnabled).primary
-                            item(key = "work-${section.work.key}") {
-                                WorkHeader(
-                                    section = section,
-                                    translationEnabled = translationEnabled,
-                                    onPlayAll = {
-                                        section.tracks.firstOrNull()?.let { first ->
-                                            playerViewModel.playSongs(
-                                                section.tracks.map(viewModel::playbackTarget),
-                                                viewModel.playbackTarget(first),
-                                                queueName = workQueueName
-                                            )
-                                        }
-                                    }
-                                )
-                            }
-                            items(section.tracks, key = { it.id }) { song ->
-                                WorkTrackRow(
-                                    song = song,
-                                    viewModel = viewModel,
-                                    translationEnabled = translationEnabled,
-                                    favoriteTracks = favoriteTracks,
-                                    onClick = {
+                        val workQueueName = workDisplayName(section, translationEnabled).primary
+                        item(key = "work-${section.work.key}") {
+                            WorkHeader(
+                                section = section,
+                                translationEnabled = translationEnabled,
+                                onPlayAll = {
+                                    val allTracks = section.nodes.flatMap { it.tracks }
+                                    allTracks.firstOrNull()?.let { first ->
                                         playerViewModel.playSongs(
-                                            section.tracks.map(viewModel::playbackTarget),
-                                            viewModel.playbackTarget(song),
+                                            allTracks.map(viewModel::playbackTarget),
+                                            viewModel.playbackTarget(first),
                                             queueName = workQueueName
                                         )
                                     }
-                                )
-                            }
-                        } else {
-                            val song = section.tracks.first()
-                            item(key = "single-${section.work.key}") {
-                                WorkTrackRow(
-                                    song = song,
-                                    viewModel = viewModel,
-                                    translationEnabled = translationEnabled,
-                                    favoriteTracks = favoriteTracks,
-                                    onClick = {
-                                        playerViewModel.playSongs(
-                                            composerSongs.map(viewModel::playbackTarget),
-                                            viewModel.playbackTarget(song),
-                                            queueName = composerName
-                                        )
-                                    }
-                                )
+                                }
+                            )
+                        }
+                        section.nodes.forEach { node ->
+                            if (node.node.isMultiTrack) {
+                                val nodeQueueName = nodeDisplayName(node, translationEnabled).primary
+                                item(key = "node-${node.node.key}") {
+                                    WorkNodeHeader(
+                                        node = node,
+                                        translationEnabled = translationEnabled,
+                                        onPlayAll = {
+                                            node.tracks.firstOrNull()?.let { first ->
+                                                playerViewModel.playSongs(
+                                                    node.tracks.map(viewModel::playbackTarget),
+                                                    viewModel.playbackTarget(first),
+                                                    queueName = nodeQueueName
+                                                )
+                                            }
+                                        }
+                                    )
+                                }
+                                items(node.tracks, key = { it.id }) { song ->
+                                    WorkTrackRow(
+                                        song = song,
+                                        viewModel = viewModel,
+                                        translationEnabled = translationEnabled,
+                                        favoriteTracks = favoriteTracks,
+                                        onClick = {
+                                            playerViewModel.playSongs(
+                                                node.tracks.map(viewModel::playbackTarget),
+                                                viewModel.playbackTarget(song),
+                                                queueName = nodeQueueName
+                                            )
+                                        }
+                                    )
+                                }
+                            } else {
+                                val song = node.tracks.first()
+                                item(key = "single-${node.node.key}") {
+                                    WorkTrackRow(
+                                        song = song,
+                                        viewModel = viewModel,
+                                        translationEnabled = translationEnabled,
+                                        favoriteTracks = favoriteTracks,
+                                        onClick = {
+                                            playerViewModel.playSongs(
+                                                composerSongs.map(viewModel::playbackTarget),
+                                                viewModel.playbackTarget(song),
+                                                queueName = composerName
+                                            )
+                                        }
+                                    )
+                                }
                             }
                         }
                     }
@@ -220,10 +238,10 @@ fun ClassicalComposerDetailScreen(
 
 /** 搜索过滤：作品名/opus 命中 → 整组；否则只保留命中曲目；空查询不过滤。 */
 private fun filterSections(
-    sections: List<ClassicalWorkSection>,
+    sections: List<ClassicalWorkSetSection>,
     viewModel: ClassicalLibraryViewModel,
     query: String
-): List<ClassicalWorkSection> {
+): List<ClassicalWorkSetSection> {
     if (query.isBlank()) return sections
     return sections.mapNotNull { section ->
         val workMatch = namesMatchQuery(
@@ -234,28 +252,46 @@ private fun filterSections(
         when {
             workMatch -> section
             else -> {
-                val matched = section.tracks.filter { song ->
-                    namesMatchQuery(
-                        names = viewModel.nameCatalog.songName(song.id),
-                        fallback = song.title,
+                val matchedNodes = section.nodes.mapNotNull { node ->
+                    val nodeMatch = namesMatchQuery(
+                        names = node.node.names,
+                        fallback = "",
                         query = query
                     )
+                    if (nodeMatch) {
+                        node
+                    } else {
+                        val matchedTracks = node.tracks.filter { song ->
+                            namesMatchQuery(
+                                names = viewModel.nameCatalog.songName(song.id),
+                                fallback = song.title,
+                                query = query
+                            )
+                        }
+                        if (matchedTracks.isEmpty()) null
+                        else com.pisces312.piscesplayer.presentation.viewmodel.ClassicalWorkSetNode(node.node, matchedTracks)
+                    }
                 }
-                if (matched.isEmpty()) null
-                else ClassicalWorkSection(section.work, matched)
+                if (matchedNodes.isEmpty()) null
+                else ClassicalWorkSetSection(section.work, matchedNodes)
             }
         }
     }
 }
 
 private fun workDisplayName(
-    section: ClassicalWorkSection,
+    section: ClassicalWorkSetSection,
     translationEnabled: Boolean
 ): ClassicalDisplayNames = ClassicalDisplay.resolve(section.work.names, translate = translationEnabled)
 
+private fun nodeDisplayName(
+    node: com.pisces312.piscesplayer.presentation.viewmodel.ClassicalWorkSetNode,
+    translationEnabled: Boolean
+): ClassicalDisplayNames = ClassicalDisplay.resolve(node.node.names, translate = translationEnabled)
+
 @Composable
 private fun WorkHeader(
-    section: ClassicalWorkSection,
+    section: ClassicalWorkSetSection,
     translationEnabled: Boolean,
     onPlayAll: () -> Unit
 ) {
@@ -275,7 +311,7 @@ private fun WorkHeader(
                 overflow = TextOverflow.Ellipsis
             )
             val subtitle = section.work.opus.ifBlank {
-                stringResource(R.string.classical_card_track_count_format, section.tracks.size)
+                stringResource(R.string.classical_card_track_count_format, section.nodes.sumOf { it.tracks.size })
             }
             Text(
                 text = subtitle,
@@ -284,6 +320,51 @@ private fun WorkHeader(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
+        }
+        FilledTonalButton(
+            onClick = onPlayAll,
+            colors = ButtonDefaults.filledTonalButtonColors(
+                containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+            )
+        ) {
+            Icon(Icons.Rounded.PlayArrow, contentDescription = null)
+            Spacer(Modifier.width(4.dp))
+            Text(stringResource(R.string.classical_tab_play_all))
+        }
+    }
+}
+
+@Composable
+private fun WorkNodeHeader(
+    node: com.pisces312.piscesplayer.presentation.viewmodel.ClassicalWorkSetNode,
+    translationEnabled: Boolean,
+    onPlayAll: () -> Unit
+) {
+    val names = nodeDisplayName(node, translationEnabled)
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(start = 32.dp, end = 8.dp, top = 6.dp, bottom = 2.dp)
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = names.primary,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Medium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            if (node.tracks.size > 1) {
+                Text(
+                    text = stringResource(R.string.classical_card_track_count_format, node.tracks.size),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
         }
         FilledTonalButton(
             onClick = onPlayAll,

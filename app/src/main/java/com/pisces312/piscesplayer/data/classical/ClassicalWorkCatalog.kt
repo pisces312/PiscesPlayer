@@ -17,6 +17,76 @@ data class ClassicalWork(
     val isMultiTrack: Boolean get() = trackIds.size > 1
 }
 
+/** 组内二级细分：作品节点（乐章/编曲）。 */
+data class ClassicalWorkNode(
+    val key: String,
+    val names: NameSet,
+    val trackIds: List<Long>
+) {
+    val isMultiTrack: Boolean get() = trackIds.size > 1
+}
+
+/**
+ * 组内二级派生：把一组曲目再细分为「作品」（乐章/编曲归同作品）。
+ * 乐章标记只在编号后跟速度词（Allegro/Andante…）时才剥，否则不剥
+ * （保 Op. 27 No.1/No.2 两首夜曲不误并为一作）。
+ */
+object ClassicalWorkNodeDeriver {
+
+    private val MOVEMENT_MARKER = Regex(
+        """\b(?:N|No\.?|Nr\.?|Op\.?)\s*\d+\s*[-–—:.]?\s+(?:I{1,3}V?|IV|V|VI{0,3}|IX|X)\.?\s+(Allegro|Andante|Adagio|Largo|Lento|Vivace|Presto|Allegretto|Moderato|Menuetto|Scherzo|Grave|Maestoso|Finale)\b""",
+        RegexOption.IGNORE_CASE
+    )
+
+    fun derive(group: List<ClassicalTrack>): List<ClassicalWorkNode> {
+        if (group.size <= 1) {
+            return group.map { track ->
+                ClassicalWorkNode(
+                    key = "single:${track.id}",
+                    names = NameSet(original = track.titleOriginal, en = track.titleEn, zh = track.titleZh),
+                    trackIds = listOf(track.id)
+                )
+            }
+        }
+
+        val order = LinkedHashMap<String, MutableList<ClassicalTrack>>()
+        for (t in group) {
+            order.getOrPut(workNodeKey(t)) { mutableListOf() }.add(t)
+        }
+
+        return order.map { (key, subGroup) ->
+            val first = subGroup.first()
+            val stripped = stripMovementMarker(first.titleOriginal)
+            val baseName = stripped.ifBlank { first.titleOriginal }
+            ClassicalWorkNode(
+                key = key,
+                names = NameSet(
+                    original = baseName,
+                    en = stripMovementMarker(first.titleEn).ifBlank { baseName },
+                    zh = stripMovementMarker(first.titleZh).ifBlank { baseName }
+                ),
+                trackIds = subGroup.map { it.id }
+            )
+        }
+    }
+
+    private fun workNodeKey(t: ClassicalTrack): String {
+        val stripped = stripMovementMarker(t.titleOriginal)
+        if (stripped.isNotBlank() && stripped != t.titleOriginal) {
+            return "work:${normalizeTitle(stripped)}"
+        }
+        return "piece:${normalizeTitle(t.titleOriginal)}"
+    }
+
+    private fun stripMovementMarker(title: String): String {
+        val match = MOVEMENT_MARKER.find(title.trim()) ?: return ""
+        return title.substring(0, match.range.first).trim()
+            .trimEnd(',', '-', '–', '—', ':', ' ').trim()
+    }
+    private fun normalizeTitle(title: String): String =
+        title.lowercase(Locale.ROOT).filter { it.isLetterOrDigit() }
+}
+
 /**
  * Runtime catalogue of data derived from `classical_index.json`, loaded at startup by
  * [ClassicalLibraryInitializer]: work groupings (作品集), per-track `style`, and the
@@ -33,6 +103,9 @@ class ClassicalWorkCatalog @Inject constructor() {
     private var worksByAlbum: Map<Long, List<ClassicalWork>> = emptyMap()
 
     @Volatile
+    private var nodesByWork: Map<String, List<ClassicalWorkNode>> = emptyMap()
+
+    @Volatile
     private var workByTrack: Map<Long, ClassicalWork> = emptyMap()
 
     @Volatile
@@ -43,6 +116,11 @@ class ClassicalWorkCatalog @Inject constructor() {
 
     fun load(tracks: List<ClassicalTrack>) {
         worksByAlbum = ClassicalWorkDeriver.derive(tracks)
+        nodesByWork = worksByAlbum.values.flatten().associate { work ->
+            work.key to ClassicalWorkNodeDeriver.derive(
+                work.trackIds.mapNotNull { id -> tracks.find { it.id == id } }
+            )
+        }
         workByTrack = buildMap {
             worksByAlbum.values.flatten().forEach { work ->
                 work.trackIds.forEach { put(it, work) }
@@ -53,6 +131,8 @@ class ClassicalWorkCatalog @Inject constructor() {
     }
 
     fun worksForAlbum(albumId: Long): List<ClassicalWork> = worksByAlbum[albumId].orEmpty()
+
+    fun nodesForWork(workKey: String): List<ClassicalWorkNode> = nodesByWork[workKey].orEmpty()
 
     fun workOfTrack(trackId: Long): ClassicalWork? = workByTrack[trackId]
 

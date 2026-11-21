@@ -7,6 +7,7 @@ import com.pisces312.piscesplayer.data.classical.ClassicalNameCatalog
 import com.pisces312.piscesplayer.data.classical.ClassicalStyle
 import com.pisces312.piscesplayer.data.classical.ClassicalWork
 import com.pisces312.piscesplayer.data.classical.ClassicalWorkCatalog
+import com.pisces312.piscesplayer.data.classical.ClassicalWorkNode
 import com.pisces312.piscesplayer.data.classical.NameSet
 import com.pisces312.piscesplayer.data.database.MusicDao
 import com.pisces312.piscesplayer.data.database.toAlbums
@@ -28,6 +29,17 @@ import javax.inject.Inject
 /** 作品分组的一节：作品头 + 其下的曲目（乐章）。 */
 data class ClassicalWorkSection(
     val work: ClassicalWork,
+    val tracks: List<Song>
+)
+
+/** 作品集分组：组头 + 其下作品节点（每个节点有自己的名称和曲目列表）。 */
+data class ClassicalWorkSetSection(
+    val work: ClassicalWork,
+    val nodes: List<ClassicalWorkSetNode>
+)
+
+data class ClassicalWorkSetNode(
+    val node: ClassicalWorkNode,
     val tracks: List<Song>
 )
 
@@ -137,5 +149,56 @@ class ClassicalLibraryViewModel @Inject constructor(
             }
         }
         return byWork.map { (work, tracks) -> ClassicalWorkSection(work, tracks) }
+    }
+
+    /**
+     * Two-level variant of [workSections]：组内再按作品（乐章/编曲）细分，产出
+     * [ClassicalWorkSetSection] 列表。组内只细分出 1 个作品时不造作品集层，
+     * 直接退化为单节点（与单层 workSections 等价）。
+     */
+    fun workSetSections(albumId: Long, allSongs: List<Song>): List<ClassicalWorkSetSection> {
+        val composerSongs = allSongs.filter { it.albumId == albumId }
+            .sortedBy { it.id.toLongOrNull() ?: 0L }
+        val byWork = LinkedHashMap<ClassicalWork, MutableList<Song>>()
+        for (song in composerSongs) {
+            val work = song.id.toLongOrNull()?.let { workCatalog.workOfTrack(it) }
+            if (work != null) {
+                byWork.getOrPut(work) { mutableListOf() }.add(song)
+            } else {
+                val solo = ClassicalWork(
+                    key = "fallback:${song.id}",
+                    names = NameSet(original = song.title, en = "", zh = ""),
+                    opus = "",
+                    trackIds = listOfNotNull(song.id.toLongOrNull())
+                )
+                byWork.getOrPut(solo) { mutableListOf() }.add(song)
+            }
+        }
+
+        return byWork.map { (work, tracks) ->
+            val nodes = workCatalog.nodesForWork(work.key)
+            if (nodes.isEmpty() || nodes.size == 1 && nodes[0].trackIds.size == tracks.size) {
+                // 单层：不造作品集，直接退化为单节点
+                ClassicalWorkSetSection(
+                    work = work,
+                    nodes = listOf(
+                        ClassicalWorkSetNode(
+                            node = ClassicalWorkNode(
+                                key = "single:${work.key}",
+                                names = work.names,
+                                trackIds = work.trackIds
+                            ),
+                            tracks = tracks
+                        )
+                    )
+                )
+            } else {
+                val nodeSections = nodes.map { node ->
+                    val nodeTracks = tracks.filter { it.id.toLongOrNull() in node.trackIds.toSet() }
+                    ClassicalWorkSetNode(node, nodeTracks)
+                }.filter { it.tracks.isNotEmpty() }
+                ClassicalWorkSetSection(work, nodeSections)
+            }
+        }
     }
 }
