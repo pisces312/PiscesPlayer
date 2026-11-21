@@ -344,6 +344,16 @@
     <string name="midi_style_march">Marches</string>
     <string name="midi_style_dance">Dances</string>
     <string name="midi_style_other">Other</string>
+    <string name="midi_tab_builtin">Built-in</string>
+    <string name="midi_tab_mine">My MIDI</string>
+    <string name="midi_add_directory">Add folder</string>
+    <string name="midi_add_file">Add MIDI file</string>
+    <string name="midi_rescan">Rescan</string>
+    <string name="midi_remove_directory">Remove</string>
+    <string name="midi_needs_reauth">permission expired — pick the folder again</string>
+    <string name="midi_mine_empty">No MIDI files yet — add a folder or a file</string>
+    <string name="midi_directories_section">Folders</string>
+    <string name="midi_files_section_singles">Added files</string>
     <string name="music_quiz_rule_summary">10 rounds · 10-second clips · 5 choices</string>
     <string name="music_quiz_best_score">Best score: %1$d</string>
     <string name="music_quiz_best_streak">Best streak: %1$d</string>

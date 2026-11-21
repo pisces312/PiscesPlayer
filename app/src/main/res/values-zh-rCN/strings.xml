@@ -344,6 +344,16 @@
     <string name="midi_style_march">进行曲</string>
     <string name="midi_style_dance">舞曲</string>
     <string name="midi_style_other">其他</string>
+    <string name="midi_tab_builtin">内置 MIDI</string>
+    <string name="midi_tab_mine">我的 MIDI</string>
+    <string name="midi_add_directory">添加目录</string>
+    <string name="midi_add_file">添加 MIDI 文件</string>
+    <string name="midi_rescan">重新扫描</string>
+    <string name="midi_remove_directory">移除</string>
+    <string name="midi_needs_reauth">权限已失效 — 请重新选择目录</string>
+    <string name="midi_mine_empty">还没有 MIDI 文件 — 添加目录或文件试试</string>
+    <string name="midi_directories_section">目录</string>
+    <string name="midi_files_section_singles">已添加的文件</string>
     <string name="music_quiz_rule_summary">10 题一局 · 每题 10 秒 · 5 个选项</string>
     <string name="music_quiz_best_score">最高分：%1$d</string>
     <string name="music_quiz_best_streak">最佳连对：%1$d</string>

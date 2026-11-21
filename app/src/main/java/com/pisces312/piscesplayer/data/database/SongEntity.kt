@@ -23,6 +23,13 @@ object SourceType {
     const val CLASSICAL = 7
 
     /**
+     * User-provided MIDI files (SAF-scanned directories and individually added documents,
+     * referenced by their document URI — see the MIDI library plan §C). Normal user
+     * content: counts in stats/playlists/search like local songs; NOT app-provided.
+     */
+    const val USER_MIDI = 8
+
+    /**
      * App-provided content packs (随 app 分发的内置内容).
      *
      * Single policy rule for everything in this list: app-provided content behaves like a

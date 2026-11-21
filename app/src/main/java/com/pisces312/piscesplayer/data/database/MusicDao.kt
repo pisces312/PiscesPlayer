@@ -319,6 +319,12 @@ interface MusicDao {
     @Query("SELECT * FROM songs WHERE source_type = 7 ORDER BY album_id, title")
     fun getClassicalSongs(): Flow<List<SongEntity>>
 
+    @Query("SELECT * FROM songs WHERE source_type = 8 ORDER BY title COLLATE NOCASE")
+    fun getUserMidiSongs(): Flow<List<SongEntity>>
+
+    @Query("SELECT id FROM songs WHERE source_type = 8")
+    suspend fun getUserMidiSongIds(): List<Long>
+
     @Query("SELECT COUNT(*) FROM songs WHERE source_type = 7")
     fun getClassicalSongCount(): Flow<Int>
 
