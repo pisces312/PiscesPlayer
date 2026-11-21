@@ -16,6 +16,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -92,7 +93,7 @@ internal fun ClassicalSearchField(
     )
 }
 
-/** 曲目行：标题（双语主副）+ 可选副行 + 收藏星标；点按整行触发 [onClick]。 */
+/** 曲目行：标题（双语主副）+ 可选副行 + 收藏星标；点按整行触发 [onClick]。卡片容器对齐曲库行样式。 */
 @Composable
 internal fun ClassicalTrackRow(
     title: ClassicalDisplayNames,
@@ -102,44 +103,52 @@ internal fun ClassicalTrackRow(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Row(
+    Surface(
         modifier = modifier
             .fillMaxWidth()
-            .padding(vertical = 6.dp),
-        verticalAlignment = Alignment.CenterVertically
+            .padding(horizontal = 12.dp, vertical = 4.dp),
+        shape = RoundedCornerShape(22.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
     ) {
-        Column(
+        Row(
             modifier = Modifier
-                .weight(1f)
-                .padding(start = 16.dp, end = 8.dp)
+                .fillMaxWidth()
                 .clickable(onClick = onClick)
+                .padding(horizontal = 13.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                text = title.primary,
-                style = MaterialTheme.typography.bodyLarge,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-            val secondary = title.subtitle ?: subtitle
-            if (secondary != null) {
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+            ) {
                 Text(
-                    text = secondary,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    text = title.primary,
+                    style = MaterialTheme.typography.bodyLarge,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
+                val secondary = title.subtitle ?: subtitle
+                if (secondary != null) {
+                    Text(
+                        text = secondary,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
             }
-        }
-        IconButton(onClick = onToggleFavorite, modifier = Modifier.size(44.dp)) {
-            Icon(
-                imageVector = if (isFavorite) Icons.Rounded.Star else Icons.Rounded.StarBorder,
-                contentDescription = stringResource(
-                    if (isFavorite) R.string.classical_unfavorite else R.string.classical_favorite
-                ),
-                tint = if (isFavorite) MaterialTheme.colorScheme.primary
-                else MaterialTheme.colorScheme.onSurfaceVariant
-            )
+            IconButton(onClick = onToggleFavorite, modifier = Modifier.size(36.dp)) {
+                Icon(
+                    imageVector = if (isFavorite) Icons.Rounded.Star else Icons.Rounded.StarBorder,
+                    contentDescription = stringResource(
+                        if (isFavorite) R.string.classical_unfavorite else R.string.classical_favorite
+                    ),
+                    tint = if (isFavorite) MaterialTheme.colorScheme.primary
+                    else MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(22.dp)
+                )
+            }
         }
     }
 }

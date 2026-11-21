@@ -23,9 +23,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.MoreVert
+import androidx.compose.material.icons.rounded.Star
+import androidx.compose.material.icons.rounded.StarBorder
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -106,6 +109,9 @@ fun EnhancedSongListItem(
     titleOverride: String? = null,
     /** 双语曲名展示（内置古典曲目）：覆盖副标题行（默认是 displayArtist） */
     subtitleOverride: String? = null,
+    /** Optional favorite star in the trailing area; null keeps the plain more-vert button only. */
+    isFavorite: Boolean? = null,
+    onToggleFavorite: (() -> Unit)? = null,
     onLongPress: () -> Unit = {},
     onMoreOptionsClick: (Song) -> Unit,
     onClick: () -> Unit
@@ -405,6 +411,24 @@ fun EnhancedSongListItem(
                             imageVector = Icons.Rounded.MoreVert,
                             contentDescription = stringResource(R.string.presentation_batch_g_list_cd_more_for_title, song.title),
                             modifier = Modifier.size(24.dp)
+                        )
+                    }
+                }
+
+                if (isFavorite != null && onToggleFavorite != null) {
+                    Spacer(modifier = Modifier.width(4.dp))
+                    IconButton(
+                        onClick = onToggleFavorite,
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Icon(
+                            imageVector = if (isFavorite) Icons.Rounded.Star else Icons.Rounded.StarBorder,
+                            contentDescription = stringResource(
+                                if (isFavorite) R.string.classical_unfavorite else R.string.classical_favorite
+                            ),
+                            tint = if (isFavorite) MaterialTheme.colorScheme.primary
+                            else MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(22.dp)
                         )
                     }
                 }
