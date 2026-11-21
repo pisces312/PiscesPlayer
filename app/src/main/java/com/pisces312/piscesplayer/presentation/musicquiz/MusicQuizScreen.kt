@@ -619,11 +619,6 @@ private fun MusicQuizModeSelector(
                             Text(stringResource(musicQuizModeLabel(mode)))
                         }
                     },
-                    leadingIcon = if (mode == current) {
-                        { Icon(Icons.Rounded.Check, contentDescription = null) }
-                    } else {
-                        null
-                    },
                     onClick = {
                         expanded = false
                         onSelect(mode)
