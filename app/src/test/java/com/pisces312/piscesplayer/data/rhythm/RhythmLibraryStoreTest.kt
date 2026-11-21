@@ -287,17 +287,17 @@ class RhythmLibraryStoreTest {
     }
 
     @Test
-    fun settingsRoundTripKeepsAnyDelayAndClampsApproach() {
+    fun settingsRoundTripClampsApproach() {
         val store = RhythmLibraryStore(root())
 
         val stored = store.writeSettings(
             "chart-a",
-            RhythmChartSettings(delayMs = 9_999, approachMs = 10),
+            RhythmChartSettings(approachMs = 10),
             nowMs = 42,
         )
 
-        // Delay is unbounded (plan §14); the approach window keeps its 700..3000 clamp.
-        assertEquals(9_999, stored.delayMs)
+        // The latency offset is route-keyed now (RhythmLatencyStore); the sidecar keeps the
+        // per-chart lead-in / approach, and the approach window keeps its 700..3000 clamp.
         assertEquals(RhythmChartSettings.MIN_APPROACH_MS, stored.approachMs)
         assertEquals(42, stored.updatedAtMs)
         assertEquals(stored, store.readSettings("chart-a"))
@@ -320,7 +320,7 @@ class RhythmLibraryStoreTest {
         val root = root()
         val store = RhythmLibraryStore(root)
         val chart = store.importText("song-a", osu(), nowMs = 100)
-        store.writeSettings(chart.chartId, RhythmChartSettings(delayMs = 25), nowMs = 200)
+        store.writeSettings(chart.chartId, RhythmChartSettings(leadInMs = 25), nowMs = 200)
         val settingsFile = File(root, "settings/${chart.chartId}.json")
         assertTrue(settingsFile.isFile)
 

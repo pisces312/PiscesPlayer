@@ -12,12 +12,6 @@ import org.junit.Test
 class RhythmChartSettingsTest {
 
     @Test
-    fun delayIsNotClampedInEitherDirection() {
-        assertEquals(12_345, RhythmChartSettings(delayMs = 12_345).clamped().delayMs)
-        assertEquals(-98_765, RhythmChartSettings(delayMs = -98_765).clamped().delayMs)
-    }
-
-    @Test
     fun approachIsStillClamped() {
         assertEquals(700, RhythmChartSettings(approachMs = 10).clamped().approachMs)
         assertEquals(3_000, RhythmChartSettings(approachMs = 99_999).clamped().approachMs)
@@ -32,8 +26,12 @@ class RhythmChartSettingsTest {
     }
 
     @Test
-    fun jsonRoundTripKeepsAnyDelay() {
-        val settings = RhythmChartSettings(delayMs = -98_765, approachMs = 1_500)
+    fun jsonRoundTrip() {
+        val settings = RhythmChartSettings(
+            delayOverrideMs = -320,
+            leadInMs = 1_000,
+            approachMs = 1_200,
+        )
 
         val decoded = Json.decodeFromString(
             RhythmChartSettings.serializer(),
@@ -41,5 +39,39 @@ class RhythmChartSettingsTest {
         )
 
         assertEquals(settings, decoded)
+    }
+
+    @Test
+    fun delayOverrideDefaultsToNullAndKeepsRoutePriority() {
+        // No override: the route calibration applies (null = follow the route store).
+        assertEquals(null, RhythmChartSettings.DEFAULT.delayOverrideMs)
+        // A sidecar written before overrides existed must parse with none.
+        val legacy = Json { ignoreUnknownKeys = true }.decodeFromString(
+            RhythmChartSettings.serializer(),
+            """{"schemaVersion":1,"leadInMs":0,"approachMs":1500}""",
+        )
+        assertEquals(null, legacy.delayOverrideMs)
+    }
+
+    @Test
+    fun leadInRoundsToFiveHundredMsSteps() {
+        assertEquals(500, RhythmChartSettings.DEFAULT.leadInMs)
+        assertEquals(0, RhythmChartSettings(leadInMs = 0).clamped().leadInMs)
+        assertEquals(500, RhythmChartSettings(leadInMs = 250).clamped().leadInMs)
+        assertEquals(500, RhythmChartSettings(leadInMs = 749).clamped().leadInMs)
+        assertEquals(1_000, RhythmChartSettings(leadInMs = 751).clamped().leadInMs)
+    }
+
+    @Test
+    fun legacySidecarWithDelayKeyStillParses() {
+        // delayMs lived in the chart sidecar before the offset moved to the route-keyed
+        // RhythmLatencyStore; with the store's ignoreUnknownKeys the old key must be ignored,
+        // not fatal.
+        val decoded = Json { ignoreUnknownKeys = true }.decodeFromString(
+            RhythmChartSettings.serializer(),
+            """{"schemaVersion":1,"delayMs":-165,"approachMs":1500}""",
+        )
+
+        assertEquals(RhythmChartSettings(approachMs = 1_500), decoded)
     }
 }

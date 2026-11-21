@@ -61,6 +61,7 @@ import com.pisces312.piscesplayer.data.rhythm.RhythmChartSettings
 import com.pisces312.piscesplayer.data.rhythm.RhythmDriftKind
 import com.pisces312.piscesplayer.data.rhythm.RhythmDriftRecorder
 import com.pisces312.piscesplayer.data.rhythm.RhythmDriftReport
+import com.pisces312.piscesplayer.data.rhythm.RhythmLatencyStore
 import com.pisces312.piscesplayer.data.rhythm.RhythmPcmDecoder
 import com.pisces312.piscesplayer.data.rhythm.RhythmRepository
 import com.pisces312.piscesplayer.data.rhythm.delayAfterTap
@@ -142,20 +143,23 @@ fun RhythmGameScreen(
         }
     }
 
-    /** Offset tweak from the pause screen: applied live and persisted to the chart sidecar. */
+    /**
+     * Offset tweak from the pause screen: applied live and persisted as this chart's override
+     * (a chart override beats the route calibration; mid-run tweaks are chart-scoped).
+     */
     fun adjustDelay(deltaMs: Int) {
         val currentSession = session ?: return
         val next = delayAfterTap(currentSession.clock.offsetMs.roundToInt(), deltaMs)
         currentSession.clock.offsetMs = next.toDouble()
-        // The paused game loop does not sample the clock; refresh the frame-stable render time
-        // explicitly so the playfield reflects the new offset before playback resumes.
-        songMs = currentSession.clock.nowMs()
         val updated = chartSettings.copy(
-            delayMs = next,
+            delayOverrideMs = next,
             updatedAtMs = System.currentTimeMillis(),
         )
         chartSettings = updated
         scope.launch { repository.saveSettings(chartId, updated) }
+        // The paused game loop does not sample the clock; refresh the frame-stable render time
+        // explicitly so the playfield reflects the new offset before playback resumes.
+        songMs = currentSession.clock.nowMs()
         frameTick += 1
     }
 
@@ -191,11 +195,15 @@ fun RhythmGameScreen(
                 val playbackUri = song.contentUriString.takeIf { it.isNotBlank() }?.let(Uri::parse)
                     ?: Uri.fromFile(File(song.path))
                 val pcm = RhythmPcmDecoder.decode(context, playbackUri)
-                // Per-chart playback tweaks: latency compensation on the clock, fall time on the
-                // session. Both must be read before the clock starts so the first note is right.
+                // Per-chart playback tweaks: fall time and lead-in on the session; the latency
+                // offset is this chart's override when set, otherwise the current route's
+                // calibrated value (both must be read before the clock starts so the first
+                // note is right).
                 val settings = repository.loadSettings(chartId)
                 chartSettings = settings
-                val clock = RhythmAudioClock(pcm, offsetMs = settings.delayMs.toDouble())
+                val routeOffsetMs = RhythmLatencyStore.offsetMs(context)
+                val effectiveOffset = settings.delayOverrideMs ?: routeOffsetMs
+                val clock = RhythmAudioClock(pcm, offsetMs = effectiveOffset.toDouble())
                 audioClock = clock
                 session = RhythmPlaySession(
                     chart = chart,
