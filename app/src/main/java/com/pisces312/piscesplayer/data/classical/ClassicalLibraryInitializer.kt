@@ -50,7 +50,8 @@ class ClassicalLibraryInitializer @Inject constructor(
     private val musicDao: MusicDao,
     private val engagementDao: EngagementDao,
     private val playbackStatsRepository: PlaybackStatsRepository,
-    private val nameCatalog: ClassicalNameCatalog
+    private val nameCatalog: ClassicalNameCatalog,
+    private val workCatalog: ClassicalWorkCatalog
 ) {
     private val mutex = Mutex()
 
@@ -78,6 +79,7 @@ class ClassicalLibraryInitializer @Inject constructor(
             File(root, ClassicalLibrary.INDEX_ENTRY).exists()
         ) {
             loadNames(root)
+            loadWorks(root)
             return
         }
         Timber.d(
@@ -195,6 +197,7 @@ class ClassicalLibraryInitializer @Inject constructor(
             tracks.size, composers.size, packHash.take(12)
         )
         loadNames(root)
+        loadWorks(root)
     }
 
     /**
@@ -227,6 +230,18 @@ class ClassicalLibraryInitializer @Inject constructor(
         runCatching {
             nameCatalog.load(ClassicalLibrary.parseNames(namesFile.readText()))
         }.onFailure { Timber.e(it, "Failed to load %s", ClassicalLibrary.NAMES_ENTRY) }
+    }
+
+    /**
+     * 装载作品分组目录（每次启动都要装，含快速路径）。作品分组由
+     * [ClassicalWorkDeriver] 从 index 运行时派生（见 plan §B4 P0）。
+     */
+    private fun loadWorks(root: File) {
+        val indexFile = File(root, ClassicalLibrary.INDEX_ENTRY)
+        if (!indexFile.exists()) return
+        runCatching {
+            workCatalog.load(ClassicalLibrary.parseIndex(indexFile.readText()))
+        }.onFailure { Timber.e(it, "Failed to load %s work catalog", ClassicalLibrary.INDEX_ENTRY) }
     }
 
     /**

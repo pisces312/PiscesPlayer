@@ -67,6 +67,7 @@ object ClassicalLibrary {
                             ?: (ALBUM_ID_BASE + t.optLong("composerIndex")),
                         artistId = t.optLong("artistId").takeIf { it != 0L }
                             ?: (ARTIST_ID_BASE + t.optLong("composerIndex")),
+                        opus = t.optString("opus").trim(),
                         durationMs = t.getLong("durationMs")
                     )
                 )
@@ -132,5 +133,6 @@ data class ClassicalTrack(
     val albumName: String,
     val albumId: Long,
     val artistId: Long,
+    val opus: String,
     val durationMs: Long
 )

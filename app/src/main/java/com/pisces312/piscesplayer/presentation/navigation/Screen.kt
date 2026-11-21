@@ -96,6 +96,17 @@ sealed class Screen(val route: String) {
 
     object MusicGameHub : Screen("music_games")
 
+    /** 「音乐学习」第五个 root tab：古典熏陶入口 + 练耳/节拍器等学习功能。 */
+    object MusicLearning : Screen("music_learning")
+
+    /** 古典熏陶：作曲家紧凑列表 / 收藏乐曲 双 tab。 */
+    object ClassicalBrowse : Screen("classical_browse")
+
+    /** 古典熏陶：某作曲家的作品集分组页。 */
+    object ClassicalComposer : Screen("classical_composer/{albumId}") {
+        fun createRoute(albumId: Long) = "classical_composer/$albumId"
+    }
+
     object SleepSoundscape : Screen("sleep_soundscape")
 
     object MusicQuiz : Screen("music_quiz")

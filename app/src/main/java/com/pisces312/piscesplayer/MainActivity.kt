@@ -714,12 +714,18 @@ class MainActivity : ComponentActivity() {
         navController: NavHostController,
         isTemporarySession: Boolean
     ) = traceSection("MainActivity.MainUI") {
-        val commonNavItems = remember {
+        val navLabelHome = stringResource(R.string.nav_label_home)
+        val navLabelSearch = stringResource(R.string.nav_label_search)
+        val navLabelLibrary = stringResource(R.string.nav_label_library)
+        val navLabelGames = stringResource(R.string.nav_label_games)
+        val navLabelLearn = stringResource(R.string.nav_label_learn)
+        val commonNavItems = remember(navLabelHome, navLabelSearch, navLabelLibrary, navLabelGames, navLabelLearn) {
             persistentListOf(
-                BottomNavItem("Home", R.drawable.rounded_home_24, R.drawable.home_24_rounded_filled, Screen.Home),
-                BottomNavItem("Search", R.drawable.rounded_search_24, R.drawable.rounded_search_24, Screen.Search),
-                BottomNavItem("Library", R.drawable.rounded_library_music_24, R.drawable.round_library_music_24, Screen.Library),
-                BottomNavItem("Games", R.drawable.rounded_sports_esports_24, R.drawable.rounded_sports_esports_24, Screen.MusicGameHub)
+                BottomNavItem(navLabelHome, R.drawable.rounded_home_24, R.drawable.home_24_rounded_filled, Screen.Home),
+                BottomNavItem(navLabelSearch, R.drawable.rounded_search_24, R.drawable.rounded_search_24, Screen.Search),
+                BottomNavItem(navLabelLibrary, R.drawable.rounded_library_music_24, R.drawable.round_library_music_24, Screen.Library),
+                BottomNavItem(navLabelGames, R.drawable.rounded_sports_esports_24, R.drawable.rounded_sports_esports_24, Screen.MusicGameHub),
+                BottomNavItem(navLabelLearn, R.drawable.rounded_school_24, R.drawable.rounded_school_24, Screen.MusicLearning)
             )
         }
         val navBackStackEntry by navController.currentBackStackEntryAsState()
@@ -761,7 +767,9 @@ class MainActivity : ComponentActivity() {
                 Screen.RhythmSetup.route,
                 Screen.RhythmGame.route,
                 Screen.RhythmRecord.route,
-                Screen.Updates.route
+                Screen.Updates.route,
+                Screen.ClassicalBrowse.route,
+                Screen.ClassicalComposer.route
             )
         }
         val shouldHideNavigationBar by remember(currentRoute, isSearchBarActive) {

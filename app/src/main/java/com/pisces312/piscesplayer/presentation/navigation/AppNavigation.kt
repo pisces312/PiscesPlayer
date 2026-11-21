@@ -77,6 +77,9 @@ import com.pisces312.piscesplayer.presentation.components.ScreenWrapper
 import com.pisces312.piscesplayer.presentation.musicquiz.MusicQuizScreen
 import com.pisces312.piscesplayer.presentation.screens.SleepSoundscapeScreen
 import com.pisces312.piscesplayer.presentation.rhythm.MusicGameHubScreen
+import com.pisces312.piscesplayer.presentation.musiclearning.MusicLearningScreen
+import com.pisces312.piscesplayer.presentation.screens.ClassicalBrowseScreen
+import com.pisces312.piscesplayer.presentation.screens.ClassicalComposerDetailScreen
 import com.pisces312.piscesplayer.presentation.rhythm.RhythmGameScreen
 import com.pisces312.piscesplayer.presentation.rhythm.RhythmRecordScreen
 import com.pisces312.piscesplayer.presentation.rhythm.RhythmSetupScreen
@@ -788,6 +791,87 @@ fun AppNavigation(
                             navController.navigateSafely(Screen.MusicQuiz.route)
                         },
                     )
+                }
+            }
+            // Music learning is the 5th root tab (classical entry + future ear training /
+            // metronome tools), using the same main-root tab transitions.
+            composable(
+                Screen.MusicLearning.route,
+                enterTransition = {
+                    mainRootEnterTransition(
+                        fromRoute = initialState.destination.route,
+                        toRoute = targetState.destination.route,
+                        fallback = enterTransition()
+                    )
+                },
+                exitTransition = {
+                    mainRootExitTransition(
+                        fromRoute = initialState.destination.route,
+                        toRoute = targetState.destination.route,
+                        fallback = exitTransition()
+                    )
+                },
+                popEnterTransition = {
+                    mainRootEnterTransition(
+                        fromRoute = initialState.destination.route,
+                        toRoute = targetState.destination.route,
+                        fallback = popEnterTransition()
+                    )
+                },
+                popExitTransition = {
+                    mainRootExitTransition(
+                        fromRoute = initialState.destination.route,
+                        toRoute = targetState.destination.route,
+                        fallback = popExitTransition()
+                    )
+                },
+            ) {
+                ScreenWrapper(navController = navController, playerViewModel = playerViewModel) {
+                    MusicLearningScreen(
+                        paddingValues = paddingValues,
+                        onOpenClassical = {
+                            navController.navigateSafely(Screen.ClassicalBrowse.route)
+                        },
+                        onComingSoon = { message ->
+                            playerViewModel.sendToast(message)
+                        },
+                    )
+                }
+            }
+            composable(
+                Screen.ClassicalBrowse.route,
+                enterTransition = { enterTransition() },
+                exitTransition = { exitTransition() },
+                popEnterTransition = { popEnterTransition() },
+                popExitTransition = { popExitTransition() },
+            ) {
+                ScreenWrapper(navController = navController, playerViewModel = playerViewModel) {
+                    ClassicalBrowseScreen(
+                        playerViewModel = playerViewModel,
+                        navController = navController,
+                        paddingValues = paddingValues,
+                        onBack = { navController.popBackStack() }
+                    )
+                }
+            }
+            composable(
+                route = Screen.ClassicalComposer.route,
+                arguments = listOf(navArgument("albumId") { type = NavType.LongType }),
+                enterTransition = { enterTransition() },
+                exitTransition = { exitTransition() },
+                popEnterTransition = { popEnterTransition() },
+                popExitTransition = { popExitTransition() },
+            ) { backStackEntry ->
+                val albumId = backStackEntry.arguments?.getLong("albumId")
+                if (albumId != null) {
+                    ScreenWrapper(navController = navController, playerViewModel = playerViewModel) {
+                        ClassicalComposerDetailScreen(
+                            playerViewModel = playerViewModel,
+                            albumId = albumId,
+                            paddingValues = paddingValues,
+                            onBack = { navController.popBackStack() }
+                        )
+                    }
                 }
             }
             composable(

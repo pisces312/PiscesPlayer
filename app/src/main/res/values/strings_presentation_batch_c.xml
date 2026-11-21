@@ -15,6 +15,19 @@
     <string name="lib_empty_classical_title">Classical library unavailable</string>
     <string name="lib_empty_classical_subtitle">Built-in classical tracks will appear here after installation.</string>
 
+    <!-- Classical browse (Music learning → Classical) -->
+    <string name="classical_tab_composers">Composers</string>
+    <string name="classical_tab_favorites">Favorite tracks</string>
+    <string name="classical_search_composers_hint">Search composers</string>
+    <string name="classical_search_tracks_hint">Search works and tracks</string>
+    <string name="classical_search_clear">Clear search</string>
+    <string name="classical_fav_composers_section">Favorited</string>
+    <string name="classical_all_composers_section">All composers</string>
+    <string name="classical_favorites_empty">No favorited tracks yet — tap the star on a track to add it.</string>
+    <string name="classical_no_search_results">No matches</string>
+    <string name="classical_favorite">Add to favorites</string>
+    <string name="classical_unfavorite">Remove from favorites</string>
+
     <string name="library_error_loading_songs">Error loading songs</string>
     <string name="library_error_loading_albums">Error loading albums</string>
     <string name="library_error_loading_artists">Error loading artists</string>

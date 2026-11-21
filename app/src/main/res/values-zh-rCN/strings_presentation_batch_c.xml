@@ -14,6 +14,19 @@
     <string name="classical_card_track_count_format">%1$d 首</string>
     <string name="lib_empty_classical_title">古典曲库暂不可用</string>
     <string name="lib_empty_classical_subtitle">内置曲目安装完成后将显示在这里。</string>
+
+    <!-- 古典熏陶浏览（音乐学习 → 古典熏陶） -->
+    <string name="classical_tab_composers">作曲家</string>
+    <string name="classical_tab_favorites">收藏乐曲</string>
+    <string name="classical_search_composers_hint">搜索作曲家</string>
+    <string name="classical_search_tracks_hint">搜索作品与曲目</string>
+    <string name="classical_search_clear">清除搜索</string>
+    <string name="classical_fav_composers_section">已收藏</string>
+    <string name="classical_all_composers_section">全部作曲家</string>
+    <string name="classical_favorites_empty">还没有收藏乐曲，在曲目上点按星标试试。</string>
+    <string name="classical_no_search_results">没有匹配结果</string>
+    <string name="classical_favorite">收藏</string>
+    <string name="classical_unfavorite">取消收藏</string>
     <string name="library_error_loading_songs">加载歌曲出错</string>
     <string name="library_error_loading_albums">加载专辑出错</string>
     <string name="library_error_loading_artists">加载艺术家出错</string>
