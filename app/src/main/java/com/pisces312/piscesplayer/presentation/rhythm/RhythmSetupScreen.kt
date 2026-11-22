@@ -128,6 +128,13 @@ private data class LibrarySnapshot(
 /** Note count / density the player will actually see, after the chart's lead-in mask. */
 private data class VisibleStats(val count: Int, val notesPerSec: Double)
 
+/**
+ * The play-time settings one chart will actually run with: the effective latency offset (the
+ * chart's override when set, otherwise the current route's calibrated value), the lead-in mask
+ * and the note fall time. Always shown on the card so the values are visible before starting.
+ */
+private data class ChartPlaySettings(val delayMs: Int, val leadInMs: Int, val approachMs: Int)
+
 private fun visibleStats(
     times: List<Int>?,
     leadInMs: Int,
@@ -547,12 +554,18 @@ fun RhythmSetupScreen(
             if (snapshot.derived.isNotEmpty()) {
                 item { SectionHeader(stringResource(R.string.rhythm_derived_section)) }
                 items(snapshot.derived, key = { it.chartId }) { meta ->
+                    val settings = snapshot.settings[meta.chartId] ?: RhythmChartSettings.DEFAULT
                     ChartRow(
                         meta = meta,
                         stats = visibleStats(
                             snapshot.noteTimes[meta.chartId],
-                            snapshot.settings[meta.chartId]?.leadInMs ?: 0,
+                            settings.leadInMs,
                             meta,
+                        ),
+                        playSettings = ChartPlaySettings(
+                            delayMs = settings.delayOverrideMs ?: latencyOffsetMs,
+                            leadInMs = settings.leadInMs,
+                            approachMs = settings.approachMs,
                         ),
                         staleMaster = masterMeta != null &&
                             meta.masterGeneratedAtMs != null &&
@@ -570,12 +583,18 @@ fun RhythmSetupScreen(
             if (snapshot.others.isNotEmpty()) {
                 item { SectionHeader(stringResource(R.string.rhythm_other_section)) }
                 items(snapshot.others, key = { it.chartId }) { meta ->
+                    val settings = snapshot.settings[meta.chartId] ?: RhythmChartSettings.DEFAULT
                     ChartRow(
                         meta = meta,
                         stats = visibleStats(
                             snapshot.noteTimes[meta.chartId],
-                            snapshot.settings[meta.chartId]?.leadInMs ?: 0,
+                            settings.leadInMs,
                             meta,
+                        ),
+                        playSettings = ChartPlaySettings(
+                            delayMs = settings.delayOverrideMs ?: latencyOffsetMs,
+                            leadInMs = settings.leadInMs,
+                            approachMs = settings.approachMs,
                         ),
                         staleMaster = false,
                         onPlay = { playChart(meta) },
@@ -1035,6 +1054,7 @@ private fun MasterCard(
 private fun ChartRow(
     meta: RhythmChartMeta,
     stats: VisibleStats,
+    playSettings: ChartPlaySettings,
     staleMaster: Boolean,
     onPlay: () -> Unit,
     onSettings: () -> Unit,
@@ -1128,6 +1148,19 @@ private fun ChartRow(
                     Text(stringResource(R.string.rhythm_play_chart))
                 }
             }
+
+            Text(
+                text = stringResource(
+                    R.string.rhythm_card_play_settings,
+                    playSettings.delayMs,
+                    playSettings.leadInMs,
+                    playSettings.approachMs,
+                ),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
         }
     }
 }

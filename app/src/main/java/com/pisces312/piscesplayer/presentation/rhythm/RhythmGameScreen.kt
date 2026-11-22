@@ -328,6 +328,10 @@ fun RhythmGameScreen(
             appendLine("durationMs=${currentSession.clock.durationMs}")
             appendLine("offsetMs=${currentSession.clock.offsetMs}")
             appendLine("approachMs=${currentSession.approachMs}")
+            // What really happened at the start: park release, anchor sources, grace expiry,
+            // per-frame clock reads. Lets a real-device run be checked against the intended
+            // startup contract (see RhythmStartupTrace).
+            append(audioClock?.startupTraceText().orEmpty())
         }
         scope.launch {
             val file = withContext(Dispatchers.IO) {
@@ -376,6 +380,7 @@ fun RhythmGameScreen(
             else -> Column(modifier = Modifier.fillMaxSize()) {
                 RhythmHud(
                     session = currentSession,
+                    leadInMs = chartSettings.leadInMs,
                     paused = paused,
                     frameTick = frameTick,
                     onTogglePause = {
@@ -466,10 +471,16 @@ fun RhythmGameScreen(
     }
 }
 
-/** Score, difficulty, accuracy and a thin progress bar. No transport controls: pausing is it. */
+/**
+ * Score, difficulty, accuracy and a thin progress bar. No transport controls: pausing is it.
+ * Below the score row the HUD always shows the two play-time settings that decide whether the
+ * notes meet the music: the effective latency offset (chart override or route calibration,
+ * live-tweakable on the pause screen) and the lead-in mask.
+ */
 @Composable
 private fun RhythmHud(
     session: RhythmPlaySession,
+    leadInMs: Int,
     paused: Boolean,
     frameTick: Long,
     onTogglePause: () -> Unit,
@@ -515,6 +526,15 @@ private fun RhythmHud(
                 )
             }
         }
+        Text(
+            text = stringResource(
+                R.string.rhythm_hud_status,
+                session.clock.offsetMs.roundToInt(),
+                leadInMs,
+            ),
+            color = HUD_SECONDARY,
+            fontSize = 11.sp,
+        )
         Box(
             modifier = Modifier
                 .fillMaxWidth()

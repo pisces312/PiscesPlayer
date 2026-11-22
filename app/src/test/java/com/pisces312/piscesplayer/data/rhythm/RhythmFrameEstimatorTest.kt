@@ -364,4 +364,46 @@ class RhythmFrameEstimatorTest {
 
         assertEquals(1000.0, estimator.currentFrame(10_000_000_000L), 0.0)
     }
+
+    @Test
+    fun startupTraceRecordsParkAndHeadRelease() {
+        val trace = RhythmStartupTrace()
+        val estimator = RhythmFrameEstimator(sampleRate = 1000, totalFrames = 1_000_000, trace = trace)
+        estimator.start(nowBootNs = 0)
+
+        // Zero-frame timestamps are "no progress" on this branch and must not anchor.
+        assertFalse(
+            estimator.offerTimestamp(
+                frame = 0.0,
+                timestampNs = 30_000_000L,
+                monoNs = 30_000_000L,
+                bootNs = 30_000_000L,
+            ),
+        )
+        // A zero head while parked means "nothing rendered yet".
+        assertFalse(estimator.offerHeadPosition(0.0, 40_000_000L))
+        // The first real head progress releases the park (within the wall-clock line).
+        assertTrue(estimator.offerHeadPosition(30.0, 60_000_000L))
+
+        val dump = trace.dump()
+        assertTrue(dump, "estimator.start" in dump)
+        assertTrue(dump, "ts reject: no progress" in dump)
+        assertTrue(dump, "head park" in dump)
+        assertTrue(dump, "head RELEASE-PARK" in dump)
+        // Lines carry ms-since-start on a US-locale timeline.
+        assertTrue(dump, "    30.0" in dump)
+    }
+
+    @Test
+    fun startupTraceRecordsGraceExpiry() {
+        val trace = RhythmStartupTrace()
+        val estimator = RhythmFrameEstimator(sampleRate = 1000, totalFrames = 1_000_000, trace = trace)
+        estimator.start(nowBootNs = 0)
+
+        // Parked until the grace bound, then the wall-clock line starts anyway.
+        assertEquals(0.0, estimator.currentFrame(300_000_000L), 0.0)
+        estimator.currentFrame(450_000_000L)
+
+        assertTrue(trace.dump().let { "GRACE 400 ms expired" in it })
+    }
 }

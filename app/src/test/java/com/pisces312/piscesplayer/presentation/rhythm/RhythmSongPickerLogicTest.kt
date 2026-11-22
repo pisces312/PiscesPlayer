@@ -38,7 +38,7 @@ class RhythmSongPickerLogicTest {
             candidates = songs,
             recentSongIds = listOf("d", "a", "missing"),
             query = "",
-            filters = RhythmSongFilterState(),
+            filters = RhythmSongFilterState(scope = RhythmSongScope.RECENT),
         )
 
         assertEquals(listOf("d", "a"), result.map(RhythmSongCandidate::id))
@@ -50,7 +50,10 @@ class RhythmSongPickerLogicTest {
             candidates = songs,
             recentSongIds = emptyList(),
             query = "",
-            filters = RhythmSongFilterState(scope = RhythmSongScope.ALL),
+            filters = RhythmSongFilterState(
+                scope = RhythmSongScope.ALL,
+                charts = RhythmChartFilter.ALL,
+            ),
             locale = Locale.ENGLISH,
         )
 
@@ -128,13 +131,19 @@ class RhythmSongPickerLogicTest {
             candidates = songs,
             recentSongIds = emptyList(),
             query = "  beta ",
-            filters = RhythmSongFilterState(scope = RhythmSongScope.ALL),
+            filters = RhythmSongFilterState(
+                scope = RhythmSongScope.ALL,
+                charts = RhythmChartFilter.ALL,
+            ),
         )
         val byArtist = filterRhythmSongCandidates(
             candidates = songs,
             recentSongIds = emptyList(),
             query = "other",
-            filters = RhythmSongFilterState(scope = RhythmSongScope.ALL),
+            filters = RhythmSongFilterState(
+                scope = RhythmSongScope.ALL,
+                charts = RhythmChartFilter.ALL,
+            ),
         )
 
         assertEquals(listOf("b"), byTitle.map(RhythmSongCandidate::id))

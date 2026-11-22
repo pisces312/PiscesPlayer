@@ -55,7 +55,10 @@ class RhythmChartSettingsTest {
 
     @Test
     fun leadInRoundsToFiveHundredMsSteps() {
-        assertEquals(500, RhythmChartSettings.DEFAULT.leadInMs)
+        // Default was rolled back from 500 to 0: speaker/wired clocks land on the acoustic
+        // zero by themselves, so opening notes stay hittable and hiding them confuses more
+        // than it helps. Bluetooth routes can raise it per chart.
+        assertEquals(0, RhythmChartSettings.DEFAULT.leadInMs)
         assertEquals(0, RhythmChartSettings(leadInMs = 0).clamped().leadInMs)
         assertEquals(500, RhythmChartSettings(leadInMs = 250).clamped().leadInMs)
         assertEquals(500, RhythmChartSettings(leadInMs = 749).clamped().leadInMs)

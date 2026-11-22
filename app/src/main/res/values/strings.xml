@@ -506,6 +506,10 @@
     <string name="rhythm_pause">Pause</string>
     <string name="rhythm_pause_hint">Audio and chart clock are frozen</string>
     <string name="rhythm_offset_label">Device offset %1$d ms</string>
+    <string name="rhythm_hud_status">Delay %1$d ms · Skip %2$d ms</string>
+    <string name="rhythm_card_play_settings">Delay %1$d ms · Skip %2$d ms · Fall %3$d ms</string>
+    <string name="rhythm_bt_warning_title">Bluetooth audio route</string>
+    <string name="rhythm_bt_warning_body">Bluetooth links add a large, route-dependent output latency that notes can only meet through calibration, and the first note is the most sensitive. For the best timing use the built-in speaker or a wired headset.</string>
     <string name="rhythm_restart">Restart</string>
     <string name="rhythm_exit">Exit</string>
     <string name="rhythm_paused_title">Paused</string>
@@ -699,7 +703,7 @@
     <string name="rhythm_latency_applied">Saved offset %1$d ms for %2$s</string>
     <string name="rhythm_settings_lead_in">Skip intro</string>
     <string name="rhythm_settings_lead_in_value">%1$d ms</string>
-    <string name="rhythm_settings_lead_in_hint">Hides notes charted in the first moments of the song (default 500 ms, steps of 500 ms). Displayed counts and scoring use only the notes that remain; the chart itself keeps every note.</string>
+    <string name="rhythm_settings_lead_in_hint">Hides notes charted in the first moments of the song (default 0 ms, steps of 500 ms). Displayed counts and scoring use only the notes that remain; the chart itself keeps every note.</string>
     <string name="rhythm_settings_delay_override">Latency offset (chart override)</string>
     <string name="rhythm_settings_delay_override_hint">Leave unset to follow the calibrated route value shown above; the first tap seeds from it so a chart can be nudged relative to its route.</string>
     <string name="rhythm_settings_delay_follow">Following route · %1$s %2$d ms</string>

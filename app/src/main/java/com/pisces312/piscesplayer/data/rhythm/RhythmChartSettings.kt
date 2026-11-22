@@ -33,6 +33,10 @@ data class RhythmChartSettings(
      * Hide every note charted in the first ms of the song (the per-chart skip-prefix setting).
      * Purely a play-time filter: the chart keeps its notes, and both the played note count and
      * the score denominator use only the visible notes. Default and step: [DEFAULT_LEAD_IN_MS].
+     *
+     * Default 0 on purpose: on speaker / wired routes the clock lands on the acoustic zero by
+     * itself (see RhythmFrameEstimator), so opening notes — even a 283 ms one — are hittable,
+     * and hiding them by default only confuses. Bluetooth routes can raise it per chart.
      */
     val leadInMs: Int = DEFAULT_LEAD_IN_MS,
     /** Note fall time in ms, fed to `RhythmPlaySession.approachMs`. */
@@ -57,8 +61,8 @@ data class RhythmChartSettings(
         /** Lead-in is adjusted in 500 ms steps (UI buttons and storage rounding). */
         const val LEAD_IN_STEP_MS = 500
 
-        /** Default skip-prefix: covers the output's startup dead zone on Bluetooth routes. */
-        const val DEFAULT_LEAD_IN_MS = 500
+        /** Default skip-prefix: none — see the property doc for why 500 was rolled back to 0. */
+        const val DEFAULT_LEAD_IN_MS = 0
 
         val DEFAULT = RhythmChartSettings()
     }

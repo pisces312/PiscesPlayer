@@ -42,12 +42,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -62,6 +64,7 @@ import com.pisces312.piscesplayer.R
 import com.pisces312.piscesplayer.data.model.Song
 import com.pisces312.piscesplayer.data.offline.CloudOfflineRepository
 import com.pisces312.piscesplayer.data.rhythm.RhythmChartMeta
+import com.pisces312.piscesplayer.data.rhythm.RhythmLatencyStore
 import com.pisces312.piscesplayer.presentation.components.MiniPlayerBottomSpacer
 import com.pisces312.piscesplayer.presentation.components.MiniPlayerHeight
 import com.pisces312.piscesplayer.presentation.components.SmartImage
@@ -81,19 +84,31 @@ fun RhythmSongPickerScreen(
     val stablePlayerState by playerViewModel.stablePlayerState.collectAsStateWithLifecycle()
     val chartCatalog by pickerViewModel.chartCatalog.collectAsStateWithLifecycle()
     val lifecycleOwner = LocalLifecycleOwner.current
+    val context = LocalContext.current
 
+    // The output route decides how much latency the game must compensate, so the Bluetooth
+    // hint re-probes every time the screen comes back (a headset may have (dis)connected).
+    var routeProbeTick by remember { mutableIntStateOf(0) }
     DisposableEffect(lifecycleOwner, pickerViewModel) {
         val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_RESUME) pickerViewModel.refresh()
+            if (event == Lifecycle.Event.ON_RESUME) {
+                pickerViewModel.refresh()
+                routeProbeTick += 1
+            }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
+    val bluetoothRoute = remember(routeProbeTick) {
+        RhythmLatencyStore.deviceKey(context) == RhythmLatencyStore.DEVICE_BLUETOOTH
+    }
 
     var query by rememberSaveable { mutableStateOf("") }
-    var scope by rememberSaveable { mutableStateOf(RhythmSongScope.RECENT) }
+    // Defaults mirror RhythmSongFilterState: the entry exists to play charts, so start at
+    // "all songs with charts"; recency and the no-chart view are the deliberate opt-ins.
+    var scope by rememberSaveable { mutableStateOf(RhythmSongScope.ALL) }
     var difficulty by rememberSaveable { mutableStateOf(RhythmDifficultyFilter.ALL) }
-    var chartFilter by rememberSaveable { mutableStateOf(RhythmChartFilter.ALL) }
+    var chartFilter by rememberSaveable { mutableStateOf(RhythmChartFilter.WITH_CHARTS) }
     val filters = RhythmSongFilterState(scope, difficulty, chartFilter)
     val listState = rememberLazyListState()
     val locale = remember { java.util.Locale.getDefault() }
@@ -192,7 +207,7 @@ fun RhythmSongPickerScreen(
                             R.string.rhythm_picker_scope_all
                         }
                     ),
-                    emphasized = scope != RhythmSongScope.RECENT,
+                    emphasized = scope != RhythmSongScope.ALL,
                     onSelected = { scope = it },
                     modifier = Modifier.weight(1f),
                 )
@@ -219,7 +234,7 @@ fun RhythmSongPickerScreen(
                         R.string.rhythm_picker_charts_chip,
                         chartFilterLabel(chartFilter),
                     ),
-                    emphasized = chartFilter != RhythmChartFilter.ALL,
+                    emphasized = chartFilter != RhythmChartFilter.WITH_CHARTS,
                     onSelected = { selected ->
                         filters.withCharts(selected).let {
                             difficulty = it.difficulty
@@ -228,6 +243,31 @@ fun RhythmSongPickerScreen(
                     },
                     modifier = Modifier.weight(1.15f),
                 )
+            }
+
+            if (bluetoothRoute) {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                    ),
+                ) {
+                    Column(modifier = Modifier.padding(12.dp)) {
+                        Text(
+                            text = stringResource(R.string.rhythm_bt_warning_title),
+                            style = MaterialTheme.typography.titleSmall,
+                        )
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            text = stringResource(R.string.rhythm_bt_warning_body),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onTertiaryContainer,
+                        )
+                    }
+                }
+                Spacer(Modifier.height(12.dp))
             }
 
             val loadedChartCatalog = chartCatalog
@@ -281,9 +321,9 @@ fun RhythmSongPickerScreen(
                 if (!filters.isDefault) {
                     TextButton(
                         onClick = {
-                            scope = RhythmSongScope.RECENT
+                            scope = RhythmSongScope.ALL
                             difficulty = RhythmDifficultyFilter.ALL
-                            chartFilter = RhythmChartFilter.ALL
+                            chartFilter = RhythmChartFilter.WITH_CHARTS
                         },
                         contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
                     ) {
@@ -312,9 +352,9 @@ fun RhythmSongPickerScreen(
                         onSearchAll = { scope = RhythmSongScope.ALL },
                         onShowAll = { scope = RhythmSongScope.ALL },
                         onReset = {
-                            scope = RhythmSongScope.RECENT
+                            scope = RhythmSongScope.ALL
                             difficulty = RhythmDifficultyFilter.ALL
-                            chartFilter = RhythmChartFilter.ALL
+                            chartFilter = RhythmChartFilter.WITH_CHARTS
                         },
                     )
                 }
