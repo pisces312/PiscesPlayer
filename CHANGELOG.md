@@ -3,7 +3,7 @@
 All notable changes to PiscesPlayer will be documented in this file. PiscesPlayer is a fork of
 PixelPlayerOSS; versions up to and including 0.4.3 were published under the upstream name.
 
-## [Unreleased]
+## [1.0.4] - 2026-11-22
 
 ### Added
 - Music quiz: a new "Built-in Classical" mode (内置古典) that draws 10 rounds from the
@@ -46,8 +46,31 @@ PixelPlayerOSS; versions up to and including 0.4.3 were published under the upst
   detail page whose movements/arrangements group under their piece, each node with its own
   play-all; "Tracks" lists all classical tracks with the library's song rows (playback
   highlight, more menu, classical favorite star) and plays them in catalogue order.
+- Rhythm game: tap-based audio latency calibration. Ten ticks play through the current
+  output route (speaker / wired / Bluetooth / USB); tapping along from the third tick
+  measures the output delay of "you + the device" as one system and saves it as that
+  route's latency offset. A chart follows its route's calibrated offset by default and
+  can carry its own override to nudge the timing relative to the route.
+- Rhythm game: the HUD shows current and total playback time during a run, and the pause
+  overlay gains a "View log" button that opens the full clock/tap diagnostics in a
+  scrollable, selectable dialog with one-tap copy-all, next to the existing export
+  button. The export now also carries the clock startup trace (which anchor each frame
+  accepted or rejected and when the start hold released) and every lane press with its
+  matched note and signed judgement error (mean / max-early / max-late summary plus a
+  per-tap table), so a player's timing can be compared against note crossings offline.
 
 ### Changed
+- Rhythm game: the "Chart play logic" experiment picker is removed; charts now always
+  play exactly as saved.
+- Rhythm game: "Skip intro" now defaults to 0 ms (was 1 s) and steps in 500 ms
+  increments; displayed counts and scoring use only the notes that remain visible.
+- Rhythm game: the song picker starts filtered to "all songs with charts" instead of
+  "recent, all charts", which used to read as "my charts are gone"; the recency scope
+  and the chart-less view remain as deliberate opt-ins.
+- Rhythm game: the song card shows the effective Delay · Skip · Fall values, the in-run
+  HUD shows Delay · Skip, and the picker warns when the audio route is Bluetooth (large,
+  route-dependent latency that notes can only meet through calibration; the first note
+  is the most sensitive).
 - The app now supports exactly two interface languages: English and Simplified Chinese,
   plus "System default". The in-app language picker, `locales_config.xml` and the translated
   resource folders of the ten stale upstream locales (ar/de/es/fr/in/it/ko/nb/ru/tr) are
@@ -100,6 +123,12 @@ PixelPlayerOSS; versions up to and including 0.4.3 were published under the upst
   refresh reclassifies in parallel across CPU cores.
 
 ### Fixed
+- Rhythm game: notes no longer tremble or drift at the start of a song. The game clock
+  now holds at chart start until the first trustworthy audio-timestamp sample arrives
+  (with a bounded grace fallback for pathological devices), fuses timestamp and
+  playback-head readings and rejects implausible jumps, so the timeline is stable before
+  the first note even on outputs whose playback head over-reports latency (deep-buffer
+  speaker paths).
 - The first-run setup welcome page no longer shows the "β Beta" badge; it was rendered
   unconditionally, including in release builds.
 
