@@ -521,6 +521,11 @@
     <string name="rhythm_result_timing">Mean error %1$s ms · Early %2$d · Late %3$d</string>
     <string name="rhythm_retry">Retry</string>
     <string name="rhythm_export_diagnostics">Export diagnostics</string>
+    <string name="rhythm_view_diagnostics">View log</string>
+    <string name="rhythm_diagnostics_log_title">Clock diagnostics</string>
+    <string name="rhythm_copy_all">Copy all</string>
+    <string name="rhythm_close">Close</string>
+    <string name="rhythm_copied">Copied</string>
     <string name="rhythm_diagnostics_export_failed">Could not export diagnostics</string>
     <string name="rhythm_drift_stable">Clock: stable, no meaningful drift</string>
     <string name="rhythm_drift_over">Clock: drifting ahead — %1$.0f ms by the end (%2$.0f ppm)</string>

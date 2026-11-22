@@ -134,4 +134,26 @@ class RhythmDriftAnalyzerTest {
         assertTrue(text.contains("== trace"), text)
         assertTrue(text.contains("== crossings"), text)
     }
+
+    @Test
+    fun exportTextContainsTapsWithJudgementErrors() {
+        val recorder = RhythmDriftRecorder()
+        recorder.start(0L)
+        var nanos = 0L
+        repeat(100) { index ->
+            val wall = index * 50.0
+            recorder.recordFrame(RhythmClockSample(wall, wall, Double.NaN, ClockSource.HEAD), nanos)
+            nanos += 50L * 1_000_000L
+        }
+        // 1s in, 10ms late on a 1000ms note; a second tap matches nothing (EMPTY judgement).
+        recorder.recordTap(lane = 2, songMs = 1010.0, noteId = 1, errorMs = 10.0, nowNanos = 1_000L * 1_000_000L)
+        recorder.recordTap(lane = 0, songMs = 2000.0, noteId = -1, errorMs = null, nowNanos = 2_000L * 1_000_000L)
+
+        val text = recorder.exportText("songId=test", listOf(RhythmNote(1, 1000, 2)))
+        assertEquals(2, recorder.tapCount)
+        assertTrue(text.contains("== taps"), text)
+        assertTrue(text.contains("# taps=2 mean=10.00"), text)
+        assertTrue(text.contains("1000.0,1010.000,2,1,1000.000,10.000"), text)
+        assertTrue(text.contains("NaN"), text)
+    }
 }

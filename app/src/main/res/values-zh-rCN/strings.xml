@@ -519,6 +519,11 @@
     <string name="rhythm_result_timing">平均误差 %1$s ms · 偏早 %2$d · 偏晚 %3$d</string>
     <string name="rhythm_retry">再来一次</string>
     <string name="rhythm_export_diagnostics">导出诊断日志</string>
+    <string name="rhythm_view_diagnostics">查看日志</string>
+    <string name="rhythm_diagnostics_log_title">时钟诊断日志</string>
+    <string name="rhythm_copy_all">复制全部</string>
+    <string name="rhythm_close">关闭</string>
+    <string name="rhythm_copied">已复制</string>
     <string name="rhythm_diagnostics_export_failed">诊断日志导出失败</string>
     <string name="rhythm_drift_stable">时钟：稳定，无明显漂移</string>
     <string name="rhythm_drift_over">时钟：渐进超前——结束时偏差 %1$.0f ms（%2$.0f ppm）</string>

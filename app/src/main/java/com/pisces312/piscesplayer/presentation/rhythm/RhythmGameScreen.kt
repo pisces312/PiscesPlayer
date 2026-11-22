@@ -6,6 +6,7 @@
 package com.pisces312.piscesplayer.presentation.rhythm
 
 import android.app.Activity
+import android.content.ClipData
 import android.content.Intent
 import android.content.pm.ActivityInfo
 import android.net.Uri
@@ -13,6 +14,9 @@ import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -44,12 +48,16 @@ import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.ClipEntry
+import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import androidx.core.content.FileProvider
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -77,6 +85,13 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+
+/** m:ss.d at 100ms granularity, monospace-width so the HUD time does not wiggle. */
+private fun formatHudClock(ms: Double): String {
+    val totalSec = (ms / 1000.0).coerceAtLeast(0.0)
+    val minutes = (totalSec / 60).toInt()
+    return String.format(Locale.US, "%d:%04.1f", minutes, totalSec - minutes * 60)
+}
 
 private val GAME_BACKGROUND = Color(0xFF0D0F17)
 private val HUD_TEXT = Color(0xFFE9EDF7)
@@ -128,6 +143,8 @@ fun RhythmGameScreen(
     // the auto-classified drift, and both pause and result screens can export the raw trace.
     val driftRecorder = remember(session, runId) { RhythmDriftRecorder() }
     var driftReport by remember { mutableStateOf<RhythmDriftReport?>(null) }
+    // Non-null while the pause-screen log viewer dialog is open; holds the full diagnostics text.
+    var diagnosticsLogText by remember { mutableStateOf<String?>(null) }
 
     val cloudUnavailableMessage = stringResource(R.string.rhythm_cloud_not_supported)
     val chartMissingMessage = stringResource(R.string.rhythm_chart_missing)
@@ -315,9 +332,12 @@ fun RhythmGameScreen(
         onExit()
     }
 
-    /** Write this run's clock trace + classification to cache and open the share sheet. */
-    fun exportDiagnostics() {
-        val currentSession = session ?: return
+    /**
+     * This run's full diagnostics text (startup trace + classification + trace + crossings +
+     * taps). Shared by the export (writes the same text to a file) and the in-app log viewer.
+     */
+    fun buildDiagnosticsText(): String {
+        val currentSession = session ?: return ""
         val notes = currentSession.chart.notes
         if (driftReport == null) driftReport = driftRecorder.analyze(notes)
         val meta = buildString {
@@ -333,12 +353,20 @@ fun RhythmGameScreen(
             // startup contract (see RhythmStartupTrace).
             append(audioClock?.startupTraceText().orEmpty())
         }
+        return driftRecorder.exportText(meta, notes)
+    }
+
+    /** Write this run's clock trace + classification to cache and open the share sheet. */
+    fun exportDiagnostics() {
+        val text = buildDiagnosticsText()
+        if (text.isEmpty()) return
+        val notes = session?.chart?.notes ?: return
         scope.launch {
             val file = withContext(Dispatchers.IO) {
                 runCatching {
                     val dir = File(context.cacheDir, "rhythm_diagnostics").apply { mkdirs() }
                     File(dir, "rhythm-drift-${System.currentTimeMillis()}.txt")
-                        .apply { writeText(driftRecorder.exportText(meta, notes)) }
+                        .apply { writeText(text) }
                 }.getOrNull()
             }
             if (file == null) {
@@ -380,6 +408,7 @@ fun RhythmGameScreen(
             else -> Column(modifier = Modifier.fillMaxSize()) {
                 RhythmHud(
                     session = currentSession,
+                    songMs = songMs,
                     leadInMs = chartSettings.leadInMs,
                     paused = paused,
                     frameTick = frameTick,
@@ -404,9 +433,12 @@ fun RhythmGameScreen(
                         inputEnabled = !paused && result == null && countdown == 0,
                         onLaneDown = { lane ->
                             if (!paused && result == null && countdown == 0) {
-                                presentJudgement(
-                                    currentSession.keyDown(lane, currentSession.clock.nowMs()),
-                                )
+                                val tapTimeMs = currentSession.clock.nowMs()
+                                val event = currentSession.keyDown(lane, tapTimeMs)
+                                presentJudgement(event)
+                                // Same wall base as the trace, so a tap row lines up with the
+                                // 50ms samples; one list append per tap, no per-frame cost.
+                                driftRecorder.recordTap(lane, tapTimeMs, event.noteId, event.errorMs, System.nanoTime())
                                 frameTick += 1
                             }
                         },
@@ -452,6 +484,19 @@ fun RhythmGameScreen(
                 },
                 onExit = ::exitGame,
                 onExportDiagnostics = ::exportDiagnostics,
+                onViewDiagnostics = {
+                    scope.launch {
+                        val text = withContext(Dispatchers.Default) { buildDiagnosticsText() }
+                        if (text.isNotEmpty()) diagnosticsLogText = text
+                    }
+                },
+            )
+        }
+
+        diagnosticsLogText?.let { logText ->
+            RhythmDiagnosticsLogDialog(
+                text = logText,
+                onDismiss = { diagnosticsLogText = null },
             )
         }
 
@@ -480,6 +525,7 @@ fun RhythmGameScreen(
 @Composable
 private fun RhythmHud(
     session: RhythmPlaySession,
+    songMs: Double,
     leadInMs: Int,
     paused: Boolean,
     frameTick: Long,
@@ -488,7 +534,7 @@ private fun RhythmHud(
     @Suppress("UNUSED_EXPRESSION") frameTick
     val engine = session.engine
     val progress = if (session.clock.durationMs > 0.0) {
-        (session.clock.nowMs() / session.clock.durationMs).toFloat().coerceIn(0f, 1f)
+        (songMs / session.clock.durationMs).toFloat().coerceIn(0f, 1f)
     } else {
         0f
     }
@@ -526,15 +572,26 @@ private fun RhythmHud(
                 )
             }
         }
-        Text(
-            text = stringResource(
-                R.string.rhythm_hud_status,
-                session.clock.offsetMs.roundToInt(),
-                leadInMs,
-            ),
-            color = HUD_SECONDARY,
-            fontSize = 11.sp,
-        )
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = stringResource(
+                    R.string.rhythm_hud_status,
+                    session.clock.offsetMs.roundToInt(),
+                    leadInMs,
+                ),
+                color = HUD_SECONDARY,
+                fontSize = 11.sp,
+                modifier = Modifier.weight(1f),
+            )
+            // Current song time at 100ms granularity: pinpoints a felt latency to a spot in
+            // the exported trace without waiting for the result screen.
+            Text(
+                text = formatHudClock(songMs) + " / " + formatHudClock(session.clock.durationMs),
+                color = HUD_TEXT,
+                fontSize = 11.sp,
+                fontFamily = FontFamily.Monospace,
+            )
+        }
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -563,6 +620,7 @@ private fun RhythmPauseOverlay(
     onRestart: () -> Unit,
     onExit: () -> Unit,
     onExportDiagnostics: () -> Unit,
+    onViewDiagnostics: () -> Unit,
 ) {
     Box(
         modifier = Modifier
@@ -602,8 +660,13 @@ private fun RhythmPauseOverlay(
                     OutlinedButton(onClick = { onOffset(-10) }) { Text("-10 ms") }
                     OutlinedButton(onClick = { onOffset(10) }) { Text("+10 ms") }
                 }
-                TextButton(onClick = onExportDiagnostics) {
-                    Text(stringResource(R.string.rhythm_export_diagnostics), color = HUD_SECONDARY)
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    TextButton(onClick = onViewDiagnostics) {
+                        Text(stringResource(R.string.rhythm_view_diagnostics), color = HUD_SECONDARY)
+                    }
+                    TextButton(onClick = onExportDiagnostics) {
+                        Text(stringResource(R.string.rhythm_export_diagnostics), color = HUD_SECONDARY)
+                    }
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     TextButton(onClick = onRestart) {
@@ -611,6 +674,65 @@ private fun RhythmPauseOverlay(
                     }
                     TextButton(onClick = onExit) {
                         Text(stringResource(R.string.rhythm_exit), color = DANGER_TEXT)
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * In-app diagnostics viewer: the same text the export writes, scrollable and selectable.
+ * Long-press selects a passage (with copy in the selection toolbar); "Copy all" puts the
+ * whole log on the clipboard. LazyColumn keeps multi-thousand-line logs from laying out
+ * in one frame; selection works within the composed (visible) region.
+ */
+@Composable
+private fun RhythmDiagnosticsLogDialog(
+    text: String,
+    onDismiss: () -> Unit,
+) {
+    val clipboard = LocalClipboard.current
+    val context = LocalContext.current
+    val copiedMessage = stringResource(R.string.rhythm_copied)
+    val dialogScope = rememberCoroutineScope()
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            modifier = Modifier.fillMaxWidth().fillMaxHeight(0.88f),
+            shape = RoundedCornerShape(20.dp),
+            color = CARD_BACKGROUND,
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = stringResource(R.string.rhythm_diagnostics_log_title),
+                        color = HUD_TEXT,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.weight(1f),
+                    )
+                    TextButton(onClick = {
+                        dialogScope.launch {
+                            clipboard.setClipEntry(ClipEntry(ClipData.newPlainText("rhythm diagnostics", text)))
+                            Toast.makeText(context, copiedMessage, Toast.LENGTH_SHORT).show()
+                        }
+                    }) {
+                        Text(stringResource(R.string.rhythm_copy_all), color = HUD_ACCENT)
+                    }
+                    TextButton(onClick = onDismiss) {
+                        Text(stringResource(R.string.rhythm_close), color = HUD_SECONDARY)
+                    }
+                }
+                SelectionContainer {
+                    LazyColumn(modifier = Modifier.fillMaxSize()) {
+                        items(text.lines()) { line ->
+                            Text(
+                                text = line,
+                                color = HUD_TEXT,
+                                fontSize = 11.sp,
+                                fontFamily = FontFamily.Monospace,
+                            )
+                        }
                     }
                 }
             }
