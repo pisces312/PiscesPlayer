@@ -1,0 +1,7 @@
+PiscesPlayer 1.0.4:
+
+* Music Learning tab: browse the built-in classical library by composer and work, favorite composers and tracks, and a MIDI library that plays your own MIDI files (SHA-256 + music-fingerprint dedup against the built-ins).
+* Rhythm game: stable game-start clock (no more tremble at song start), tap-based latency calibration with per-chart offsets, Bluetooth route warning, HUD playback clock and an in-game diagnostics log with per-tap judgement errors.
+* Music Quiz "Built-in Classical" mode: guess the piece or the composer from the bundled classical MIDI library.
+* Rhythm game chart export (osu!mania / .prc / JSON), song picker now defaults to songs with charts, "Skip intro" defaults to 0 ms.
+* Interface languages reduced to English and Simplified Chinese; minimum Android version is now 10 (API 29).
