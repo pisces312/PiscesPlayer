@@ -4,6 +4,7 @@
  */
 package com.pisces312.piscesplayer.data.rhythm
 
+import java.util.Locale
 import kotlin.math.abs
 
 /** Which device source the clock anchored on for a given frame. */
@@ -46,6 +47,21 @@ data class CrossingEvent(
     val residualMs: Double,
 )
 
+/**
+ * One recorded lane press, in the same wall-clock base as the trace: when it happened,
+ * which lane, which note the engine matched it to, and the signed judgement error
+ * (positive = tapped after the note's chart time). `noteTimeMs`/`errorMs` are NaN when
+ * the tap matched no candidate note (an EMPTY judgement).
+ */
+data class RhythmTapEvent(
+    val wallMs: Double,
+    val songMs: Double,
+    val lane: Int,
+    val noteId: Int,
+    val noteTimeMs: Double,
+    val errorMs: Double,
+)
+
 enum class RhythmDriftKind {
     STABLE,
     PROGRESSIVE_OVER_RUN,
@@ -84,11 +100,13 @@ data class RhythmDriftReport(
 class RhythmDriftRecorder {
 
     private val trace = ArrayList<TracePoint>()
+    private val taps = ArrayList<RhythmTapEvent>()
     private var runStartNanos = 0L
     private var lastStoredWallMs = Double.NEGATIVE_INFINITY
 
     fun start(nowNanos: Long) {
         trace.clear()
+        taps.clear()
         runStartNanos = nowNanos
         lastStoredWallMs = Double.NEGATIVE_INFINITY
     }
@@ -102,7 +120,26 @@ class RhythmDriftRecorder {
         trace += TracePoint(wallMs, sample.songMs, sample.headMs, sample.timestampMs, sample.source)
     }
 
+    /**
+     * Record one lane press. Called only from the input path (a few times per second at
+     * most), so the cost is one list append per tap — nothing runs per frame for this.
+     * `errorMs` is the engine's signed error for the matched note (null when the tap hit
+     * no candidate); the matched note's chart time is recovered as songMs − errorMs.
+     */
+    fun recordTap(lane: Int, songMs: Double, noteId: Int, errorMs: Double?, nowNanos: Long) {
+        val error = errorMs ?: Double.NaN
+        taps += RhythmTapEvent(
+            wallMs = (nowNanos - runStartNanos) / 1_000_000.0,
+            songMs = songMs,
+            lane = lane,
+            noteId = noteId,
+            noteTimeMs = if (errorMs == null) Double.NaN else songMs - error,
+            errorMs = error,
+        )
+    }
+
     val pointCount: Int get() = trace.size
+    val tapCount: Int get() = taps.size
 
     fun snapshot(): List<TracePoint> = trace.toList()
 
@@ -150,6 +187,28 @@ class RhythmDriftRecorder {
             for (c in crossings) {
                 appendLine(
                     "%d,%.1f,%.3f,%.3f,%.3f".format(c.noteId, c.noteTimeMs, c.songMs, c.headMs, c.residualMs),
+                )
+            }
+            appendLine()
+            appendLine("== taps (wallMs,songMs,lane,noteId,noteTimeMs,errorMs) ==")
+            val judged = taps.filter { !it.errorMs.isNaN() }
+            if (judged.isEmpty()) {
+                appendLine("# taps=${taps.size}")
+            } else {
+                appendLine(
+                    String.format(
+                        Locale.US,
+                        "# taps=%d mean=%.2f maxEarly=%.2f maxLate=%.2f",
+                        taps.size,
+                        judged.map { it.errorMs }.average(),
+                        judged.minOf { it.errorMs },
+                        judged.maxOf { it.errorMs },
+                    ),
+                )
+            }
+            for (t in taps) {
+                appendLine(
+                    String.format(Locale.US, "%.1f,%.3f,%d,%d,%.3f,%.3f", t.wallMs, t.songMs, t.lane, t.noteId, t.noteTimeMs, t.errorMs),
                 )
             }
         }

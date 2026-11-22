@@ -984,11 +984,6 @@ fun AppNavigation(
                 arguments = listOf(
                     navArgument("songId") { type = NavType.StringType },
                     navArgument("chartId") { type = NavType.StringType },
-                    navArgument("logic") {
-                        type = NavType.StringType
-                        nullable = true
-                        defaultValue = null
-                    },
                 ),
                 enterTransition = { enterTransition() },
                 exitTransition = { exitTransition() },
@@ -998,7 +993,6 @@ fun AppNavigation(
                 RhythmGameScreen(
                     songId = backStackEntry.arguments?.getString("songId").orEmpty(),
                     chartId = backStackEntry.arguments?.getString("chartId").orEmpty(),
-                    playLogic = backStackEntry.arguments?.getString("logic"),
                     playerViewModel = playerViewModel,
                     onExit = { navController.popBackStack() },
                 )

@@ -11,6 +11,7 @@ import android.media.AudioTimestamp
 import android.media.AudioTrack
 import android.os.SystemClock
 import android.util.Log
+import java.util.Locale
 
 /** Song clock abstraction is defined in RhythmSongClock.kt. */
 
@@ -36,12 +37,16 @@ class RhythmAudioClock(
         }
     }
 
-    private val estimator = RhythmFrameEstimator(audio.sampleRate, audio.frames)
+    /** Startup recorder: estimator decisions plus per-frame clock reads for the first seconds. */
+    private val startupTrace = RhythmStartupTrace()
+    private val estimator = RhythmFrameEstimator(audio.sampleRate, audio.frames, startupTrace)
     private val streamLock = java.lang.Object()
 
     @Volatile private var streamPlaying = false
     @Volatile private var released = false
     private var writeOffsetBytes = 0
+    /** Start of the per-frame read-trace window; refreshed by start()/resume(). */
+    @Volatile private var traceWindowStartNs = Long.MIN_VALUE
 
     private val writerThread = Thread(::writerLoop, "PixelRhythmAudioWriter").apply {
         isDaemon = true
@@ -64,9 +69,13 @@ class RhythmAudioClock(
             // Prime before play(): starting on an empty buffer underruns immediately, so the
             // first audible frame lands tens of ms after the clock anchor and every note jumps.
             primeBuffer()
-            estimator.start(SystemClock.elapsedRealtimeNanos())
+            val bootNs = SystemClock.elapsedRealtimeNanos()
+            startupTrace.reset(bootNs)
+            traceWindowStartNs = bootNs
+            estimator.start(bootNs)
             streamPlaying = true
             track.play()
+            startupTrace.add(SystemClock.elapsedRealtimeNanos(), "clock.start: primed ${writeOffsetBytes}B, track.play() issued")
             streamLock.notifyAll()
         }
     }
@@ -92,6 +101,7 @@ class RhythmAudioClock(
             estimator.pauseAt(readFrame())
             streamPlaying = false
             track.pause()
+            startupTrace.add(SystemClock.elapsedRealtimeNanos(), "clock.pause")
             streamLock.notifyAll()
         }
     }
@@ -99,9 +109,12 @@ class RhythmAudioClock(
     override fun resume() {
         if (estimator.isPlaying || released) return
         synchronized(streamLock) {
-            estimator.resumeFrom(estimator.frozenFrame, SystemClock.elapsedRealtimeNanos())
+            val bootNs = SystemClock.elapsedRealtimeNanos()
+            estimator.resumeFrom(estimator.frozenFrame, bootNs)
+            traceWindowStartNs = bootNs
             streamPlaying = true
             track.play()
+            startupTrace.add(bootNs, "clock.resume: track.play() issued")
             streamLock.notifyAll()
         }
     }
@@ -180,9 +193,25 @@ class RhythmAudioClock(
                 timestampMs = timestampMs,
                 source = source,
             )
+            if (bootNs - traceWindowStartNs in 0..TRACE_WINDOW_NS) {
+                startupTrace.add(
+                    bootNs,
+                    "read songMs=%.1f headMs=%.1f ts=%s src=%s".format(
+                        Locale.US,
+                        lastSample.songMs,
+                        lastSample.headMs,
+                        if (timestampMs.isNaN()) "none"
+                        else String.format(Locale.US, "%.1f", timestampMs),
+                        source,
+                    ),
+                )
+            }
             return frame
         }
     }
+
+    /** The startup recorder's text, for the diagnostics export. */
+    fun startupTraceText(): String = startupTrace.dump()
 
     /**
      * The raw clock reading captured by the most recent [nowMs]: what the game clock reported
@@ -254,5 +283,8 @@ class RhythmAudioClock(
 
         /** `playbackHeadPosition` is an unsigned 32-bit frame count. */
         private const val HEAD_MASK = 0xFFFFFFFFL
+
+        /** How long after start()/resume() per-frame `read` lines are recorded. */
+        private const val TRACE_WINDOW_NS = 3_000_000_000L
     }
 }

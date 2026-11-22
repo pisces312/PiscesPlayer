@@ -50,6 +50,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -77,7 +78,8 @@ import com.pisces312.piscesplayer.data.rhythm.RhythmChartMeta
 import com.pisces312.piscesplayer.data.rhythm.RhythmChartSettings
 import com.pisces312.piscesplayer.data.rhythm.RhythmDeriveMode
 import com.pisces312.piscesplayer.data.rhythm.RhythmDeriveSettings
-import com.pisces312.piscesplayer.data.rhythm.RhythmPlayLogic
+import com.pisces312.piscesplayer.data.rhythm.RhythmLatencyStore
+
 import com.pisces312.piscesplayer.data.rhythm.RhythmRepository
 import com.pisces312.piscesplayer.presentation.components.MiniPlayerBottomSpacer
 import com.pisces312.piscesplayer.presentation.components.MiniPlayerHeight
@@ -108,6 +110,8 @@ private data class LibrarySnapshot(
     val charts: List<RhythmChartMeta> = emptyList(),
     val settings: Map<String, RhythmChartSettings> = emptyMap(),
     val masterChart: RhythmChart? = null,
+    /** Note timestamps per chart, for counts computed AFTER the lead-in mask. */
+    val noteTimes: Map<String, List<Int>> = emptyMap(),
 ) {
     val master: RhythmChartMeta?
         get() = charts.firstOrNull { it.difficultyKey == RhythmChart.DIFFICULTY_RAW }
@@ -119,6 +123,28 @@ private data class LibrarySnapshot(
 
     val others: List<RhythmChartMeta>
         get() = charts.filter { it.difficultyKey == null }.sortedByDescending { it.importedAtMs }
+}
+
+/** Note count / density the player will actually see, after the chart's lead-in mask. */
+private data class VisibleStats(val count: Int, val notesPerSec: Double)
+
+/**
+ * The play-time settings one chart will actually run with: the effective latency offset (the
+ * chart's override when set, otherwise the current route's calibrated value), the lead-in mask
+ * and the note fall time. Always shown on the card so the values are visible before starting.
+ */
+private data class ChartPlaySettings(val delayMs: Int, val leadInMs: Int, val approachMs: Int)
+
+private fun visibleStats(
+    times: List<Int>?,
+    leadInMs: Int,
+    meta: RhythmChartMeta,
+): VisibleStats {
+    if (times.isNullOrEmpty()) return VisibleStats(meta.noteCount, meta.averageNps)
+    val visible = times.count { it >= leadInMs }
+    val last = times.lastOrNull() ?: return VisibleStats(visible, meta.averageNps)
+    val spanMs = (last - leadInMs).coerceAtLeast(1)
+    return VisibleStats(visible, visible * 1000.0 / spanMs)
 }
 
 /**
@@ -150,8 +176,13 @@ fun RhythmSetupScreen(
     var pendingDelete by remember { mutableStateOf<RhythmChartMeta?>(null) }
     var pendingDeleteDerived by remember { mutableStateOf(false) }
     var settingsTarget by remember { mutableStateOf<RhythmChartMeta?>(null) }
-    var playTarget by remember { mutableStateOf<RhythmChartMeta?>(null) }
-    var playLogicName by rememberSaveable { mutableStateOf(RhythmPlayLogic.AS_STORED.name) }
+
+    // Route-keyed latency offset: what the game will compensate for on the next run. Refreshed
+    // with the snapshot so returning from a calibration (or plugging another route) shows the
+    // value that will actually be applied.
+    var latencyDeviceKey by remember { mutableStateOf(RhythmLatencyStore.deviceKey(context)) }
+    var latencyOffsetMs by remember { mutableIntStateOf(RhythmLatencyStore.offsetMs(context)) }
+    var showLatencyCalibration by remember { mutableStateOf(false) }
 
     // Chart export: the format dialog parks the target here until the SAF create-document
     // round trip returns the destination uri.
@@ -188,20 +219,26 @@ fun RhythmSetupScreen(
         val masterChart = charts
             .firstOrNull { it.difficultyKey == RhythmChart.DIFFICULTY_RAW }
             ?.let { repository.loadChart(it.chartId) }
-        snapshot = LibrarySnapshot(charts = charts, settings = settings, masterChart = masterChart)
+        val noteTimes = charts.mapNotNull { meta ->
+            repository.loadChart(meta.chartId)?.let { meta.chartId to it.notes.map { n -> n.timeMs } }
+        }.toMap()
+        snapshot = LibrarySnapshot(
+            charts = charts,
+            settings = settings,
+            masterChart = masterChart,
+            noteTimes = noteTimes,
+        )
+        latencyDeviceKey = RhythmLatencyStore.deviceKey(context)
+        latencyOffsetMs = RhythmLatencyStore.offsetMs(context)
     }
 
     fun refresh() {
         scope.launch { reload() }
     }
 
-    /** Start a run: authored charts play as mapped, DSP charts first ask for the A/B logic. */
+    /** Start a run: every chart plays as stored (the play-time A/B re-bake was retired). */
     fun playChart(meta: RhythmChartMeta) {
-        if (meta.source != RhythmChart.SOURCE_DSP) {
-            navController.navigateSafely(Screen.RhythmGame.createRoute(songId, meta.chartId))
-            return
-        }
-        playTarget = meta
+        navController.navigateSafely(Screen.RhythmGame.createRoute(songId, meta.chartId))
     }
 
     fun startGeneration(params: RhythmAnalysisParams) {
@@ -412,6 +449,14 @@ fun RhythmSetupScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             item {
+                LatencyCalibrationCard(
+                    deviceKey = latencyDeviceKey,
+                    offsetMs = latencyOffsetMs,
+                    onCalibrate = { showLatencyCalibration = true },
+                )
+            }
+
+            item {
                 SongHeader(song = song)
             }
 
@@ -473,7 +518,11 @@ fun RhythmSetupScreen(
                     MasterCard(
                         meta = masterMeta,
                         bpmText = masterBpmText,
-                        delayMs = snapshot.settings[masterMeta.chartId]?.delayMs ?: 0,
+                        stats = visibleStats(
+                            snapshot.noteTimes[masterMeta.chartId],
+                            snapshot.settings[masterMeta.chartId]?.leadInMs ?: 0,
+                            masterMeta,
+                        ),
                         deriving = deriving,
                         derivedCount = snapshot.derived.size,
                         onPlay = { playChart(masterMeta) },
@@ -505,9 +554,19 @@ fun RhythmSetupScreen(
             if (snapshot.derived.isNotEmpty()) {
                 item { SectionHeader(stringResource(R.string.rhythm_derived_section)) }
                 items(snapshot.derived, key = { it.chartId }) { meta ->
+                    val settings = snapshot.settings[meta.chartId] ?: RhythmChartSettings.DEFAULT
                     ChartRow(
                         meta = meta,
-                        delayMs = snapshot.settings[meta.chartId]?.delayMs ?: 0,
+                        stats = visibleStats(
+                            snapshot.noteTimes[meta.chartId],
+                            settings.leadInMs,
+                            meta,
+                        ),
+                        playSettings = ChartPlaySettings(
+                            delayMs = settings.delayOverrideMs ?: latencyOffsetMs,
+                            leadInMs = settings.leadInMs,
+                            approachMs = settings.approachMs,
+                        ),
                         staleMaster = masterMeta != null &&
                             meta.masterGeneratedAtMs != null &&
                             meta.masterGeneratedAtMs != masterMeta.importedAtMs,
@@ -524,9 +583,19 @@ fun RhythmSetupScreen(
             if (snapshot.others.isNotEmpty()) {
                 item { SectionHeader(stringResource(R.string.rhythm_other_section)) }
                 items(snapshot.others, key = { it.chartId }) { meta ->
+                    val settings = snapshot.settings[meta.chartId] ?: RhythmChartSettings.DEFAULT
                     ChartRow(
                         meta = meta,
-                        delayMs = snapshot.settings[meta.chartId]?.delayMs ?: 0,
+                        stats = visibleStats(
+                            snapshot.noteTimes[meta.chartId],
+                            settings.leadInMs,
+                            meta,
+                        ),
+                        playSettings = ChartPlaySettings(
+                            delayMs = settings.delayOverrideMs ?: latencyOffsetMs,
+                            leadInMs = settings.leadInMs,
+                            approachMs = settings.approachMs,
+                        ),
                         staleMaster = false,
                         onPlay = { playChart(meta) },
                         onSettings = { settingsTarget = meta },
@@ -627,23 +696,10 @@ fun RhythmSetupScreen(
         RhythmChartSettingsSheet(
             chartName = meta.difficultyName,
             settings = snapshot.settings[meta.chartId] ?: RhythmChartSettings.DEFAULT,
+            routeOffsetMs = latencyOffsetMs,
+            routeDeviceKey = latencyDeviceKey,
             onChange = { updated -> saveSettings(meta, updated) },
             onDismiss = { settingsTarget = null },
-        )
-    }
-
-    playTarget?.let { meta ->
-        PlayLogicDialog(
-            chartName = meta.difficultyName,
-            selected = RhythmPlayLogic.from(playLogicName) ?: RhythmPlayLogic.AS_STORED,
-            onSelect = { playLogicName = it.name },
-            onConfirm = {
-                playTarget = null
-                navController.navigateSafely(
-                    Screen.RhythmGame.createRoute(songId, meta.chartId, playLogicName),
-                )
-            },
-            onDismiss = { playTarget = null },
         )
     }
 
@@ -738,87 +794,27 @@ fun RhythmSetupScreen(
             },
         )
     }
-}
 
-/**
- * Game-start A/B picker: which grid logic places the notes for this run. The choice is
- * remembered across opens and passed to the game screen as a route arg; the run re-bakes the
- * note times in memory, so nothing on disk changes.
- */
-@Composable
-private fun PlayLogicDialog(
-    chartName: String,
-    selected: RhythmPlayLogic,
-    onSelect: (RhythmPlayLogic) -> Unit,
-    onConfirm: () -> Unit,
-    onDismiss: () -> Unit,
-) {
-    val options = listOf(
-        RhythmPlayLogic.AS_STORED to (
-            stringResource(R.string.rhythm_play_logic_as_stored) to
-                stringResource(R.string.rhythm_play_logic_as_stored_desc)
-            ),
-        RhythmPlayLogic.ADAPTIVE_GRID to (
-            stringResource(R.string.rhythm_play_logic_adaptive) to
-                stringResource(R.string.rhythm_play_logic_adaptive_desc)
-            ),
-        RhythmPlayLogic.OSU_STYLE to (
-            stringResource(R.string.rhythm_play_logic_osu) to
-                stringResource(R.string.rhythm_play_logic_osu_desc)
-            ),
-        RhythmPlayLogic.LEGACY_REFINE to (
-            stringResource(R.string.rhythm_play_logic_legacy) to
-                stringResource(R.string.rhythm_play_logic_legacy_desc)
-            ),
-    )
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.rhythm_play_logic_title)) },
-        text = {
-            Column {
-                Text(
-                    text = stringResource(R.string.rhythm_play_logic_message),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+    // Full-screen layer emitted last so it covers the scaffold: calibrate the CURRENT route,
+    // apply, and start a run while the link is still warm.
+    if (showLatencyCalibration) {
+        RhythmCalibrationOverlay(
+            currentOffsetMs = latencyOffsetMs,
+            playerViewModel = playerViewModel,
+            onApplied = { applied ->
+                showLatencyCalibration = false
+                latencyOffsetMs = applied
+                playerViewModel.sendToast(
+                    context.getString(
+                        R.string.rhythm_latency_applied,
+                        applied,
+                        context.getString(RhythmLatencyStore.deviceLabelRes(latencyDeviceKey)),
+                    ),
                 )
-                Spacer(Modifier.height(8.dp))
-                Text(
-                    text = chartName,
-                    style = MaterialTheme.typography.labelLarge,
-                )
-                Spacer(Modifier.height(4.dp))
-                for ((logic, labels) in options) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { onSelect(logic) }
-                            .padding(vertical = 2.dp),
-                    ) {
-                        RadioButton(selected = logic == selected, onClick = { onSelect(logic) })
-                        Column {
-                            Text(labels.first, style = MaterialTheme.typography.bodyMedium)
-                            Text(
-                                text = labels.second,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = onConfirm) {
-                Text(stringResource(R.string.rhythm_play_logic_start))
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.rhythm_play_logic_cancel))
-            }
-        },
-    )
+            },
+            onDismiss = { showLatencyCalibration = false },
+        )
+    }
 }
 
 @Composable
@@ -847,6 +843,51 @@ private fun SectionHeader(title: String) {
         style = MaterialTheme.typography.labelLarge,
         color = MaterialTheme.colorScheme.primary,
     )
+}
+
+/**
+ * The route-keyed latency offset that the next run will apply, with the calibration entry.
+ * The offset is a property of the audio route (wired / Bluetooth / speaker), not of any chart:
+ * calibrating here measures it once and every chart benefits.
+ */
+@Composable
+private fun LatencyCalibrationCard(
+    deviceKey: String,
+    offsetMs: Int,
+    onCalibrate: () -> Unit,
+) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = stringResource(R.string.rhythm_latency_card_title),
+                    style = MaterialTheme.typography.titleMedium,
+                )
+                Text(
+                    text = stringResource(
+                        R.string.rhythm_latency_card_value,
+                        stringResource(RhythmLatencyStore.deviceLabelRes(deviceKey)),
+                        offsetMs,
+                    ),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(
+                    text = stringResource(R.string.rhythm_latency_card_hint),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            OutlinedButton(onClick = onCalibrate) {
+                Text(stringResource(R.string.rhythm_latency_calibrate))
+            }
+        }
+    }
 }
 
 @Composable
@@ -887,7 +928,7 @@ private fun MasterMissingCard(enabled: Boolean, onGenerate: () -> Unit) {
 private fun MasterCard(
     meta: RhythmChartMeta,
     bpmText: String,
-    delayMs: Int,
+    stats: VisibleStats,
     deriving: Boolean,
     derivedCount: Int,
     onPlay: () -> Unit,
@@ -919,8 +960,8 @@ private fun MasterCard(
                     Text(
                         text = stringResource(
                             R.string.rhythm_chart_stats,
-                            meta.noteCount,
-                            String.format(Locale.US, "%.1f", meta.averageNps),
+                            stats.count,
+                            String.format(Locale.US, "%.1f", stats.notesPerSec),
                         ),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -949,13 +990,6 @@ private fun MasterCard(
                         text = stringResource(R.string.rhythm_master_bpm, bpmText),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-                if (delayMs != 0) {
-                    Text(
-                        text = stringResource(R.string.rhythm_generate_offset_value, delayMs),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.primary,
                     )
                 }
                 Text(
@@ -1019,7 +1053,8 @@ private fun MasterCard(
 @Composable
 private fun ChartRow(
     meta: RhythmChartMeta,
-    delayMs: Int,
+    stats: VisibleStats,
+    playSettings: ChartPlaySettings,
     staleMaster: Boolean,
     onPlay: () -> Unit,
     onSettings: () -> Unit,
@@ -1062,19 +1097,12 @@ private fun ChartRow(
                         Text(
                             text = stringResource(
                                 R.string.rhythm_chart_stats,
-                                meta.noteCount,
-                                String.format(Locale.US, "%.1f", meta.averageNps),
+                                stats.count,
+                                String.format(Locale.US, "%.1f", stats.notesPerSec),
                             ),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
-                        if (delayMs != 0) {
-                            Text(
-                                text = stringResource(R.string.rhythm_generate_offset_value, delayMs),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.primary,
-                            )
-                        }
                         if (staleMaster) {
                             Text(
                                 text = stringResource(R.string.rhythm_chart_stale_master),
@@ -1120,6 +1148,19 @@ private fun ChartRow(
                     Text(stringResource(R.string.rhythm_play_chart))
                 }
             }
+
+            Text(
+                text = stringResource(
+                    R.string.rhythm_card_play_settings,
+                    playSettings.delayMs,
+                    playSettings.leadInMs,
+                    playSettings.approachMs,
+                ),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
         }
     }
 }

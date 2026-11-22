@@ -6,6 +6,7 @@
 package com.pisces312.piscesplayer.presentation.rhythm
 
 import android.app.Activity
+import android.content.ClipData
 import android.content.Intent
 import android.content.pm.ActivityInfo
 import android.net.Uri
@@ -13,6 +14,9 @@ import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -44,27 +48,29 @@ import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.ClipEntry
+import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import androidx.core.content.FileProvider
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.pisces312.piscesplayer.R
 import com.pisces312.piscesplayer.data.offline.CloudOfflineRepository
-import com.pisces312.piscesplayer.data.rhythm.DspDifficulty
 import com.pisces312.piscesplayer.data.rhythm.RhythmAudioClock
-import com.pisces312.piscesplayer.data.rhythm.RhythmChart
 import com.pisces312.piscesplayer.data.rhythm.RhythmChartSettings
 import com.pisces312.piscesplayer.data.rhythm.RhythmDriftKind
 import com.pisces312.piscesplayer.data.rhythm.RhythmDriftRecorder
 import com.pisces312.piscesplayer.data.rhythm.RhythmDriftReport
+import com.pisces312.piscesplayer.data.rhythm.RhythmLatencyStore
 import com.pisces312.piscesplayer.data.rhythm.RhythmPcmDecoder
-import com.pisces312.piscesplayer.data.rhythm.RhythmPlayLogic
 import com.pisces312.piscesplayer.data.rhythm.RhythmRepository
 import com.pisces312.piscesplayer.data.rhythm.delayAfterTap
 import java.io.File
@@ -79,6 +85,13 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+
+/** m:ss.d at 100ms granularity, monospace-width so the HUD time does not wiggle. */
+private fun formatHudClock(ms: Double): String {
+    val totalSec = (ms / 1000.0).coerceAtLeast(0.0)
+    val minutes = (totalSec / 60).toInt()
+    return String.format(Locale.US, "%d:%04.1f", minutes, totalSec - minutes * 60)
+}
 
 private val GAME_BACKGROUND = Color(0xFF0D0F17)
 private val HUD_TEXT = Color(0xFFE9EDF7)
@@ -98,7 +111,6 @@ private val DANGER_TEXT = Color(0xFFFF8A9B)
 fun RhythmGameScreen(
     songId: String,
     chartId: String,
-    playLogic: String? = null,
     playerViewModel: com.pisces312.piscesplayer.presentation.viewmodel.PlayerViewModel,
     onExit: () -> Unit,
 ) {
@@ -131,22 +143,12 @@ fun RhythmGameScreen(
     // the auto-classified drift, and both pause and result screens can export the raw trace.
     val driftRecorder = remember(session, runId) { RhythmDriftRecorder() }
     var driftReport by remember { mutableStateOf<RhythmDriftReport?>(null) }
+    // Non-null while the pause-screen log viewer dialog is open; holds the full diagnostics text.
+    var diagnosticsLogText by remember { mutableStateOf<String?>(null) }
 
     val cloudUnavailableMessage = stringResource(R.string.rhythm_cloud_not_supported)
     val chartMissingMessage = stringResource(R.string.rhythm_chart_missing)
     val songMissingMessage = stringResource(R.string.rhythm_song_missing)
-
-    // A/B placement logic (the game-start dialog): the run re-bakes the note times in memory,
-    // and the label is appended to the run title so the result screen records which logic won.
-    val logic = remember(playLogic) {
-        RhythmPlayLogic.from(playLogic) ?: RhythmPlayLogic.AS_STORED
-    }
-    val logicLabel = when (logic) {
-        RhythmPlayLogic.AS_STORED -> null
-        RhythmPlayLogic.ADAPTIVE_GRID -> stringResource(R.string.rhythm_play_logic_adaptive)
-        RhythmPlayLogic.OSU_STYLE -> stringResource(R.string.rhythm_play_logic_osu)
-        RhythmPlayLogic.LEGACY_REFINE -> stringResource(R.string.rhythm_play_logic_legacy)
-    }
 
     fun presentJudgement(event: RhythmJudgementEvent?) {
         if (event == null || event.judgement == RhythmJudgement.EMPTY) return
@@ -158,20 +160,23 @@ fun RhythmGameScreen(
         }
     }
 
-    /** Offset tweak from the pause screen: applied live and persisted to the chart sidecar. */
+    /**
+     * Offset tweak from the pause screen: applied live and persisted as this chart's override
+     * (a chart override beats the route calibration; mid-run tweaks are chart-scoped).
+     */
     fun adjustDelay(deltaMs: Int) {
         val currentSession = session ?: return
         val next = delayAfterTap(currentSession.clock.offsetMs.roundToInt(), deltaMs)
         currentSession.clock.offsetMs = next.toDouble()
-        // The paused game loop does not sample the clock; refresh the frame-stable render time
-        // explicitly so the playfield reflects the new offset before playback resumes.
-        songMs = currentSession.clock.nowMs()
         val updated = chartSettings.copy(
-            delayMs = next,
+            delayOverrideMs = next,
             updatedAtMs = System.currentTimeMillis(),
         )
         chartSettings = updated
         scope.launch { repository.saveSettings(chartId, updated) }
+        // The paused game loop does not sample the clock; refresh the frame-stable render time
+        // explicitly so the playfield reflects the new offset before playback resumes.
+        songMs = currentSession.clock.nowMs()
         frameTick += 1
     }
 
@@ -191,33 +196,14 @@ fun RhythmGameScreen(
         }
     }
 
-    // Load chart, decode audio, and build the injected-clock session.
+    // Load chart, decode audio, and build the injected-clock session. Charts always play as
+    // stored: the play-time A/B re-bake was retired after the timing-estimator experiments
+    // concluded (see RhythmChartLab docs/design/rhythm-play-logic-retirement.md).
     LaunchedEffect(songId, chartId) {
         withContext(Dispatchers.IO) {
             try {
-                val stored = repository.loadChart(chartId)
+                val chart = repository.loadChart(chartId)
                     ?: error(chartMissingMessage)
-                val chart = if (logic != RhythmPlayLogic.AS_STORED &&
-                    stored.source == RhythmChart.SOURCE_DSP
-                ) {
-                    // The re-bake needs the difficulty's snap divisor and, for the legacy
-                    // refiner, the master's full onset set. Custom difficulties record their
-                    // divisor directly; older metas recover it from the ladder key.
-                    val meta = repository.chartsForSong(songId).firstOrNull { it.chartId == chartId }
-                    val master = meta?.parentChartId?.let { repository.loadChart(it) }
-                    val gridDiv = meta?.difficultyGridDiv
-                        ?: DspDifficulty.entries
-                            .firstOrNull { it.name.equals(meta?.difficultyKey, ignoreCase = true) }
-                            ?.gridDiv
-                        ?: DspDifficulty.HARD.gridDiv
-                    logic.retime(stored, master, gridDiv).copy(
-                        difficultyName = logicLabel
-                            ?.let { "${stored.difficultyName} · $it" }
-                            ?: stored.difficultyName,
-                    )
-                } else {
-                    stored
-                }
                 val song = playerViewModel.observeSong(songId).first()
                     ?: error(songMissingMessage)
                 if (CloudOfflineRepository.isCloudSong(song)) {
@@ -226,11 +212,15 @@ fun RhythmGameScreen(
                 val playbackUri = song.contentUriString.takeIf { it.isNotBlank() }?.let(Uri::parse)
                     ?: Uri.fromFile(File(song.path))
                 val pcm = RhythmPcmDecoder.decode(context, playbackUri)
-                // Per-chart playback tweaks: latency compensation on the clock, fall time on the
-                // session. Both must be read before the clock starts so the first note is right.
+                // Per-chart playback tweaks: fall time and lead-in on the session; the latency
+                // offset is this chart's override when set, otherwise the current route's
+                // calibrated value (both must be read before the clock starts so the first
+                // note is right).
                 val settings = repository.loadSettings(chartId)
                 chartSettings = settings
-                val clock = RhythmAudioClock(pcm, offsetMs = settings.delayMs.toDouble())
+                val routeOffsetMs = RhythmLatencyStore.offsetMs(context)
+                val effectiveOffset = settings.delayOverrideMs ?: routeOffsetMs
+                val clock = RhythmAudioClock(pcm, offsetMs = effectiveOffset.toDouble())
                 audioClock = clock
                 session = RhythmPlaySession(
                     chart = chart,
@@ -286,6 +276,10 @@ fun RhythmGameScreen(
         touchTracker.clear()
         driftReport = null
         currentSession.clock.stop()
+        // Baseline the render time at the stopped clock (including the calibrated offset) so
+        // the countdown freeze and the first post-restart frame agree; otherwise notes jump by
+        // offsetMs when the loop starts sampling after the countdown.
+        songMs = currentSession.clock.nowMs()
         countdown = 3
         repeat(3) {
             delay(1000)
@@ -311,6 +305,9 @@ fun RhythmGameScreen(
                 }
             }
             if (!paused) {
+                // The clock runs continuously from the play anchor and its output is monotonic
+                // (see RhythmFrameEstimator), so every sampled frame is directly usable — there
+                // is no startup sync state to gate on.
                 val now = currentSession.clock.nowMs()
                 songMs = now
                 audioClock?.let { driftRecorder.recordFrame(it.diagnosticsSample(), animationNow) }
@@ -335,9 +332,12 @@ fun RhythmGameScreen(
         onExit()
     }
 
-    /** Write this run's clock trace + classification to cache and open the share sheet. */
-    fun exportDiagnostics() {
-        val currentSession = session ?: return
+    /**
+     * This run's full diagnostics text (startup trace + classification + trace + crossings +
+     * taps). Shared by the export (writes the same text to a file) and the in-app log viewer.
+     */
+    fun buildDiagnosticsText(): String {
+        val currentSession = session ?: return ""
         val notes = currentSession.chart.notes
         if (driftReport == null) driftReport = driftRecorder.analyze(notes)
         val meta = buildString {
@@ -348,13 +348,25 @@ fun RhythmGameScreen(
             appendLine("durationMs=${currentSession.clock.durationMs}")
             appendLine("offsetMs=${currentSession.clock.offsetMs}")
             appendLine("approachMs=${currentSession.approachMs}")
+            // What really happened at the start: park release, anchor sources, grace expiry,
+            // per-frame clock reads. Lets a real-device run be checked against the intended
+            // startup contract (see RhythmStartupTrace).
+            append(audioClock?.startupTraceText().orEmpty())
         }
+        return driftRecorder.exportText(meta, notes)
+    }
+
+    /** Write this run's clock trace + classification to cache and open the share sheet. */
+    fun exportDiagnostics() {
+        val text = buildDiagnosticsText()
+        if (text.isEmpty()) return
+        val notes = session?.chart?.notes ?: return
         scope.launch {
             val file = withContext(Dispatchers.IO) {
                 runCatching {
                     val dir = File(context.cacheDir, "rhythm_diagnostics").apply { mkdirs() }
                     File(dir, "rhythm-drift-${System.currentTimeMillis()}.txt")
-                        .apply { writeText(driftRecorder.exportText(meta, notes)) }
+                        .apply { writeText(text) }
                 }.getOrNull()
             }
             if (file == null) {
@@ -396,6 +408,8 @@ fun RhythmGameScreen(
             else -> Column(modifier = Modifier.fillMaxSize()) {
                 RhythmHud(
                     session = currentSession,
+                    songMs = songMs,
+                    leadInMs = chartSettings.leadInMs,
                     paused = paused,
                     frameTick = frameTick,
                     onTogglePause = {
@@ -419,9 +433,12 @@ fun RhythmGameScreen(
                         inputEnabled = !paused && result == null && countdown == 0,
                         onLaneDown = { lane ->
                             if (!paused && result == null && countdown == 0) {
-                                presentJudgement(
-                                    currentSession.keyDown(lane, currentSession.clock.nowMs()),
-                                )
+                                val tapTimeMs = currentSession.clock.nowMs()
+                                val event = currentSession.keyDown(lane, tapTimeMs)
+                                presentJudgement(event)
+                                // Same wall base as the trace, so a tap row lines up with the
+                                // 50ms samples; one list append per tap, no per-frame cost.
+                                driftRecorder.recordTap(lane, tapTimeMs, event.noteId, event.errorMs, System.nanoTime())
                                 frameTick += 1
                             }
                         },
@@ -467,6 +484,19 @@ fun RhythmGameScreen(
                 },
                 onExit = ::exitGame,
                 onExportDiagnostics = ::exportDiagnostics,
+                onViewDiagnostics = {
+                    scope.launch {
+                        val text = withContext(Dispatchers.Default) { buildDiagnosticsText() }
+                        if (text.isNotEmpty()) diagnosticsLogText = text
+                    }
+                },
+            )
+        }
+
+        diagnosticsLogText?.let { logText ->
+            RhythmDiagnosticsLogDialog(
+                text = logText,
+                onDismiss = { diagnosticsLogText = null },
             )
         }
 
@@ -486,10 +516,17 @@ fun RhythmGameScreen(
     }
 }
 
-/** Score, difficulty, accuracy and a thin progress bar. No transport controls: pausing is it. */
+/**
+ * Score, difficulty, accuracy and a thin progress bar. No transport controls: pausing is it.
+ * Below the score row the HUD always shows the two play-time settings that decide whether the
+ * notes meet the music: the effective latency offset (chart override or route calibration,
+ * live-tweakable on the pause screen) and the lead-in mask.
+ */
 @Composable
 private fun RhythmHud(
     session: RhythmPlaySession,
+    songMs: Double,
+    leadInMs: Int,
     paused: Boolean,
     frameTick: Long,
     onTogglePause: () -> Unit,
@@ -497,7 +534,7 @@ private fun RhythmHud(
     @Suppress("UNUSED_EXPRESSION") frameTick
     val engine = session.engine
     val progress = if (session.clock.durationMs > 0.0) {
-        (session.clock.nowMs() / session.clock.durationMs).toFloat().coerceIn(0f, 1f)
+        (songMs / session.clock.durationMs).toFloat().coerceIn(0f, 1f)
     } else {
         0f
     }
@@ -535,6 +572,26 @@ private fun RhythmHud(
                 )
             }
         }
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = stringResource(
+                    R.string.rhythm_hud_status,
+                    session.clock.offsetMs.roundToInt(),
+                    leadInMs,
+                ),
+                color = HUD_SECONDARY,
+                fontSize = 11.sp,
+                modifier = Modifier.weight(1f),
+            )
+            // Current song time at 100ms granularity: pinpoints a felt latency to a spot in
+            // the exported trace without waiting for the result screen.
+            Text(
+                text = formatHudClock(songMs) + " / " + formatHudClock(session.clock.durationMs),
+                color = HUD_TEXT,
+                fontSize = 11.sp,
+                fontFamily = FontFamily.Monospace,
+            )
+        }
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -563,6 +620,7 @@ private fun RhythmPauseOverlay(
     onRestart: () -> Unit,
     onExit: () -> Unit,
     onExportDiagnostics: () -> Unit,
+    onViewDiagnostics: () -> Unit,
 ) {
     Box(
         modifier = Modifier
@@ -602,8 +660,13 @@ private fun RhythmPauseOverlay(
                     OutlinedButton(onClick = { onOffset(-10) }) { Text("-10 ms") }
                     OutlinedButton(onClick = { onOffset(10) }) { Text("+10 ms") }
                 }
-                TextButton(onClick = onExportDiagnostics) {
-                    Text(stringResource(R.string.rhythm_export_diagnostics), color = HUD_SECONDARY)
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    TextButton(onClick = onViewDiagnostics) {
+                        Text(stringResource(R.string.rhythm_view_diagnostics), color = HUD_SECONDARY)
+                    }
+                    TextButton(onClick = onExportDiagnostics) {
+                        Text(stringResource(R.string.rhythm_export_diagnostics), color = HUD_SECONDARY)
+                    }
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     TextButton(onClick = onRestart) {
@@ -611,6 +674,65 @@ private fun RhythmPauseOverlay(
                     }
                     TextButton(onClick = onExit) {
                         Text(stringResource(R.string.rhythm_exit), color = DANGER_TEXT)
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * In-app diagnostics viewer: the same text the export writes, scrollable and selectable.
+ * Long-press selects a passage (with copy in the selection toolbar); "Copy all" puts the
+ * whole log on the clipboard. LazyColumn keeps multi-thousand-line logs from laying out
+ * in one frame; selection works within the composed (visible) region.
+ */
+@Composable
+private fun RhythmDiagnosticsLogDialog(
+    text: String,
+    onDismiss: () -> Unit,
+) {
+    val clipboard = LocalClipboard.current
+    val context = LocalContext.current
+    val copiedMessage = stringResource(R.string.rhythm_copied)
+    val dialogScope = rememberCoroutineScope()
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            modifier = Modifier.fillMaxWidth().fillMaxHeight(0.88f),
+            shape = RoundedCornerShape(20.dp),
+            color = CARD_BACKGROUND,
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = stringResource(R.string.rhythm_diagnostics_log_title),
+                        color = HUD_TEXT,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.weight(1f),
+                    )
+                    TextButton(onClick = {
+                        dialogScope.launch {
+                            clipboard.setClipEntry(ClipEntry(ClipData.newPlainText("rhythm diagnostics", text)))
+                            Toast.makeText(context, copiedMessage, Toast.LENGTH_SHORT).show()
+                        }
+                    }) {
+                        Text(stringResource(R.string.rhythm_copy_all), color = HUD_ACCENT)
+                    }
+                    TextButton(onClick = onDismiss) {
+                        Text(stringResource(R.string.rhythm_close), color = HUD_SECONDARY)
+                    }
+                }
+                SelectionContainer {
+                    LazyColumn(modifier = Modifier.fillMaxSize()) {
+                        items(text.lines()) { line ->
+                            Text(
+                                text = line,
+                                color = HUD_TEXT,
+                                fontSize = 11.sp,
+                                fontFamily = FontFamily.Monospace,
+                            )
+                        }
                     }
                 }
             }

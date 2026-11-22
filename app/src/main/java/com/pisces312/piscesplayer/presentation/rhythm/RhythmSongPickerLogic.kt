@@ -18,9 +18,12 @@ internal enum class RhythmDifficultyFilter(val key: String?) {
 internal enum class RhythmChartFilter { ALL, WITH_CHARTS, WITHOUT_CHARTS }
 
 internal data class RhythmSongFilterState(
-    val scope: RhythmSongScope = RhythmSongScope.RECENT,
+    // Defaults on purpose: scope ALL (a "recent" scope only surfaces a handful of very
+    // recent songs, which reads as "my charts are gone"), charts WITH_CHARTS (the entry
+    // exists to play charts; songs without any are the deliberate opt-in view).
+    val scope: RhythmSongScope = RhythmSongScope.ALL,
     val difficulty: RhythmDifficultyFilter = RhythmDifficultyFilter.ALL,
-    val charts: RhythmChartFilter = RhythmChartFilter.ALL,
+    val charts: RhythmChartFilter = RhythmChartFilter.WITH_CHARTS,
 ) {
     val isDefault: Boolean
         get() = this == RhythmSongFilterState()

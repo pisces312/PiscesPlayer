@@ -25,6 +25,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -33,33 +34,46 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.pisces312.piscesplayer.R
 import com.pisces312.piscesplayer.data.rhythm.RhythmChartSettings
+import com.pisces312.piscesplayer.data.rhythm.RhythmLatencyStore
 import com.pisces312.piscesplayer.data.rhythm.delayAfterTap
 
 /**
  * Per-chart playback settings. Saving on drag-release (not on every frame) keeps the sidecar
  * write off the gesture path; the values only affect the next run, never the chart itself.
+ *
+ * The latency offset is an *override*: null follows the route-keyed calibration shown at the
+ * top of the setup screen, a value here wins for this chart. The first ±10 tap seeds from the
+ * route value so a chart can be nudged relative to its calibration.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun RhythmChartSettingsSheet(
     chartName: String,
     settings: RhythmChartSettings,
+    routeOffsetMs: Int,
+    routeDeviceKey: String,
     onChange: (RhythmChartSettings) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    var delayMs by remember(chartName) { mutableIntStateOf(settings.delayMs) }
+    var delayOverrideMs by remember(chartName) { mutableStateOf(settings.delayOverrideMs) }
     var leadInMs by remember(chartName) { mutableIntStateOf(settings.leadInMs) }
     var approachMs by remember(chartName) { mutableIntStateOf(settings.approachMs) }
 
     fun commit(
-        newDelay: Int = delayMs,
+        newDelayOverride: Int? = delayOverrideMs,
         newLeadIn: Int = leadInMs,
         newApproach: Int = approachMs,
     ) {
-        delayMs = newDelay
+        delayOverrideMs = newDelayOverride
         leadInMs = newLeadIn
         approachMs = newApproach
-        onChange(settings.copy(delayMs = newDelay, leadInMs = newLeadIn, approachMs = newApproach))
+        onChange(
+            settings.copy(
+                delayOverrideMs = newDelayOverride,
+                leadInMs = newLeadIn,
+                approachMs = newApproach,
+            ),
+        )
     }
 
     ModalBottomSheet(onDismissRequest = onDismiss) {
@@ -76,8 +90,9 @@ internal fun RhythmChartSettingsSheet(
                 style = MaterialTheme.typography.titleLarge,
             )
 
+            // --- latency override (chart beats route) -----------------------------------------
             Text(
-                text = stringResource(R.string.rhythm_settings_delay),
+                text = stringResource(R.string.rhythm_settings_delay_override),
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.primary,
             )
@@ -85,29 +100,50 @@ internal fun RhythmChartSettingsSheet(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
+                val override = delayOverrideMs
                 Text(
-                    text = stringResource(R.string.rhythm_generate_offset_value, delayMs),
+                    text = if (override != null) {
+                        stringResource(R.string.rhythm_generate_offset_value, override)
+                    } else {
+                        stringResource(
+                            R.string.rhythm_settings_delay_follow,
+                            stringResource(RhythmLatencyStore.deviceLabelRes(routeDeviceKey)),
+                            routeOffsetMs,
+                        )
+                    },
                     style = MaterialTheme.typography.titleMedium,
                     modifier = Modifier.weight(1f),
                 )
-                OutlinedButton(onClick = { commit(newDelay = delayAfterTap(delayMs, -10)) }) {
+                OutlinedButton(
+                    onClick = {
+                        commit(newDelayOverride = delayAfterTap(override ?: routeOffsetMs, -10))
+                    },
+                ) {
                     Text("-10")
                 }
                 Spacer(Modifier.width(8.dp))
-                OutlinedButton(onClick = { commit(newDelay = delayAfterTap(delayMs, 10)) }) {
+                OutlinedButton(
+                    onClick = {
+                        commit(newDelayOverride = delayAfterTap(override ?: routeOffsetMs, 10))
+                    },
+                ) {
                     Text("+10")
                 }
                 Spacer(Modifier.width(8.dp))
-                TextButton(onClick = { commit(newDelay = 0, newApproach = approachMs) }) {
-                    Text(stringResource(R.string.rhythm_settings_reset))
+                TextButton(
+                    onClick = { commit(newDelayOverride = null) },
+                    enabled = override != null,
+                ) {
+                    Text(stringResource(R.string.rhythm_settings_delay_follow_reset))
                 }
             }
             Text(
-                text = stringResource(R.string.rhythm_settings_delay_hint),
+                text = stringResource(R.string.rhythm_settings_delay_override_hint),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
 
+            // --- lead-in -----------------------------------------------------------------------
             Text(
                 text = stringResource(R.string.rhythm_settings_lead_in),
                 style = MaterialTheme.typography.labelLarge,
@@ -118,21 +154,32 @@ internal fun RhythmChartSettingsSheet(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    text = stringResource(R.string.rhythm_settings_lead_in_value, leadInMs / 1000),
+                    text = stringResource(R.string.rhythm_settings_lead_in_value, leadInMs),
                     style = MaterialTheme.typography.titleMedium,
                     modifier = Modifier.weight(1f),
                 )
                 OutlinedButton(
-                    onClick = { commit(newLeadIn = (leadInMs - 1000).coerceAtLeast(0)) },
+                    onClick = {
+                        commit(
+                            newLeadIn = (leadInMs - RhythmChartSettings.LEAD_IN_STEP_MS)
+                                .coerceAtLeast(0),
+                        )
+                    },
                 ) {
-                    Text("-1s")
+                    Text("-500")
                 }
                 Spacer(Modifier.width(8.dp))
-                OutlinedButton(onClick = { commit(newLeadIn = leadInMs + 1000) }) {
-                    Text("+1s")
+                OutlinedButton(
+                    onClick = {
+                        commit(newLeadIn = leadInMs + RhythmChartSettings.LEAD_IN_STEP_MS)
+                    },
+                ) {
+                    Text("+500")
                 }
                 Spacer(Modifier.width(8.dp))
-                TextButton(onClick = { commit(newLeadIn = 0) }) {
+                TextButton(
+                    onClick = { commit(newLeadIn = RhythmChartSettings.DEFAULT_LEAD_IN_MS) },
+                ) {
                     Text(stringResource(R.string.rhythm_settings_reset))
                 }
             }
@@ -142,6 +189,7 @@ internal fun RhythmChartSettingsSheet(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
 
+            // --- approach ----------------------------------------------------------------------
             Text(
                 text = stringResource(R.string.rhythm_settings_approach),
                 style = MaterialTheme.typography.labelLarge,
