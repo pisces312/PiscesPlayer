@@ -20,6 +20,16 @@ PixelPlayerOSS; versions up to and including 0.4.3 were published under the upst
   only offered for charts that actually keep a raw take, and an exported file now names its real
   producer (`piscesplayer-dsp`, not the hand-tap recorder), so PC-side analysis cannot mistake a
   derived chart for a hand-tap recording.
+- Rhythm game: manual tap chart recording. Record your taps on the four lanes against the
+  game clock and save the take as a playable `tap` chart through the normal play chain; the
+  raw take is kept as a `.tap.json` sidecar in the PC recorder's wire format (an optional
+  constant offset applies at save time), so takes can be cross-analyzed with RhythmChartLab.
+  Hand-tapped charts export as osu!mania 4K beatmaps, `.prc` chart bundles, the unified
+  chart JSON or the raw tap take, with PC-compatible canonical hashes. The recorder also
+  gets an exit button with a discard confirmation.
+- Rhythm game: the derive sheet now offers measured presets v1-v4 (field tables compared
+  against the hand-tapped chart) plus a custom difficulty editor with every derivation
+  parameter; v1 is the default.
 - Music learning: a fifth bottom-navigation tab ("Learn" / 音乐学习) that hosts the built-in
   classical library today and learning tools later — ear training and metronome appear as
   placeholder cards that show a "Coming soon" toast when tapped.
@@ -27,6 +37,8 @@ PixelPlayerOSS; versions up to and including 0.4.3 were published under the upst
   top) and, per composer, tracks grouped by work — opus sets, numbered series such as
   "La Traviata - N1 …", or single pieces — instead of one flat list per composer. The composer
   list and the work screen both get a live search field matching original/English/Chinese names.
+- Classical titles are bilingual (original plus translation) with a display toggle, and the
+  built-in MIDI metadata is embedded.
 - Classical favorites: composers and tracks can be starred inside the classical screens, and a
   "Favorite tracks" tab lists favorited tracks (newest first) with its own search. Classical
   favorites are stored apart from the global Liked list, so built-in content never leaks into
@@ -62,8 +74,9 @@ PixelPlayerOSS; versions up to and including 0.4.3 were published under the upst
 ### Changed
 - Rhythm game: the "Chart play logic" experiment picker is removed; charts now always
   play exactly as saved.
-- Rhythm game: "Skip intro" now defaults to 0 ms (was 1 s) and steps in 500 ms
-  increments; displayed counts and scoring use only the notes that remain visible.
+- Rhythm game: "Skip intro" becomes a per-chart setting replacing the fixed 1 s lead-in —
+  0 ms default, 500 ms steps. It is a pure play-time filter: displayed counts and scoring
+  use only the notes that remain visible while the chart keeps every note.
 - Rhythm game: the song picker starts filtered to "all songs with charts" instead of
   "recent, all charts", which used to read as "my charts are gone"; the recency scope
   and the chart-less view remain as deliberate opt-ins.
@@ -71,6 +84,19 @@ PixelPlayerOSS; versions up to and including 0.4.3 were published under the upst
   HUD shows Delay · Skip, and the picker warns when the audio route is Bluetooth (large,
   route-dependent latency that notes can only meet through calibration; the first note
   is the most sensitive).
+- Rhythm game: the difficulty ladder is now two rungs — Easy (one slot per two beats) and
+  Hard (one slot per beat, the former Easy density) — and the classic derive path is
+  removed (CLASSIC_043 preset, classic timing-variant picker and the frozen 0.4.3
+  replica): two independent hand-tap baselines put it half a beat off the tracked
+  lattice, so derivation now always resolves the tracked timing variant. Existing charts
+  stay playable.
+- Rhythm game: grid derivation leaves quiet cells empty (a fade-out tail or drumless
+  outro no longer gets a note per beat) and the beat tracker pulls grid phase toward
+  onset evidence at every anchor, bounding mid-song grid drift to about a quarter of its
+  former amount.
+- The built-in classical/MIDI pack stays out of user-data pools: it is excluded from AI
+  playlists, home recommendations and listening stats, and feeds only the quiz's
+  "Built-in Classical" mode.
 - The app now supports exactly two interface languages: English and Simplified Chinese,
   plus "System default". The in-app language picker, `locales_config.xml` and the translated
   resource folders of the ten stale upstream locales (ar/de/es/fr/in/it/ko/nb/ru/tr) are
