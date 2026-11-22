@@ -115,6 +115,16 @@ class RhythmFrameEstimator(
     val isPlaying: Boolean get() = playing
     val frozenFrame: Double get() = anchorFrame
 
+    /**
+     * True once the emitted frame has reached the final frame — the output has drained
+     * every decoded frame, whether or not playback is still nominally "playing". Draining
+     * the PCM does not stop an AudioTrack by itself (nothing flips `playing` at end of
+     * song), so end-of-run detection must not depend on the pause path either.
+     * A mid-song underrun cannot set this: the wall-clock estimate is far below
+     * [totalFrames] there, so the emitted frame is too.
+     */
+    val reachedEnd: Boolean get() = emittedFrame >= totalFrames.toDouble()
+
     fun start(nowBootNs: Long) {
         playing = true
         anchorFrame = 0.0

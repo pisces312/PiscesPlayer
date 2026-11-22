@@ -366,6 +366,40 @@ class RhythmFrameEstimatorTest {
     }
 
     @Test
+    fun reachedEndReportsTheDrainedOutput() {
+        val estimator = RhythmFrameEstimator(sampleRate = 1000, totalFrames = 10_000)
+        estimator.start(nowBootNs = 0)
+        releaseStartupHold(estimator, atMs = 100, frame = 100.0)
+
+        // Mid-song the emitted frame is nowhere near the final frame, underrun or not.
+        assertFalse(estimator.reachedEnd)
+
+        // The head walks to the final frames and the estimate eases onto them.
+        assertTrue(estimator.offerHeadPosition(9_000.0, 9_000_000_000L))
+        assertTrue(estimator.offerHeadPosition(10_000.0, 10_000_000_000L))
+        estimator.currentFrame(10_100_000_000L)
+
+        assertTrue(estimator.reachedEnd)
+    }
+
+    @Test
+    fun reachedEndSurvivesPauseAtTheEndAndClearsOnRestart() {
+        val estimator = RhythmFrameEstimator(sampleRate = 1000, totalFrames = 10_000)
+        estimator.start(nowBootNs = 0)
+        releaseStartupHold(estimator, atMs = 100, frame = 100.0)
+        estimator.offerHeadPosition(10_000.0, 10_000_000_000L)
+        estimator.currentFrame(10_100_000_000L)
+        assertTrue(estimator.reachedEnd)
+
+        // Pausing at the end keeps it true (the old finished semantics), and a restart
+        // resets it so the next run is not born finished.
+        estimator.pauseAt(10_000.0)
+        assertTrue(estimator.reachedEnd)
+        estimator.start(nowBootNs = 20_000_000_000L)
+        assertFalse(estimator.reachedEnd)
+    }
+
+    @Test
     fun startupTraceRecordsParkAndHeadRelease() {
         val trace = RhythmStartupTrace()
         val estimator = RhythmFrameEstimator(sampleRate = 1000, totalFrames = 1_000_000, trace = trace)

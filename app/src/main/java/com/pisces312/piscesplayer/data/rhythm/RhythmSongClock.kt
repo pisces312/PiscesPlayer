@@ -4,6 +4,13 @@ package com.pisces312.piscesplayer.data.rhythm
 interface RhythmSongClock {
     val durationMs: Double
     var offsetMs: Double
+
+    /**
+     * True when the output has drained the audio (reached the final frame), whether or
+     * not playback is still nominally running. Implementations must NOT define this as
+     * "paused at the end": the run polls it continuously while playing, so it must fire
+     * on its own the moment the last frame is emitted.
+     */
     val finished: Boolean
     val isPlaying: Boolean
 

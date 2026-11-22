@@ -134,8 +134,15 @@ class RhythmAudioClock(
         }
     }
 
+    /**
+     * The output has drained the audio once the emitted frame reaches the final frame.
+     * Draining the PCM stops neither the AudioTrack nor the estimator's `playing` flag,
+     * so gating this on "paused at the end" made it a dead condition: the run kept
+     * polling it while unpaused and stopped polling the moment anything paused the
+     * clock — a full-combo run could play to the end and never settle.
+     */
     override val finished: Boolean
-        get() = !estimator.isPlaying && estimator.frozenFrame >= audio.frames
+        get() = estimator.reachedEnd
 
     override fun nowMs(): Double = readFrame() / audio.sampleRate * 1000.0 + offsetMs
 
