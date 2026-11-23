@@ -49,6 +49,53 @@ class RhythmRepository @Inject constructor(
         store().importText(songId = songId, text = bytes.toString(Charsets.UTF_8))
     }
 
+    /**
+     * Parse a MIDI file and store one chart per playable track and grid divisor.
+     *
+     * Unlike [generateMaster] there is no master/derive two-tier: MIDI carries exact note
+     * times and an exact tempo map, so generation is a cheap deterministic function of the
+     * file ([RhythmMidiChartGenerator]). Charts are content-addressed like tap charts, so
+     * re-importing the same file is idempotent; [uri] must be openable by the content
+     * resolver (callers resolve `piscesmidi://` to a file first).
+     */
+    suspend fun importMidiCharts(
+        songId: String,
+        uri: Uri,
+        options: MidiChartOptions = MidiChartOptions(),
+    ): List<RhythmChartMeta> = withContext(Dispatchers.IO) {
+        // Built-in classical library: piscesmidi://<songId> -> extracted file
+        // (same resolution as DualPlayerEngine's ResolvingDataSource).
+        val resolved = if (uri.scheme == "piscesmidi") {
+            val id = uri.authority ?: uri.lastPathSegment
+            val file = id?.toLongOrNull()?.let { File(context.filesDir, "classical/$it.mid") }
+            if (file == null || !file.isFile) {
+                throw RhythmGenerationException("Built-in MIDI not extracted yet")
+            }
+            Uri.fromFile(file)
+        } else {
+            uri
+        }
+        val bytes = runCatching {
+            context.contentResolver.openInputStream(resolved)?.use { it.readBytes() }
+        }.getOrNull() ?: throw RhythmGenerationException("Unable to read the selected MIDI file")
+
+        val score = try {
+            RhythmMidiParser.parse(bytes)
+        } catch (e: RhythmGenerationException) {
+            throw e
+        } catch (e: Exception) {
+            throw RhythmGenerationException("Unable to parse the MIDI file")
+        }
+        val charts = RhythmMidiChartGenerator.generate(score, options)
+        if (charts.isEmpty()) throw RhythmGenerationException("No playable MIDI tracks found")
+
+        val library = store()
+        val now = System.currentTimeMillis()
+        charts.mapIndexed { index, chart ->
+            library.importChart(songId = songId, chart = chart, nowMs = now + index)
+        }
+    }
+
     suspend fun chartsForSong(songId: String): List<RhythmChartMeta> = withContext(Dispatchers.IO) {
         store().chartsForSong(songId)
     }

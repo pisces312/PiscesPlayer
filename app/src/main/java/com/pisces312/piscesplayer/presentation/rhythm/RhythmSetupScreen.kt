@@ -289,6 +289,39 @@ fun RhythmSetupScreen(
         }
     }
 
+    /**
+     * MIDI 曲目：解析文件里的音符事件与 tempo map 直接成谱（[RhythmRepository.importMidiCharts]），
+     * 不走 PCM 解码 + DSP 分析的母带流程，也不要求时长限制。
+     */
+    fun startMidiImport() {
+        val currentSong = song ?: return
+        if (CloudOfflineRepository.isCloudSong(currentSong)) {
+            generationError = cloudUnavailableMessage
+            return
+        }
+        val playbackUri = currentSong.contentUriString.takeIf { it.isNotBlank() }
+            ?.let(Uri::parse)
+            ?: Uri.fromFile(File(currentSong.path))
+
+        generationError = null
+        generating = true
+        scope.launch {
+            try {
+                val metas = repository.importMidiCharts(songId = songId, uri = playbackUri)
+                reload()
+                if (metas.isNotEmpty()) {
+                    playerViewModel.sendToast(
+                        context.getString(R.string.rhythm_midi_generated, metas.size),
+                    )
+                }
+            } catch (e: Exception) {
+                generationError = e.message ?: e.javaClass.simpleName
+            } finally {
+                generating = false
+            }
+        }
+    }
+
     fun derive(settings: RhythmDeriveSettings) {
         val master = snapshot.masterChart ?: return
         val masterMeta = snapshot.master ?: return
@@ -513,7 +546,13 @@ fun RhythmSetupScreen(
             }
 
             item {
-                if (masterMeta == null) {
+                // MIDI 曲目没有 DSP 母带：入口换成一键生成 MIDI 谱面，已有谱面仍在下方列表。
+                if (song?.isRhythmMidiSong() == true) {
+                    MidiGenerateCard(
+                        generating = generating,
+                        onGenerate = { startMidiImport() },
+                    )
+                } else if (masterMeta == null) {
                     MasterMissingCard(
                         enabled = !generating && song != null,
                         onGenerate = {
@@ -555,6 +594,21 @@ fun RhythmSetupScreen(
                             style = MaterialTheme.typography.bodyMedium,
                             modifier = Modifier.padding(16.dp),
                         )
+                    }
+                }
+            }
+
+            // MIDI 生成失败（生成对话框是 DSP 母带专用的，这里用常驻卡片展示）。
+            if (song?.isRhythmMidiSong() == true) {
+                generationError?.let { error ->
+                    item {
+                        Card {
+                            Text(
+                                text = stringResource(R.string.rhythm_import_failed, error),
+                                style = MaterialTheme.typography.bodyMedium,
+                                modifier = Modifier.padding(16.dp),
+                            )
+                        }
                     }
                 }
             }
@@ -893,6 +947,47 @@ private fun LatencyCalibrationCard(
             }
             OutlinedButton(onClick = onCalibrate) {
                 Text(stringResource(R.string.rhythm_latency_calibrate))
+            }
+        }
+    }
+}
+
+@Composable
+private fun MidiGenerateCard(generating: Boolean, onGenerate: () -> Unit) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text(
+                text = stringResource(R.string.rhythm_midi_generate),
+                style = MaterialTheme.typography.titleMedium,
+            )
+            Text(
+                text = stringResource(R.string.rhythm_midi_generate_hint),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Button(
+                onClick = onGenerate,
+                enabled = !generating,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                if (generating) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(20.dp),
+                        strokeWidth = 2.dp,
+                    )
+                } else {
+                    Icon(
+                        imageVector = Icons.Outlined.AutoAwesome,
+                        contentDescription = null,
+                    )
+                }
+                Spacer(Modifier.width(10.dp))
+                Text(stringResource(R.string.rhythm_midi_generate))
             }
         }
     }

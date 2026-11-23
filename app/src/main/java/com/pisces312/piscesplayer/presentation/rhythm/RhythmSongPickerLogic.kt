@@ -60,6 +60,20 @@ internal data class RhythmSongCandidate(
     val chartCount: Int get() = difficultyKeys.size
 }
 
+/**
+ * MIDI songs are regular library rows (built-in classical `piscesmidi://` content and the
+ * user MIDI library both store `audio/midi`), so the picker's MIDI tab filters the normal
+ * song list instead of talking to MidiLibraryRepository.
+ */
+internal fun Song.isRhythmMidiSong(): Boolean {
+    if (mimeType?.contains("midi", ignoreCase = true) == true) return true
+    if (contentUriString.startsWith("piscesmidi://")) return true
+    return path.endsWith(".mid", ignoreCase = true) ||
+        path.endsWith(".midi", ignoreCase = true) ||
+        contentUriString.endsWith(".mid", ignoreCase = true) ||
+        contentUriString.endsWith(".midi", ignoreCase = true)
+}
+
 internal fun recentRhythmSongIds(history: List<Pair<String, Long>>): List<String> = history
     .sortedByDescending { it.second }
     .distinctBy { it.first }

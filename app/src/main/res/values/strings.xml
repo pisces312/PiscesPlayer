@@ -459,6 +459,10 @@
     <string name="rhythm_picker_difficulty_chart_count">%1$s charts · %2$d</string>
     <string name="rhythm_picker_tab_with_charts">With charts</string>
     <string name="rhythm_picker_tab_without_charts">Without charts</string>
+    <string name="rhythm_picker_tab_midi">MIDI</string>
+    <string name="rhythm_midi_generate">Generate MIDI charts</string>
+    <string name="rhythm_midi_generate_hint">Turns the file\'s note tracks and tempo map into playable charts — exact timing, no audio analysis.</string>
+    <string name="rhythm_midi_generated">%1$d MIDI charts generated</string>
     <string name="rhythm_picker_sort_label">Sort</string>
     <string name="rhythm_import_osu">Import .osu chart</string>
     <string name="rhythm_import_failed">Import failed: %1$s</string>

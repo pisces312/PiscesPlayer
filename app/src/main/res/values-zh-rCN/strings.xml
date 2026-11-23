@@ -457,6 +457,10 @@
     <string name="rhythm_picker_difficulty_chart_count">%1$s谱面 · %2$d 个</string>
     <string name="rhythm_picker_tab_with_charts">有谱歌曲</string>
     <string name="rhythm_picker_tab_without_charts">无谱歌曲</string>
+    <string name="rhythm_picker_tab_midi">MIDI</string>
+    <string name="rhythm_midi_generate">生成 MIDI 谱面</string>
+    <string name="rhythm_midi_generate_hint">直接按文件中的音符轨道与节拍生成谱面，节奏精确、无需音频分析。</string>
+    <string name="rhythm_midi_generated">已生成 %1$d 个 MIDI 谱面</string>
     <string name="rhythm_picker_sort_label">排序</string>
     <string name="rhythm_import_osu">导入 .osu 谱面</string>
     <string name="rhythm_import_failed">导入失败：%1$s</string>

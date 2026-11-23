@@ -211,7 +211,7 @@ fun RhythmGameScreen(
                 }
                 val playbackUri = song.contentUriString.takeIf { it.isNotBlank() }?.let(Uri::parse)
                     ?: Uri.fromFile(File(song.path))
-                val pcm = RhythmPcmDecoder.decode(context, playbackUri)
+                val pcm = RhythmPcmDecoder.decode(context, playbackUri, song.mimeType)
                 // Per-chart playback tweaks: fall time and lead-in on the session; the latency
                 // offset is this chart's override when set, otherwise the current route's
                 // calibrated value (both must be read before the clock starts so the first

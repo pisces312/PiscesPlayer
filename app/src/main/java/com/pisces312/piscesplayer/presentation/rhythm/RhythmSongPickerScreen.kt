@@ -150,10 +150,16 @@ fun RhythmSongPickerScreen(
     val candidates = remember(localSongs, chartCatalog) {
         localSongs.map { it.toCandidate(chartCatalog.orEmpty()[it.id].orEmpty()) }
     }
-    val tabCounts = remember(candidates) {
+    // MIDI songs are library rows like any other (built-in classical + user MIDI library),
+    // so the MIDI tab is a source filter over the same candidates, not a second data path.
+    val midiCandidates = remember(candidates, songsById) {
+        candidates.filter { songsById[it.id]?.isRhythmMidiSong() == true }
+    }
+    val tabCounts = remember(candidates, midiCandidates) {
         listOf(
             candidates.count { it.chartCount > 0 },
             candidates.count { it.chartCount == 0 },
+            midiCandidates.size,
         )
     }
     val recentLocalCount = remember(recentSongIds, songsById) {
@@ -161,12 +167,21 @@ fun RhythmSongPickerScreen(
     }
 
     // The tab IS the chart-presence filter; scope/difficulty are shared by both tabs and only
-    // surfaced in the with-charts one.
+    // surfaced in the with-charts one. The MIDI tab shows every MIDI song regardless of
+    // charts — generation is one tap away on the setup screen.
     val filtersWithCharts = RhythmSongFilterState(scope, difficulty, RhythmChartFilter.WITH_CHARTS)
     val filtersWithoutCharts = RhythmSongFilterState(scope, difficulty, RhythmChartFilter.WITHOUT_CHARTS)
-    val filteredByTab = remember(candidates, recentSongIds, query, filtersWithCharts, filtersWithoutCharts, locale, songsById, sortOption) {
-        listOf(filtersWithCharts, filtersWithoutCharts).map { filters ->
-            val filtered = filterRhythmSongCandidates(candidates, recentSongIds, query, filters, locale)
+    val filtersMidi = RhythmSongFilterState(RhythmSongScope.ALL, RhythmDifficultyFilter.ALL, RhythmChartFilter.ALL)
+    val filteredByTab = remember(
+        candidates, midiCandidates, recentSongIds, query,
+        filtersWithCharts, filtersWithoutCharts, filtersMidi, locale, songsById, sortOption,
+    ) {
+        listOf(
+            candidates to filtersWithCharts,
+            candidates to filtersWithoutCharts,
+            midiCandidates to filtersMidi,
+        ).map { (source, filters) ->
+            val filtered = filterRhythmSongCandidates(source, recentSongIds, query, filters, locale)
                 .mapNotNull { candidate -> songsById[candidate.id]?.let { it to candidate } }
             sortRhythmSongPairs(filtered, sortOption)
         }
@@ -253,6 +268,12 @@ fun RhythmSongPickerScreen(
                     selected = pagerState.currentPage == 1,
                     onClick = { pagerScope.launch { pagerState.animateScrollToPage(1) } },
                 )
+                PickerTab(
+                    title = stringResource(R.string.rhythm_picker_tab_midi),
+                    count = tabCounts[2],
+                    selected = pagerState.currentPage == 2,
+                    onClick = { pagerScope.launch { pagerState.animateScrollToPage(2) } },
+                )
             }
 
             HorizontalPager(
@@ -260,7 +281,6 @@ fun RhythmSongPickerScreen(
                 modifier = Modifier.weight(1f),
             ) { page ->
                 val listState = rememberLazyListState()
-                val filters = if (page == 0) filtersWithCharts else filtersWithoutCharts
                 val filteredSongs = filteredByTab[page]
 
                 LaunchedEffect(query, scope, difficulty, sortKey) {
@@ -436,7 +456,7 @@ fun RhythmSongPickerScreen(
     }
 }
 
-private const val TAB_COUNT = 2
+private const val TAB_COUNT = 3
 
 @Composable
 private fun PickerTab(

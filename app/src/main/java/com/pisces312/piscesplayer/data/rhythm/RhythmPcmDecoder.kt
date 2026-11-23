@@ -81,7 +81,18 @@ data class RhythmPcmAudio(
 object RhythmPcmDecoder {
     class DecodeException(message: String, cause: Throwable? = null) : IOException(message, cause)
 
-    fun decode(context: Context, uri: Uri): RhythmPcmAudio {
+    private const val SCHEME_PISCESMIDI = "piscesmidi"
+
+    /**
+     * One-shot decode for gameplay.
+     *
+     * [mimeType] is the song's declared mime (nullable); MIDI is not decodable through
+     * MediaExtractor, so MIDI uris (by mime, extension or the `piscesmidi` scheme of the
+     * built-in classical library) branch into [RhythmMidiPcmRenderer], which renders the
+     * file through the same Media3/Sonivox engine the main player uses.
+     */
+    fun decode(context: Context, uri: Uri, mimeType: String? = null): RhythmPcmAudio {
+        if (isMidi(uri, mimeType)) return decodeMidi(context, uri)
         val extractor = MediaExtractor()
         try {
             extractor.setDataSource(context, uri, null)
@@ -110,6 +121,44 @@ object RhythmPcmDecoder {
             return drain(decoder, extractor)
         } finally {
             extractor.release()
+        }
+    }
+
+    private fun isMidi(uri: Uri, mimeType: String?): Boolean {
+        if (mimeType?.contains("midi", ignoreCase = true) == true) return true
+        val last = uri.lastPathSegment ?: return uri.scheme == SCHEME_PISCESMIDI
+        return last.endsWith(".mid", ignoreCase = true) ||
+            last.endsWith(".midi", ignoreCase = true) ||
+            uri.scheme == SCHEME_PISCESMIDI
+    }
+
+    private fun decodeMidi(context: Context, uri: Uri): RhythmPcmAudio {
+        // Built-in classical library: piscesmidi://<songId> -> extracted file
+        // (same resolution as DualPlayerEngine's ResolvingDataSource).
+        val resolved = if (uri.scheme == SCHEME_PISCESMIDI) {
+            val id = uri.authority ?: uri.lastPathSegment
+            val file = id?.toLongOrNull()?.let { java.io.File(context.filesDir, "classical/$it.mid") }
+            if (file == null || !file.isFile) {
+                throw DecodeException("Built-in MIDI not extracted yet: $uri")
+            }
+            Uri.fromFile(file)
+        } else {
+            uri
+        }
+        val bytes = try {
+            when (resolved.scheme) {
+                "content" -> context.contentResolver.openInputStream(resolved)?.use { it.readBytes() }
+                else -> resolved.path?.let { java.io.File(it).readBytes() }
+            }
+        } catch (e: Exception) {
+            throw DecodeException("Unable to read the MIDI file: ${e.message}", e)
+        } ?: throw DecodeException("Unable to read the MIDI file")
+        try {
+            return RhythmMidiPcmRenderer.render(bytes)
+        } catch (e: DecodeException) {
+            throw e
+        } catch (e: Exception) {
+            throw DecodeException("MIDI render failed: ${e.message}", e)
         }
     }
 

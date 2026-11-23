@@ -158,13 +158,19 @@ data class RhythmChart(
         rmsThresholds.firstOrNull { it.percentile == percentile }?.rms
 
     companion object {
-        val SOURCES = setOf(SOURCE_OSU, SOURCE_DSP, SOURCE_PRC, SOURCE_TAP)
+        val SOURCES = setOf(SOURCE_OSU, SOURCE_DSP, SOURCE_PRC, SOURCE_TAP, SOURCE_MIDI)
         const val SOURCE_OSU = "osu"
         const val SOURCE_DSP = "dsp"
         const val SOURCE_PRC = "prc"
 
         /** Manual tap recording ([RhythmTapChart]); plain taps like an osu import. */
         const val SOURCE_TAP = "tap"
+
+        /**
+         * Chart generated straight from a MIDI file's note events and tempo map
+         * ([RhythmMidiChartGenerator]) — no audio analysis involved.
+         */
+        const val SOURCE_MIDI = "midi"
 
         /** Runway before the first playable note; derived charts are stored without anything earlier. */
         const val LEAD_IN_MS = 1000.0
