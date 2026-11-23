@@ -257,6 +257,9 @@ private fun ActionPill(
                                         onClick = { onClick?.invoke() },
                                         onLongClick = onLongClick
                                 )
+                                // v1.3.9: poking the jelly squashes it — press feedback
+                                // on top of the idle morph/breathe animation.
+                                .jellyPress()
         ) {
             content()
         }

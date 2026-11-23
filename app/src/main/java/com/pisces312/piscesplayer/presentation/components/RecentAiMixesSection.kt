@@ -66,7 +66,7 @@ fun RecentAiMixesRow(
 private fun RecentAiMixCard(mix: Playlist, onClick: () -> Unit) {
     Surface(
         onClick = onClick,
-        modifier = Modifier.width(MIX_CARD_WIDTH).height(MIX_CARD_HEIGHT),
+        modifier = Modifier.width(MIX_CARD_WIDTH).height(MIX_CARD_HEIGHT).jellyPress(),
         shape = AbsoluteSmoothCornerShape(
             cornerRadiusTL = 22.dp,
             smoothnessAsPercentTL = 60,

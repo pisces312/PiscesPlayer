@@ -38,6 +38,7 @@ import androidx.compose.ui.unit.dp
 import com.pisces312.piscesplayer.R
 import com.pisces312.piscesplayer.data.home.HomeCard
 import com.pisces312.piscesplayer.data.model.Playlist
+import com.pisces312.piscesplayer.presentation.components.jellyPress
 import racra.compose.smooth_corner_rect_library.AbsoluteSmoothCornerShape
 
 /**
@@ -74,6 +75,9 @@ fun HomeGridCard(
             .fillMaxSize()
             .clip(HomeGridCardShape)
             .background(MaterialTheme.colorScheme.surfaceContainer)
+            // v1.3.9: jelly press feedback (squash/pivot around the touch point,
+            // bouncy settle). Off in edit mode — the drag-lift owns the transform there.
+            .jellyPress(enabled = !editMode)
             .graphicsLayer {
                 val lift = isDragging
                 scaleX = if (lift) 1.03f else 1f

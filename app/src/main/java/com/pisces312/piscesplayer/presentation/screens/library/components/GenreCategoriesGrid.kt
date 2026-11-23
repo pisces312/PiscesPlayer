@@ -37,6 +37,7 @@ import androidx.media3.common.util.UnstableApi
 import com.pisces312.piscesplayer.data.model.Genre
 import com.pisces312.piscesplayer.presentation.components.MiniPlayerHeight
 import com.pisces312.piscesplayer.presentation.components.SmartImage
+import com.pisces312.piscesplayer.presentation.components.jellyPress
 import com.pisces312.piscesplayer.presentation.components.getNavigationBarHeight
 import com.pisces312.piscesplayer.presentation.components.resolveNavBarOccupiedHeight
 import com.pisces312.piscesplayer.presentation.utils.GenreIconProvider
@@ -136,7 +137,8 @@ private fun GenreCard(
     Card(
         modifier = cardModifier
             .clip(shape)
-            .clickable(onClick = onClick),
+            .clickable(onClick = onClick)
+            .jellyPress(),
         shape = shape,
         colors = CardDefaults.cardColors(containerColor = backgroundColor),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)

@@ -11,6 +11,11 @@ PixelPlayerOSS; versions up to and including 0.4.3 were published under the upst
   their rich content, every card uses the neutral rounded style of the old AI playlist entry.
 - Home: a help (?) button in the top bar opens a quick-start sheet (edit gestures, adding cards,
   Serendipity gestures, Daily Mix) with a link to the full changelog.
+- Jelly press feedback on pressable cards and covers (home grid cards, recent AI mixes, album
+  grid/list items, artist rows, genre tiles) and on the Serendipity button: pressing squashes
+  the element around the touch point like a soft surface, dragging tilts it toward the drag,
+  and releasing settles it with a bouncy spring. The whole effect runs in the graphics layer
+  and only while a finger is down, so it never recomposes and costs nothing at rest.
 - Home: the Serendipity button breathes as a live jelly — its outline morphs through eight
   organic phases (a travelling bulge on a superellipse) while the whole pill sways gently
   and pulses in scale, all on separate clocks (Material 3 Expressive shape morphing);

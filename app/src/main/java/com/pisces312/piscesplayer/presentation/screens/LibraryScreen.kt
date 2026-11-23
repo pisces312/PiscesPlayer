@@ -65,6 +65,7 @@ import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.material.icons.rounded.ViewModule
 import com.pisces312.piscesplayer.presentation.components.ToggleSegmentButton
+import com.pisces312.piscesplayer.presentation.components.jellyPress
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -3216,7 +3217,8 @@ fun AlbumGridItemRedesigned(
                         }
                     },
                     onLongClick = onLongPress
-                ),
+                )
+                .jellyPress(),
             shape = cardShape,
             colors = CardDefaults.cardColors(containerColor = itemDesignColorScheme.surfaceVariant.copy(alpha = 0.3f))
         ) {
@@ -3353,7 +3355,8 @@ fun ArtistListItem(
                     if (isSelectionMode) onSelectionToggle() else onClick()
                 },
                 onLongClick = onLongPress
-            ),
+            )
+            .jellyPress(),
         shape = cardShape,
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainerLow
@@ -3550,7 +3553,8 @@ fun AlbumListItem(
                         }
                     },
                     onLongClick = onLongPress
-                ),
+                )
+                .jellyPress(),
             shape = cardShape,
             colors = CardDefaults.cardColors(containerColor = itemDesignColorScheme.surfaceVariant.copy(alpha = 0.3f))
         ) {
