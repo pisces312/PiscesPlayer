@@ -362,12 +362,9 @@ fun HomeScreen(
             HomeCardType.AI_PLAYLIST -> {
                 {
                     // v1.3.4: the body is passive — a tap anywhere on the card (outside the
-                    // capsule / a mix) opens the full AI-mixes list — so the content block
-                    // centres vertically inside the 2×2 cell instead of hugging the top.
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center,
-                    ) {
+                    // capsule / a mix) opens the full AI-mixes list. v1.3.8: the entry card
+                    // fills the whole grid cell itself (user-picked plan B), so the old
+                    // centring wrapper is gone.
                     AiGenerateEntryCard(
                         configured = isAiConfigured,
                         // Short press on the capsule: gather the moment's signals and generate.
@@ -375,8 +372,11 @@ fun HomeScreen(
                         // Long press on the capsule: the editable describe sheet.
                         onOpenDescribe = { openAiEntry(false) },
                         modifier = Modifier.fillMaxWidth(),
-                        // The recent-mixes shelf only fits the 2×2 hero; the 2×1 banner is the
-                        // entry row alone.
+                        // The plump 72dp jelly fits the 2×2 hero only; the 2×1 banner
+                        // and 1×1 / 1×2 spans fall back to the 56dp pill.
+                        largePill = card.size.spanX == 2 && card.size.spanY == 2,
+                        // The recent-mixes shelf only fits spans two rows tall; the
+                        // 2×1 banner is the entry row alone.
                         recentContent = if (card.size.spanY == 2 && recentAiMixes.isNotEmpty()) {
                             {
                                 RecentAiMixesRow(
@@ -398,7 +398,6 @@ fun HomeScreen(
                             }
                         } else null,
                     )
-                    }
                 }
             }
             HomeCardType.DAILY_MIX -> {

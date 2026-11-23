@@ -12,8 +12,9 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -35,6 +36,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.pisces312.piscesplayer.R
 import com.pisces312.piscesplayer.ui.theme.ShapeCache
 
@@ -69,70 +71,73 @@ fun AiGenerateEntryCard(
         onOpenDescribe: () -> Unit,
         modifier: Modifier = Modifier,
         /** Recent mixes share this card below the generation controls. */
-        recentContent: (@Composable () -> Unit)? = null
+        recentContent: (@Composable () -> Unit)? = null,
+        /** v1.3.8: the 2×2 hero gets the plump 72dp jelly (user-picked plan B);
+         *  compact spans (banner / 1×1 / 1×2) keep the 56dp pill so the entry row
+         *  plus hint still fit a 96dp cell. */
+        largePill: Boolean = true
 ) {
     // Passive container — taps fall through to the grid card (full mixes list).
     Surface(
             shape = HomeCardShape,
             color = MaterialTheme.colorScheme.surfaceContainer,
-            modifier = modifier.fillMaxWidth()
+            modifier = modifier.fillMaxSize()
     ) {
-        Column(modifier = Modifier.fillMaxWidth()) {
-            Box(
+        Column(modifier = Modifier.fillMaxSize()) {
+            // v1.3.8: the entry row fills whatever vertical space the grid cell
+            // leaves above the shelf and centres in it — the old fixed 88dp header
+            // left ~27dp of dead space above and below inside the 2×2 hero.
+            Row(
                     modifier =
-                            // v1.3.3: compacted (100/14 → 88/10) so the entry row, the recent
-                            // mixes shelf and the show-all button share one 2×2 grid cell.
-                            Modifier.heightIn(min = 88.dp)
-                                    .padding(horizontal = 16.dp, vertical = 10.dp)
+                            Modifier.fillMaxWidth()
+                                    .weight(1f)
+                                    .padding(horizontal = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                            imageVector = Icons.Rounded.AutoFixHigh,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurface,
-                            modifier = Modifier.size(28.dp)
+                Icon(
+                        imageVector = Icons.Rounded.AutoFixHigh,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.size(28.dp)
+                )
+                Spacer(modifier = Modifier.width(14.dp))
+                Text(
+                        text = stringResource(R.string.ai_playlist_entry_title),
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.weight(1f)
+                )
+                // v1.3.5: the hint lives UNDER the pill, so it clearly describes the
+                // pill's gestures and not the whole card (user feedback). The pill is
+                // the morphing serendipity blob — the only live shape of its kind on home.
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    ActionPill(
+                            text = stringResource(R.string.ai_serendipity_button),
+                            icon = Icons.Rounded.AutoFixHigh,
+                            color = MaterialTheme.colorScheme.primary,
+                            onClick = onQuickGenerate,
+                            onLongClick = onOpenDescribe,
+                            // The one text-carrying action on home: highlight it with
+                            // a breathing pulse (plan v1.3.4/1.3.5 decision 22).
+                            highlight = true,
+                            large = largePill,
                     )
-                    Spacer(modifier = Modifier.width(14.dp))
                     Text(
-                            text = stringResource(R.string.ai_playlist_entry_title),
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            modifier = Modifier.weight(1f)
+                            // v1.3.7: ONE line directly under the pill (user feedback:
+                            // two lines read like a caption for the whole card). The
+                            // " · " separator keeps the two gestures scannable.
+                            text =
+                                    stringResource(
+                                            if (configured) R.string.ai_serendipity_button_hint
+                                            else R.string.ai_playlist_entry_unconfigured
+                                    ),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.Center,
+                            maxLines = 1,
+                            modifier = Modifier.padding(top = 4.dp)
                     )
-                    // v1.3.5: the hint lives UNDER the pill, so it clearly describes the
-                    // pill's gestures and not the whole card (user feedback). The pill is
-                    // the morphing serendipity blob — the only live shape of its kind on home.
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        ActionPill(
-                                text = stringResource(R.string.ai_serendipity_button),
-                                icon = Icons.Rounded.AutoFixHigh,
-                                color = MaterialTheme.colorScheme.primary,
-                                onClick = onQuickGenerate,
-                                onLongClick = onOpenDescribe,
-                                // The one text-carrying action on home: highlight it with
-                                // a breathing pulse (plan v1.3.4/1.3.5 decision 22).
-                                highlight = true,
-                        )
-                        Text(
-                                // v1.3.7: ONE line directly under the pill (user feedback:
-                                // two lines read like a caption for the whole card). The
-                                // " · " separator keeps the two gestures scannable.
-                                text =
-                                        stringResource(
-                                                if (configured) R.string.ai_serendipity_button_hint
-                                                else R.string.ai_playlist_entry_unconfigured
-                                        ),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                textAlign = TextAlign.Center,
-                                maxLines = 1,
-                                modifier = Modifier.padding(top = 4.dp)
-                        )
-                    }
                 }
             }
             if (recentContent != null) {
@@ -140,7 +145,7 @@ fun AiGenerateEntryCard(
                 // show-all button stack directly beneath it inside the 2×2 cell.
                 Box(
                         modifier = Modifier.fillMaxWidth()
-                                .padding(start = 16.dp, end = 16.dp, top = 2.dp, bottom = 8.dp)
+                                .padding(start = 16.dp, end = 16.dp, top = 2.dp, bottom = 10.dp)
                 ) { recentContent() }
             }
         }
@@ -163,7 +168,11 @@ private fun ActionPill(
         onLongClick: (() -> Unit)? = null,
         /** A soft infinite breathing pulse that pulls the eye without motion clutter. */
         highlight: Boolean = false,
+        /** v1.3.8 (user-picked plan B): the 2×2 hero pill is a plump 72dp jelly with
+         *  18sp text; compact spans keep a 56dp pill so the row fits a 96dp cell. */
+        large: Boolean = true,
 ) {
+    val pillHeight = if (large) 72.dp else 56.dp
     val pulse by rememberInfiniteTransition(label = "serendipity_pulse").animateFloat(
             initialValue = 0f,
             targetValue = 1f,
@@ -189,7 +198,9 @@ private fun ActionPill(
 
     val content: @Composable () -> Unit = {
         Row(
-                modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp),
+                modifier =
+                        Modifier.height(pillHeight)
+                                .padding(horizontal = if (large) 18.dp else 14.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
@@ -198,12 +209,17 @@ private fun ActionPill(
                         imageVector = icon,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.onPrimary,
-                        modifier = Modifier.size(15.dp)
+                        modifier = Modifier.size(if (large) 22.dp else 15.dp)
                 )
             }
             Text(
                     text = text,
-                    style = MaterialTheme.typography.labelLarge,
+                    style =
+                            if (large)
+                                    MaterialTheme.typography.titleMedium
+                                            .copy(fontSize = 18.sp, lineHeight = 22.sp)
+                            else MaterialTheme.typography.labelLarge,
+                    fontWeight = if (large) FontWeight.SemiBold else null,
                     color = MaterialTheme.colorScheme.onPrimary
             )
         }
