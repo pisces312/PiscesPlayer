@@ -154,7 +154,7 @@ object RhythmPcmDecoder {
             throw DecodeException("Unable to read the MIDI file: ${e.message}", e)
         } ?: throw DecodeException("Unable to read the MIDI file")
         try {
-            return RhythmMidiPcmRenderer.render(bytes)
+            return RhythmMidiPcmRenderer.render(context, bytes)
         } catch (e: DecodeException) {
             throw e
         } catch (e: Exception) {

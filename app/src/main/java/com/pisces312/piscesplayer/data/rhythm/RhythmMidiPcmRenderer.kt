@@ -1,16 +1,17 @@
-﻿/*
+/*
  * SPDX-License-Identifier: GPL-3.0-or-later
  * Original work in 2026 (offline MIDI → PCM render for gameplay,
  * docs/../../RhythmChartLab docs/design/rhythm-midi-chart-plan.md §5).
  */
 package com.pisces312.piscesplayer.data.rhythm
 
-import androidx.media3.common.C
+import android.content.Context
+import androidx.media3.common.DataReader
 import androidx.media3.common.Format
-import androidx.media3.common.MimeTypes
 import androidx.media3.common.util.ParsableByteArray
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.decoder.midi.MidiExtractor
+import androidx.media3.decoder.midi.PiscesMidiOfflineDecoder
 import androidx.media3.extractor.Extractor
 import androidx.media3.extractor.ExtractorInput
 import androidx.media3.extractor.ExtractorOutput
@@ -20,21 +21,76 @@ import androidx.media3.extractor.TrackOutput
 import java.io.ByteArrayOutputStream
 import java.io.EOFException
 import java.io.IOException
+import kotlin.math.roundToInt
 
 /**
- * Renders a Standard MIDI File to interleaved PCM offline through Media3's MIDI extractor
- * (the Sonivox synthesizer, the same engine the main player auditions MIDI with — so the
- * chart plays against the sound the user knows from the library). Platform MediaExtractor
- * cannot decode MIDI, which is why [RhythmPcmDecoder] branches here by mime type.
+ * Renders a Standard MIDI File to interleaved 16-bit PCM offline.
+ *
+ * Media3's MIDI extractor does **not** produce PCM: it emits raw MIDI messages tagged
+ * `audio/x-exoplayer-midi`, and [androidx.media3.decoder.midi.MidiDecoder] is what turns those
+ * messages into float PCM using the Sonivox voices. The decoder is package-private, so
+ * [PiscesMidiOfflineDecoder] drives it from the same package at CPU speed — the resulting audio
+ * is the same voice set the main player auditions MIDI with, without waiting out a real-time
+ * playthrough.
  *
  * Everything is in-memory: the whole file is already a [ByteArray] (chart import read it),
  * and the rendered PCM feeds the same one-shot buffer the DSP path produces.
  */
-@OptIn(UnstableApi::class)
+@UnstableApi
 internal object RhythmMidiPcmRenderer {
 
-    fun render(bytes: ByteArray): RhythmPcmAudio {
-        val trackOutput = CapturingTrackOutput()
+    /** MidiDecoder's fixed output format (float PCM, two channels, 44.1 kHz). */
+    private const val OUTPUT_SAMPLE_RATE = 44100
+    private const val OUTPUT_CHANNELS = 2
+    private const val BYTES_PER_SECOND = OUTPUT_SAMPLE_RATE * OUTPUT_CHANNELS * 2
+
+    /** Extra rendered time so the final note's release tail is not cut off. */
+    private const val RELEASE_TAIL_MS = 250L
+
+    fun render(context: Context, bytes: ByteArray): RhythmPcmAudio {
+        val samples = extractSamples(bytes)
+        val parsedDurationUs = try {
+            // The chart generator's parser knows the musical end; padding the render to it
+            // covers a last note whose note-off is missing from the file. Playback must not
+            // fail just because the optional duration pass could not parse this file.
+            RhythmMidiParser.parse(bytes).durationMs.toLong() * 1000L
+        } catch (e: Exception) {
+            null
+        }
+        val lastSampleUs = samples.lastOrNull()?.timeUs ?: 0L
+        val endUs = maxOf(lastSampleUs, parsedDurationUs ?: 0L) + RELEASE_TAIL_MS * 1000L
+        val estimateBytes = (endUs * BYTES_PER_SECOND / 1_000_000L).toInt()
+        val pcm = ByteArrayOutputStream(estimateBytes.coerceIn(64 * 1024, 64 * 1024 * 1024))
+        val synth = PiscesMidiOfflineDecoder(context)
+        try {
+            for (sample in samples) {
+                synth.renderSample(sample.timeUs, sample.data) { floats, count ->
+                    appendPcm16(pcm, floats, count)
+                }
+            }
+            // Advance the synth to the musical end so the final voices can release.
+            if (endUs > lastSampleUs) {
+                synth.renderSample(endUs, EMPTY_BYTES) { floats, count ->
+                    appendPcm16(pcm, floats, count)
+                }
+            }
+        } finally {
+            synth.close()
+        }
+        val output = pcm.toByteArray()
+        if (output.isEmpty()) throw RhythmPcmDecoder.DecodeException("MIDI render produced no audio")
+        return RhythmPcmAudio(output, OUTPUT_SAMPLE_RATE, OUTPUT_CHANNELS)
+    }
+
+    // ---- Extractor pass: raw MIDI message samples with their timestamps -------------
+
+    private data class MidiSample(val timeUs: Long, val data: ByteArray)
+
+    private val EMPTY_BYTES = ByteArray(0)
+
+    private fun extractSamples(bytes: ByteArray): List<MidiSample> {
+        val samples = ArrayList<MidiSample>()
+        val trackOutput = CapturingTrackOutput(samples)
         val extractor = MidiExtractor()
         extractor.init(object : ExtractorOutput {
             override fun track(id: Int, type: Int): TrackOutput = trackOutput
@@ -61,7 +117,16 @@ internal object RhythmMidiPcmRenderer {
         } finally {
             extractor.release()
         }
-        return trackOutput.toPcm()
+        return samples
+    }
+
+    /** Converts MidiDecoder's float PCM into the little-endian 16-bit format AudioTrack wants. */
+    private fun appendPcm16(out: ByteArrayOutputStream, floats: FloatArray, count: Int) {
+        for (i in 0 until count) {
+            val value = (floats[i].coerceIn(-1f, 1f) * 32767f).roundToInt()
+            out.write(value and 0xFF)
+            out.write((value shr 8) and 0xFF)
+        }
     }
 
     // ---- ExtractorInput over an in-memory file -----------------------------------
@@ -176,20 +241,17 @@ internal object RhythmMidiPcmRenderer {
         }
     }
 
-    // ---- TrackOutput capturing every rendered sample ------------------------------
+    // ---- TrackOutput capturing every MIDI sample ------------------------------
 
     @UnstableApi
-    private class CapturingTrackOutput : TrackOutput {
+    private class CapturingTrackOutput(private val samples: MutableList<MidiSample>) : TrackOutput {
 
-        private val out = ByteArrayOutputStream()
-        private var format: Format? = null
+        private val pending = ByteArrayOutputStream()
 
-        override fun format(format: Format) {
-            this.format = format
-        }
+        override fun format(format: Format) = Unit
 
         override fun sampleData(
-            data: androidx.media3.common.DataReader,
+            data: DataReader,
             length: Int,
             allowEndOfInput: Boolean,
             sampleDataPart: Int,
@@ -198,15 +260,22 @@ internal object RhythmMidiPcmRenderer {
             var offset = 0
             while (offset < length) {
                 val read = data.read(buffer, offset, length - offset)
-                if (read == END_OF_INPUT) break
+                if (read == END_OF_INPUT) {
+                    if (offset == 0 && allowEndOfInput) return END_OF_INPUT
+                    break
+                }
                 offset += read
             }
-            out.write(buffer, 0, offset)
+            pending.write(buffer, 0, offset)
             return offset
         }
 
         override fun sampleData(data: ParsableByteArray, length: Int, sampleDataPart: Int) {
-            out.write(data.data, 0, length)
+            if (length <= 0) return
+            // TrackOutput's contract: read from the current position and advance past it.
+            // MidiExtractor relies on that advance for meta events.
+            pending.write(data.data, data.position, length)
+            data.skipBytes(length)
         }
 
         override fun sampleMetadata(
@@ -215,19 +284,9 @@ internal object RhythmMidiPcmRenderer {
             size: Int,
             offset: Int,
             cryptoData: TrackOutput.CryptoData?,
-        ) = Unit
-
-        fun toPcm(): RhythmPcmAudio {
-            val f = format
-                ?: throw RhythmPcmDecoder.DecodeException("MIDI render produced no audio track")
-            if (f.sampleMimeType != MimeTypes.AUDIO_RAW || f.pcmEncoding != C.ENCODING_PCM_16BIT) {
-                throw RhythmPcmDecoder.DecodeException(
-                    "Unsupported MIDI render output: ${f.sampleMimeType}/${f.pcmEncoding}"
-                )
-            }
-            val bytes = out.toByteArray()
-            if (bytes.isEmpty()) throw RhythmPcmDecoder.DecodeException("MIDI render produced no data")
-            return RhythmPcmAudio(bytes, f.sampleRate, f.channelCount)
+        ) {
+            samples += MidiSample(timeUs, pending.toByteArray())
+            pending.reset()
         }
     }
 }

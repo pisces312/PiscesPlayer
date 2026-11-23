@@ -22,6 +22,12 @@ PixelPlayerOSS; versions up to and including 0.4.3 were published under the upst
   the short-press/long-press hint is one line directly under the button.
 
 ### Fixed
+- Rhythm game: a MIDI-generated chart failed to start with "Unsupported MIDI render output:
+  audio/x-exoplayer-midi/-1". The offline renderer was treating Media3's MIDI extractor output
+  (raw MIDI messages) as PCM; it now synthesizes those events through the same Sonivox/JSyn
+  decoder the main player uses, and converts the float PCM to the 16-bit stereo stream the
+  game's AudioTrack needs. MIDI messages are also read from the extractor's current position
+  now, so meta events no longer shift the byte stream.
 - Home: long-pressing the Serendipity pill also entered grid edit mode, because the grid's own
   long-press detector starts from a down the pill had already consumed and fired at the same
   timeout. The pill now claims its bounds, and the grid leaves that gesture to it.
