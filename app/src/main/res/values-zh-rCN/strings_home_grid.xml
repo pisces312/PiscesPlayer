@@ -52,4 +52,17 @@
     <string name="home_grid_restore_confirm_body">当前的卡片排布会被默认网格替换。</string>
     <string name="home_grid_restore_confirm_ok">恢复</string>
     <string name="home_grid_cancel">取消</string>
+
+    <!-- 快速上手（顶栏帮助按钮，plan v1.3.5 决策 25） -->
+    <string name="home_help_cd">帮助与快速上手</string>
+    <string name="home_help_title">快速上手</string>
+    <string name="home_help_tip_grid_title">长按拖动</string>
+    <string name="home_help_tip_grid_body">长按卡片进入编辑：按住不放拖动排序，点尺寸角标切换大小，点 × 删除；点空白处或「完成」退出。</string>
+    <string name="home_help_tip_add_title">把更多功能放上首页</string>
+    <string name="home_help_tip_add_body">点网格末尾的 ＋，添加游戏、入梦、云端或任意歌单。</string>
+    <string name="home_help_tip_ai_title">AI 歌单 · 不期而遇</string>
+    <string name="home_help_tip_ai_body">点卡片查看全部混音；「不期而遇」短按立即生成一首歌单，长按说出此刻的心情。</string>
+    <string name="home_help_tip_daily_title">每日推荐</string>
+    <string name="home_help_tip_daily_body">点歌曲胶囊直接播放；点卡片查看全部；右上角按钮随机播放。</string>
+    <string name="home_help_view_changelog">查看更新日志</string>
 </resources>

@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.automirrored.rounded.HelpOutline
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
@@ -92,6 +93,7 @@ fun GenreGradientTopBar(
 @Composable
 fun HomeGradientTopBar(
     onNavigationIconClick: () -> Unit,
+    onHelpClick: () -> Unit,
     isScrolled: Boolean = false,
     modifier: Modifier = Modifier,
     /** Extra action buttons rendered after the settings button (e.g. grid edit). */
@@ -119,17 +121,33 @@ fun HomeGradientTopBar(
                 // Single line: the name must never wrap, no matter how many actions exist.
                 maxLines = 1,
                 softWrap = false,
-                modifier = Modifier.padding(start = 16.dp)
+                // v1.3.5: 12dp, exactly the grid's outer gutter, so the title lines up
+                // with the cards' left edge.
+                modifier = Modifier.padding(start = 12.dp)
             )
         },
         actions = {
-            // v1.3.3 (plan §12 decision 18): cloud / 入梦 live in the grid now, so the
-            // top bar carries only the settings button, anchored to the far right.
+            // v1.3.3 (plan §12 decision 18): cloud / 入梦 live in the grid now. The top
+            // bar carries help + settings; 12dp end padding matches the grid gutter so
+            // the settings circle's edge aligns with the cards' right edge.
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.padding(end = 14.dp)
+                modifier = Modifier.padding(end = 12.dp)
             ) {
+                // v1.3.5: quick-start help for the customizable home (plan decision 25).
+                FilledIconButton(
+                    colors = IconButtonDefaults.filledIconButtonColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        contentColor = MaterialTheme.colorScheme.onSurface
+                    ),
+                    onClick = onHelpClick
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Rounded.HelpOutline,
+                        contentDescription = stringResource(R.string.home_help_cd)
+                    )
+                }
                 FilledIconButton(
                     colors = IconButtonDefaults.filledIconButtonColors(
                         containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,

@@ -69,6 +69,11 @@ object ShapeCache {
     /** M3 Expressive soft burst — empty-state hero icon containers */
     @OptIn(ExperimentalMaterial3ExpressiveApi::class)
     val expressiveHero: Shape = RoundedPolygonShape(MaterialShapes.SoftBurst)
+
+    /** M3 Expressive slanted pill — the Serendipity (不期而遇) button shape (v1.3.5): the
+     * only slanted surface in the app, so the action reads as "different by design". */
+    @OptIn(ExperimentalMaterial3ExpressiveApi::class)
+    val serendipitySlant: Shape = RoundedPolygonShape(MaterialShapes.Slanted)
 }
 
 /**

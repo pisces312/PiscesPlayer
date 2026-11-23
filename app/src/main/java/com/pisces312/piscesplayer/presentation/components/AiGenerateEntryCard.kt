@@ -32,8 +32,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.pisces312.piscesplayer.R
+import com.pisces312.piscesplayer.ui.theme.ShapeCache
 
 /**
  * Home screen entry point for AI playlist generation.
@@ -82,43 +84,28 @@ fun AiGenerateEntryCard(
                             Modifier.heightIn(min = 88.dp)
                                     .padding(horizontal = 16.dp, vertical = 10.dp)
             ) {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                                imageVector = Icons.Rounded.AutoFixHigh,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onSurface,
-                                modifier = Modifier.size(28.dp)
-                        )
-                        Spacer(modifier = Modifier.width(14.dp))
-                        Column(
-                                modifier = Modifier.weight(1f),
-                                verticalArrangement = Arrangement.spacedBy(1.dp)
-                        ) {
-                            Text(
-                                    text = stringResource(R.string.ai_playlist_entry_title),
-                                    style = MaterialTheme.typography.titleLarge,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = MaterialTheme.colorScheme.onSurface
-                            )
-                            Text(
-                                    // v1.3.3: the hint is deliberately two lines
-                                    // (「短按即听」/「长按说一句」) — a forced mid-phrase
-                                    // wrap looked broken next to the action pill.
-                                    text =
-                                            stringResource(
-                                                    if (configured) R.string.ai_serendipity_button_hint
-                                                    else R.string.ai_playlist_entry_unconfigured
-                                            ).replace(" · ", "\n"),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    maxLines = 2
-                            )
-                        }
-                        Spacer(modifier = Modifier.width(12.dp))
+                Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                            imageVector = Icons.Rounded.AutoFixHigh,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.size(28.dp)
+                    )
+                    Spacer(modifier = Modifier.width(14.dp))
+                    Text(
+                            text = stringResource(R.string.ai_playlist_entry_title),
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.weight(1f)
+                    )
+                    // v1.3.5: the hint lives UNDER the pill, so it clearly describes the
+                    // pill's gestures and not the whole card (user feedback). The pill is
+                    // the slanted expressive shape — the only one of its kind on home.
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         ActionPill(
                                 text = stringResource(R.string.ai_serendipity_button),
                                 icon = Icons.Rounded.AutoFixHigh,
@@ -126,8 +113,21 @@ fun AiGenerateEntryCard(
                                 onClick = onQuickGenerate,
                                 onLongClick = onOpenDescribe,
                                 // The one text-carrying action on home: highlight it with
-                                // a gentle breathing pulse (plan v1.3.4 decision 22).
+                                // a breathing pulse (plan v1.3.4/1.3.5 decision 22).
                                 highlight = true,
+                        )
+                        Text(
+                                // Deliberately two lines: 「短按即听」/「长按说一句」.
+                                text =
+                                        stringResource(
+                                                if (configured) R.string.ai_serendipity_button_hint
+                                                else R.string.ai_playlist_entry_unconfigured
+                                        ).replace(" · ", "\n"),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                textAlign = TextAlign.Center,
+                                maxLines = 2,
+                                modifier = Modifier.padding(top = 4.dp)
                         )
                     }
                 }
@@ -190,19 +190,26 @@ private fun ActionPill(
         }
     }
 
+    // v1.3.5: the highlighted pill wears the slanted expressive shape; everything else
+    // stays a circle (icon actions = circles, the one verb action = distinctive shape).
+    val pillShape: androidx.compose.ui.graphics.Shape =
+            if (highlight) ShapeCache.serendipitySlant else CircleShape
+
     if (onClick != null || onLongClick != null) {
         Surface(
-                shape = CircleShape,
+                shape = pillShape,
                 color = color,
                 modifier =
-                        Modifier.clip(CircleShape)
+                        Modifier.clip(pillShape)
                                 .graphicsLayer {
                                     if (highlight) {
+                                        // v1.3.5: noticeably livelier than the first pass
+                                        // (scale 1→1.05, shadow 4→18dp, eased sine).
                                         val eased = 0.5f - 0.5f * kotlin.math.cos(pulse * kotlin.math.PI.toFloat())
-                                        val scale = 1f + 0.035f * eased
+                                        val scale = 1f + 0.05f * eased
                                         scaleX = scale
                                         scaleY = scale
-                                        shadowElevation = (3f + 9f * eased).dp.toPx()
+                                        shadowElevation = (4f + 14f * eased).dp.toPx()
                                     }
                                 }
                                 .combinedClickable(
@@ -213,6 +220,6 @@ private fun ActionPill(
             content()
         }
     } else {
-        Surface(shape = CircleShape, color = color) { content() }
+        Surface(shape = pillShape, color = color) { content() }
     }
 }

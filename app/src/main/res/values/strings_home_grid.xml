@@ -52,4 +52,17 @@
     <string name="home_grid_restore_confirm_body">Your current card arrangement will be replaced by the default grid.</string>
     <string name="home_grid_restore_confirm_ok">Restore</string>
     <string name="home_grid_cancel">Cancel</string>
+
+    <!-- Quick-start help (top-bar ? button, plan v1.3.5 decision 25) -->
+    <string name="home_help_cd">Help and quick start</string>
+    <string name="home_help_title">Quick start</string>
+    <string name="home_help_tip_grid_title">Long-press and drag</string>
+    <string name="home_help_tip_grid_body">Long-press a card to edit: keep holding and drag to reorder, tap the size badge to resize, tap × to remove. Tap empty space or Done to exit.</string>
+    <string name="home_help_tip_add_title">Put more on home</string>
+    <string name="home_help_tip_add_body">Tap the ＋ tile at the end of the grid to add games, soundscape, streaming or any playlist.</string>
+    <string name="home_help_tip_ai_title">AI playlists · Serendipity</string>
+    <string name="home_help_tip_ai_body">Tap the card for all your mixes. Short-press Serendipity for an instant mix; long-press it to describe the moment yourself.</string>
+    <string name="home_help_tip_daily_title">Daily Mix</string>
+    <string name="home_help_tip_daily_body">Tap a capsule to play that song; tap the card for the full list; the corner button shuffles.</string>
+    <string name="home_help_view_changelog">View changelog</string>
 </resources>

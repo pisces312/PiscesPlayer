@@ -68,6 +68,7 @@ import com.pisces312.piscesplayer.presentation.components.AiGenerateEntryCard
 import com.pisces312.piscesplayer.presentation.components.AiMixSheet
 import com.pisces312.piscesplayer.presentation.components.HomeGradientTopBar
 import com.pisces312.piscesplayer.presentation.components.MiniPlayerHeight
+import com.pisces312.piscesplayer.presentation.components.ChangelogBottomSheet
 import com.pisces312.piscesplayer.presentation.components.RecentAiMixesRow
 import com.pisces312.piscesplayer.presentation.components.RootTabScrollToTopEffect
 import com.pisces312.piscesplayer.presentation.components.SampleConfig
@@ -79,6 +80,7 @@ import com.pisces312.piscesplayer.presentation.home.HomeDailyMixContent
 import com.pisces312.piscesplayer.presentation.home.HomeGrid
 import com.pisces312.piscesplayer.presentation.home.HomeGridEmpty
 import com.pisces312.piscesplayer.presentation.home.HomeGridSpec
+import com.pisces312.piscesplayer.presentation.home.HomeHelpSheet
 import com.pisces312.piscesplayer.presentation.home.HomePlaylistPickerSheet
 import com.pisces312.piscesplayer.presentation.navigation.Screen
 import com.pisces312.piscesplayer.presentation.navigation.navigateSafely
@@ -95,7 +97,7 @@ import java.time.format.TextStyle
 import java.util.Locale
 import kotlin.math.roundToInt
 
-private enum class HomeSheet { None, Add, PickPlaylist }
+private enum class HomeSheet { None, Add, PickPlaylist, Help, Changelog }
 
 private val SerendipityStepPermissions = arrayOf(Manifest.permission.ACTIVITY_RECOGNITION)
 private val SerendipityLocationPermissions =
@@ -471,6 +473,7 @@ fun HomeScreen(
                     onNavigationIconClick = {
                         navController.navigateSafely(Screen.Settings.route)
                     },
+                    onHelpClick = { sheet = HomeSheet.Help },
                     isScrolled = listState.firstVisibleItemIndex > 0 || listState.firstVisibleItemScrollOffset > 0,
                     modifier = Modifier,
                     // v1.3.3: cloud / 入梦 are grid cards; the top bar keeps only the
@@ -658,6 +661,21 @@ fun HomeScreen(
                     sheet = HomeSheet.None
                 },
             )
+        }
+    } else if (sheet == HomeSheet.Help) {
+        // v1.3.5 (plan §12 decision 25): quick-start help for the customizable home.
+        ModalBottomSheet(
+            onDismissRequest = { sheet = HomeSheet.None },
+            sheetState = addSheetState,
+        ) {
+            HomeHelpSheet(onViewChangelog = { sheet = HomeSheet.Changelog })
+        }
+    } else if (sheet == HomeSheet.Changelog) {
+        ModalBottomSheet(
+            onDismissRequest = { sheet = HomeSheet.None },
+            sheetState = addSheetState,
+        ) {
+            ChangelogBottomSheet()
         }
     }
 
