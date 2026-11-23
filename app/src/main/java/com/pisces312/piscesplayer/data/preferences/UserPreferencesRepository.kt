@@ -148,6 +148,7 @@ constructor(
         val GLOBAL_TRANSITION_SETTINGS = stringPreferencesKey("global_transition_settings_json")
         val LIBRARY_TABS_ORDER = stringPreferencesKey("library_tabs_order")
         val CLASSICAL_TRANSLATION_ENABLED = booleanPreferencesKey("classical_translation_enabled")
+        val MIDI_TRANSLATION_ENABLED = booleanPreferencesKey("midi_translation_enabled")
         val IS_FOLDER_FILTER_ACTIVE = booleanPreferencesKey("is_folder_filter_active")
         val IS_FOLDERS_PLAYLIST_VIEW = booleanPreferencesKey("is_folders_playlist_view")
         val HIDE_LOCAL_MEDIA = booleanPreferencesKey("hide_local_media")
@@ -1668,6 +1669,18 @@ constructor(
     suspend fun setClassicalTranslationEnabled(enabled: Boolean) {
         dataStore.edit { preferences ->
             preferences[PreferencesKeys.CLASSICAL_TRANSLATION_ENABLED] = enabled
+        }
+    }
+
+    /** 节奏游戏选曲 MIDI tab 的「曲名翻译」开关：独立于古典熏陶的开关，默认关闭。 */
+    val midiTranslationEnabledFlow: Flow<Boolean> = dataStore.data
+        .map { preferences ->
+            preferences[PreferencesKeys.MIDI_TRANSLATION_ENABLED] ?: false
+        }
+
+    suspend fun setMidiTranslationEnabled(enabled: Boolean) {
+        dataStore.edit { preferences ->
+            preferences[PreferencesKeys.MIDI_TRANSLATION_ENABLED] = enabled
         }
     }
 

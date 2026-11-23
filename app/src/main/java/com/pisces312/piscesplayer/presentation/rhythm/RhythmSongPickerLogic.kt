@@ -1,5 +1,6 @@
 package com.pisces312.piscesplayer.presentation.rhythm
 
+import com.pisces312.piscesplayer.data.classical.NameSet
 import com.pisces312.piscesplayer.data.model.Song
 import com.pisces312.piscesplayer.data.model.SortOption
 import com.pisces312.piscesplayer.data.rhythm.DspDifficultySpec
@@ -58,8 +59,21 @@ internal data class RhythmSongCandidate(
     val difficultyKeys: List<String?>,
     /** See [Song.isRhythmMidiSong]: MIDI rows live in the picker's own MIDI tab. */
     val isMidi: Boolean = false,
+    /** Built-in classical three-layer names (original/en/zh); null for user MIDI rows. */
+    val names: NameSet? = null,
 ) {
     val chartCount: Int get() = difficultyKeys.size
+
+    /**
+     * Search hit against the three-layer catalog names: any of original/en/zh containing
+     * the query (case-insensitive). Pure-function twin of
+     * `presentation/screens/ClassicalBrowseCommon.kt` `namesMatchQuery`.
+     */
+    fun matchesNames(query: String): Boolean {
+        val names = names ?: return false
+        return listOf(names.original, names.en, names.zh)
+            .any { it.contains(query, ignoreCase = true) }
+    }
 }
 
 /**
@@ -107,7 +121,8 @@ internal fun filterRhythmSongCandidates(
     return scoped.filter { candidate ->
         (normalizedQuery.isEmpty() ||
             candidate.title.contains(normalizedQuery, ignoreCase = true) ||
-            candidate.artist.contains(normalizedQuery, ignoreCase = true)) &&
+            candidate.artist.contains(normalizedQuery, ignoreCase = true) ||
+            candidate.matchesNames(normalizedQuery)) &&
             candidate.matchesDifficulty(filters.difficulty) &&
             when (filters.charts) {
                 RhythmChartFilter.ALL -> true

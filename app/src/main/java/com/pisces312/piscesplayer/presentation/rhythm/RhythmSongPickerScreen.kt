@@ -44,6 +44,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -72,6 +73,8 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.pisces312.piscesplayer.R
+import com.pisces312.piscesplayer.data.classical.ClassicalDisplayNames
+import com.pisces312.piscesplayer.data.classical.ClassicalNameCatalog
 import com.pisces312.piscesplayer.data.model.Song
 import com.pisces312.piscesplayer.data.model.SortOption
 import com.pisces312.piscesplayer.data.offline.CloudOfflineRepository
@@ -80,6 +83,7 @@ import com.pisces312.piscesplayer.data.rhythm.RhythmLatencyStore
 import com.pisces312.piscesplayer.presentation.components.LibrarySortBottomSheet
 import com.pisces312.piscesplayer.presentation.components.SmartImage
 import com.pisces312.piscesplayer.presentation.components.SmartImageListTargetSize
+import com.pisces312.piscesplayer.presentation.screens.trackDisplayNames
 import com.pisces312.piscesplayer.presentation.viewmodel.PlayerViewModel
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.launch
@@ -103,6 +107,8 @@ fun RhythmSongPickerScreen(
     val allSongs by playerViewModel.allSongsFlow.collectAsStateWithLifecycle()
     val playbackHistory by playerViewModel.playbackHistory.collectAsStateWithLifecycle()
     val chartCatalog by pickerViewModel.chartCatalog.collectAsStateWithLifecycle()
+    val translationEnabled by pickerViewModel.translationEnabled.collectAsStateWithLifecycle()
+    val nameCatalog = pickerViewModel.nameCatalog
     val lifecycleOwner = LocalLifecycleOwner.current
     val context = LocalContext.current
 
@@ -147,8 +153,10 @@ fun RhythmSongPickerScreen(
     val recentSongIds = remember(playbackHistory) {
         recentRhythmSongIds(playbackHistory.map { it.songId to it.timestamp })
     }
-    val candidates = remember(localSongs, chartCatalog) {
-        localSongs.map { it.toCandidate(chartCatalog.orEmpty()[it.id].orEmpty()) }
+    val candidates = remember(localSongs, chartCatalog, nameCatalog) {
+        localSongs.map {
+            it.toCandidate(chartCatalog.orEmpty()[it.id].orEmpty(), nameCatalog)
+        }
     }
     // MIDI songs are library rows like any other (built-in classical + user MIDI library),
     // so the MIDI tab is a source filter over the same candidates, not a second data path.
@@ -290,6 +298,28 @@ fun RhythmSongPickerScreen(
                 }
 
                 Column(modifier = Modifier.fillMaxSize()) {
+                    // MIDI tab only (2026-11-24): the 曲名翻译 switch, styled after
+                    // ClassicalBrowseHeader's translate row — label left, Switch right.
+                    // It is deliberately a picker-local preference, not a settings entry.
+                    if (page == 2) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp),
+                        ) {
+                            Text(
+                                text = stringResource(R.string.rhythm_picker_translate_titles),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.weight(1f),
+                            )
+                            Switch(
+                                checked = translationEnabled,
+                                onCheckedChange = pickerViewModel::setTranslationEnabled,
+                            )
+                        }
+                    }
                     // Tab 1 owns the 全部/最近 scope and the difficulty filter; tab 2 needs
                     // neither (it is a flat "no charts yet" view). Both keep the sort entry.
                     FlowRow(
@@ -433,8 +463,18 @@ fun RhythmSongPickerScreen(
                                     key = { (song, _) -> song.id },
                                     contentType = { "rhythm_song" },
                                 ) { (song, candidate) ->
+                                    // Bilingual title display (NameSet primary/subtitle) is
+                                    // MIDI-tab only; the other two tabs keep song.title +
+                                    // displayArtist exactly as before.
+                                    val displayNames = if (page == 2) {
+                                        trackDisplayNames(song, nameCatalog, translationEnabled)
+                                    } else {
+                                        ClassicalDisplayNames(primary = song.title, subtitle = null)
+                                    }
                                     RhythmSongRow(
                                         song = song,
+                                        title = displayNames.primary,
+                                        subtitle = displayNames.subtitle ?: song.displayArtist,
                                         summary = rhythmChartSummary(candidate, difficulty),
                                         onClick = { onSongSelected(song.id) },
                                     )
@@ -545,6 +585,8 @@ private fun <T> RhythmFilterSelector(
 @Composable
 private fun RhythmSongRow(
     song: Song,
+    title: String,
+    subtitle: String,
     summary: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
@@ -570,14 +612,14 @@ private fun RhythmSongRow(
             Spacer(Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = song.title,
+                    text = title,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
                 Text(
-                    text = song.displayArtist,
+                    text = subtitle,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
@@ -697,11 +739,17 @@ private fun difficultyLabel(difficulty: RhythmDifficultyFilter): String = string
     },
 )
 
-private fun Song.toCandidate(charts: List<RhythmChartMeta>): RhythmSongCandidate =
+private fun Song.toCandidate(
+    charts: List<RhythmChartMeta>,
+    nameCatalog: ClassicalNameCatalog,
+): RhythmSongCandidate =
     RhythmSongCandidate(
         id = id,
         title = title,
         artist = displayArtist,
         difficultyKeys = charts.map(RhythmChartMeta::difficultyKey),
         isMidi = isRhythmMidiSong(),
+        // Built-in classical rows carry the three-layer catalog names so the shared
+        // filter matches translated titles too; user MIDI rows simply resolve to null.
+        names = nameCatalog.songName(id),
     )

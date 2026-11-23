@@ -1,5 +1,6 @@
 package com.pisces312.piscesplayer.presentation.rhythm
 
+import com.pisces312.piscesplayer.data.classical.NameSet
 import com.pisces312.piscesplayer.data.rhythm.RhythmChart
 import java.util.Locale
 import org.junit.Assert.assertEquals
@@ -14,12 +15,14 @@ class RhythmSongPickerLogicTest {
         artist: String = "Artist",
         keys: List<String?> = emptyList(),
         isMidi: Boolean = false,
+        names: NameSet? = null,
     ) = RhythmSongCandidate(
         id = id,
         title = title,
         artist = artist,
         difficultyKeys = keys,
         isMidi = isMidi,
+        names = names,
     )
 
     private val songs = listOf(
@@ -186,6 +189,86 @@ class RhythmSongPickerLogicTest {
 
         assertEquals(listOf("b"), byTitle.map(RhythmSongCandidate::id))
         assertEquals(listOf("e"), byArtist.map(RhythmSongCandidate::id))
+    }
+
+    @Test
+    fun searchMatchesAnyNameLayerIgnoringCase() {
+        val named = candidate(
+            "n1",
+            title = "Sonata 16",
+            names = NameSet(
+                original = "Klaviersonate Nr. 16",
+                en = "Piano Sonata No. 16",
+                zh = "C大调第16钢琴奏鸣曲",
+            ),
+        )
+        val corpus = listOf(named)
+
+        // Original / English / Chinese layer each hits on its own; none of these
+        // queries appears in the DB title or artist.
+        listOf("klaviersonate", "PIANO SONATA", "第16钢琴").forEach { query ->
+            val result = filterRhythmSongCandidates(
+                candidates = corpus,
+                recentSongIds = emptyList(),
+                query = query,
+                filters = RhythmSongFilterState(
+                    scope = RhythmSongScope.ALL,
+                    charts = RhythmChartFilter.ALL,
+                ),
+            )
+
+            assertEquals("query: $query", listOf("n1"), result.map(RhythmSongCandidate::id))
+        }
+    }
+
+    @Test
+    fun searchMissesWhenNeitherTitleNorNamesMatch() {
+        val named = candidate(
+            "n1",
+            title = "Sonata 16",
+            names = NameSet(
+                original = "Klaviersonate Nr. 16",
+                en = "Piano Sonata No. 16",
+                zh = "C大调第16钢琴奏鸣曲",
+            ),
+        )
+
+        val result = filterRhythmSongCandidates(
+            candidates = listOf(named),
+            recentSongIds = emptyList(),
+            query = "beethoven",
+            filters = RhythmSongFilterState(
+                scope = RhythmSongScope.ALL,
+                charts = RhythmChartFilter.ALL,
+            ),
+        )
+
+        assertTrue(result.isEmpty())
+    }
+
+    @Test
+    fun searchOnUserMidiWithoutNamesStillMatchesTitleOnly() {
+        val userMidi = candidate("u1", title = "My Remix", isMidi = true)
+        val filters = RhythmSongFilterState(
+            scope = RhythmSongScope.ALL,
+            charts = RhythmChartFilter.ALL,
+        )
+
+        val hit = filterRhythmSongCandidates(
+            candidates = listOf(userMidi),
+            recentSongIds = emptyList(),
+            query = "remix",
+            filters = filters,
+        )
+        val miss = filterRhythmSongCandidates(
+            candidates = listOf(userMidi),
+            recentSongIds = emptyList(),
+            query = "klaviersonate",
+            filters = filters,
+        )
+
+        assertEquals(listOf("u1"), hit.map(RhythmSongCandidate::id))
+        assertTrue(miss.isEmpty())
     }
 
     @Test

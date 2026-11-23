@@ -6,6 +6,14 @@ PixelPlayerOSS; versions up to and including 0.4.3 were published under the upst
 ## [Unreleased]
 
 ### Added
+- Rhythm game: MIDI chart generation now offers a parameter sheet (difficulty rungs with
+  per-rung note-per-second caps and chord width, lane strategy) and defaults to three rungs
+  (Easy ~1 hit/s, Normal ~2, Hard ≤4) instead of dumping the file's raw note density into the
+  chart — dense piano pieces finally produce playable charts.
+- Rhythm game: the song picker's MIDI tab has a "Translate titles" switch (off by default,
+  independent of the Classical switch) showing bilingual primary/subtitle titles, and its
+  search now matches the original and translated names (any of original/English/Chinese)
+  in addition to title and artist.
 - Home: customizable card grid — cards can be added, removed, resized (1x1 / 2x1 / 1x2 / 2x2) and
   reordered by long-press drag; layout persists per user. AI playlist and Daily Mix cards keep
   their rich content, every card uses the neutral rounded style of the old AI playlist entry.
@@ -22,6 +30,10 @@ PixelPlayerOSS; versions up to and including 0.4.3 were published under the upst
   the short-press/long-press hint is one line directly under the button.
 
 ### Fixed
+- Rhythm game: entering a MIDI chart blocked on a full-song software render before the first
+  note could fall (tens of seconds on long pieces). The render now streams: the game starts
+  once a short runway of PCM is buffered and the Sonivox synthesis keeps filling the buffer
+  behind the playback cursor; leaving the screen cancels a render still in progress.
 - Rhythm game: a MIDI-generated chart failed to start with "Unsupported MIDI render output:
   audio/x-exoplayer-midi/-1". The offline renderer was treating Media3's MIDI extractor output
   (raw MIDI messages) as PCM; it now synthesizes those events through the same Sonivox/JSyn
