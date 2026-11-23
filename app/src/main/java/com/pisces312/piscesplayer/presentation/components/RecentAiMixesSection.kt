@@ -32,12 +32,13 @@ import com.pisces312.piscesplayer.data.model.Playlist
 import racra.compose.smooth_corner_rect_library.AbsoluteSmoothCornerShape
 
 /** How many mixes the home row shows before pointing at the full list. */
-private const val HOME_AI_MIX_PREVIEW_COUNT = 6
+private const val HOME_AI_MIX_PREVIEW_COUNT = 4
 
 private val MIX_CARD_WIDTH = 152.dp
 
-/** Fixed so every card lines up, whatever the name and timestamp lengths are. */
-private val MIX_CARD_HEIGHT = 72.dp
+/** Fixed so every card lines up, whatever the name and timestamp lengths are.
+ * v1.3.3: 72 → 56dp so the shelf + the「show all」button fit the 2×2 grid card. */
+private val MIX_CARD_HEIGHT = 56.dp
 
 /**
  * Horizontal shelf of recent generated mixes, embedded below the AI generation CTA.
@@ -66,7 +67,7 @@ fun RecentAiMixesRow(
                 onClick = onShowAll,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = 12.dp)
+                    .padding(top = 8.dp)
             ) {
                 Text(stringResource(R.string.home_recent_ai_mixes_show_more, mixes.size))
             }
@@ -94,7 +95,7 @@ private fun RecentAiMixCard(mix: Playlist, onClick: () -> Unit) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 14.dp, vertical = 12.dp),
+                .padding(horizontal = 14.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.SpaceBetween
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {

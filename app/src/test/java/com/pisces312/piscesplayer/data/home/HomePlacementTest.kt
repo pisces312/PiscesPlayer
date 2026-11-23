@@ -94,14 +94,15 @@ class HomePlacementTest {
 
     @Test
     fun `default layout matches the documented arrangement`() {
-        // From home-cards-grid-plan.md §9 (v1.3): AI 歌单 2×2 first, 每日推荐 2×2,
-        // games side by side, 入梦 2×2 block.
+        // From home-cards-grid-plan.md §9 (v1.3.3): AI 歌单 2×2 first, then the two
+        // games side by side, then 入梦 + 云端 side by side, then 每日推荐 2×2.
         val placements = placeHomeCards(DefaultHomeLayout).placements
         assertEquals(HomePlacement(row = 0, column = 0), placements.getValue("default_ai_playlist"))
-        assertEquals(HomePlacement(row = 2, column = 0), placements.getValue("default_daily_mix"))
-        assertEquals(HomePlacement(row = 4, column = 0), placements.getValue("default_game_rhythm"))
-        assertEquals(HomePlacement(row = 4, column = 1), placements.getValue("default_game_quiz"))
-        assertEquals(HomePlacement(row = 5, column = 0), placements.getValue("default_soundscape"))
+        assertEquals(HomePlacement(row = 2, column = 0), placements.getValue("default_game_rhythm"))
+        assertEquals(HomePlacement(row = 2, column = 1), placements.getValue("default_game_quiz"))
+        assertEquals(HomePlacement(row = 3, column = 0), placements.getValue("default_soundscape"))
+        assertEquals(HomePlacement(row = 3, column = 1), placements.getValue("default_streaming"))
+        assertEquals(HomePlacement(row = 4, column = 0), placements.getValue("default_daily_mix"))
     }
 
     @Test

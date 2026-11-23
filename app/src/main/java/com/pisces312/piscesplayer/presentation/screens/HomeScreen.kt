@@ -468,14 +468,10 @@ fun HomeScreen(
                     onNavigationIconClick = {
                         navController.navigateSafely(Screen.Settings.route)
                     },
-                    onStreamingClick = { showStreamingSheet = true },
-                    onSoundscapeClick = {
-                        navController.navigateSafely(Screen.SleepSoundscape.route)
-                    },
                     isScrolled = listState.firstVisibleItemIndex > 0 || listState.firstVisibleItemScrollOffset > 0,
                     modifier = Modifier,
-                    // v1.2: the cloud / 入梦 / settings actions are all cards now; the top bar
-                    // keeps only the leading settings button (extraActions left empty on purpose).
+                    // v1.3.3: cloud / 入梦 are grid cards; the top bar keeps only the
+                    // settings button at the far right.
                     extraActions = { Spacer(Modifier.width(14.dp)) },
                 )
             }

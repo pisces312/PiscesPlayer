@@ -14,7 +14,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Recommend
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButtonDefaults
@@ -39,19 +40,18 @@ import com.pisces312.piscesplayer.presentation.components.SmartImage
 import kotlinx.collections.immutable.ImmutableList
 import racra.compose.smooth_corner_rect_library.AbsoluteSmoothCornerShape
 
-/** Capsules shown in the 2×2 card; the rest are reachable via「查看全部」. */
+/** Capsules shown in the 2×2 card; the rest are reachable via the view-all action. */
 private const val CAPSULE_PREVIEW_COUNT = 10
 
 /**
- * The 每日推荐 card body for the home grid (plan §12 decision 9, v1.3.2 decision 16)
- * — the same hero grammar the pre-grid home used (`DailyMixHeroHeader` + view-all),
- * with the middle band rendered as a **song-capsule row** instead of the collage:
- * each capsule is a 40dp rounded cover + title / artist, the same capsule language
- * as `RecentAiMixCard`. Tapping a capsule plays that song directly.
+ * The 每日推荐 card body for the home grid (plan §12 decision 9, v1.3.2/1.3.3
+ * decisions 16/21) — hero header + song-capsule row. Since v1.3.3 both actions
+ * (shuffle play / view all) live in the header's top-right corner as a matched
+ * pair of 48dp filled-tonal icon buttons, which freed the middle band: capsules
+ * are vertically centred and the song name may wrap to two lines.
  *
- * - 2×1: only the hero header row (title + subtitle + shuffle action).
- * - 2×2: header, then the capsule row vertically centered in the remaining space,
- *   then the「查看全部」button.
+ * - 2×1: only the hero header row (title + subtitle + the two actions).
+ * - 2×2: header, then the capsule row centred in the remaining space.
  */
 @Composable
 fun HomeDailyMixContent(
@@ -69,22 +69,42 @@ fun HomeDailyMixContent(
         HomeSectionHeader(
             title = stringResource(R.string.presentation_batch_b_daily_mix_title),
             subtitle = stringResource(R.string.home_your_mix_subtitle),
+            // v1.3.3: every card title carries a leading icon, like the AI playlist card.
+            icon = Icons.Rounded.Recommend,
             // The grid card already pads 16dp.
             contentPadding = PaddingValues(0.dp),
             action = {
-                FilledTonalIconButton(
-                    onClick = onPlayShuffled,
-                    modifier = Modifier.size(56.dp),
-                    colors = IconButtonDefaults.filledTonalIconButtonColors(
-                        containerColor = if (isShuffleEnabled) colors.primary else colors.tertiaryContainer,
-                        contentColor = if (isShuffleEnabled) colors.onPrimary else colors.onTertiaryContainer,
-                    ),
-                ) {
-                    Icon(
-                        painter = painterResource(R.drawable.rounded_shuffle_24),
-                        contentDescription = stringResource(R.string.cd_shuffle_play),
-                        modifier = Modifier.size(24.dp),
-                    )
+                // Matched pair: identical size / shape / tonal style. The shuffle
+                // button alone switches to primary colours while shuffle is active.
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FilledTonalIconButton(
+                        onClick = onPlayShuffled,
+                        modifier = Modifier.size(48.dp),
+                        colors = IconButtonDefaults.filledTonalIconButtonColors(
+                            containerColor = if (isShuffleEnabled) colors.primary else colors.tertiaryContainer,
+                            contentColor = if (isShuffleEnabled) colors.onPrimary else colors.onTertiaryContainer,
+                        ),
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.rounded_shuffle_24),
+                            contentDescription = stringResource(R.string.cd_shuffle_play),
+                            modifier = Modifier.size(22.dp),
+                        )
+                    }
+                    FilledTonalIconButton(
+                        onClick = onViewAll,
+                        modifier = Modifier.size(48.dp),
+                        colors = IconButtonDefaults.filledTonalIconButtonColors(
+                            containerColor = colors.tertiaryContainer,
+                            contentColor = colors.onTertiaryContainer,
+                        ),
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.rounded_arrow_forward_24),
+                            contentDescription = stringResource(R.string.presentation_batch_g_daily_mix_see_all),
+                            modifier = Modifier.size(22.dp),
+                        )
+                    }
                 }
             },
         )
@@ -106,13 +126,11 @@ fun HomeDailyMixContent(
                     }
                 }
             }
-            Spacer(Modifier.height(8.dp))
-            DailyMixViewAllButton(onClick = onViewAll)
         }
     }
 }
 
-/** One song pill: 40dp rounded cover + title over artist, `surfaceContainerHigh`. */
+/** One song pill: 40dp rounded cover + a two-line-capable song name over the artist. */
 @Composable
 private fun DailyMixSongCapsule(song: Song, onClick: () -> Unit) {
     val capsuleShape = AbsoluteSmoothCornerShape(
@@ -158,7 +176,9 @@ private fun DailyMixSongCapsule(song: Song, onClick: () -> Unit) {
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Medium,
                     color = MaterialTheme.colorScheme.onSurface,
-                    maxLines = 1,
+                    // v1.3.3: the actions moved out of the card body, so the name
+                    // can take two lines instead of truncating at one.
+                    maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
                 Text(
@@ -169,45 +189,6 @@ private fun DailyMixSongCapsule(song: Song, onClick: () -> Unit) {
                     overflow = TextOverflow.Ellipsis,
                 )
             }
-        }
-    }
-}
-
-/** Same pill as the pre-grid「查看全部每日推荐」button. */
-@Composable
-private fun DailyMixViewAllButton(onClick: () -> Unit) {
-    FilledTonalButton(
-        onClick = onClick,
-        colors = androidx.compose.material3.ButtonDefaults.filledTonalButtonColors(
-            containerColor = androidx.compose.ui.graphics.Color.Transparent,
-        ),
-        shape = AbsoluteSmoothCornerShape(
-            cornerRadiusTL = 10.dp,
-            cornerRadiusTR = 10.dp,
-            smoothnessAsPercentTL = 70,
-            smoothnessAsPercentTR = 70,
-            cornerRadiusBL = 60.dp,
-            cornerRadiusBR = 60.dp,
-            smoothnessAsPercentBL = 70,
-            smoothnessAsPercentBR = 70,
-        ),
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(
-                text = stringResource(R.string.presentation_batch_g_daily_mix_see_all),
-                style = MaterialTheme.typography.bodyLarge,
-                fontWeight = FontWeight.Medium,
-            )
-            Icon(
-                painter = painterResource(R.drawable.rounded_arrow_forward_24),
-                contentDescription = null,
-                modifier = Modifier.size(20.dp),
-            )
         }
     }
 }

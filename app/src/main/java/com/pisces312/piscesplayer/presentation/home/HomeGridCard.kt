@@ -123,7 +123,9 @@ private fun HomeGridCardGenericContent(
 ) {
     val spec = remember(card.type) { HomeCardCatalog.forType(card.type) }
     val title = homeGridCardTitle(card, playlist)
-    val subtitle = when (card.type) {
+    // v1.3.3 (plan §12 decision 20): 1×1 tiles drop the subtitle entirely — at 96dp
+    // tall it only ever truncated; wide 2×1 cards keep a one-line subtitle.
+    val subtitle = if (card.size.spanY == 1) null else when (card.type) {
         com.pisces312.piscesplayer.data.home.HomeCardType.PLAYLIST -> stringResource(
             R.string.home_grid_playlist_tracks_format, playlist?.songIds?.size ?: 0
         )
@@ -142,9 +144,10 @@ private fun HomeGridCardGenericContent(
             )
             Spacer(Modifier.width(if (wide) 14.dp else 10.dp))
             Column(modifier = Modifier.weight(1f, fill = false)) {
+                // Title size is unified with the AI playlist card (titleLarge SemiBold).
                 Text(
                     text = title,
-                    style = if (wide) MaterialTheme.typography.titleLarge else MaterialTheme.typography.titleMedium,
+                    style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 1,

@@ -54,14 +54,6 @@ No `FaceOnLive` JitPack dependency is currently allowed.
 
 ## Bundled Asset Licenses
 
-### Bundled fonts
-
-| App resource | Upstream | License |
-| --- | --- | --- |
-| `app/src/main/res/font/fredoka_medium.ttf` | Fredoka by The Northern Block, via Google Fonts (`https://fonts.google.com/specimen/Fredoka`) | SIL Open Font License 1.1; used for the home top-bar app name |
-
-### 入梦 soundscape audio
-
 The "入梦" sleep soundscape ships natural field recordings derived from
 `awr1001/natures-music-android` (`https://github.com/awr1001/natures-music-android`,
 source snapshot `d67b19f3d84af53e438d5668b938196f0947a033`). The upstream

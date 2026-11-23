@@ -62,11 +62,12 @@ data class HomeCard(
     val size: HomeCardSize,
 )
 
-/** The default home layout used on first launch and by「恢复默认」(plan §9, v1.3). */
+/** The default home layout used on first launch and by「恢复默认」(plan §9, v1.3.3). */
 val DefaultHomeLayout: List<HomeCard> = listOf(
     HomeCard(uid = "default_ai_playlist", type = HomeCardType.AI_PLAYLIST, size = HomeCardSize.L_2x2),
-    HomeCard(uid = "default_daily_mix", type = HomeCardType.DAILY_MIX, size = HomeCardSize.L_2x2),
     HomeCard(uid = "default_game_rhythm", type = HomeCardType.GAME_RHYTHM, size = HomeCardSize.S_1x1),
     HomeCard(uid = "default_game_quiz", type = HomeCardType.GAME_QUIZ, size = HomeCardSize.S_1x1),
     HomeCard(uid = "default_soundscape", type = HomeCardType.SOUNDSCAPE, size = HomeCardSize.S_1x1),
+    HomeCard(uid = "default_streaming", type = HomeCardType.STREAMING, size = HomeCardSize.S_1x1),
+    HomeCard(uid = "default_daily_mix", type = HomeCardType.DAILY_MIX, size = HomeCardSize.L_2x2),
 )

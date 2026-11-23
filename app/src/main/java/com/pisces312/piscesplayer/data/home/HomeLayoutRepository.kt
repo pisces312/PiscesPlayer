@@ -27,10 +27,10 @@ class HomeLayoutRepository @Inject constructor(
 ) {
 
     private object Keys {
-        // v2 (2026-11-22, plan §12): the v1.3 restyle changed the default layout
-        // (AI 歌单 / 每日推荐 are 2×2 heroes now), so the old key is abandoned and
-        // everyone lands on the fresh default once.
-        val HOME_CARDS = stringPreferencesKey("home_cards_v2")
+        // v3 (2026-11-23, plan §9 v1.3.3): the default order changed again
+        // (AI 2×2 → games → 入梦 + 云端 → 每日推荐), so the old key is abandoned
+        // and everyone lands on the fresh default once.
+        val HOME_CARDS = stringPreferencesKey("home_cards_v3")
     }
 
     private val cardListSerializer = ListSerializer(HomeCard.serializer())

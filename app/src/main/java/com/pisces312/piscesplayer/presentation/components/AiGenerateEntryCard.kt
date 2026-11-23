@@ -68,8 +68,10 @@ fun AiGenerateEntryCard(
         Column(modifier = Modifier.fillMaxWidth()) {
             Box(
                     modifier =
-                            Modifier.heightIn(min = 100.dp)
-                                    .padding(horizontal = 16.dp, vertical = 14.dp)
+                            // v1.3.3: compacted (100/14 → 88/10) so the entry row, the recent
+                            // mixes shelf and the show-all button share one 2×2 grid cell.
+                            Modifier.heightIn(min = 88.dp)
+                                    .padding(horizontal = 16.dp, vertical = 10.dp)
             ) {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Row(
@@ -94,13 +96,17 @@ fun AiGenerateEntryCard(
                                     color = MaterialTheme.colorScheme.onSurface
                             )
                             Text(
+                                    // v1.3.3: the hint is deliberately two lines
+                                    // (「短按即听」/「长按说一句」) — a forced mid-phrase
+                                    // wrap looked broken next to the action pill.
                                     text =
                                             stringResource(
                                                     if (configured) R.string.ai_serendipity_button_hint
                                                     else R.string.ai_playlist_entry_unconfigured
-                                            ),
+                                            ).replace(" · ", "\n"),
                                     style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 2
                             )
                         }
                         Spacer(modifier = Modifier.width(12.dp))
@@ -115,8 +121,11 @@ fun AiGenerateEntryCard(
                 }
             }
             if (recentContent != null) {
+                // v1.3.3: hug the entry row above (6dp) — the mixes shelf and the
+                // show-all button stack directly beneath it inside the 2×2 cell.
                 Box(
-                        modifier = Modifier.fillMaxWidth().padding(16.dp)
+                        modifier = Modifier.fillMaxWidth()
+                                .padding(start = 16.dp, end = 16.dp, top = 2.dp, bottom = 8.dp)
                 ) { recentContent() }
             }
         }

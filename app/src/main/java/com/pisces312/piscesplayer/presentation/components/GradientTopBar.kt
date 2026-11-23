@@ -12,8 +12,6 @@ import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
-import androidx.compose.material.icons.rounded.Bed
-import androidx.compose.material.icons.rounded.Cloud
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.LargeTopAppBar
@@ -31,9 +29,9 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.pisces312.piscesplayer.R
-import com.pisces312.piscesplayer.ui.theme.FredokaFamily
 import com.pisces312.piscesplayer.ui.theme.RoundedSans
 import com.pisces312.piscesplayer.ui.theme.PiscesPlayerStatusBarStyle
 
@@ -94,11 +92,9 @@ fun GenreGradientTopBar(
 @Composable
 fun HomeGradientTopBar(
     onNavigationIconClick: () -> Unit,
-    onStreamingClick: () -> Unit,
-    onSoundscapeClick: () -> Unit,
     isScrolled: Boolean = false,
     modifier: Modifier = Modifier,
-    /** Extra action buttons rendered after the built-in cloud / 入梦 actions (e.g. grid edit). */
+    /** Extra action buttons rendered after the settings button (e.g. grid edit). */
     extraActions: (@Composable () -> Unit)? = null,
 ) {
     val surfaceContainerHigh = MaterialTheme.colorScheme.surfaceContainerHighest
@@ -117,48 +113,23 @@ fun HomeGradientTopBar(
             Text(
                 text = stringResource(R.string.about_app_name),
                 style = MaterialTheme.typography.titleLarge,
-                // v1.3.2 (plan §12 decision 17): Fredoka for the app name — the cute
-                // rounded display face. Single line so the name never wraps, and the
-                // action row is right-aligned after it.
-                fontFamily = FredokaFamily,
+                fontWeight = FontWeight.SemiBold,
+                fontFamily = RoundedSans,
                 color = MaterialTheme.colorScheme.onSurface,
+                // Single line: the name must never wrap, no matter how many actions exist.
                 maxLines = 1,
                 softWrap = false,
                 modifier = Modifier.padding(start = 16.dp)
             )
         },
         actions = {
+            // v1.3.3 (plan §12 decision 18): cloud / 入梦 live in the grid now, so the
+            // top bar carries only the settings button, anchored to the far right.
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier.padding(end = 14.dp)
             ) {
-                FilledIconButton(
-                    colors = IconButtonDefaults.filledIconButtonColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                        contentColor = MaterialTheme.colorScheme.onSurface
-                    ),
-                    onClick = onStreamingClick
-                ) {
-                    Icon(
-                          imageVector = Icons.Rounded.Cloud,
-                          contentDescription = stringResource(R.string.presentation_batch_g_streaming_title)
-                    )
-                }
-                // 入梦 (sleep soundscape): a bed rather than a crescent — the moon icon reads
-                // as the dark/light theme switch in this app's icon vocabulary.
-                FilledIconButton(
-                    colors = IconButtonDefaults.filledIconButtonColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                        contentColor = MaterialTheme.colorScheme.onSurface
-                    ),
-                    onClick = onSoundscapeClick
-                ) {
-                    Icon(
-                        imageVector = Icons.Rounded.Bed,
-                        contentDescription = stringResource(R.string.soundscape_entry_cd)
-                    )
-                }
                 FilledIconButton(
                     colors = IconButtonDefaults.filledIconButtonColors(
                         containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
