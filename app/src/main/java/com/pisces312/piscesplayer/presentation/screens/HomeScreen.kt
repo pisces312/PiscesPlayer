@@ -1,59 +1,39 @@
 package com.pisces312.piscesplayer.presentation.screens
 
-import com.pisces312.piscesplayer.presentation.navigation.navigateSafely
-import com.pisces312.piscesplayer.presentation.navigation.navigateSafelyReplacing
-
-import android.content.Intent
 import android.Manifest
-import androidx.activity.compose.ReportDrawnWhen
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.MusicNote
-import androidx.compose.material.icons.rounded.Refresh
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.DrawerValue
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.material3.FilledTonalButton
-import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButtonDefaults
-import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberDrawerState
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.derivedStateOf
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -61,116 +41,129 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
-import androidx.media3.common.util.UnstableApi
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleEventObserver
-import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.pisces312.piscesplayer.R
-import com.pisces312.piscesplayer.data.model.AI_MIX_SOURCE
-import com.pisces312.piscesplayer.data.model.SERENDIPITY_SOURCE
-import com.pisces312.piscesplayer.data.model.Song
 import com.pisces312.piscesplayer.data.ai.AiLibrarySampleMode
 import com.pisces312.piscesplayer.data.ai.serendipity.SerendipityTimeOfDay
 import com.pisces312.piscesplayer.data.ai.serendipity.SerendipityWeatherGroup
+import com.pisces312.piscesplayer.data.home.HomeCard
+import com.pisces312.piscesplayer.data.home.HomeCardType
+import com.pisces312.piscesplayer.data.home.placeHomeCards
+import com.pisces312.piscesplayer.data.model.AI_MIX_SOURCE
+import com.pisces312.piscesplayer.data.model.SERENDIPITY_SOURCE
 import com.pisces312.piscesplayer.data.preferences.AiPreferencesRepository
-import com.pisces312.piscesplayer.data.preferences.CollagePattern
 import com.pisces312.piscesplayer.presentation.components.AiGenerateEntryCard
 import com.pisces312.piscesplayer.presentation.components.AiMixSheet
-import com.pisces312.piscesplayer.presentation.components.AlbumArtCollage
-import com.pisces312.piscesplayer.presentation.jellyfin.dashboard.JellyfinDashboardViewModel
-import com.pisces312.piscesplayer.presentation.navidrome.dashboard.NavidromeDashboardViewModel
-import com.pisces312.piscesplayer.presentation.components.SampleConfig
 import com.pisces312.piscesplayer.presentation.components.HomeGradientTopBar
-import com.pisces312.piscesplayer.presentation.components.HomeSectionCard
-import com.pisces312.piscesplayer.presentation.components.HomeSectionHeader
-import com.pisces312.piscesplayer.presentation.components.HomeOptionsBottomSheet
 import com.pisces312.piscesplayer.presentation.components.MiniPlayerHeight
 import com.pisces312.piscesplayer.presentation.components.RecentAiMixesRow
-import com.pisces312.piscesplayer.presentation.components.SmartImage
-import com.pisces312.piscesplayer.presentation.components.resolveMainScreenBottomGradientHeight
-import com.pisces312.piscesplayer.presentation.model.SettingsCategory
-import com.pisces312.piscesplayer.presentation.components.subcomps.PlayingEqIcon
-import com.pisces312.piscesplayer.presentation.navigation.Screen
+import com.pisces312.piscesplayer.presentation.components.RootTabScrollToTopEffect
+import com.pisces312.piscesplayer.presentation.components.SampleConfig
 import com.pisces312.piscesplayer.presentation.components.StreamingProviderSheet
+import com.pisces312.piscesplayer.presentation.components.rememberModalSheetState
+import com.pisces312.piscesplayer.presentation.home.HomeAddSheet
+import com.pisces312.piscesplayer.presentation.home.HomeCardCatalog
+import com.pisces312.piscesplayer.presentation.home.HomeDailyMixContent
+import com.pisces312.piscesplayer.presentation.home.HomeGrid
+import com.pisces312.piscesplayer.presentation.home.HomeGridEmpty
+import com.pisces312.piscesplayer.presentation.home.HomeGridSpec
+import com.pisces312.piscesplayer.presentation.home.HomePlaylistPickerSheet
+import com.pisces312.piscesplayer.presentation.navigation.Screen
+import com.pisces312.piscesplayer.presentation.navigation.navigateSafely
+import com.pisces312.piscesplayer.presentation.viewmodel.HomeLayoutViewModel
 import com.pisces312.piscesplayer.presentation.viewmodel.PlayerViewModel
-import com.pisces312.piscesplayer.presentation.viewmodel.SettingsViewModel
 import com.pisces312.piscesplayer.presentation.viewmodel.PlaylistViewModel
-import com.pisces312.piscesplayer.ui.theme.ExpTitleTypography
-import kotlinx.coroutines.delay
+import com.pisces312.piscesplayer.presentation.viewmodel.SettingsViewModel
+import com.pisces312.piscesplayer.ui.theme.RoundedSans
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
-import com.pisces312.piscesplayer.ui.theme.ShapeCache
-import racra.compose.smooth_corner_rect_library.AbsoluteSmoothCornerShape
-import androidx.compose.ui.res.stringResource
-import com.pisces312.piscesplayer.presentation.components.rememberModalSheetState
 import java.text.NumberFormat
 import java.time.format.TextStyle
 import java.util.Locale
+import kotlin.math.roundToInt
 
-private const val HomeLoadingPlaceholderMinDurationMillis = 1200L
+private enum class HomeSheet { None, Add, PickPlaylist }
 
-/**
- * Requested the first time Serendipity is opened; a refusal only costs the mix its extra lines.
- *
- * The location permission is asked for only when the weather source is the device's own position:
- * with a city chosen in settings, Serendipity never needs to know where the phone is.
- */
 private val SerendipityStepPermissions = arrayOf(Manifest.permission.ACTIVITY_RECOGNITION)
-
 private val SerendipityLocationPermissions =
     SerendipityStepPermissions + Manifest.permission.ACCESS_COARSE_LOCATION
 
-@androidx.annotation.OptIn(UnstableApi::class)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
     navController: NavController,
     paddingValuesParent: PaddingValues,
     playerViewModel: PlayerViewModel,
-    settingsViewModel: SettingsViewModel = hiltViewModel(),
-    navidromeViewModel: NavidromeDashboardViewModel = hiltViewModel(),
-    jellyfinViewModel: JellyfinDashboardViewModel = hiltViewModel(),
+    homeLayoutViewModel: HomeLayoutViewModel = hiltViewModel(),
     playlistViewModel: PlaylistViewModel = hiltViewModel(),
-    onOpenSidebar: () -> Unit
+    settingsViewModel: SettingsViewModel = hiltViewModel(),
+    onOpenSidebar: () -> Unit,
 ) {
-    val context = LocalContext.current
-    val isBenchmarkMode = remember {
-        (context as? android.app.Activity)?.intent?.getBooleanExtra("is_benchmark", false) ?: false
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val scope = rememberCoroutineScope()
+    val haptics = LocalHapticFeedback.current
+
+    val cards by homeLayoutViewModel.cards.collectAsStateWithLifecycle()
+    val userPlaylists by homeLayoutViewModel.userPlaylists.collectAsStateWithLifecycle()
+    val playlistMap = remember(userPlaylists) {
+        userPlaylists.associateBy { it.id }
     }
+
+    var editMode by rememberSaveable { mutableStateOf(false) }
+    var sheet by rememberSaveable { mutableStateOf(HomeSheet.None) }
+    var showRestoreDialog by rememberSaveable { mutableStateOf(false) }
+    var showStreamingSheet by rememberSaveable { mutableStateOf(false) }
+    var draggingUid by rememberSaveable { mutableStateOf<String?>(null) }
+    var dragAccum by remember { mutableStateOf(Offset.Zero) }
+
+    // ---- 每日推荐 data (feeds the DAILY_MIX card body, plan §12 decision 9) ----
     val settingsUiState by settingsViewModel.uiState.collectAsStateWithLifecycle()
     val dailyMixSongs by playerViewModel.dailyMixSongs.collectAsStateWithLifecycle()
     val homeMixPreviewSongs by playerViewModel.homeMixPreviewSongs.collectAsStateWithLifecycle()
-    val lifecycleOwner = LocalLifecycleOwner.current
+    val isShuffleEnabled by remember(playerViewModel.stablePlayerState) {
+        playerViewModel.stablePlayerState
+            .map { it.isShuffleEnabled }
+            .distinctUntilChanged()
+    }.collectAsStateWithLifecycle(initialValue = false)
+
+    // ---- AI 歌单 serendipity flow (restored in v1.3: the AI card is the old entry card) ----
     val isAiConfigured by playlistViewModel.isAiConfigured.collectAsStateWithLifecycle()
     val aiSerendipitySampleMode by
             playlistViewModel.aiSerendipitySampleMode.collectAsStateWithLifecycle()
+    val aiSerendipitySampleSize by
+            playlistViewModel.aiSerendipitySampleSize.collectAsStateWithLifecycle()
     val recentAiMixes by playlistViewModel.recentAiMixes.collectAsStateWithLifecycle()
     val serendipityState by playlistViewModel.serendipityState.collectAsStateWithLifecycle()
     val serendipityWantsLocation by
             playlistViewModel.serendipityWantsLocation.collectAsStateWithLifecycle()
-    var showAiMixSheet by remember { mutableStateOf(false) }
-    // Short press auto-generates and then auto-plays (without saving); long press opens the
-    // editable describe sheet and never auto-plays.
-    var aiEntryIsQuick by remember { mutableStateOf(false) }
-    var autoPlayAfterGenerate by remember { mutableStateOf(false) }
-
+    val aiPlaylistPreviewState by playlistViewModel.aiPlaylistPreviewState.collectAsStateWithLifecycle()
+    var showAiMixSheet by rememberSaveable { mutableStateOf(false) }
+    // Short press auto-generates and then auto-plays (without saving); long press / card tap
+    // opens the editable describe sheet and never auto-plays.
+    var aiEntryIsQuick by rememberSaveable { mutableStateOf(false) }
+    var autoPlayAfterGenerate by rememberSaveable { mutableStateOf(false) }
     // The permission result arrives after the system dialog, so the entry intent is
     // remembered here: a short press starts generation automatically once the callback fires.
-    var pendingQuickSerendipity by remember { mutableStateOf(false) }
+    var pendingQuickSerendipity by rememberSaveable { mutableStateOf(false) }
+    // Short-press auto-play de-dup key: song ids of the last list already sent to the player.
+    var lastAutoPlayedSongIds by remember { mutableStateOf<String?>(null) }
+    // Name of the mix the short-press flow already saved; the result sheet uses it to avoid a
+    // second identical save and to offer "replay" instead of "play+save".
+    var autoSavedName by remember { mutableStateOf<String?>(null) }
+    // Content (signals, multi-line prompt, length chips, generate button) is taller than the
+    // half-screen anchor, so expand straight away instead of clipping the action button.
+    val aiMixSheetState = rememberModalSheetState(skipPartiallyExpanded = true)
 
     val openSerendipitySheet: (Boolean) -> Unit = { quick ->
         aiEntryIsQuick = quick
@@ -197,338 +190,20 @@ fun HomeScreen(
                     else SerendipityStepPermissions
             )
         } else {
-            navController.navigateSafely(Screen.SettingsCategory.createRoute(SettingsCategory.AI.id))
+            navController.navigateSafely(Screen.SettingsCategory.createRoute(com.pisces312.piscesplayer.presentation.model.SettingsCategory.AI.id))
         }
     }
 
-    // The merged daily mix ("每日推荐") is the home page's only local-recommendation
-    // card: one list blending the familiar and discovery buckets. The preview fallback
-    // fills the card only while the curated mix is still empty.
+    // The merged daily mix ("每日推荐") preview fallback fills the card only while the
+    // curated mix is still empty.
     val usesFallbackHomeMix = remember(dailyMixSongs) {
         dailyMixSongs.isEmpty()
     }
     val mixSongs = remember(dailyMixSongs, homeMixPreviewSongs) {
         if (dailyMixSongs.isNotEmpty()) dailyMixSongs else homeMixPreviewSongs
     }
-    // Queue name follows the card title, so "now playing" surfaces read the
-    // localized name instead of the old hardcoded "Your Mix".
+    // Queue name follows the card title, so "now playing" surfaces read the localized name.
     val dailyMixQueueName = stringResource(R.string.presentation_batch_b_daily_mix_title)
-    var homePlaceholderRefreshGeneration by rememberSaveable { mutableIntStateOf(0) }
-    var hasHomeLoadingMinimumElapsed by rememberSaveable(homePlaceholderRefreshGeneration) {
-        mutableStateOf(false)
-    }
-
-    LaunchedEffect(homePlaceholderRefreshGeneration, mixSongs.isEmpty()) {
-        if (mixSongs.isEmpty()) {
-            hasHomeLoadingMinimumElapsed = false
-            delay(HomeLoadingPlaceholderMinDurationMillis)
-            hasHomeLoadingMinimumElapsed = true
-        } else {
-            hasHomeLoadingMinimumElapsed = true
-        }
-    }
-
-    val shouldShowDailyMixLoadingPlaceholder = mixSongs.isEmpty() && !hasHomeLoadingMinimumElapsed
-
-    ReportDrawnWhen {
-        mixSongs.isNotEmpty() || hasHomeLoadingMinimumElapsed || isBenchmarkMode
-    }
-
-    val currentSong by remember(playerViewModel.stablePlayerState) {
-        playerViewModel.stablePlayerState.map { it.currentSong }
-    }.collectAsStateWithLifecycle(initialValue = null)
-
-    val isShuffleEnabled by remember(playerViewModel.stablePlayerState) {
-        playerViewModel.stablePlayerState
-            .map { it.isShuffleEnabled }
-            .distinctUntilChanged()
-    }.collectAsStateWithLifecycle(initialValue = false)
-
-    val bottomPadding = if (currentSong != null) MiniPlayerHeight else 0.dp
-    val navBarCompactMode by playerViewModel.navBarCompactMode.collectAsStateWithLifecycle()
-    val bottomGradientHeight = resolveMainScreenBottomGradientHeight(navBarCompactMode)
-
-    var showOptionsBottomSheet by remember { mutableStateOf(false) }
-    var showStreamingProviderSheet by remember { mutableStateOf(false) }
-    val sheetState = rememberModalSheetState()
-    // Content (signals, multi-line prompt, length chips, generate button) is taller than the
-    // half-screen anchor, so expand straight away instead of clipping the action button.
-    val aiMixSheetState = rememberModalSheetState(skipPartiallyExpanded = true)
-    val scope = rememberCoroutineScope()
-    LocalContext.current
-
-    val listState = rememberSaveable(saver = LazyListState.Saver) { LazyListState() }
-    com.pisces312.piscesplayer.presentation.components.RootTabScrollToTopEffect(
-        playerViewModel = playerViewModel,
-        route = com.pisces312.piscesplayer.presentation.navigation.Screen.Home.route,
-        listState = listState
-    )
-    val density = LocalDensity.current
-    val scrollThresholdPx = remember(density) { with(density) { 180.dp.toPx() } }
-    val isScrolledPastThreshold = remember {
-        derivedStateOf { listState.firstVisibleItemIndex > 0 || listState.firstVisibleItemScrollOffset > scrollThresholdPx }
-    }
-
-    var savedScrollIndex by rememberSaveable { mutableIntStateOf(0) }
-    var savedScrollOffset by rememberSaveable { mutableIntStateOf(0) }
-    var needsScrollRestore by rememberSaveable { mutableStateOf(false) }
-
-    DisposableEffect(lifecycleOwner, listState) {
-        val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_PAUSE) {
-                savedScrollIndex = listState.firstVisibleItemIndex
-                savedScrollOffset = listState.firstVisibleItemScrollOffset
-                needsScrollRestore = true
-            }
-        }
-        lifecycleOwner.lifecycle.addObserver(observer)
-        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
-    }
-
-    LaunchedEffect(
-        needsScrollRestore,
-        mixSongs.isNotEmpty(),
-        recentAiMixes.isNotEmpty()
-    ) {
-        if (!needsScrollRestore) return@LaunchedEffect
-        val totalItems = listState.layoutInfo.totalItemsCount
-        if (totalItems == 0) return@LaunchedEffect
-        val targetIndex = savedScrollIndex.coerceIn(0, (totalItems - 1).coerceAtLeast(0))
-        listState.scrollToItem(targetIndex, savedScrollOffset)
-        needsScrollRestore = false
-    }
-
-    val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
-
-    Box(
-        modifier = Modifier.fillMaxSize()
-    ) {
-        Scaffold(
-            modifier = Modifier.fillMaxSize(),
-            topBar = {
-                HomeGradientTopBar(
-                    onNavigationIconClick = {
-                        navController.navigateSafely(Screen.Settings.route)
-                    },
-                    onStreamingClick = {
-                          showStreamingProviderSheet = true
-                    },
-                    onSoundscapeClick = {
-                        navController.navigateSafely(Screen.SleepSoundscape.route)
-                    },
-                    isScrolled = isScrolledPastThreshold.value
-                )
-            }
-        ) { innerPadding ->
-            LazyColumn(
-                state = listState,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(MaterialTheme.colorScheme.background),
-                contentPadding = PaddingValues(
-                    top = innerPadding.calculateTopPadding(),
-                    bottom = paddingValuesParent.calculateBottomPadding()
-                            + 38.dp + bottomPadding
-                ),
-                verticalArrangement = Arrangement.spacedBy(24.dp)
-            ) {
-                // Always declared: the scroll position is restored by index, so an item that
-                // appears only after the library size is known would shift everything by one and
-                // push this card above the viewport.
-                // The AI CTA and its recent results form one card. Keeping the history inside
-                // the entry removes a redundant heading and leaves home with two clear parts:
-                // AI Playlist and the daily mix ("每日推荐").
-                item(
-                    key = "ai_playlist_entry",
-                    contentType = "ai_playlist_entry"
-                ) {
-                    AiGenerateEntryCard(
-                        configured = isAiConfigured,
-                        modifier = Modifier.padding(horizontal = 16.dp),
-                        // Short press: gather signals and generate straight away, then auto-play.
-                        onQuickGenerate = { openAiEntry(true) },
-                        // Long press / card tap: open the editable describe sheet with the same
-                        // signal chips; the prompt may stay blank.
-                        onOpenDescribe = { openAiEntry(false) },
-                        recentContent = if (recentAiMixes.isEmpty()) null else {
-                            {
-                                RecentAiMixesRow(
-                                    mixes = recentAiMixes,
-                                    onMixClick = { mix ->
-                                        scope.launch {
-                                            val songs = playlistViewModel.songsOf(mix.id)
-                                            if (songs.isNotEmpty()) {
-                                                playerViewModel.playSongs(
-                                                    songsToPlay = songs,
-                                                    startSong = songs.first(),
-                                                    queueName = mix.name,
-                                                    playlistId = mix.id
-                                                )
-                                            }
-                                        }
-                                    },
-                                    onShowAll = {
-                                        navController.navigateSafely(Screen.AiMixes.route)
-                                    }
-                                )
-                            }
-                        }
-                    )
-                }
-                if (mixSongs.isEmpty()) {
-                    item(
-                        key = "daily_mix_placeholder",
-                        contentType = "daily_mix_placeholder"
-                    ) {
-                        if (shouldShowDailyMixLoadingPlaceholder) {
-                            DailyMixLoadingPlaceholder()
-                        } else {
-                            DailyMixEmptyPlaceholder(
-                                onRefresh = {
-                                    homePlaceholderRefreshGeneration++
-                                    settingsViewModel.refreshLibrary()
-                                    playerViewModel.forceUpdateDailyMix()
-                                }
-                            )
-                        }
-                    }
-                } else {
-                    item(
-                        key = "daily_mix_card",
-                        contentType = "daily_mix_card"
-                    ) {
-                        val basePattern = settingsUiState.collagePattern
-                        val isAutoRotate = settingsUiState.collageAutoRotate
-                        val patterns = remember { CollagePattern.entries }
-
-                        val activePattern = if (isAutoRotate) {
-                            var rotationIndex by rememberSaveable { mutableIntStateOf(-1) }
-                            LaunchedEffect(Unit) { rotationIndex++ }
-                            remember(rotationIndex) {
-                                patterns[rotationIndex.coerceAtLeast(0) % patterns.size]
-                            }
-                        } else {
-                            basePattern
-                        }
-
-                        HomeSectionCard {
-                            DailyMixHeroHeader(
-                                isShuffleEnabled = isShuffleEnabled,
-                                onPlayShuffled = {
-                                    if (usesFallbackHomeMix) {
-                                        playerViewModel.shuffleAllSongs(queueName = dailyMixQueueName)
-                                    } else {
-                                        playerViewModel.playSongsShuffled(
-                                            songsToPlay = mixSongs,
-                                            queueName = dailyMixQueueName,
-                                            startAtZero = true,
-                                        )
-                                    }
-                                }
-                            )
-                            Spacer(Modifier.height(12.dp))
-                            AlbumArtCollage(
-                                modifier = Modifier.fillMaxWidth(),
-                                songs = mixSongs,
-                                padding = 0.dp,
-                                height = 300.dp,
-                                pattern = activePattern,
-                                onSongClick = { song ->
-                                    if (usesFallbackHomeMix) {
-                                        playerViewModel.showAndPlaySongFromLibrary(song, queueName = dailyMixQueueName)
-                                    } else {
-                                        playerViewModel.showAndPlaySong(song, mixSongs, dailyMixQueueName)
-                                    }
-                                }
-                            )
-                            ViewAllDailyMixButton(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(
-                                        start = 10.dp,
-                                        end = 10.dp,
-                                        top = 6.dp,
-                                        bottom = 6.dp
-                                    ),
-                                onClickOpen = {
-                                    navController.navigateSafely(Screen.DailyMixScreen.route)
-                                },
-                            )
-                        }
-                    }
-                }
-
-            }
-        }
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .align(Alignment.BottomCenter)
-                .height(bottomGradientHeight)
-                .background(
-                    brush = Brush.verticalGradient(
-                        colorStops = arrayOf(
-                            0.0f to Color.Transparent,
-                            0.2f to Color.Transparent,
-                            0.8f to MaterialTheme.colorScheme.surfaceContainerLowest,
-                            1.0f to MaterialTheme.colorScheme.surfaceContainerLowest
-                        )
-                    )
-                )
-        ) {
-
-        }
-    }
-    if (showOptionsBottomSheet) {
-        ModalBottomSheet(
-            onDismissRequest = { showOptionsBottomSheet = false },
-            sheetState = sheetState
-        ) {
-            HomeOptionsBottomSheet(
-                onNavigateToMashup = {
-                    scope.launch {
-                        sheetState.hide()
-                    }.invokeOnCompletion {
-                        if (!sheetState.isVisible) {
-                            showOptionsBottomSheet = false
-                            navController.navigateSafely(Screen.DJSpace.route)
-                        }
-                    }
-                }
-            )
-        }
-    }
-    val aiPlaylistPreviewState by playlistViewModel.aiPlaylistPreviewState.collectAsStateWithLifecycle()
-    val aiSerendipitySampleSize by
-            playlistViewModel.aiSerendipitySampleSize.collectAsStateWithLifecycle()
-
-    // Short-press auto-play de-dup key: song ids of the last list already sent to the player.
-    var lastAutoPlayedSongIds by remember { mutableStateOf<String?>(null) }
-    // Name of the mix the short-press flow already saved; the result sheet uses it to avoid a
-    // second identical save and to offer "replay" instead of "play+save".
-    var autoSavedName by remember { mutableStateOf<String?>(null) }
-
-    fun resetAiMixSheetSession() {
-        playlistViewModel.resetAiPlaylistPreview()
-        playlistViewModel.closeSerendipity()
-        showAiMixSheet = false
-        autoPlayAfterGenerate = false
-        lastAutoPlayedSongIds = null
-        autoSavedName = null
-    }
-
-    // Close the AI sheet the same way the options sheet does: animate `sheetState` out first,
-    // then drop the composable. Toggling `showAiMixSheet` alone leaves the expanded sheet on
-    // screen, so the header close button looks dead.
-    fun dismissAiMixSheet() {
-        scope.launch {
-            aiMixSheetState.hide()
-        }.invokeOnCompletion {
-            if (!aiMixSheetState.isVisible) {
-                resetAiMixSheetSession()
-            }
-        }
-    }
 
     LaunchedEffect(Unit) {
         playlistViewModel.aiMixSaved.collect { mix ->
@@ -576,13 +251,13 @@ fun HomeScreen(
                     )
         }
         serendipityDefaultName =
-                buildList {
-                            serendipityContext.weather?.let {
-                                add(stringResource(serendipityWeatherLabelRes(it.group)))
-                            }
-                            add(stringResource(serendipityTimeOfDayLabelRes(serendipityContext.timeOfDay)))
+            buildList {
+                        serendipityContext.weather?.let {
+                            add(stringResource(serendipityWeatherLabelRes(it.group)))
                         }
-                        .joinToString(" · ") + " · " + serendipityContext.clockTime
+                        add(stringResource(serendipityTimeOfDayLabelRes(serendipityContext.timeOfDay)))
+                    }
+                    .joinToString(" · ") + " · " + serendipityContext.clockTime
     }
 
     // Short-press auto-play + auto-save: start the generated list and file it under the
@@ -618,6 +293,387 @@ fun HomeScreen(
             source = SERENDIPITY_SOURCE
         )
         autoSavedName = autoPlayQueueName
+    }
+
+    val snackbarHostState = remember { SnackbarHostState() }
+    val addSheetState = rememberModalSheetState(skipPartiallyExpanded = true)
+
+    // Toast-style feedback reusing the shared snackbar host.
+    val removedEvent by homeLayoutViewModel.removedEvent.collectAsStateWithLifecycle()
+    LaunchedEffect(removedEvent) {
+        val event = removedEvent ?: return@LaunchedEffect
+        val name = event.card.targetId?.let { playlistMap[it]?.name }
+            ?: context.getString(HomeCardCatalog.forType(event.card.type).nameRes)
+        val result = snackbarHostState.showSnackbar(
+            message = context.getString(R.string.home_grid_card_removed, name),
+            actionLabel = context.getString(R.string.home_grid_undo),
+            duration = SnackbarDuration.Short,
+        )
+        if (result == SnackbarResult.ActionPerformed) {
+            homeLayoutViewModel.undoRemove()
+        }
+        homeLayoutViewModel.clearRemovedEvent()
+    }
+    val addedEvent by homeLayoutViewModel.addedEvent.collectAsStateWithLifecycle()
+    LaunchedEffect(addedEvent) {
+        val event = addedEvent ?: return@LaunchedEffect
+        val name = event.card.targetId?.let { playlistMap[it]?.name }
+            ?: context.getString(HomeCardCatalog.forType(event.card.type).nameRes)
+        snackbarHostState.showSnackbar(
+            message = context.getString(R.string.home_grid_card_added, name),
+            duration = SnackbarDuration.Short,
+        )
+        homeLayoutViewModel.clearAddedEvent()
+    }
+
+    val listState: LazyListState = rememberLazyListState()
+    RootTabScrollToTopEffect(
+        playerViewModel = playerViewModel,
+        route = Screen.Home.route,
+        listState = listState,
+    )
+
+    val bottomPadding = MiniPlayerHeight
+    val density = LocalDensity.current
+    val cellHeightPx = with(density) { HomeGridSpec.CellHeight.toPx() }
+    val rowPitchPx = with(density) { HomeGridSpec.RowPitch.toPx() }
+    val gapPx = with(density) { HomeGridSpec.Gap.toPx() }
+    val cellWidthPx = with(density) { HomeGridSpec.CellWidth.toPx() }
+    val gridWidthPx = HomeGridSpec.GridColumns * cellWidthPx + (HomeGridSpec.GridColumns - 1) * gapPx
+
+    fun persistOnExitEdit() {
+        homeLayoutViewModel.persist()
+        editMode = false
+    }
+
+    // v1.3 (plan §12): rich card bodies in browse mode; in edit mode every card degrades to
+    // the generic tile so the wiggle / remove badge / size chip read clearly and no inner
+    // button can be hit accidentally.
+    val richContentFor: (HomeCard) -> (@Composable () -> Unit)? = { card ->
+        when (card.type) {
+            HomeCardType.AI_PLAYLIST -> {
+                {
+                    AiGenerateEntryCard(
+                        configured = isAiConfigured,
+                        // Short press on the capsule: gather the moment's signals and generate.
+                        onQuickGenerate = { openAiEntry(true) },
+                        // Card body / long press: the editable describe sheet.
+                        onOpenDescribe = { openAiEntry(false) },
+                        modifier = Modifier.fillMaxWidth(),
+                        // The recent-mixes shelf only fits the 2×2 hero; the 2×1 banner is the
+                        // entry row alone.
+                        recentContent = if (card.size.spanY == 2 && recentAiMixes.isNotEmpty()) {
+                            {
+                                RecentAiMixesRow(
+                                    mixes = recentAiMixes,
+                                    onMixClick = { mix ->
+                                        scope.launch {
+                                            val songs = playlistViewModel.songsOf(mix.id)
+                                            if (songs.isNotEmpty()) {
+                                                playerViewModel.playSongs(
+                                                    songsToPlay = songs,
+                                                    startSong = songs.first(),
+                                                    queueName = mix.name,
+                                                    playlistId = mix.id
+                                                )
+                                            }
+                                        }
+                                    },
+                                    onShowAll = {
+                                        navController.navigateSafely(Screen.AiMixes.route)
+                                    }
+                                )
+                            }
+                        } else null,
+                    )
+                }
+            }
+            HomeCardType.DAILY_MIX -> {
+                {
+                    HomeDailyMixContent(
+                        card = card,
+                        songs = mixSongs,
+                        isShuffleEnabled = isShuffleEnabled,
+                        collagePattern = settingsUiState.collagePattern,
+                        onPlayShuffled = {
+                            if (usesFallbackHomeMix) {
+                                playerViewModel.shuffleAllSongs(queueName = dailyMixQueueName)
+                            } else {
+                                playerViewModel.playSongsShuffled(
+                                    songsToPlay = mixSongs,
+                                    queueName = dailyMixQueueName,
+                                    startAtZero = true,
+                                )
+                            }
+                        },
+                        onSongClick = { song ->
+                            if (usesFallbackHomeMix) {
+                                playerViewModel.showAndPlaySongFromLibrary(song, queueName = dailyMixQueueName)
+                            } else {
+                                playerViewModel.showAndPlaySong(song, mixSongs, dailyMixQueueName)
+                            }
+                        },
+                        onViewAll = {
+                            navController.navigateSafely(Screen.DailyMixScreen.route)
+                        },
+                    )
+                }
+            }
+            else -> null
+        }
+    }
+    val contentFor: (HomeCard) -> (@Composable () -> Unit)? = { card ->
+        if (editMode) null else richContentFor(card)
+    }
+
+    Scaffold(
+        modifier = Modifier.fillMaxSize(),
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+        topBar = {
+            if (editMode) {
+                TopAppBar(
+                    title = {
+                        Column {
+                            Text(
+                                text = stringResource(R.string.home_grid_edit_title),
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.SemiBold,
+                                fontFamily = RoundedSans,
+                            )
+                            Text(
+                                text = stringResource(R.string.home_grid_edit_subtitle),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    },
+                    actions = {
+                        TextButton(onClick = { showRestoreDialog = true }) {
+                            Text(stringResource(R.string.home_grid_restore_default))
+                        }
+                        TextButton(onClick = { persistOnExitEdit() }) {
+                            Text(stringResource(R.string.home_grid_done))
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    ),
+                )
+            } else {
+                HomeGradientTopBar(
+                    onNavigationIconClick = {
+                        navController.navigateSafely(Screen.Settings.route)
+                    },
+                    onStreamingClick = { showStreamingSheet = true },
+                    onSoundscapeClick = {
+                        navController.navigateSafely(Screen.SleepSoundscape.route)
+                    },
+                    isScrolled = listState.firstVisibleItemIndex > 0 || listState.firstVisibleItemScrollOffset > 0,
+                    modifier = Modifier,
+                    // v1.2: the cloud / 入梦 / settings actions are all cards now; the top bar
+                    // keeps only the leading settings button (extraActions left empty on purpose).
+                    extraActions = { Spacer(Modifier.width(14.dp)) },
+                )
+            }
+        },
+    ) { innerPadding ->
+        LazyColumn(
+            state = listState,
+            modifier = Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background)
+                // v1.3 (plan §12 decision 12): in edit mode a tap on empty space exits edit
+                // mode (persisting). Card taps are consumed by the cards themselves, so this
+                // only fires for background taps.
+                .pointerInput(editMode) {
+                    if (editMode) {
+                        detectTapGestures(onTap = { persistOnExitEdit() })
+                    }
+                },
+            contentPadding = PaddingValues(
+                top = innerPadding.calculateTopPadding(),
+                bottom = paddingValuesParent.calculateBottomPadding() + 38.dp + bottomPadding,
+            ),
+        ) {
+            item(key = "home_grid", contentType = "home_grid") {
+                if (cards.isEmpty()) {
+                    HomeGridEmpty(
+                        onAdd = { sheet = HomeSheet.Add },
+                        onRestoreDefault = { showRestoreDialog = true },
+                    )
+                    Spacer(Modifier.height(16.dp))
+                    HomeGrid(
+                        cards = emptyList(),
+                        playlists = playlistMap,
+                        editMode = false,
+                        draggingUid = null,
+                        onCardClick = {},
+                        onCardRemove = {},
+                        onCardCycleSize = {},
+                        onAddTileClick = { sheet = HomeSheet.Add },
+                        showAddTile = true,
+                        contentFor = { null },
+                    )
+                } else {
+                    HomeGrid(
+                        cards = cards,
+                        playlists = playlistMap,
+                        editMode = editMode,
+                        draggingUid = draggingUid,
+                        onCardClick = { card ->
+                            if (editMode) return@HomeGrid
+                            onHomeCardClick(card, navController, playerViewModel, context, onStreaming = { showStreamingSheet = true })
+                        },
+                        onCardRemove = { index -> homeLayoutViewModel.removeAt(index) },
+                        onCardCycleSize = { uid ->
+                            haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            homeLayoutViewModel.cycleSize(uid)
+                        },
+                        onAddTileClick = { sheet = HomeSheet.Add },
+                        showAddTile = true,
+                        contentFor = contentFor,
+                        // Keyed on Unit on purpose: move() mutates `cards` and entering edit
+                        // mode flips `editMode` mid-gesture — a keyed pointerInput would
+                        // restart the detector and kill the drag. The gesture block reads the
+                        // state delegates directly, so it always sees current values.
+                        modifier = Modifier.pointerInput(Unit) {
+                            detectDragGesturesAfterLongPress(
+                                onDragStart = { startOffset ->
+                                    val currentCards = cards
+                                    val origin = homeCardOriginAt(
+                                        startOffset = startOffset,
+                                        cards = currentCards,
+                                        rowPitchPx = rowPitchPx,
+                                        cellHeightPx = cellHeightPx,
+                                        gridWidthPx = gridWidthPx,
+                                    )
+                                    val hit = origin?.let { (row, col) ->
+                                        currentCards.firstOrNull { card ->
+                                            val p = placeHomeCards(currentCards).placements[card.uid]
+                                            p != null &&
+                                                row in p.row until (p.row + card.size.spanY) &&
+                                                col in p.column until (p.column + card.size.spanX)
+                                        }
+                                    }
+                                    if (hit != null) {
+                                        draggingUid = hit.uid
+                                        dragAccum = Offset.Zero
+                                        // v1.3: a single long-press gesture does everything —
+                                        // it enters edit mode and, if the finger keeps moving,
+                                        // drags the card in the same hold (iOS-home style). A
+                                        // long press without a move lands in edit mode.
+                                        if (!editMode) editMode = true
+                                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    }
+                                },
+                                onDrag = { change, dragAmount ->
+                                    change.consume()
+                                    val uid = draggingUid ?: return@detectDragGesturesAfterLongPress
+                                    dragAccum += dragAmount
+                                    val insertRow = (dragAccum.y / rowPitchPx).roundToInt()
+                                    val fromIndex = cards.indexOfFirst { it.uid == uid }
+                                    if (fromIndex >= 0 && insertRow != 0) {
+                                        val toIndex = (fromIndex + insertRow)
+                                            .coerceIn(0, cards.lastIndex)
+                                        if (toIndex != fromIndex) {
+                                            homeLayoutViewModel.move(fromIndex, toIndex)
+                                            dragAccum = Offset(dragAccum.x, dragAccum.y - insertRow * rowPitchPx)
+                                            haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                        }
+                                    }
+                                },
+                                onDragEnd = {
+                                    draggingUid = null
+                                    dragAccum = Offset.Zero
+                                    homeLayoutViewModel.persist()
+                                },
+                                onDragCancel = {
+                                    draggingUid = null
+                                    dragAccum = Offset.Zero
+                                },
+                            )
+                        },
+                    )
+                }
+            }
+        }
+    }
+
+    if (showStreamingSheet) {
+        StreamingProviderSheet(
+            onDismissRequest = { showStreamingSheet = false },
+            isNavidromeLoggedIn = false,
+            onNavigateToNavidromeDashboard = {
+                showStreamingSheet = false
+                navController.navigateSafely(Screen.NavidromeDashboard.route)
+            },
+            isJellyfinLoggedIn = false,
+            onNavigateToJellyfinDashboard = {
+                showStreamingSheet = false
+                navController.navigateSafely(Screen.JellyfinDashboard.route)
+            },
+        )
+    }
+
+    if (sheet == HomeSheet.Add) {
+        ModalBottomSheet(
+            onDismissRequest = { sheet = HomeSheet.None },
+            sheetState = addSheetState,
+        ) {
+            HomeAddSheet(
+                paddingValues = PaddingValues(),
+                isTypePresent = homeLayoutViewModel::isTypePresent,
+                isPlaylistPresent = homeLayoutViewModel::isPlaylistPresent,
+                playlists = userPlaylists,
+                onAddType = { type ->
+                    homeLayoutViewModel.addCard(type, HomeCardCatalog.forType(type).defaultSize)
+                },
+                onAddPlaylist = { playlist ->
+                    homeLayoutViewModel.addPlaylistCard(playlist.id, HomeCardCatalog.PLAYLIST.defaultSize)
+                },
+                onChoosePlaylist = { sheet = HomeSheet.PickPlaylist },
+                onEditLayout = {
+                    sheet = HomeSheet.None
+                    editMode = true
+                },
+            )
+        }
+    } else if (sheet == HomeSheet.PickPlaylist) {
+        ModalBottomSheet(
+            onDismissRequest = { sheet = HomeSheet.None },
+            sheetState = addSheetState,
+        ) {
+            HomePlaylistPickerSheet(
+                paddingValues = PaddingValues(),
+                playlists = userPlaylists,
+                onPick = { playlist ->
+                    homeLayoutViewModel.addPlaylistCard(playlist.id, HomeCardCatalog.PLAYLIST.defaultSize)
+                    sheet = HomeSheet.None
+                },
+            )
+        }
+    }
+
+    fun resetAiMixSheetSession() {
+        playlistViewModel.resetAiPlaylistPreview()
+        playlistViewModel.closeSerendipity()
+        showAiMixSheet = false
+        autoPlayAfterGenerate = false
+        lastAutoPlayedSongIds = null
+        autoSavedName = null
+    }
+
+    // Close the AI sheet the same way the options sheet does: animate `sheetState` out first,
+    // then drop the composable. Toggling `showAiMixSheet` alone leaves the expanded sheet on
+    // screen, so the header close button looks dead.
+    fun dismissAiMixSheet() {
+        scope.launch {
+            aiMixSheetState.hide()
+        }.invokeOnCompletion {
+            if (!aiMixSheetState.isVisible) {
+                resetAiMixSheetSession()
+            }
+        }
     }
 
     if (showAiMixSheet) {
@@ -671,293 +727,70 @@ fun HomeScreen(
             )
         }
     }
-    if (showStreamingProviderSheet) {
-        val isNavidromeLoggedIn by navidromeViewModel.isLoggedIn.collectAsStateWithLifecycle()
-        val isJellyfinLoggedIn by jellyfinViewModel.isLoggedIn.collectAsStateWithLifecycle()
-        StreamingProviderSheet(
-            onDismissRequest = { showStreamingProviderSheet = false },
-            isNavidromeLoggedIn = isNavidromeLoggedIn,
-            onNavigateToNavidromeDashboard = {
-                navController.navigateSafely(Screen.NavidromeDashboard.route)
+
+    if (showRestoreDialog) {
+        AlertDialog(
+            onDismissRequest = { showRestoreDialog = false },
+            title = { Text(stringResource(R.string.home_grid_restore_confirm_title)) },
+            text = { Text(stringResource(R.string.home_grid_restore_confirm_body)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    homeLayoutViewModel.restoreDefault()
+                    showRestoreDialog = false
+                    editMode = false
+                    playerViewModel.sendToast(context.getString(R.string.home_grid_default_restored))
+                }) { Text(stringResource(R.string.home_grid_restore_confirm_ok)) }
             },
-            isJellyfinLoggedIn = isJellyfinLoggedIn,
-            onNavigateToJellyfinDashboard = {
-                navController.navigateSafely(Screen.JellyfinDashboard.route)
-            }
-        )
-    }
-}
-
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
-@Composable
-private fun DailyMixLoadingPlaceholder() {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(256.dp)
-            .padding(16.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        LoadingIndicator(
-            modifier = Modifier.size(128.dp),
-            color = MaterialTheme.colorScheme.primary
-        )
-    }
-}
-
-@Composable
-private fun DailyMixEmptyPlaceholder(
-    onRefresh: () -> Unit
-) {
-    val colors = MaterialTheme.colorScheme
-
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .heightIn(min = 256.dp)
-            .padding(horizontal = 24.dp, vertical = 16.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        Column(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            Surface(
-                modifier = Modifier.size(76.dp),
-                shape = ShapeCache.expressiveHero,
-                color = colors.secondaryContainer,
-                contentColor = colors.onSecondaryContainer
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        imageVector = Icons.Rounded.MusicNote,
-                        contentDescription = null,
-                        modifier = Modifier.size(34.dp)
-                    )
+            dismissButton = {
+                TextButton(onClick = { showRestoreDialog = false }) {
+                    Text(stringResource(R.string.home_grid_cancel))
                 }
-            }
-
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
-                Text(
-                    text = stringResource(R.string.home_empty_placeholder_title),
-                    style = MaterialTheme.typography.titleLarge,
-                    color = colors.onSurface,
-                    textAlign = TextAlign.Center
-                )
-                Text(
-                    text = stringResource(R.string.home_empty_placeholder_subtitle),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = colors.onSurfaceVariant,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.fillMaxWidth()
-                )
-            }
-
-            FilledTonalButton(
-                onClick = onRefresh,
-                shape = AbsoluteSmoothCornerShape(
-                    cornerRadiusTL = 22.dp,
-                    smoothnessAsPercentTR = 60,
-                    cornerRadiusBR = 22.dp,
-                    smoothnessAsPercentTL = 60,
-                    cornerRadiusBL = 22.dp,
-                    smoothnessAsPercentBR = 60,
-                    cornerRadiusTR = 22.dp,
-                    smoothnessAsPercentBL = 60,
-                )
-            ) {
-                Icon(
-                    imageVector = Icons.Rounded.Refresh,
-                    contentDescription = null,
-                    modifier = Modifier.size(20.dp)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(text = stringResource(R.string.home_empty_placeholder_refresh))
-            }
-        }
-    }
-}
-
-@Composable
-fun DailyMixHeroHeader(
-    isShuffleEnabled: Boolean = false,
-    onPlayShuffled: () -> Unit
-) {
-    val colors = MaterialTheme.colorScheme
-
-    HomeSectionHeader(
-        title = stringResource(R.string.presentation_batch_b_daily_mix_title),
-        subtitle = stringResource(R.string.home_your_mix_subtitle),
-        // The card around this header already pads 16dp.
-        contentPadding = PaddingValues(0.dp),
-        action = {
-            FilledTonalIconButton(
-                onClick = onPlayShuffled,
-                modifier = Modifier.size(56.dp),
-                colors = IconButtonDefaults.filledTonalIconButtonColors(
-                    containerColor = if (isShuffleEnabled) colors.primary else colors.tertiaryContainer,
-                    contentColor = if (isShuffleEnabled) colors.onPrimary else colors.onTertiaryContainer
-                )
-            ) {
-                Icon(
-                    painter = painterResource(R.drawable.rounded_shuffle_24),
-                    contentDescription = stringResource(R.string.cd_shuffle_play),
-                    modifier = Modifier.size(24.dp)
-                )
-            }
-        }
-    )
-}
-
-
-@Composable
-private fun ViewAllDailyMixButton(
-    modifier: Modifier = Modifier,
-    onClickOpen: () -> Unit
-) {
-    FilledTonalButton(
-        modifier = modifier,
-        onClick = {
-            onClickOpen()
-        },
-        colors = ButtonDefaults.filledTonalButtonColors(
-            containerColor = Color.Transparent
-        ),
-        shape = AbsoluteSmoothCornerShape(
-            cornerRadiusTL = 10.dp,
-            cornerRadiusTR = 10.dp,
-            smoothnessAsPercentTL = 70,
-            smoothnessAsPercentTR = 70,
-            cornerRadiusBL = 60.dp,
-            cornerRadiusBR = 60.dp,
-            smoothnessAsPercentBL = 70,
-            smoothnessAsPercentBR = 70
-
+            },
         )
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = stringResource(R.string.presentation_batch_g_daily_mix_see_all),
-                style = MaterialTheme.typography.bodyLarge,
-                fontWeight = FontWeight.Medium
-            )
-            Icon(
-                painter = painterResource(R.drawable.rounded_arrow_forward_24),
-                contentDescription = null,
-                modifier = Modifier.size(20.dp)
-            )
-        }
     }
 }
 
-
-@Composable
-fun SongListItemFavs(
-    modifier: Modifier = Modifier,
-    cardCorners: Dp = 12.dp,
-    title: String,
-    artist: String,
-    albumArtUrl: String?,
-    isPlaying: Boolean,
-    isCurrentSong: Boolean,
-    onClick: () -> Unit
-) {
-    val colors = MaterialTheme.colorScheme
-    val containerColor = if (isCurrentSong) colors.primaryContainer.copy(alpha = 0.46f) else colors.surfaceContainer
-    val contentColor = if (isCurrentSong) colors.primary else colors.onSurface
-
-    Card(
-        modifier = modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick),
-        shape = RoundedCornerShape(cardCorners),
-        colors = CardDefaults.cardColors(containerColor = containerColor),
-        elevation = CardDefaults.cardElevation(0.dp)
-    ) {
-        Row(
-            modifier = Modifier
-                .padding(12.dp)
-                .fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Row(
-                modifier = Modifier
-                    .weight(0.9f),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                SmartImage(
-                    model = albumArtUrl,
-                    contentDescription = stringResource(R.string.cd_album_art_for_title, title),
-                    contentScale = ContentScale.Crop,
-                    shape = RoundedCornerShape(8.dp),
-                    modifier = Modifier.size(48.dp)
-                )
-                Spacer(Modifier.width(16.dp))
-                Column(modifier = Modifier) {
-                    Text(
-                        text = title,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = if (isCurrentSong) FontWeight.Bold else FontWeight.Normal,
-                        color = contentColor,
-                        maxLines = 1, overflow = TextOverflow.Ellipsis
-                    )
-                    Text(
-                        text = artist, style = MaterialTheme.typography.bodyMedium,
-                        color = contentColor.copy(alpha = 0.7f),
-                        maxLines = 1, overflow = TextOverflow.Ellipsis
-                    )
-                }
-            }
-            Spacer(Modifier.width(16.dp))
-            if (isCurrentSong) {
-                PlayingEqIcon(
-                    modifier = Modifier
-                        .weight(0.1f)
-                        .padding(start = 8.dp)
-                        .size(width = 18.dp, height = 16.dp),
-                    color = colors.primary,
-                    isPlaying = isPlaying
-                )
-            }
-        }
-    }
+/** Map a pointer position (grid-local px) to the (row, column) of the cell under it. */
+private fun homeCardOriginAt(
+    startOffset: Offset,
+    cards: List<HomeCard>,
+    rowPitchPx: Float,
+    cellHeightPx: Float,
+    gridWidthPx: Float,
+): Pair<Int, Int>? {
+    val placement = placeHomeCards(cards)
+    val columnPitchPx = gridWidthPx / 2f
+    val col = (startOffset.x / columnPitchPx).toInt().coerceIn(0, 1)
+    val row = (startOffset.y / rowPitchPx).toInt()
+    if (row < 0) return null
+    return row to col
 }
 
-@androidx.annotation.OptIn(UnstableApi::class)
-@Composable
-fun SongListItemFavsWrapper(
-    song: Song,
+/** Route a home card tap to its destination screen (plan §4). */
+private fun onHomeCardClick(
+    card: HomeCard,
+    navController: NavController,
     playerViewModel: PlayerViewModel,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    context: android.content.Context,
+    onStreaming: () -> Unit,
 ) {
-    val stablePlayerState by playerViewModel.stablePlayerState.collectAsStateWithLifecycle()
-
-    val isThisSongPlaying = remember(song.id, stablePlayerState.currentSong?.id, stablePlayerState.isPlaying) {
-        song.id == stablePlayerState.currentSong?.id
+    when (card.type) {
+        HomeCardType.AI_PLAYLIST -> navController.navigateSafely(Screen.AiMixes.route)
+        HomeCardType.DAILY_MIX -> navController.navigateSafely(Screen.DailyMixScreen.route)
+        HomeCardType.GAME_RHYTHM -> navController.navigateSafely(Screen.RhythmSongPicker.route)
+        HomeCardType.GAME_QUIZ -> navController.navigateSafely(Screen.MusicQuiz.route)
+        HomeCardType.SOUNDSCAPE -> navController.navigateSafely(Screen.SleepSoundscape.route)
+        HomeCardType.LEARN_CLASSICAL -> navController.navigateSafely(Screen.ClassicalBrowse.route)
+        HomeCardType.LEARN_MIDI -> navController.navigateSafely(Screen.MidiLibrary.route)
+        HomeCardType.LEARN_EAR, HomeCardType.LEARN_METRONOME ->
+            playerViewModel.sendToast(context.getString(R.string.music_learning_coming_soon))
+        HomeCardType.STREAMING -> onStreaming()
+        HomeCardType.SETTINGS -> navController.navigateSafely(Screen.Settings.route)
+        HomeCardType.PLAYLIST -> card.targetId?.let {
+            navController.navigateSafely(Screen.PlaylistDetail.createRoute(it))
+        }
     }
-
-    SongListItemFavs(
-        modifier = modifier,
-        cardCorners = 0.dp,
-        title = song.title,
-        artist = song.displayArtist,
-        albumArtUrl = song.albumArtUriString,
-        isPlaying = stablePlayerState.isPlaying,
-        isCurrentSong = song.id == stablePlayerState.currentSong?.id,
-        onClick = onClick
-    )
 }
-
 
 /** Localized label for a time-of-day bucket, used by the Serendipity chips and mix name. */
 @androidx.annotation.StringRes

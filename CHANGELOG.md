@@ -5,6 +5,11 @@ PixelPlayerOSS; versions up to and including 0.4.3 were published under the upst
 
 ## [Unreleased]
 
+### Added
+- Home: customizable card grid — cards can be added, removed, resized (1x1 / 2x1 / 1x2 / 2x2) and
+  reordered by long-press drag; layout persists per user. AI playlist and Daily Mix cards keep
+  their rich content, every card uses the neutral rounded style of the old AI playlist entry.
+
 ### Changed
 - Rhythm game: the derived/other chart cards were redesigned — the title owns a full line and
   scrolls (marquee) when it overflows, every parameter (source, note count, notes per second,

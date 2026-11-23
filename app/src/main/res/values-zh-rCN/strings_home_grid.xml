@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 首页卡片网格（home-cards-grid-plan.md） -->
+    <string name="home_grid_title">首页</string>
+    <string name="home_grid_subtitle">长按卡片可拖动排序 · 上下滚动</string>
+    <string name="home_grid_edit_title">编辑首页</string>
+    <string name="home_grid_edit_subtitle">长按拖动 · ✕ 删除 · chip 切换大小</string>
+    <string name="home_grid_done">完成</string>
+    <string name="home_grid_restore_default">恢复默认</string>
+
+    <string name="home_grid_add">添加</string>
+    <string name="home_grid_added">已添加</string>
+    <string name="home_grid_add_card">添加卡片</string>
+    <string name="home_grid_add_card_subtitle">选择要放到首页的内容。新卡片会排到末尾，长按可拖动排序。</string>
+    <string name="home_grid_group_recommended">推荐</string>
+    <string name="home_grid_group_games">音乐游戏</string>
+    <string name="home_grid_group_soundscape">入梦</string>
+    <string name="home_grid_group_learning">音乐学习</string>
+    <string name="home_grid_group_sources">来源</string>
+    <string name="home_grid_group_playlists">我的歌单（可固定任意歌单）</string>
+    <string name="home_grid_choose_playlist">选择其他歌单…</string>
+    <string name="home_grid_choose_playlist_subtitle">从曲库挑一个歌单</string>
+    <string name="home_grid_no_playlists">还没有歌单</string>
+
+    <string name="home_grid_edit_layout">编辑首页布局</string>
+    <string name="home_grid_edit_layout_subtitle">拖动排序、调整大小或删除卡片</string>
+    <string name="home_grid_add_tile">添加卡片</string>
+
+    <string name="home_grid_empty_title">首页空空如也</string>
+    <string name="home_grid_empty_subtitle">添加卡片，把你的音乐入口放回来；也可以一键恢复默认布局。</string>
+    <string name="home_grid_empty_add">添加卡片</string>
+
+    <string name="home_grid_cd_add_card">添加卡片</string>
+    <string name="home_grid_cd_edit">编辑首页布局</string>
+    <string name="home_grid_cd_remove_card">删除 %1$s</string>
+    <string name="home_grid_cd_cycle_size">切换 %1$s 的大小</string>
+    <string name="home_grid_size_label">%1$d×%2$d</string>
+
+    <string name="home_grid_card_removed">已移除「%1$s」</string>
+    <string name="home_grid_undo">撤销</string>
+    <string name="home_grid_card_added">已添加「%1$s」，长按可拖动排序</string>
+    <string name="home_grid_default_restored">已恢复默认布局</string>
+
+    <string name="home_grid_playlist_fallback_name">歌单</string>
+    <string name="home_grid_playlist_tracks_format">%1$d 首</string>
+
+    <string name="home_grid_soundscape_subtitle">助眠声景 · 雨声与白噪音</string>
+    <string name="home_grid_streaming_subtitle">Navidrome · Jellyfin 等来源</string>
+    <string name="home_grid_settings_subtitle">应用设置</string>
+
+    <string name="home_grid_restore_confirm_title">恢复默认布局？</string>
+    <string name="home_grid_restore_confirm_body">当前的卡片排布会被默认网格替换。</string>
+    <string name="home_grid_restore_confirm_ok">恢复</string>
+    <string name="home_grid_cancel">取消</string>
+</resources>

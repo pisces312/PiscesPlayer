@@ -97,6 +97,9 @@ fun HomeGradientTopBar(
     onStreamingClick: () -> Unit,
     onSoundscapeClick: () -> Unit,
     isScrolled: Boolean = false,
+    modifier: Modifier = Modifier,
+    /** Extra action buttons rendered after the built-in cloud / 入梦 actions (e.g. grid edit). */
+    extraActions: (@Composable () -> Unit)? = null,
 ) {
     val surfaceContainerHigh = MaterialTheme.colorScheme.surfaceContainerHighest
 
@@ -109,7 +112,7 @@ fun HomeGradientTopBar(
     )
 
     TopAppBar(
-        modifier = Modifier.background(surfaceContainerHigh.copy(alpha = animatedAlpha)),
+        modifier = modifier.background(surfaceContainerHigh.copy(alpha = animatedAlpha)),
         title = {
             Text(
                 text = stringResource(R.string.about_app_name),
@@ -164,6 +167,7 @@ fun HomeGradientTopBar(
                         contentDescription = stringResource(R.string.settings_top_bar_title)
                     )
                 }
+                extraActions?.invoke()
             }
         },
         colors = topAppBarColors(

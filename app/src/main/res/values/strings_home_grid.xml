@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Home card grid (home-cards-grid-plan.md) -->
+    <string name="home_grid_title">Home</string>
+    <string name="home_grid_subtitle">Long press a card to rearrange · vertical scroll</string>
+    <string name="home_grid_edit_title">Edit home</string>
+    <string name="home_grid_edit_subtitle">Long press to drag · × removes · chip resizes</string>
+    <string name="home_grid_done">Done</string>
+    <string name="home_grid_restore_default">Restore default</string>
+
+    <string name="home_grid_add">Add</string>
+    <string name="home_grid_added">Added</string>
+    <string name="home_grid_add_card">Add card</string>
+    <string name="home_grid_add_card_subtitle">Choose what appears on the home grid. New cards go to the bottom; long press one to reorder.</string>
+    <string name="home_grid_group_recommended">Recommended</string>
+    <string name="home_grid_group_games">Music games</string>
+    <string name="home_grid_group_soundscape">Sleep soundscape</string>
+    <string name="home_grid_group_learning">Music learning</string>
+    <string name="home_grid_group_sources">Sources</string>
+    <string name="home_grid_group_playlists">My playlists (pin any playlist)</string>
+    <string name="home_grid_choose_playlist">Choose another playlist…</string>
+    <string name="home_grid_choose_playlist_subtitle">Pick any playlist from your library</string>
+    <string name="home_grid_no_playlists">No playlists yet</string>
+
+    <string name="home_grid_edit_layout">Edit home layout</string>
+    <string name="home_grid_edit_layout_subtitle">Rearrange, resize or remove cards</string>
+    <string name="home_grid_add_tile">Add card</string>
+
+    <string name="home_grid_empty_title">Home is empty</string>
+    <string name="home_grid_empty_subtitle">Add cards to bring your music entries back, or restore the default layout.</string>
+    <string name="home_grid_empty_add">Add card</string>
+
+    <string name="home_grid_cd_add_card">Add a card</string>
+    <string name="home_grid_cd_edit">Edit home layout</string>
+    <string name="home_grid_cd_remove_card">Remove %1$s</string>
+    <string name="home_grid_cd_cycle_size">Change size of %1$s</string>
+    <string name="home_grid_size_label">%1$d×%2$d</string>
+
+    <string name="home_grid_card_removed">Removed “%1$s”</string>
+    <string name="home_grid_undo">Undo</string>
+    <string name="home_grid_card_added">Added “%1$s” — long press to rearrange</string>
+    <string name="home_grid_default_restored">Default layout restored</string>
+
+    <string name="home_grid_playlist_fallback_name">Playlist</string>
+    <string name="home_grid_playlist_tracks_format">%1$d tracks</string>
+
+    <string name="home_grid_soundscape_subtitle">Sleep soundscape · rain and white noise</string>
+    <string name="home_grid_streaming_subtitle">Navidrome · Jellyfin and other sources</string>
+    <string name="home_grid_settings_subtitle">App settings</string>
+
+    <string name="home_grid_restore_confirm_title">Restore default layout?</string>
+    <string name="home_grid_restore_confirm_body">Your current card arrangement will be replaced by the default grid.</string>
+    <string name="home_grid_restore_confirm_ok">Restore</string>
+    <string name="home_grid_cancel">Cancel</string>
+</resources>
