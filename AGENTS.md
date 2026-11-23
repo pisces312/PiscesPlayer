@@ -183,9 +183,8 @@ PiscesPlayer 的设计、调研、计划、评审类文档统一存放在**私�
 - 注册表里也没有 → 打印缺少的变量名 + 设置指引，**直接退出、不开始构建**（省几分钟白跑）；
 - 构建成功后自动 `apksigner verify --print-certs -v` 验签（`Verifies` + `v2 scheme: true` +
   `CN=pisces312`），未签名则报错退出。
-- 注意：`build-release.ps1` 必须保存为 **UTF-8 with BOM** —— Windows PowerShell 5.1 对无 BOM
-  的 `.ps1` 按 ANSI(GBK) 解码，中文会乱码并报解析错误。用编辑工具改完务必检查 BOM 仍在
-  （文件头三字节 `EF BB BF`）。
+- 注意：`build-release.ps1` 现为**纯英文（ASCII）**，不再要求 UTF-8 with BOM——旧版中文输出依赖
+  BOM 才能让 Windows PowerShell 5.1 正确解码；纯英文从根上免掉了这一类编码问题。
 
 ### 环境变量在哪、会话为什么可能拿不到（2026-11-14 补）
 
