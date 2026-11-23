@@ -11,8 +11,15 @@ PixelPlayerOSS; versions up to and including 0.4.3 were published under the upst
   their rich content, every card uses the neutral rounded style of the old AI playlist entry.
 - Home: a help (?) button in the top bar opens a quick-start sheet (edit gestures, adding cards,
   Serendipity gestures, Daily Mix) with a link to the full changelog.
-- Home: the Serendipity button breathes as a live morph blob — its outline wobbles between two
-  organic shapes in sync with the scale/shadow pulse (Material 3 Expressive shape morphing).
+- Home: the Serendipity button breathes as a live jelly — its outline morphs through eight
+  organic phases (a travelling bulge on a superellipse) while the whole pill sways gently
+  and pulses in scale/shadow, all on separate clocks (Material 3 Expressive shape morphing);
+  the short-press/long-press hint is one line directly under the button.
+
+### Fixed
+- Remote artwork cache: replacing an existing cache file used `File.renameTo`, which fails on
+  Windows JVMs when the destination exists (POSIX rename replaces silently). Now uses
+  `Files.move(REPLACE_EXISTING)` on every platform.
 
 ### Changed
 - Rhythm game: the derived/other chart cards were redesigned — the title owns a full line and

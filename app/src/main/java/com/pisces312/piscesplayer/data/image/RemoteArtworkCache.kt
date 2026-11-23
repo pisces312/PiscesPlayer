@@ -9,14 +9,19 @@ import okio.FileSystem
 import okio.Path.Companion.toPath
 import java.io.File
 import java.io.IOException
+import java.nio.file.Files
+import java.nio.file.StandardCopyOption
 
 /**
  * Disk cache shared by the Navidrome and Jellyfin Coil fetchers.
  *
  * Only bodies that carry an image signature are cached: Subsonic servers answer failed
  * `getCoverArt` calls with HTTP 200 and a JSON/XML error, and caching that body would pin a
- * broken cover until the cache is cleared. Downloads land in a temp file that is renamed into
- * place, so a concurrent request never decodes a file another request is still writing.
+ * broken cover until the cache is cleared. Downloads land in a temp file that is moved into
+ * place with REPLACE_EXISTING semantics, so a concurrent request never decodes a file another
+ * request is still writing, and a stale cache entry is replaced atomically (POSIX rename
+ * replaces silently, but `File.renameTo` on Windows fails when the target exists — use
+ * `Files.move`, which behaves the same on every platform).
  */
 internal object RemoteArtworkCache {
 
@@ -47,7 +52,7 @@ internal object RemoteArtworkCache {
             val tempFile = File.createTempFile(file.name, ".tmp", file.parentFile)
             try {
                 tempFile.writeBytes(bytes)
-                if (!tempFile.renameTo(file)) throw IOException("Could not move artwork into $file")
+                Files.move(tempFile.toPath(), file.toPath(), StandardCopyOption.REPLACE_EXISTING)
             } finally {
                 tempFile.delete()
             }
