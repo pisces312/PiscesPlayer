@@ -16,7 +16,10 @@ import androidx.graphics.shapes.Morph
 import androidx.graphics.shapes.RoundedPolygon
 import androidx.graphics.shapes.toPath
 import kotlin.math.PI
+import kotlin.math.abs
 import kotlin.math.cos
+import kotlin.math.pow
+import kotlin.math.sign
 import kotlin.math.sin
 import racra.compose.smooth_corner_rect_library.AbsoluteSmoothCornerShape
 
@@ -75,41 +78,74 @@ object ShapeCache {
     @OptIn(ExperimentalMaterial3ExpressiveApi::class)
     val expressiveHero: Shape = RoundedPolygonShape(MaterialShapes.SoftBurst)
 
-    /** Two organic 8-vertex blobs (normalized to unit bounds) that the Serendipity button
-     * morphs between, driven by the same breathing progress as its scale/shadow pulse
-     * (v1.3.6). The button is literally "alive": the outline wobbles while it breathes. */
-    private val serendipityMorph: Morph by lazy {
-        Morph(
-                serendipityBlobPolygon(0f).normalized(),
-                serendipityBlobPolygon(PI.toFloat() / 8f).normalized()
-        )
+    /**
+     * The Serendipity (不期而遇) button is a live jelly: [SERENDIPITY_PHASES] plump blobs on
+     * the same 8-vertex topology morph consecutively (the last wraps back to the first)
+     * across one loop, addressed by a single 0..1 [serendipityBlob] progress (v1.3.7).
+     *
+     * The blobs are authored directly in the unit box of the pill's wide rectangle as
+     * superellipses — fuller than a circle. The first attempt (v1.3.6) stretched a
+     * near-circle to the pill's ~3:1 aspect, which pulled the left/right vertices into
+     * pointed "eye" ends. A superellipse base plus heavy smoothing keeps every phase plump
+     * at any aspect, while one bulge travels 45° around the outline per phase so the jelly
+     * sloshes instead of pulsing in place.
+     */
+    private const val SERENDIPITY_PHASES = 8
+
+    private val serendipityPhases: Array<RoundedPolygon> by lazy {
+        Array(SERENDIPITY_PHASES) { serendipityBlobPolygon(it) }
     }
 
-    /** Serendipity button outline at [progress] (0..1) between the two cached blobs. */
-    fun serendipityBlob(progress: Float): Shape = MorphShape(serendipityMorph, progress)
+    /** Consecutive-phase morphs (including the wrap-around pair); Morph needs matching
+     *  polygon structure, and all phases share the same 8-vertex convex topology. */
+    private val serendipityMorphs: Array<Morph> by lazy {
+        Array(SERENDIPITY_PHASES) { p ->
+            Morph(serendipityPhases[p], serendipityPhases[(p + 1) % SERENDIPITY_PHASES])
+        }
+    }
+
+    /** Serendipity button outline at loop [progress] (0..1 = one full jelly revolution). */
+    fun serendipityBlob(progress: Float): Shape {
+        val scaled = progress.coerceIn(0f, 1f) * SERENDIPITY_PHASES
+        val segment = minOf(scaled.toInt(), SERENDIPITY_PHASES - 1)
+        // Linear between phases: a continuous slosh, no stop-and-go at each vertex.
+        return MorphShape(serendipityMorphs[segment], scaled - segment)
+    }
 
     /**
-     * One organic blob: [VERTEX_RADII] points on a circle, alternating radius so the
-     * silhouette bulges and dips, every corner smoothed by [CornerRounding]. Rotating the
-     * whole point set by half a step yields the second blob of the morph pair.
+     * One organic blob in unit-box coordinates (0..1): 8 vertices on a superellipse around
+     * the center (power 2/3 — fuller than a circle, softer than a rectangle), one vertex
+     * bulging (1.0x, touching the box edge), the opposite one dipping (0.78x), the rest
+     * tucked at 0.88x, every corner heavily smoothed. The pattern rotates one vertex (45°)
+     * per phase, so the bulge travels around the outline across the loop. All factors stay
+     * ≤ 1 so the outline never exceeds the button's bounds.
      */
-    private fun serendipityBlobPolygon(rotation: Float): RoundedPolygon {
-        val n = VERTEX_RADII.size
+    private fun serendipityBlobPolygon(phase: Int): RoundedPolygon {
+        val n = SERENDIPITY_PHASES
+        val power = 2f / 3f
         // graphics-shapes takes the outline as a flat [x0, y0, x1, y1, ...] array.
         val vertices = FloatArray(n * 2) { i ->
             val vertex = i / 2
-            val angle = rotation + 2f * PI.toFloat() * vertex / n
-            VERTEX_RADII[vertex] * (if (i % 2 == 0) cos(angle) else sin(angle))
+            val angle = 2f * PI.toFloat() * vertex / n
+            val wobble =
+                    when ((vertex - phase).mod(n)) {
+                        0 -> 1.0f
+                        n / 2 -> 0.78f
+                        else -> 0.88f
+                    }
+            val c = cos(angle)
+            val s = sin(angle)
+            val x = 0.5f + 0.5f * wobble * sign(c) * abs(c).pow(power)
+            val y = 0.5f + 0.5f * wobble * sign(s) * abs(s).pow(power)
+            if (i % 2 == 0) x else y
         }
         return RoundedPolygon(
                 vertices = vertices,
-                perVertexRounding = List(n) { CornerRounding(0.32f) },
-                centerX = 0f,
-                centerY = 0f
+                perVertexRounding = List(n) { CornerRounding(0.35f, smoothing = 1f) },
+                centerX = 0.5f,
+                centerY = 0.5f
         )
     }
-
-    private val VERTEX_RADII = floatArrayOf(1f, 0.84f, 1f, 0.84f, 1f, 0.84f, 1f, 0.84f)
 }
 
 /**

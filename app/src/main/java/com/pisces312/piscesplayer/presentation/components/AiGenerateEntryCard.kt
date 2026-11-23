@@ -1,5 +1,6 @@
 package com.pisces312.piscesplayer.presentation.components
 
+import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
@@ -117,16 +118,18 @@ fun AiGenerateEntryCard(
                                 highlight = true,
                         )
                         Text(
-                                // Deliberately two lines: 「短按即听」/「长按说一句」.
+                                // v1.3.7: ONE line directly under the pill (user feedback:
+                                // two lines read like a caption for the whole card). The
+                                // " · " separator keeps the two gestures scannable.
                                 text =
                                         stringResource(
                                                 if (configured) R.string.ai_serendipity_button_hint
                                                 else R.string.ai_playlist_entry_unconfigured
-                                        ).replace(" · ", "\n"),
+                                        ),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 textAlign = TextAlign.Center,
-                                maxLines = 2,
+                                maxLines = 1,
                                 modifier = Modifier.padding(top = 4.dp)
                         )
                     }
@@ -167,6 +170,22 @@ private fun ActionPill(
             animationSpec = infiniteRepeatable(tween(1400), RepeatMode.Reverse),
             label = "serendipity_pulse_value",
     )
+    // v1.3.7: the morph loop is decoupled from the heartbeat — one full jelly revolution
+    // per ~6s (8 phases × 0.75s), while scale/shadow keep the 1.4s breathing pulse.
+    val morph by rememberInfiniteTransition(label = "serendipity_morph").animateFloat(
+            initialValue = 0f,
+            targetValue = 1f,
+            animationSpec = infiniteRepeatable(tween(6000, easing = LinearEasing), RepeatMode.Restart),
+            label = "serendipity_morph_value",
+    )
+    // A slow ±8° wobble, like jelly settling on a plate — enough life to read as "alive",
+    // gentle enough that the label text stays readable (no full 360° spin).
+    val sway by rememberInfiniteTransition(label = "serendipity_sway").animateFloat(
+            initialValue = -1f,
+            targetValue = 1f,
+            animationSpec = infiniteRepeatable(tween(2800), RepeatMode.Reverse),
+            label = "serendipity_sway_value",
+    )
 
     val content: @Composable () -> Unit = {
         Row(
@@ -190,12 +209,13 @@ private fun ActionPill(
         }
     }
 
-    // v1.3.6: the highlighted pill is a live morph blob — its outline wobbles between two
-    // organic shapes in sync with the scale/shadow pulse; everything else stays a circle
-    // (icon actions = circles, the one verb action = distinctive shape).
+    // v1.3.7: the highlighted pill is a live jelly blob — its outline morphs through 8
+    // organic phases while the whole pill breathes (scale/shadow) and sways (±8°), all on
+    // separate clocks. Everything else stays a circle (icon actions = circles, the one verb
+    // action = distinctive shape).
     val eased = 0.5f - 0.5f * kotlin.math.cos(pulse * kotlin.math.PI.toFloat())
     val pillShape: androidx.compose.ui.graphics.Shape =
-            if (highlight) ShapeCache.serendipityBlob(eased) else CircleShape
+            if (highlight) ShapeCache.serendipityBlob(morph) else CircleShape
 
     if (onClick != null || onLongClick != null) {
         Surface(
@@ -211,6 +231,7 @@ private fun ActionPill(
                                         scaleX = scale
                                         scaleY = scale
                                         shadowElevation = (4f + 14f * eased).dp.toPx()
+                                        rotationZ = 8f * sway
                                     }
                                 }
                                 .combinedClickable(
