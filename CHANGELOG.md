@@ -44,6 +44,10 @@ PixelPlayerOSS; versions up to and including 0.4.3 were published under the upst
   "With charts" (with an All/Recent scope filter defaulting to All, plus a difficulty filter)
   and "Without charts". Both tabs share the search field and the common song sort options; the
   old chart-presence dropdown filter and the "current song" shortcut row are gone.
+- Rhythm game song picker: the "Without charts" tab no longer lists MIDI songs — MIDI rows
+  appear only in their own tab, because their charts are generated from note tracks rather
+  than the DSP path. The tab now shows a dedicated empty state when no non-MIDI song is left
+  without a chart.
 - Rhythm game: the mini player is now hidden across the whole flow (song picker and chart
   setup screens included), so those screens use the freed bottom space.
 

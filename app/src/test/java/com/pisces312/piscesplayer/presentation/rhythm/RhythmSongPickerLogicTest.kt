@@ -13,7 +13,14 @@ class RhythmSongPickerLogicTest {
         title: String = id,
         artist: String = "Artist",
         keys: List<String?> = emptyList(),
-    ) = RhythmSongCandidate(id = id, title = title, artist = artist, difficultyKeys = keys)
+        isMidi: Boolean = false,
+    ) = RhythmSongCandidate(
+        id = id,
+        title = title,
+        artist = artist,
+        difficultyKeys = keys,
+        isMidi = isMidi,
+    )
 
     private val songs = listOf(
         candidate("b", title = "Beta", keys = listOf("easy", "normal")),
@@ -123,6 +130,37 @@ class RhythmSongPickerLogicTest {
 
         assertEquals(listOf("e"), withoutCharts.map(RhythmSongCandidate::id))
         assertEquals(listOf("a", "b", "d", "c"), withCharts.map(RhythmSongCandidate::id))
+    }
+
+    @Test
+    fun withoutChartsLeavesMidiSongsToTheirOwnTab() {
+        val midiNoChart = candidate("m1", keys = emptyList(), isMidi = true)
+        val midiWithChart = candidate("m2", keys = listOf("easy"), isMidi = true)
+        val audioNoChart = candidate("a1")
+        val candidates = listOf(midiNoChart, midiWithChart, audioNoChart)
+
+        val withoutCharts = filterRhythmSongCandidates(
+            candidates = candidates,
+            recentSongIds = emptyList(),
+            query = "",
+            filters = RhythmSongFilterState(
+                scope = RhythmSongScope.ALL,
+                charts = RhythmChartFilter.WITHOUT_CHARTS,
+            ),
+        )
+        val allCharts = filterRhythmSongCandidates(
+            candidates = candidates,
+            recentSongIds = emptyList(),
+            query = "",
+            filters = RhythmSongFilterState(
+                scope = RhythmSongScope.ALL,
+                charts = RhythmChartFilter.ALL,
+            ),
+            locale = Locale.ENGLISH,
+        )
+
+        assertEquals(listOf("a1"), withoutCharts.map(RhythmSongCandidate::id))
+        assertEquals(listOf("a1", "m1", "m2"), allCharts.map(RhythmSongCandidate::id))
     }
 
     @Test

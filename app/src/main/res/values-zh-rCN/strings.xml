@@ -449,6 +449,7 @@
     <string name="rhythm_picker_empty_local">暂无可游玩的本地歌曲</string>
     <string name="rhythm_picker_empty_search">未找到相关歌曲</string>
     <string name="rhythm_picker_empty_recent">还没有最近播放的本地歌曲</string>
+    <string name="rhythm_picker_empty_chartless">没有无谱的本地歌曲</string>
     <string name="rhythm_picker_empty_filters">没有符合筛选条件的歌曲</string>
     <string name="rhythm_picker_no_charts">暂无谱面 · 点击生成或导入</string>
     <plurals name="rhythm_picker_chart_summary">

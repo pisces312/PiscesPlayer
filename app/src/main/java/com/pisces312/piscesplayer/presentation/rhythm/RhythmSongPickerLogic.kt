@@ -56,6 +56,8 @@ internal data class RhythmSongCandidate(
     val title: String,
     val artist: String,
     val difficultyKeys: List<String?>,
+    /** See [Song.isRhythmMidiSong]: MIDI rows live in the picker's own MIDI tab. */
+    val isMidi: Boolean = false,
 ) {
     val chartCount: Int get() = difficultyKeys.size
 }
@@ -63,7 +65,8 @@ internal data class RhythmSongCandidate(
 /**
  * MIDI songs are regular library rows (built-in classical `piscesmidi://` content and the
  * user MIDI library both store `audio/midi`), so the picker's MIDI tab filters the normal
- * song list instead of talking to MidiLibraryRepository.
+ * song list instead of talking to MidiLibraryRepository. The same marker keeps them out of
+ * the 无谱 tab, where MIDI charts are generated from notes rather than the DSP path.
  */
 internal fun Song.isRhythmMidiSong(): Boolean {
     if (mimeType?.contains("midi", ignoreCase = true) == true) return true
@@ -109,7 +112,10 @@ internal fun filterRhythmSongCandidates(
             when (filters.charts) {
                 RhythmChartFilter.ALL -> true
                 RhythmChartFilter.WITH_CHARTS -> candidate.chartCount > 0
-                RhythmChartFilter.WITHOUT_CHARTS -> candidate.chartCount == 0
+                // MIDI songs are excluded on purpose: they have their own picker tab,
+                // so "songs awaiting a chart" should only offer audio the DSP path can take.
+                RhythmChartFilter.WITHOUT_CHARTS ->
+                    candidate.chartCount == 0 && !candidate.isMidi
             }
     }
 }

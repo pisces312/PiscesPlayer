@@ -152,13 +152,14 @@ fun RhythmSongPickerScreen(
     }
     // MIDI songs are library rows like any other (built-in classical + user MIDI library),
     // so the MIDI tab is a source filter over the same candidates, not a second data path.
-    val midiCandidates = remember(candidates, songsById) {
-        candidates.filter { songsById[it.id]?.isRhythmMidiSong() == true }
+    val midiCandidates = remember(candidates) {
+        candidates.filter(RhythmSongCandidate::isMidi)
     }
     val tabCounts = remember(candidates, midiCandidates) {
         listOf(
             candidates.count { it.chartCount > 0 },
-            candidates.count { it.chartCount == 0 },
+            // MIDI rows are only counted / listed under their own tab.
+            candidates.count { it.chartCount == 0 && !it.isMidi },
             midiCandidates.size,
         )
     }
@@ -168,7 +169,8 @@ fun RhythmSongPickerScreen(
 
     // The tab IS the chart-presence filter; scope/difficulty are shared by both tabs and only
     // surfaced in the with-charts one. The MIDI tab shows every MIDI song regardless of
-    // charts — generation is one tap away on the setup screen.
+    // charts — generation is one tap away on the setup screen — and the 无谱 tab leaves those
+    // rows out entirely (RhythmChartFilter.WITHOUT_CHARTS skips MIDI candidates).
     val filtersWithCharts = RhythmSongFilterState(scope, difficulty, RhythmChartFilter.WITH_CHARTS)
     val filtersWithoutCharts = RhythmSongFilterState(scope, difficulty, RhythmChartFilter.WITHOUT_CHARTS)
     val filtersMidi = RhythmSongFilterState(RhythmSongScope.ALL, RhythmDifficultyFilter.ALL, RhythmChartFilter.ALL)
@@ -395,6 +397,10 @@ fun RhythmSongPickerScreen(
                                 localLibraryEmpty = localSongs.isEmpty(),
                                 query = query,
                                 recentEmpty = scope == RhythmSongScope.RECENT && recentLocalCount == 0,
+                                chartlessEmpty = page == 1 &&
+                                    query.isBlank() &&
+                                    scope == RhythmSongScope.ALL &&
+                                    difficulty == RhythmDifficultyFilter.ALL,
                                 filtersActive = scope != RhythmSongScope.ALL ||
                                     difficulty != RhythmDifficultyFilter.ALL,
                                 showSearchAll = scope == RhythmSongScope.RECENT && query.isNotBlank(),
@@ -600,6 +606,7 @@ private fun RhythmPickerEmptyState(
     localLibraryEmpty: Boolean,
     query: String,
     recentEmpty: Boolean,
+    chartlessEmpty: Boolean,
     filtersActive: Boolean,
     showSearchAll: Boolean,
     onClearSearch: () -> Unit,
@@ -611,6 +618,7 @@ private fun RhythmPickerEmptyState(
         localLibraryEmpty -> stringResource(R.string.rhythm_picker_empty_local)
         query.isNotBlank() -> stringResource(R.string.rhythm_picker_empty_search)
         recentEmpty -> stringResource(R.string.rhythm_picker_empty_recent)
+        chartlessEmpty -> stringResource(R.string.rhythm_picker_empty_chartless)
         else -> stringResource(R.string.rhythm_picker_empty_filters)
     }
     Column(
@@ -695,4 +703,5 @@ private fun Song.toCandidate(charts: List<RhythmChartMeta>): RhythmSongCandidate
         title = title,
         artist = displayArtist,
         difficultyKeys = charts.map(RhythmChartMeta::difficultyKey),
+        isMidi = isRhythmMidiSong(),
     )

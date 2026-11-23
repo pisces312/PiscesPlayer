@@ -450,6 +450,7 @@
     <string name="rhythm_picker_empty_local">No playable local songs</string>
     <string name="rhythm_picker_empty_search">No matching songs</string>
     <string name="rhythm_picker_empty_recent">No recently played local songs yet</string>
+    <string name="rhythm_picker_empty_chartless">No local songs without charts</string>
     <string name="rhythm_picker_empty_filters">No songs match these filters</string>
     <string name="rhythm_picker_no_charts">No charts · tap to generate or import</string>
     <plurals name="rhythm_picker_chart_summary">
