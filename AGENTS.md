@@ -4,6 +4,43 @@ PiscesPlayer — Android 音乐播放器（100% Kotlin，Jetpack Compose + Mater
 本仓库是 `PixelPlayerHQ/PixelPlayerOSS` 的**独立维护分支**：`pisces312/PiscesPlayer`（上游链接见 `README.md` 与 `PROVENANCE.md`）。Gradle 模块：`:app`、`:baselineprofile`。
 包名 `com.pisces312.piscesplayer`，许可证 **GPL-3.0-or-later**。
 
+## 开发环境与路径引用（两套，2026-11-23 起）
+
+本项目在 **PC（Windows）** 与 **手机（DSH Go · proot Ubuntu 24.04 aarch64）** 两套环境开发，
+共用同一 git 仓库。下表定义各环境的路径；**本文其余路径引用按下表换算，散落的 `D:\...` 引用不逐个改写**。
+
+| 概念 | PC（Windows） | 手机（proot Ubuntu） |
+|---|---|---|
+| 工作区（私有文档仓库 `my-projects`，本文 `D:\workspace` 即它） | `D:\workspace` | `/storage/emulated/0/my-git-projects/workspace`¹ |
+| 项目根（PiscesPlayer、RhythmChartLab 等） | `D:\3rd-party-projects\<项目>` 等² | `/storage/emulated/0/my-git-projects/<项目>`³ |
+| JDK | `D:\dev\jdk-25` | apt `openjdk-25`（`JAVA_HOME=/usr/lib/jvm/java-25-openjdk-arm64`） |
+| Android SDK | `D:/dev/android_sdk`（`ANDROID_HOME`） | `/root/android-sdk`（`ANDROID_HOME`） |
+| GRADLE_USER_HOME | `D:\dev\.gradle` | `~/.gradle`（默认，无需设置） |
+| 签名 `KEY_*` 变量 | Windows 用户环境变量（注册表 `HKCU:\Environment`） | `/root/.secrets.env`（`chmod 600`，由 `~/.bashrc` source；所有项目共享） |
+| 产物 APK | 仓库 `app/build/outputs/apk/...` | 同左；交付时拷到 `/sdcard/Download/DSH-Go/` |
+
+- ¹ proot 内即 `/sdcard/my-git-projects/workspace`（`/root/手机存储/my-git-projects/workspace` 是同一位置）。
+  它是 Codeup `my-projects` 的克隆，与 PC 的 `D:\workspace` **同一仓库**，`design/piscesplayer/docs` 结构一致。
+- ² 例：节奏游戏文档库在 `D:\3rd-party-projects\RhythmChartLab\docs`。
+- ³ 目录名小写连字符风格（如 `rhythm-chart-lab` 对应 PC 的 `RhythmChartLab`）；内部结构一致，文档间相对引用两边通用。
+- **PiscesPlayer 手机侧唯一工作克隆 = `/root/PiscesPlayer`**（2026-11-23 定）：`/sdcard` 是 FUSE
+  大容量存储，Gradle 在其上构建慢且易卡，`/root` 还随运行时升级保留。
+  `/sdcard/my-git-projects/PiscesPlayer` 只作镜像 / 同步副本，**不在其上改动**；其他项目仍在
+  `/storage/emulated/0/my-git-projects/<项目>`。
+
+### 构建命令差异
+
+- **PC**：`.\gradlew.bat :app:assembleRelease`（发版走 `build-release.bat`，见「签名与发布」）。
+- **手机**：`source ~/.bashrc && ./gradlew :app:assembleRelease` —— DSH 对话里执行命令的是**非交互 shell，
+  不读 `.bashrc`**，必须先 source（终端 App 里则已自动生效）。
+- daemon JVM 两套环境都钉 **JDK 25**（`gradle/gradle-daemon-jvm.properties`，故意不带 foojay 下载链接，
+  靠本机 `JAVA_HOME` 指向 JDK 25）；编译目标仍是 jvmTarget / sourceCompatibility **21**，不受影响。
+- **手机侧已知差异**：项目 `gradle.properties` 的 `-XX:+ParallelRefParsingEnabled` 是 JBR 系 JVM 的
+  flag，Ubuntu apt 的 OpenJDK 25 不认识（daemon 直接拒绝启动）。手机侧在 `~/.gradle/gradle.properties`
+  用 `org.gradle.jvmargs` 覆盖（**用户级优先于项目级**，已实测）；PC 的 JBR 不受影响。
+  不要"顺手"删项目文件里的这个 flag——它是上游为 JBR 加的。
+- 凭据（`KEY_*` 的值、keystore 文件）**只放环境变量与仓库外路径，严禁写进本文件或任何入库文件**。
+
 ## 仓库历史关系（重要，动手前必读）
 
 | 仓库 | 许可 | 关系 |
@@ -24,14 +61,14 @@ PiscesPlayer 的设计、调研、计划、评审类文档统一存放在**私�
 运维/发布类文档（`RELEASE.md`、`REBRAND.md`、`FDROID.md`、`DEPENDENCY_LICENSES.md`、
 `RELEASE_ARCHIVE.md`、`releases/`、`images/`）；存量设计文档已整体迁往该仓库。
 
-- **新设计文档写入** `D:\workspace\design\piscesplayer\docs\`，不要在本仓库 `docs/` 新建。
+- **新设计文档写入** `D:\workspace\design\piscesplayer\docs\`（手机：`/storage/emulated/0/my-git-projects/workspace/design/piscesplayer/docs/`），不要在本仓库 `docs/` 新建。
 - 代码注释与旧文档中的 `docs/<设计文档>.md` 引用一律对应
   `D:\workspace\design\piscesplayer\docs\<设计文档>.md`（散落引用不逐个改）；
   引用运维文档（RELEASE/REBRAND/FDROID 等）的仍指本仓库 `docs/`。
 
 ## 节奏游戏文档
 
-节奏游戏相关的设计、调研与实施文档统一存放在 `D:\3rd-party-projects\RhythmChartLab\docs`，本仓库 `docs/` 不再保存这类文档。后续新增节奏游戏相关设计文档也放入该目录，不要在 PiscesPlayer 内另建副本。
+节奏游戏相关的设计、调研与实施文档统一存放在 `D:\3rd-party-projects\RhythmChartLab\docs`（手机：`/storage/emulated/0/my-git-projects/rhythm-chart-lab/docs`），本仓库 `docs/` 不再保存这类文档。后续新增节奏游戏相关设计文档也放入该目录，不要在 PiscesPlayer 内另建副本。
 
 ## 分支
 
@@ -42,7 +79,8 @@ PiscesPlayer 的设计、调研、计划、评审类文档统一存放在**私�
 
 ## 技术栈与版本
 
-- Gradle 9.6.1（wrapper 已改腾讯云镜像）、AGP 9.4.0、Kotlin 2.4.20、KSP 2.3.12、JDK 21（JBR）。
+- Gradle 9.6.1（wrapper 已改腾讯云镜像）；AGP / Kotlin / KSP 版本以 `gradle/libs.versions.toml` 为准（本文不抄写具体值）。
+  JDK **25**（PC `D:\dev\jdk-25`、手机 apt `openjdk-25`，daemon 钉 25，见「开发环境与路径引用」），编译目标 jvmTarget / sourceCompatibility **21** 不变。
 - compileSdk = targetSdk = 37，minSdk = 29（Android 10，2026-11-19 起）；版本号在 `gradle.properties` 的 `APP_VERSION_NAME` / `APP_VERSION_CODE`
   （**以该文件为准，本文不抄写具体值** —— 每发一版就变，抄在这里必然过期）。
 - **minSdk 29 的 Android 10 特例（只有 API 29 受影响，30+ 行为不变）**：MediaStore 的
@@ -84,7 +122,7 @@ PiscesPlayer 的设计、调研、计划、评审类文档统一存放在**私�
 短屏 / 大字号下底部「重新生成」理论上会被裁。**决定不修**；备选方案（滚动区改
 `weight(1f, fill = false)`）见（私有文档仓库）`D:\workspace\design\piscesplayer\docs\ai-thinking-persistence-plan.md` §7.6，已否决。
 
-## 常用命令（PowerShell，仓库根目录）
+## 常用命令（PowerShell = PC；手机用 `bash`，见「开发环境与路径引用 · 构建命令差异」）
 
 ```powershell
 .\build-release.bat                             # 正式版构建（推荐，见「签名与发布」）：签名变量缺失时快速失败并提示，构建后自动 apksigner 验签
@@ -142,7 +180,7 @@ PiscesPlayer 的设计、调研、计划、评审类文档统一存放在**私�
   例 `piscesplayer-arm64-v8a-1.0.0-debug.apk`。改命名规则改 `app/build.gradle.kts`。
 - 签名**只读 `KEY_*` 环境变量**（或 `pixelplayer.disableReleaseSigning=true` 跳过）；
   仓库里没有、也不该有任何 keystore 文件。详见下方「签名与发布」。
-- `GRADLE_USER_HOME=D:\dev\.gradle`；wrapper 的 Gradle 发行版走腾讯云镜像。
+- `GRADLE_USER_HOME=D:\dev\.gradle`（手机为默认 `~/.gradle`）；wrapper 的 Gradle 发行版走腾讯云镜像。
 
 ## 签名与发布（自用 fork）
 
@@ -151,7 +189,7 @@ PiscesPlayer 的设计、调研、计划、评审类文档统一存放在**私�
 | 环境变量 | 用途 |
 |---|---|
 | `KEY_STORE` | keystore 文件名（备查） |
-| `KEY_STORE_LOCATION` | keystore 绝对路径（Windows 风格） |
+| `KEY_STORE_LOCATION` | keystore 绝对路径（PC 为 Windows 路径，手机为 Linux 路径） |
 | `KEY_STORE_PASSWORD` | keystore 口令 |
 | `KEY_ALIAS` | 密钥别名（`pisces312`） |
 | `KEY_PASSWORD` | 密钥口令 |
@@ -190,6 +228,11 @@ PiscesPlayer 的设计、调研、计划、评审类文档统一存放在**私�
 
 `KEY_*` 是**Windows 用户级环境变量**，**权威来源是注册表 `HKCU:\Environment`**（用户自己维护，
 机器上已配齐；keystore 在仓库外的本机路径，具体位置不入库）。
+
+**手机侧的对应物是 `/root/.secrets.env`**（`chmod 600`，由 `~/.bashrc` 自动 source；Linux 用户级、
+所有项目共享；在 `/root` 下、任何 git 仓库之外，不会被提交）。两个注意点：① DSH 对话里执行命令的
+是非交互 shell、不读 `.bashrc`，构建命令统一写 `source ~/.bashrc && ./gradlew ...`；② 口令只写进
+`/root/.secrets.env`，**不写进本文件或任何入库文件**。
 新启动的进程能继承，但**早于变量设置而启动的进程继承的是旧环境**——长驻会话（包括 DSH/IDE）里
 `$env:KEY_STORE_LOCATION` 可能是空的，此时构建**静默产出未签名 APK**（构建成功、无报错）。
 
