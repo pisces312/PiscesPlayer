@@ -127,6 +127,19 @@ val RoundedSans = FontFamily(
     ),
 )
 
+/**
+ * Fredoka (SIL Open Font License 1.1, bundled at res/font/fredoka_medium.ttf) — used
+ * ONLY for the home top-bar app name (plan v1.3.2 decision 17): a rounder, cuter
+ * display face than the body-wide RoundedSans. License: OFL, see
+ * docs/DEPENDENCY_LICENSES.md.
+ */
+val FredokaFamily = FontFamily(
+    androidx.compose.ui.text.font.Font(
+        resId = R.font.fredoka_medium,
+        weight = FontWeight.Medium,
+    )
+)
+
 val Typography = Typography(
     displayLarge = TextStyle(
         fontFamily = RoundedSans,

@@ -38,14 +38,18 @@ import kotlin.math.roundToInt
 
 /**
  * Home grid metrics (plan §3.1, reference device pixel6 411dp wide): 2 columns,
- * unit cell 183.5×122dp (a wide rectangle), 16dp outer gutters, 12dp gaps. Only
- * vertical scrolling is supported — no horizontal scroll, no column wrapping.
+ * unit cell 183.5×96dp (a wide rectangle), 12dp outer gutters (= card gap,
+ * plan v1.3.2 decision 13), 12dp gaps. The cell *width* is not fixed here: the
+ * grid derives it from the incoming width so the outer gutters stay exactly
+ * [OuterPadding] on every device. Only vertical scrolling is supported — no
+ * horizontal scroll, no column wrapping.
  */
 object HomeGridSpec {
     const val GridColumns = 2
+    /** Reference width on a 411dp screen with 12dp gutters; the real value is derived per layout. */
     val CellWidth = 183.5.dp
-    val CellHeight = 122.dp
-    val OuterPadding = 16.dp
+    val CellHeight = 96.dp
+    val OuterPadding = 12.dp
     val Gap = 12.dp
     val ColumnPitch = CellWidth + Gap
     val RowPitch = CellHeight + Gap
@@ -81,9 +85,7 @@ fun HomeGrid(
     val placement = placeHomeCards(cards)
     val density = LocalDensity.current
 
-    val columnPitchPx = with(density) { HomeGridSpec.ColumnPitch.toPx() }
     val rowPitchPx = with(density) { HomeGridSpec.RowPitch.toPx() }
-    val cellWidthPx = with(density) { HomeGridSpec.CellWidth.toPx() }
     val cellHeightPx = with(density) { HomeGridSpec.CellHeight.toPx() }
     val gapPx = with(density) { HomeGridSpec.Gap.toPx() }
 
@@ -100,13 +102,9 @@ fun HomeGrid(
         content = {
             cards.forEachIndexed { index, card ->
                 key(card.uid) {
-                    val widthPx = card.size.spanX * cellWidthPx + (card.size.spanX - 1) * gapPx
-                    val heightPx = card.size.spanY * cellHeightPx + (card.size.spanY - 1) * gapPx
                     Box {
                         HomeGridCard(
                             card = card,
-                            widthDp = with(density) { widthPx.toDp() },
-                            heightDp = with(density) { heightPx.toDp() },
                             playlist = if (card.type == HomeCardType.PLAYLIST)
                                 card.targetId?.let { playlists[it] } else null,
                             editMode = editMode,
@@ -136,6 +134,13 @@ fun HomeGrid(
             }
         },
     ) { measurables, constraints ->
+        // v1.3.2: derive the cell width from the incoming width so the two outer
+        // gutters equal HomeGridSpec.OuterPadding exactly on any screen width
+        // (a fixed cell width would drift left-aligned once the available width
+        // stopped matching the reference 411dp device).
+        val cellWidthPx = (constraints.maxWidth - (HomeGridSpec.GridColumns - 1) * gapPx) /
+            HomeGridSpec.GridColumns
+        val columnPitchPx = cellWidthPx + gapPx
         val placeables = measurables.mapIndexed { i, measurable ->
             val isTile = i == cards.size
             if (isTile) {
@@ -151,8 +156,7 @@ fun HomeGrid(
                 )
             }
         }
-        val gridWidthPx = HomeGridSpec.GridColumns * cellWidthPx + (HomeGridSpec.GridColumns - 1) * gapPx
-        layout(gridWidthPx.roundToInt(), (totalRows * rowPitchPx - gapPx).roundToInt()) {
+        layout(constraints.maxWidth, (totalRows * rowPitchPx - gapPx).roundToInt()) {
             placeables.forEachIndexed { i, placeable ->
                 val origin = if (i == cards.size) tailPlacement
                 else placement.placements[cards[i].uid] ?: return@forEachIndexed

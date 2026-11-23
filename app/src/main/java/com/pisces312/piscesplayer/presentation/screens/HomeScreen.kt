@@ -44,6 +44,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
@@ -128,7 +129,8 @@ fun HomeScreen(
     var dragAccum by remember { mutableStateOf(Offset.Zero) }
 
     // ---- 每日推荐 data (feeds the DAILY_MIX card body, plan §12 decision 9) ----
-    val settingsUiState by settingsViewModel.uiState.collectAsStateWithLifecycle()
+    // settingsViewModel stays a parameter for future home preferences; the grid card no
+    // longer reads collagePattern since v1.3.2 (capsule row replaced the collage).
     val dailyMixSongs by playerViewModel.dailyMixSongs.collectAsStateWithLifecycle()
     val homeMixPreviewSongs by playerViewModel.homeMixPreviewSongs.collectAsStateWithLifecycle()
     val isShuffleEnabled by remember(playerViewModel.stablePlayerState) {
@@ -337,9 +339,12 @@ fun HomeScreen(
     val density = LocalDensity.current
     val cellHeightPx = with(density) { HomeGridSpec.CellHeight.toPx() }
     val rowPitchPx = with(density) { HomeGridSpec.RowPitch.toPx() }
-    val gapPx = with(density) { HomeGridSpec.Gap.toPx() }
-    val cellWidthPx = with(density) { HomeGridSpec.CellWidth.toPx() }
-    val gridWidthPx = HomeGridSpec.GridColumns * cellWidthPx + (HomeGridSpec.GridColumns - 1) * gapPx
+    // v1.3.2: the grid derives its cell width from the available width (screen minus
+    // the two outer gutters), so the drag math mirrors that: grid width = screen
+    // width − 2 × OuterPadding, which is exactly what the grid's Layout measures.
+    val gridWidthPx = with(density) {
+        (LocalConfiguration.current.screenWidthDp.dp - HomeGridSpec.OuterPadding * 2).toPx()
+    }
 
     fun persistOnExitEdit() {
         homeLayoutViewModel.persist()
@@ -394,7 +399,6 @@ fun HomeScreen(
                         card = card,
                         songs = mixSongs,
                         isShuffleEnabled = isShuffleEnabled,
-                        collagePattern = settingsUiState.collagePattern,
                         onPlayShuffled = {
                             if (usesFallbackHomeMix) {
                                 playerViewModel.shuffleAllSongs(queueName = dailyMixQueueName)
@@ -491,11 +495,10 @@ fun HomeScreen(
                     }
                 },
             contentPadding = PaddingValues(
-                // v1.3.1: cards keep the old home's 16dp side margins (the pre-grid AI
-                // playlist card sat 16dp from the screen edges); without this the grid
-                // is flush against both screen edges.
-                start = 16.dp,
-                end = 16.dp,
+                // v1.3.2 (plan §12 decision 13): the outer gutters equal the inter-card
+                // gap (12dp) on both sides, so the grid breathes uniformly.
+                start = HomeGridSpec.OuterPadding,
+                end = HomeGridSpec.OuterPadding,
                 top = innerPadding.calculateTopPadding(),
                 bottom = paddingValuesParent.calculateBottomPadding() + 38.dp + bottomPadding,
             ),

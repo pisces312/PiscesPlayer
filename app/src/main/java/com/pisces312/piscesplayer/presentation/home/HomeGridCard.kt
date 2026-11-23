@@ -34,7 +34,6 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.pisces312.piscesplayer.R
 import com.pisces312.piscesplayer.data.home.HomeCard
@@ -55,8 +54,6 @@ import racra.compose.smooth_corner_rect_library.AbsoluteSmoothCornerShape
 @Composable
 fun HomeGridCard(
     card: HomeCard,
-    widthDp: Dp,
-    heightDp: Dp,
     playlist: Playlist?,
     editMode: Boolean,
     isDragging: Boolean,
@@ -74,7 +71,7 @@ fun HomeGridCard(
 
     Box(
         modifier = modifier
-            .size(widthDp, heightDp)
+            .fillMaxSize()
             .clip(HomeGridCardShape)
             .background(MaterialTheme.colorScheme.surfaceContainer)
             .graphicsLayer {

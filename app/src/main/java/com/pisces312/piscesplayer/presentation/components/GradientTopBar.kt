@@ -31,9 +31,9 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.pisces312.piscesplayer.R
+import com.pisces312.piscesplayer.ui.theme.FredokaFamily
 import com.pisces312.piscesplayer.ui.theme.RoundedSans
 import com.pisces312.piscesplayer.ui.theme.PiscesPlayerStatusBarStyle
 
@@ -117,9 +117,13 @@ fun HomeGradientTopBar(
             Text(
                 text = stringResource(R.string.about_app_name),
                 style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.SemiBold,
-                fontFamily = RoundedSans,
+                // v1.3.2 (plan §12 decision 17): Fredoka for the app name — the cute
+                // rounded display face. Single line so the name never wraps, and the
+                // action row is right-aligned after it.
+                fontFamily = FredokaFamily,
                 color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 1,
+                softWrap = false,
                 modifier = Modifier.padding(start = 16.dp)
             )
         },
