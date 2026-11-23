@@ -70,6 +70,7 @@ import com.pisces312.piscesplayer.data.rhythm.RhythmDriftKind
 import com.pisces312.piscesplayer.data.rhythm.RhythmDriftRecorder
 import com.pisces312.piscesplayer.data.rhythm.RhythmDriftReport
 import com.pisces312.piscesplayer.data.rhythm.RhythmLatencyStore
+import com.pisces312.piscesplayer.data.rhythm.RhythmPcmAudio
 import com.pisces312.piscesplayer.data.rhythm.RhythmPcmDecoder
 import com.pisces312.piscesplayer.data.rhythm.RhythmRepository
 import com.pisces312.piscesplayer.data.rhythm.delayAfterTap
@@ -121,6 +122,9 @@ fun RhythmGameScreen(
 
     var session by remember { mutableStateOf<RhythmPlaySession?>(null) }
     var audioClock by remember { mutableStateOf<RhythmAudioClock?>(null) }
+    // Held so leaving the screen can cancel a still-running MIDI render instead of burning
+    // CPU synthesizing a song nobody is listening to any more.
+    var pcmStream by remember { mutableStateOf<RhythmPcmAudio?>(null) }
     var chartSettings by remember { mutableStateOf(RhythmChartSettings.DEFAULT) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var result by remember { mutableStateOf<RhythmSessionResult?>(null) }
@@ -199,6 +203,11 @@ fun RhythmGameScreen(
     // Load chart, decode audio, and build the injected-clock session. Charts always play as
     // stored: the play-time A/B re-bake was retired after the timing-estimator experiments
     // concluded (see RhythmChartLab docs/design/rhythm-play-logic-retirement.md).
+    //
+    // decodeStreaming is what keeps the entry fast for MIDI: the synthesis runs on a
+    // background thread and this waits only for the play runway (seconds of PCM), while the
+    // clock keeps draining the buffer as the render fills it. Without it the screen blocked
+    // on a full-song software render before the first note could even fall.
     LaunchedEffect(songId, chartId) {
         withContext(Dispatchers.IO) {
             try {
@@ -211,7 +220,8 @@ fun RhythmGameScreen(
                 }
                 val playbackUri = song.contentUriString.takeIf { it.isNotBlank() }?.let(Uri::parse)
                     ?: Uri.fromFile(File(song.path))
-                val pcm = RhythmPcmDecoder.decode(context, playbackUri, song.mimeType)
+                val pcm = RhythmPcmDecoder.decodeStreaming(context, playbackUri, song.mimeType)
+                pcmStream = pcm
                 // Per-chart playback tweaks: fall time and lead-in on the session; the latency
                 // offset is this chart's override when set, otherwise the current route's
                 // calibrated value (both must be read before the clock starts so the first
@@ -243,6 +253,7 @@ fun RhythmGameScreen(
         onDispose {
             activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
             view.keepScreenOn = false
+            pcmStream?.fill?.cancel()
             audioClock?.stop()
             audioClock?.release()
         }

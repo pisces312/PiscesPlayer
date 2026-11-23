@@ -82,8 +82,8 @@ class RhythmAudioClock(
 
     /** Fill the track buffer while stopped so `play()` starts on real data, not silence. */
     private fun primeBuffer() {
-        while (writeOffsetBytes < audio.bytes.size) {
-            val count = minOf(WRITE_CHUNK_BYTES, audio.bytes.size - writeOffsetBytes)
+        while (writeOffsetBytes < audio.renderedBytes()) {
+            val count = minOf(WRITE_CHUNK_BYTES, audio.renderedBytes() - writeOffsetBytes)
             val result = track.write(
                 audio.bytes,
                 writeOffsetBytes,
@@ -231,12 +231,21 @@ class RhythmAudioClock(
         while (true) {
             var wrote = 0
             synchronized(streamLock) {
-                while (!released && (!streamPlaying || writeOffsetBytes >= audio.bytes.size)) {
-                    streamLock.wait()
+                // `renderedBytes` rather than `bytes.size`: a streaming MIDI render keeps
+                // filling the buffer after playback starts, and writing past the rendered
+                // watermark would feed the track silence that can never be un-played.
+                while (!released && (!streamPlaying || writeOffsetBytes >= audio.renderedBytes())) {
+                    if (writeOffsetBytes >= audio.bytes.size) {
+                        // Everything rendered has been written: sleep until a control event.
+                        streamLock.wait()
+                    } else {
+                        // Caught up with a still-running render: poll for the next chunk.
+                        streamLock.wait(2)
+                    }
                 }
                 if (released) return
 
-                val count = minOf(WRITE_CHUNK_BYTES, audio.bytes.size - writeOffsetBytes)
+                val count = minOf(WRITE_CHUNK_BYTES, audio.renderedBytes() - writeOffsetBytes)
                 val result = track.write(
                     audio.bytes,
                     writeOffsetBytes,

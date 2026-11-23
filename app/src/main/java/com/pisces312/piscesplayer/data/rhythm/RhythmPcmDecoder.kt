@@ -13,14 +13,95 @@ import android.net.Uri
 import java.io.ByteArrayOutputStream
 import java.io.IOException
 
+/**
+ * Progressive-fill state of a streaming decode ([RhythmPcmDecoder.decodeStreaming]).
+ *
+ * The owning [RhythmPcmAudio.bytes] is preallocated at full size and filled by a background
+ * render thread; readers must stay at or below [readyBytes]. Completion (success or failure)
+ * publishes the whole buffer so a consumer never waits on bytes that will never come.
+ */
+class RhythmPcmFill {
+    private val lock = Object()
+
+    /** Bytes of the buffer that currently hold rendered audio. */
+    @Volatile
+    var readyBytes: Int = 0
+        private set
+
+    @Volatile
+    var done: Boolean = false
+        private set
+
+    /** Set when the render died mid-way; the tail past the failure point is silence. */
+    @Volatile
+    var failure: Exception? = null
+        private set
+
+    @Volatile
+    var cancelled: Boolean = false
+
+    /** Publish newly rendered bytes and wake readers. */
+    fun publish(ready: Int) {
+        synchronized(lock) {
+            readyBytes = ready
+            lock.notifyAll()
+        }
+    }
+
+    /** Mark the render finished ([error] = null on success) and wake readers. */
+    fun complete(error: Exception?) {
+        synchronized(lock) {
+            failure = error
+            done = true
+            lock.notifyAll()
+        }
+    }
+
+    /** Block until at least [minBytes] are rendered or the render finished. */
+    fun await(minBytes: Int) {
+        synchronized(lock) {
+            while (!done && readyBytes < minBytes) lock.wait()
+        }
+    }
+
+    /** Ask the render thread to stop early (screen exit). */
+    fun cancel() {
+        cancelled = true
+    }
+}
+
 /** Decoded PCM audio (16-bit little-endian interleaved). */
 data class RhythmPcmAudio(
     val bytes: ByteArray,
     val sampleRate: Int,
     val channels: Int,
+    /**
+     * Effective frame count when [bytes] carries trailing capacity slack (streaming MIDI
+     * render); -1 derives it from the buffer size as usual.
+     */
+    val frameCount: Long = -1L,
+    /** Non-null while a background render is still filling [bytes]; null = complete. */
+    val fill: RhythmPcmFill? = null,
 ) {
-    val frames: Long get() = bytes.size.toLong() / 2 / channels
+    val frames: Long
+        get() = if (frameCount >= 0) frameCount else bytes.size.toLong() / 2 / channels
+
     val durationMs: Double get() = frames * 1000.0 / sampleRate
+
+    /**
+     * Bytes of [bytes] that may be consumed right now. While a render is running this is its
+     * watermark; once it completes (success or failure) the whole buffer is consumable — the
+     * tail past a failure point is silence and must still drain so playback can end cleanly.
+     */
+    fun renderedBytes(): Int {
+        val fill = fill ?: return bytes.size
+        return if (fill.done) bytes.size else fill.readyBytes
+    }
+
+    /** Block until at least [minBytes] (clamped to the buffer) are rendered; no-op when complete. */
+    fun awaitRendered(minBytes: Int) {
+        fill?.await(minOf(minBytes, bytes.size))
+    }
 
     override fun equals(other: Any?): Boolean =
         other is RhythmPcmAudio &&
@@ -132,7 +213,51 @@ object RhythmPcmDecoder {
             uri.scheme == SCHEME_PISCESMIDI
     }
 
+    /**
+     * Streaming decode for the game start path.
+     *
+     * MIDI synthesis is the slow half of a game start (the whole song is software-rendered,
+     * roughly 10x real time), so [RhythmMidiPcmRenderer.renderStreaming] runs it on a
+     * background thread and this returns once [minReadyMs] of PCM is buffered — the clock
+     * then streams from the buffer while the render keeps filling it (see [RhythmPcmFill]).
+     * The MediaCodec path stays one-shot (hardware decode, seconds at most).
+     */
+    fun decodeStreaming(
+        context: Context,
+        uri: Uri,
+        mimeType: String? = null,
+        minReadyMs: Long = 8_000,
+    ): RhythmPcmAudio {
+        if (!isMidi(uri, mimeType)) return decode(context, uri, mimeType)
+        val audio = try {
+            RhythmMidiPcmRenderer.renderStreaming(context, readMidiBytes(context, uri))
+        } catch (e: DecodeException) {
+            throw e
+        } catch (e: Exception) {
+            throw DecodeException("MIDI render failed: ${e.message}", e)
+        }
+        val fill = audio.fill!!
+        audio.awaitRendered((minReadyMs * audio.sampleRate * audio.channels * 2 / 1000).toInt())
+        if (fill.readyBytes == 0) {
+            fill.failure?.let { throw DecodeException("MIDI render failed: ${it.message}", it) }
+            throw DecodeException("MIDI render produced no audio")
+        }
+        return audio
+    }
+
     private fun decodeMidi(context: Context, uri: Uri): RhythmPcmAudio {
+        val bytes = readMidiBytes(context, uri)
+        try {
+            return RhythmMidiPcmRenderer.render(context, bytes)
+        } catch (e: DecodeException) {
+            throw e
+        } catch (e: Exception) {
+            throw DecodeException("MIDI render failed: ${e.message}", e)
+        }
+    }
+
+    /** Resolve a MIDI uri (including the `piscesmidi` built-in scheme) to file bytes. */
+    private fun readMidiBytes(context: Context, uri: Uri): ByteArray {
         // Built-in classical library: piscesmidi://<songId> -> extracted file
         // (same resolution as DualPlayerEngine's ResolvingDataSource).
         val resolved = if (uri.scheme == SCHEME_PISCESMIDI) {
@@ -145,7 +270,7 @@ object RhythmPcmDecoder {
         } else {
             uri
         }
-        val bytes = try {
+        return try {
             when (resolved.scheme) {
                 "content" -> context.contentResolver.openInputStream(resolved)?.use { it.readBytes() }
                 else -> resolved.path?.let { java.io.File(it).readBytes() }
@@ -153,13 +278,6 @@ object RhythmPcmDecoder {
         } catch (e: Exception) {
             throw DecodeException("Unable to read the MIDI file: ${e.message}", e)
         } ?: throw DecodeException("Unable to read the MIDI file")
-        try {
-            return RhythmMidiPcmRenderer.render(context, bytes)
-        } catch (e: DecodeException) {
-            throw e
-        } catch (e: Exception) {
-            throw DecodeException("MIDI render failed: ${e.message}", e)
-        }
     }
 
     private fun drain(decoder: MediaCodec, extractor: MediaExtractor): RhythmPcmAudio {

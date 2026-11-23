@@ -43,11 +43,44 @@ internal object RhythmMidiPcmRenderer {
     private const val OUTPUT_SAMPLE_RATE = 44100
     private const val OUTPUT_CHANNELS = 2
     private const val BYTES_PER_SECOND = OUTPUT_SAMPLE_RATE * OUTPUT_CHANNELS * 2
+    private const val BYTES_PER_FRAME = OUTPUT_CHANNELS * 2
 
     /** Extra rendered time so the final note's release tail is not cut off. */
     private const val RELEASE_TAIL_MS = 250L
 
+    /** Preallocation headroom for per-chunk frame rounding (clamped away on overflow). */
+    private const val RENDER_SLACK_BYTES = 8 * 1024
     fun render(context: Context, bytes: ByteArray): RhythmPcmAudio {
+        val stream = renderStreaming(context, bytes)
+        val fill = stream.fill!!
+        fill.await(Int.MAX_VALUE)
+        fill.failure?.let {
+            throw RhythmPcmDecoder.DecodeException("MIDI render failed: ${it.message}", it)
+        }
+        // readyBytes (not renderedBytes) is the actual rendered length here: trailing
+        // allocation slack is silence and is trimmed so a blocking render is byte-identical
+        // to the old ByteArrayOutputStream output.
+        val ready = fill.readyBytes
+        if (ready == 0) throw RhythmPcmDecoder.DecodeException("MIDI render produced no audio")
+        return RhythmPcmAudio(
+            bytes = stream.bytes.copyOf(ready),
+            sampleRate = OUTPUT_SAMPLE_RATE,
+            channels = OUTPUT_CHANNELS,
+        )
+    }
+
+    /**
+     * Start the synthesis on a background thread and return immediately.
+     *
+     * The buffer is preallocated from the render estimate, so [RhythmPcmAudio.frames] (the
+     * game clock's total) is known up front while [RhythmPcmFill.readyBytes] grows as the
+     * Sonivox pass produces PCM — this is what lets the game start after a short runway
+     * instead of waiting out a full-song synthesis (see `RhythmPcmFill`). The allocation
+     * carries a small slack: per-chunk frame rounding can exceed the length estimate by a
+     * frame or two per sample, and the overflow is clamped away (it is silence past the
+     * 250 ms release tail anyway).
+     */
+    fun renderStreaming(context: Context, bytes: ByteArray): RhythmPcmAudio {
         val samples = extractSamples(bytes)
         val parsedDurationUs = try {
             // The chart generator's parser knows the musical end; padding the render to it
@@ -60,26 +93,66 @@ internal object RhythmMidiPcmRenderer {
         val lastSampleUs = samples.lastOrNull()?.timeUs ?: 0L
         val endUs = maxOf(lastSampleUs, parsedDurationUs ?: 0L) + RELEASE_TAIL_MS * 1000L
         val estimateBytes = (endUs * BYTES_PER_SECOND / 1_000_000L).toInt()
-        val pcm = ByteArrayOutputStream(estimateBytes.coerceIn(64 * 1024, 64 * 1024 * 1024))
+        val totalBytes = ((estimateBytes + RENDER_SLACK_BYTES + BYTES_PER_FRAME - 1) /
+            BYTES_PER_FRAME) * BYTES_PER_FRAME
+        val out = ByteArray(totalBytes)
+        val fill = RhythmPcmFill()
+        val audio = RhythmPcmAudio(
+            bytes = out,
+            sampleRate = OUTPUT_SAMPLE_RATE,
+            channels = OUTPUT_CHANNELS,
+            frameCount = (totalBytes / BYTES_PER_FRAME).toLong(),
+            fill = fill,
+        )
+        val thread = Thread(
+            {
+                var error: Exception? = null
+                try {
+                    renderInto(out, samples, endUs, context, fill)
+                } catch (e: Exception) {
+                    error = e
+                } finally {
+                    // Publish whatever was rendered (the tail past a failure is silence) so
+                    // consumers never block on bytes that will never come.
+                    fill.complete(error)
+                }
+            },
+            "PixelRhythmMidiRender",
+        )
+        thread.isDaemon = true
+        thread.start()
+        return audio
+    }
+
+    /** Synthesize [samples] into [out], publishing progress through [fill] as chunks land. */
+    private fun renderInto(
+        out: ByteArray,
+        samples: List<MidiSample>,
+        endUs: Long,
+        context: Context,
+        fill: RhythmPcmFill,
+    ) {
         val synth = PiscesMidiOfflineDecoder(context)
+        var writePos = 0
         try {
             for (sample in samples) {
+                if (fill.cancelled) return
                 synth.renderSample(sample.timeUs, sample.data) { floats, count ->
-                    appendPcm16(pcm, floats, count)
+                    writePos = appendPcm16(out, writePos, floats, count)
                 }
+                fill.publish(writePos)
             }
             // Advance the synth to the musical end so the final voices can release.
-            if (endUs > lastSampleUs) {
+            val lastUs = samples.lastOrNull()?.timeUs ?: 0L
+            if (endUs > lastUs && !fill.cancelled) {
                 synth.renderSample(endUs, EMPTY_BYTES) { floats, count ->
-                    appendPcm16(pcm, floats, count)
+                    writePos = appendPcm16(out, writePos, floats, count)
                 }
+                fill.publish(writePos)
             }
         } finally {
             synth.close()
         }
-        val output = pcm.toByteArray()
-        if (output.isEmpty()) throw RhythmPcmDecoder.DecodeException("MIDI render produced no audio")
-        return RhythmPcmAudio(output, OUTPUT_SAMPLE_RATE, OUTPUT_CHANNELS)
     }
 
     // ---- Extractor pass: raw MIDI message samples with their timestamps -------------
@@ -120,13 +193,20 @@ internal object RhythmMidiPcmRenderer {
         return samples
     }
 
-    /** Converts MidiDecoder's float PCM into the little-endian 16-bit format AudioTrack wants. */
-    private fun appendPcm16(out: ByteArrayOutputStream, floats: FloatArray, count: Int) {
+    /**
+     * Converts MidiDecoder's float PCM into the little-endian 16-bit format AudioTrack wants,
+     * appending at [writePos] in [out]. Overflow past the buffer (only possible by the render
+     * slack) is dropped: it sits past the release tail and is inaudible either way.
+     */
+    private fun appendPcm16(out: ByteArray, writePos: Int, floats: FloatArray, count: Int): Int {
+        var pos = writePos
         for (i in 0 until count) {
+            if (pos + 1 >= out.size) return pos
             val value = (floats[i].coerceIn(-1f, 1f) * 32767f).roundToInt()
-            out.write(value and 0xFF)
-            out.write((value shr 8) and 0xFF)
+            out[pos++] = (value and 0xFF).toByte()
+            out[pos++] = ((value shr 8) and 0xFF).toByte()
         }
+        return pos
     }
 
     // ---- ExtractorInput over an in-memory file -----------------------------------
