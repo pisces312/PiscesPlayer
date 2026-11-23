@@ -11,8 +11,13 @@ import androidx.compose.ui.graphics.asComposePath
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import androidx.graphics.shapes.CornerRounding
+import androidx.graphics.shapes.Morph
 import androidx.graphics.shapes.RoundedPolygon
 import androidx.graphics.shapes.toPath
+import kotlin.math.PI
+import kotlin.math.cos
+import kotlin.math.sin
 import racra.compose.smooth_corner_rect_library.AbsoluteSmoothCornerShape
 
 /**
@@ -70,10 +75,41 @@ object ShapeCache {
     @OptIn(ExperimentalMaterial3ExpressiveApi::class)
     val expressiveHero: Shape = RoundedPolygonShape(MaterialShapes.SoftBurst)
 
-    /** M3 Expressive slanted pill — the Serendipity (不期而遇) button shape (v1.3.5): the
-     * only slanted surface in the app, so the action reads as "different by design". */
-    @OptIn(ExperimentalMaterial3ExpressiveApi::class)
-    val serendipitySlant: Shape = RoundedPolygonShape(MaterialShapes.Slanted)
+    /** Two organic 8-vertex blobs (normalized to unit bounds) that the Serendipity button
+     * morphs between, driven by the same breathing progress as its scale/shadow pulse
+     * (v1.3.6). The button is literally "alive": the outline wobbles while it breathes. */
+    private val serendipityMorph: Morph by lazy {
+        Morph(
+                serendipityBlobPolygon(0f).normalized(),
+                serendipityBlobPolygon(PI.toFloat() / 8f).normalized()
+        )
+    }
+
+    /** Serendipity button outline at [progress] (0..1) between the two cached blobs. */
+    fun serendipityBlob(progress: Float): Shape = MorphShape(serendipityMorph, progress)
+
+    /**
+     * One organic blob: [VERTEX_RADII] points on a circle, alternating radius so the
+     * silhouette bulges and dips, every corner smoothed by [CornerRounding]. Rotating the
+     * whole point set by half a step yields the second blob of the morph pair.
+     */
+    private fun serendipityBlobPolygon(rotation: Float): RoundedPolygon {
+        val n = VERTEX_RADII.size
+        // graphics-shapes takes the outline as a flat [x0, y0, x1, y1, ...] array.
+        val vertices = FloatArray(n * 2) { i ->
+            val vertex = i / 2
+            val angle = rotation + 2f * PI.toFloat() * vertex / n
+            VERTEX_RADII[vertex] * (if (i % 2 == 0) cos(angle) else sin(angle))
+        }
+        return RoundedPolygon(
+                vertices = vertices,
+                perVertexRounding = List(n) { CornerRounding(0.32f) },
+                centerX = 0f,
+                centerY = 0f
+        )
+    }
+
+    private val VERTEX_RADII = floatArrayOf(1f, 0.84f, 1f, 0.84f, 1f, 0.84f, 1f, 0.84f)
 }
 
 /**
@@ -89,6 +125,25 @@ private class RoundedPolygonShape(polygon: RoundedPolygon) : Shape {
         matrix.scale(size.width, size.height)
         val path = Path()
         path.addPath(basePath)
+        path.transform(matrix)
+        return Outline.Generic(path)
+    }
+}
+
+/**
+ * Progress-driven variant of [RoundedPolygonShape] for [androidx.graphics.shapes.Morph]:
+ * the interpolated path is regenerated whenever the breathing pulse produces a new
+ * [progress], then scaled to the outline size like the static variant.
+ */
+private class MorphShape(
+        private val morph: Morph,
+        private val progress: Float
+) : Shape {
+    override fun createOutline(size: Size, layoutDirection: LayoutDirection, density: Density): Outline {
+        val matrix = Matrix()
+        matrix.scale(size.width, size.height)
+        val path = Path()
+        path.addPath(morph.toPath(progress).asComposePath())
         path.transform(matrix)
         return Outline.Generic(path)
     }

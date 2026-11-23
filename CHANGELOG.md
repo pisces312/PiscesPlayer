@@ -11,6 +11,8 @@ PixelPlayerOSS; versions up to and including 0.4.3 were published under the upst
   their rich content, every card uses the neutral rounded style of the old AI playlist entry.
 - Home: a help (?) button in the top bar opens a quick-start sheet (edit gestures, adding cards,
   Serendipity gestures, Daily Mix) with a link to the full changelog.
+- Home: the Serendipity button breathes as a live morph blob — its outline wobbles between two
+  organic shapes in sync with the scale/shadow pulse (Material 3 Expressive shape morphing).
 
 ### Changed
 - Rhythm game: the derived/other chart cards were redesigned — the title owns a full line and

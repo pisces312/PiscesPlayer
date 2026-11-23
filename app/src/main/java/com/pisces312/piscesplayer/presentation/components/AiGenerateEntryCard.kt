@@ -104,7 +104,7 @@ fun AiGenerateEntryCard(
                     )
                     // v1.3.5: the hint lives UNDER the pill, so it clearly describes the
                     // pill's gestures and not the whole card (user feedback). The pill is
-                    // the slanted expressive shape — the only one of its kind on home.
+                    // the morphing serendipity blob — the only live shape of its kind on home.
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         ActionPill(
                                 text = stringResource(R.string.ai_serendipity_button),
@@ -190,10 +190,12 @@ private fun ActionPill(
         }
     }
 
-    // v1.3.5: the highlighted pill wears the slanted expressive shape; everything else
-    // stays a circle (icon actions = circles, the one verb action = distinctive shape).
+    // v1.3.6: the highlighted pill is a live morph blob — its outline wobbles between two
+    // organic shapes in sync with the scale/shadow pulse; everything else stays a circle
+    // (icon actions = circles, the one verb action = distinctive shape).
+    val eased = 0.5f - 0.5f * kotlin.math.cos(pulse * kotlin.math.PI.toFloat())
     val pillShape: androidx.compose.ui.graphics.Shape =
-            if (highlight) ShapeCache.serendipitySlant else CircleShape
+            if (highlight) ShapeCache.serendipityBlob(eased) else CircleShape
 
     if (onClick != null || onLongClick != null) {
         Surface(
@@ -205,7 +207,6 @@ private fun ActionPill(
                                     if (highlight) {
                                         // v1.3.5: noticeably livelier than the first pass
                                         // (scale 1→1.05, shadow 4→18dp, eased sine).
-                                        val eased = 0.5f - 0.5f * kotlin.math.cos(pulse * kotlin.math.PI.toFloat())
                                         val scale = 1f + 0.05f * eased
                                         scaleX = scale
                                         scaleY = scale
