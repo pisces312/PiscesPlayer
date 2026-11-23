@@ -5,6 +5,8 @@
  */
 package com.pisces312.piscesplayer.data.rhythm
 
+import kotlin.math.abs
+import kotlin.math.ceil
 import kotlin.math.floor
 
 /** How generator notes map onto the four lanes. */
@@ -17,24 +19,53 @@ enum class MidiLaneStrategy {
 }
 
 /**
+ * One difficulty rung: one chart per part, quantized onto [gridDiv] cells per beat and
+ * thinned to a playable density.
+ *
+ * @param label Display name for the chart title ("Piano · 简单"); the caller localizes it.
+ * @param gridDiv How many cells a beat is divided into (1 = quarter notes).
+ * @param maxHitsPerSecond Density cap: surviving hits are spaced at least
+ *   `1000 / maxHitsPerSecond` ms apart, which keeps every sliding one-second window at
+ *   most [maxHitsPerSecond] hits (integral caps; a fractional cap yields at most its
+ *   ceiling). See [RhythmMidiChartGenerator] for the survival priority.
+ * @param maxChord Notes per hit, 1..4; extras (weakest first) are dropped.
+ */
+data class MidiDifficulty(
+    val label: String,
+    val gridDiv: Int,
+    val maxHitsPerSecond: Double,
+    val maxChord: Int,
+) {
+    companion object {
+        /**
+         * The default rungs: about one hit per second on easy up to four on hard, so a dense
+         * piano piece stays playable instead of inheriting the file's raw note density.
+         */
+        val DEFAULTS: List<MidiDifficulty> = listOf(
+            MidiDifficulty(label = "简单", gridDiv = 1, maxHitsPerSecond = 1.0, maxChord = 1),
+            MidiDifficulty(label = "标准", gridDiv = 2, maxHitsPerSecond = 2.0, maxChord = 2),
+            MidiDifficulty(label = "困难", gridDiv = 4, maxHitsPerSecond = 4.0, maxChord = 2),
+        )
+    }
+}
+
+/**
  * Tuning knobs for [RhythmMidiChartGenerator]. All values are deterministic: the same
  * score and options always produce the same charts, which keeps storage content-addressed
  * and re-generation idempotent.
  */
 data class MidiChartOptions(
-    /** One chart per entry: how many cells a beat is divided into (1 = quarter notes). */
-    val gridDivs: List<Int> = listOf(1, 2, 4),
+    /** One chart per entry: the difficulty rungs to generate (order is preserved). */
+    val difficulties: List<MidiDifficulty> = MidiDifficulty.DEFAULTS,
     /** Parts with fewer notes produce no chart (a silent control track is not a difficulty). */
     val minNotesPerPart: Int = 16,
     /** Onsets closer than this in one quantization cell count as a chord, not as a stream. */
     val chordWindowMs: Int = 25,
-    /** Notes per cell, 1..4; extras (weakest first) are dropped. */
-    val maxChord: Int = 2,
     val laneStrategy: MidiLaneStrategy = MidiLaneStrategy.PITCH_RANGE,
 )
 
 /**
- * Turns a parsed [MidiScore] into finished charts, one per part and grid divisor.
+ * Turns a parsed [MidiScore] into finished charts, one per part and difficulty.
  *
  * Unlike the DSP pipeline there is no master/derive two-tier: MIDI carries exact note-on
  * times and an exact tempo map, so what the file says is what lands on the grid — notes
@@ -43,11 +74,18 @@ data class MidiChartOptions(
  *
  * Quantization semantics per cell (one cell = one hit moment):
  * - the strongest note (highest velocity) always wins the cell;
- * - further notes survive only as chord notes: at most [MidiChartOptions.maxChord] of them,
+ * - further notes survive only as chord notes: at most [MidiDifficulty.maxChord] of them,
  *   all within [MidiChartOptions.chordWindowMs] of the primary's original onset, strongest
  *   first — two eighth-notes in a quarter-note cell stay one note, an actual simultaneous
  *   chord becomes two or three keys;
  * - every other note in the cell is dropped.
+ *
+ * Density clipping runs after chord merging and counts hits, not keys: one chord is one
+ * hit against the cap but still carries at most [MidiDifficulty.maxChord] keys. Hits
+ * survive in priority order — on the beat first, then strongest (velocity), then earliest —
+ * and a hit is dropped when a surviving hit is closer than `1000 / maxHitsPerSecond` ms.
+ * That spacing caps the run at [MidiDifficulty.maxHitsPerSecond] hits per second while
+ * remaining a pure function of the input, so generation stays deterministic.
  */
 object RhythmMidiChartGenerator {
 
@@ -59,7 +97,6 @@ object RhythmMidiChartGenerator {
     ): List<RhythmChart> {
         val grid = score.timing.sortedBy { it.timeMs }
         if (grid.isEmpty()) return emptyList()
-        val maxChord = options.maxChord.coerceIn(1, LANE_COUNT)
         val charts = ArrayList<RhythmChart>()
 
         for (part in score.parts) {
@@ -69,8 +106,8 @@ object RhythmMidiChartGenerator {
             } else {
                 pitchLaneMap(part)
             }
-            for (gridDiv in options.gridDivs.distinct().filter { it >= 1 }.sorted()) {
-                val chart = buildChart(score, part, grid, gridDiv, maxChord, options, pitchLane)
+            for (difficulty in options.difficulties) {
+                val chart = buildChart(score, part, grid, difficulty, options, pitchLane)
                 if (chart != null) charts += chart
             }
         }
@@ -81,26 +118,29 @@ object RhythmMidiChartGenerator {
         score: MidiScore,
         part: MidiPart,
         grid: List<RhythmTimingPoint>,
-        gridDiv: Int,
-        maxChord: Int,
+        difficulty: MidiDifficulty,
         options: MidiChartOptions,
         pitchLane: ((Int) -> Int)?,
     ): RhythmChart? {
+        val gridDiv = difficulty.gridDiv.coerceAtLeast(1)
+        val maxChord = difficulty.maxChord.coerceIn(1, LANE_COUNT)
+
         // Cell key: the snapped millisecond. Snapping is a pure function of the segment the
         // note falls into, so cell-mates always key identically (no float-noise drift).
-        val cells = HashMap<Int, MutableList<MidiNote>>(part.notes.size)
+        val cells = HashMap<Int, CellNotes>(part.notes.size)
         for (note in part.notes) {
-            val snapped = snap(note.startMs.toDouble(), grid, gridDiv)
-            cells.getOrPut(snapped) { ArrayList(2) } += note
+            val cell = snap(note.startMs.toDouble(), grid, gridDiv)
+            val acc = cells.getOrPut(cell.timeMs) { CellNotes() }
+            acc.notes += note
+            if (cell.onBeat) acc.onBeat = true
         }
 
-        val out = ArrayList<RhythmNote>(cells.size)
-        // Round-robin state: rotates across every emitted note, so consecutive hits land on
-        // different lanes and chord notes fan out to the following lanes.
-        var rrNext = 0
+        // Chord merge per cell: one hit moment per cell, strongest note primary.
+        val hits = ArrayList<Hit>(cells.size)
         for (timeMs in cells.keys.sorted()) {
             if (timeMs > score.durationMs) continue
-            val candidates = cells.getValue(timeMs).sortedByDescending { it.velocity }
+            val acc = cells.getValue(timeMs)
+            val candidates = acc.notes.sortedByDescending { it.velocity }
             val primary = candidates.first()
             val chord = arrayListOf(primary)
             for (extra in candidates.drop(1)) {
@@ -108,14 +148,29 @@ object RhythmMidiChartGenerator {
                 if (extra.startMs - primary.startMs > options.chordWindowMs) break
                 chord += extra
             }
-            val usedLanes = HashSet<Int>(chord.size)
-            for (note in chord) {
+            hits += Hit(
+                timeMs = timeMs,
+                onBeat = acc.onBeat,
+                velocity = primary.velocity,
+                notes = chord,
+            )
+        }
+
+        val kept = cullDensity(hits, difficulty.maxHitsPerSecond)
+
+        val out = ArrayList<RhythmNote>(kept.size)
+        // Round-robin state: rotates across every emitted note, so consecutive hits land on
+        // different lanes and chord notes fan out to the following lanes.
+        var rrNext = 0
+        for (hit in kept) {
+            val usedLanes = HashSet<Int>(hit.notes.size)
+            for (note in hit.notes) {
                 val desired = pitchLane?.invoke(note.pitch) ?: (rrNext++ % LANE_COUNT)
                 val lane = freeLane(desired, usedLanes) ?: continue
                 usedLanes.add(lane)
                 out += RhythmNote(
                     id = out.size,
-                    timeMs = timeMs,
+                    timeMs = hit.timeMs,
                     lane = lane,
                     strength = note.velocity / 127f,
                 )
@@ -125,11 +180,43 @@ object RhythmMidiChartGenerator {
 
         return RhythmChart(
             source = RhythmChart.SOURCE_MIDI,
-            difficultyName = "${part.name} · 1/$gridDiv",
+            difficultyName = "${part.name} · ${difficulty.label}",
             timing = grid,
             notes = out,
             durationMs = score.durationMs,
         ).withoutLeadIn()
+    }
+
+    /**
+     * Density clipping: [hits] survive in priority order — on-beat first, then strongest,
+     * then earliest — and a hit is dropped when a surviving hit is closer than the minimum
+     * spacing for [maxHitsPerSecond]. The result is returned in time order, because the
+     * round-robin lane rotation walks the chart forward. Deterministic: the priority order
+     * is total (hit times are unique) and admission depends only on already-surviving hits.
+     */
+    private fun cullDensity(hits: List<Hit>, maxHitsPerSecond: Double): List<Hit> {
+        val minGapMs = minGapMs(maxHitsPerSecond)
+        if (minGapMs <= 0 || hits.size < 2) return hits
+        val ranked = hits.sortedWith(
+            compareByDescending<Hit> { it.onBeat }
+                .thenByDescending { it.velocity }
+                .thenBy { it.timeMs },
+        )
+        val kept = ArrayList<Hit>(hits.size)
+        for (hit in ranked) {
+            if (kept.all { abs(it.timeMs - hit.timeMs) >= minGapMs }) kept += hit
+        }
+        return kept.sortedBy { it.timeMs }
+    }
+
+    /**
+     * Minimum spacing between surviving hits for a cap of [maxHitsPerSecond]: 1000 ms at
+     * one hit per second, 250 ms at four. Non-finite caps (and the meaningless non-positive
+     * ones) disable clipping instead of emptying the chart.
+     */
+    private fun minGapMs(maxHitsPerSecond: Double): Int = when {
+        !maxHitsPerSecond.isFinite() || maxHitsPerSecond <= 0.0 -> 0
+        else -> ceil(1000.0 / maxHitsPerSecond).toInt().coerceAtLeast(1)
     }
 
     /**
@@ -138,8 +225,10 @@ object RhythmMidiChartGenerator {
      * The grid is piecewise (the file's tempo map): the note is snapped with the beat
      * length of the segment it falls into, and a segment boundary beat is owned by the
      * following segment, so a note on the boundary lands at the same ms from both sides.
+     * A cell is on the beat when its index within the segment is a whole beat
+     * (`cell % gridDiv == 0`), i.e. its snapped time is a beat point of the tempo map.
      */
-    private fun snap(timeMs: Double, grid: List<RhythmTimingPoint>, gridDiv: Int): Int {
+    private fun snap(timeMs: Double, grid: List<RhythmTimingPoint>, gridDiv: Int): Cell {
         var segIndex = grid.indexOfLast { it.timeMs <= timeMs }
         if (segIndex < 0) segIndex = 0
         val seg = grid[segIndex]
@@ -149,7 +238,7 @@ object RhythmMidiChartGenerator {
         val snapped = seg.timeMs + cell * cellMs
         // A note exactly on the last boundary of a segment snaps to the same ms from the
         // next segment's cell 0; round to Int so both sides key the identical cell.
-        return snapped.toInt()
+        return Cell(timeMs = snapped.toInt(), onBeat = cell % gridDiv == 0L)
     }
 
     /** Pitch → lane: quartiles of the part's range, clamped (single-pitch parts → lane 1). */
@@ -175,4 +264,24 @@ object RhythmMidiChartGenerator {
         }
         return null
     }
+
+    /** One snapped cell: the key notes merge under and whether it sits on a beat. */
+    private data class Cell(val timeMs: Int, val onBeat: Boolean)
+
+    /** Accumulator for the notes that quantize into one cell. */
+    private class CellNotes {
+        val notes = ArrayList<MidiNote>(2)
+        var onBeat = false
+    }
+
+    /**
+     * One hit moment after chord merging: a chord is a single [Hit] whose [notes] carry its
+     * keys (strongest first), so density clipping counts it once.
+     */
+    private data class Hit(
+        val timeMs: Int,
+        val onBeat: Boolean,
+        val velocity: Int,
+        val notes: List<MidiNote>,
+    )
 }

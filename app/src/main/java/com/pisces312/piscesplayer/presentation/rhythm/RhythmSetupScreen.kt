@@ -80,6 +80,7 @@ import com.pisces312.piscesplayer.data.model.Song
 import com.pisces312.piscesplayer.data.offline.CloudOfflineRepository
 import com.pisces312.piscesplayer.data.rhythm.DspDifficulty
 import com.pisces312.piscesplayer.data.rhythm.MasterGenerationResult
+import com.pisces312.piscesplayer.data.rhythm.MidiChartOptions
 import com.pisces312.piscesplayer.data.rhythm.RhythmAnalysisParams
 import com.pisces312.piscesplayer.data.rhythm.RhythmChart
 import com.pisces312.piscesplayer.data.rhythm.RhythmChartExport
@@ -198,6 +199,7 @@ fun RhythmSetupScreen(
     var pendingExport by remember { mutableStateOf<Pair<RhythmChartMeta, RhythmChartExport.Format>?>(null) }
 
     var showGenerateSheet by remember { mutableStateOf(false) }
+    var showMidiOptions by remember { mutableStateOf(false) }
     var overwriting by remember { mutableStateOf(false) }
     var generating by remember { mutableStateOf(false) }
     var generationProgress by remember { mutableFloatStateOf(0f) }
@@ -214,6 +216,9 @@ fun RhythmSetupScreen(
         (RhythmRepository.MAX_ANALYSIS_DURATION_MS / 60_000L).toInt(),
     )
     val cancelledMessage = stringResource(R.string.rhythm_generate_cancelled)
+    // Quick MIDI generate runs the default three rungs; labels follow the UI language
+    // because they land in the generated chart names.
+    val quickMidiDifficulties = defaultMidiDifficulties()
     val customDifficultyLabel = stringResource(R.string.rhythm_derive_custom)
     val modeLabels = mapOf(
         RhythmDeriveMode.GRID to stringResource(R.string.rhythm_derive_mode_grid),
@@ -291,9 +296,10 @@ fun RhythmSetupScreen(
 
     /**
      * MIDI 曲目：解析文件里的音符事件与 tempo map 直接成谱（[RhythmRepository.importMidiCharts]），
-     * 不走 PCM 解码 + DSP 分析的母带流程，也不要求时长限制。
+     * 不走 PCM 解码 + DSP 分析的母带流程，也不要求时长限制。难度档与密度上限由 [options] 决定
+     * （快捷生成用默认三档，参数面板则传用户调整后的值）。
      */
-    fun startMidiImport() {
+    fun startMidiImport(options: MidiChartOptions) {
         val currentSong = song ?: return
         if (CloudOfflineRepository.isCloudSong(currentSong)) {
             generationError = cloudUnavailableMessage
@@ -307,8 +313,13 @@ fun RhythmSetupScreen(
         generating = true
         scope.launch {
             try {
-                val metas = repository.importMidiCharts(songId = songId, uri = playbackUri)
+                val metas = repository.importMidiCharts(
+                    songId = songId,
+                    uri = playbackUri,
+                    options = options,
+                )
                 reload()
+                showMidiOptions = false
                 if (metas.isNotEmpty()) {
                     playerViewModel.sendToast(
                         context.getString(R.string.rhythm_midi_generated, metas.size),
@@ -550,7 +561,13 @@ fun RhythmSetupScreen(
                 if (song?.isRhythmMidiSong() == true) {
                     MidiGenerateCard(
                         generating = generating,
-                        onGenerate = { startMidiImport() },
+                        onGenerate = {
+                            startMidiImport(MidiChartOptions(difficulties = quickMidiDifficulties))
+                        },
+                        onOpenOptions = {
+                            generationError = null
+                            showMidiOptions = true
+                        },
                     )
                 } else if (masterMeta == null) {
                     MasterMissingCard(
@@ -800,6 +817,20 @@ fun RhythmSetupScreen(
         )
     }
 
+    if (showMidiOptions) {
+        RhythmMidiGenerateSheet(
+            generating = generating,
+            error = generationError,
+            onDismiss = {
+                if (!generating) {
+                    showMidiOptions = false
+                    generationError = null
+                }
+            },
+            onGenerate = { options -> startMidiImport(options) },
+        )
+    }
+
     if (showDeriveSheet) {
         // The master body is loaded with the snapshot, so this is only null while it is being
         // reloaded; opening the sheet is guarded on the same condition.
@@ -953,7 +984,11 @@ private fun LatencyCalibrationCard(
 }
 
 @Composable
-private fun MidiGenerateCard(generating: Boolean, onGenerate: () -> Unit) {
+private fun MidiGenerateCard(
+    generating: Boolean,
+    onGenerate: () -> Unit,
+    onOpenOptions: () -> Unit,
+) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier
@@ -970,24 +1005,39 @@ private fun MidiGenerateCard(generating: Boolean, onGenerate: () -> Unit) {
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            Button(
-                onClick = onGenerate,
-                enabled = !generating,
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                if (generating) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(20.dp),
-                        strokeWidth = 2.dp,
-                    )
-                } else {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(
+                    onClick = onGenerate,
+                    enabled = !generating,
+                    modifier = Modifier.weight(1f),
+                ) {
+                    if (generating) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(20.dp),
+                            strokeWidth = 2.dp,
+                        )
+                    } else {
+                        Icon(
+                            imageVector = Icons.Outlined.AutoAwesome,
+                            contentDescription = null,
+                        )
+                    }
+                    Spacer(Modifier.width(10.dp))
+                    Text(stringResource(R.string.rhythm_midi_generate))
+                }
+                // Same generation with the parameter sheet: difficulty rungs, density caps,
+                // chord size and lane assignment.
+                OutlinedButton(
+                    onClick = onOpenOptions,
+                    enabled = !generating,
+                ) {
                     Icon(
-                        imageVector = Icons.Outlined.AutoAwesome,
+                        imageVector = Icons.Outlined.Settings,
                         contentDescription = null,
                     )
+                    Spacer(Modifier.width(6.dp))
+                    Text(stringResource(R.string.rhythm_midi_options_open))
                 }
-                Spacer(Modifier.width(10.dp))
-                Text(stringResource(R.string.rhythm_midi_generate))
             }
         }
     }

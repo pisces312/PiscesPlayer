@@ -50,7 +50,8 @@ class RhythmRepository @Inject constructor(
     }
 
     /**
-     * Parse a MIDI file and store one chart per playable track and grid divisor.
+     * Parse a MIDI file and store one chart per playable track and difficulty
+     * ([MidiChartOptions.difficulties], three density-capped rungs by default).
      *
      * Unlike [generateMaster] there is no master/derive two-tier: MIDI carries exact note
      * times and an exact tempo map, so generation is a cheap deterministic function of the

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="rhythm_midi_options_title">生成参数</string>
+    <string name="rhythm_midi_options_open">参数</string>
+    <string name="rhythm_midi_options_difficulties">难度</string>
+    <string name="rhythm_midi_options_hits_per_sec">每秒音符上限</string>
+    <string name="rhythm_midi_options_nps">约 %1$s 音/秒</string>
+    <string name="rhythm_midi_options_max_chord">和弦上限</string>
+    <string name="rhythm_midi_options_lane">落键方式</string>
+    <string name="rhythm_midi_options_lane_pitch">按音域分轨</string>
+    <string name="rhythm_midi_options_lane_round_robin">轮流落键</string>
+    <string name="rhythm_midi_diff_easy">简单</string>
+    <string name="rhythm_midi_diff_normal">标准</string>
+    <string name="rhythm_midi_diff_hard">困难</string>
+    <string name="rhythm_midi_options_generate">生成</string>
+    <string name="rhythm_midi_options_none_selected">请至少选择一个难度</string>
+</resources>

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="rhythm_midi_options_title">Generation parameters</string>
+    <string name="rhythm_midi_options_open">Options</string>
+    <string name="rhythm_midi_options_difficulties">Difficulty</string>
+    <string name="rhythm_midi_options_hits_per_sec">Max notes per second</string>
+    <string name="rhythm_midi_options_nps">≈ %1$s notes/s</string>
+    <string name="rhythm_midi_options_max_chord">Max chord size</string>
+    <string name="rhythm_midi_options_lane">Lane assignment</string>
+    <string name="rhythm_midi_options_lane_pitch">By pitch range</string>
+    <string name="rhythm_midi_options_lane_round_robin">Round robin</string>
+    <string name="rhythm_midi_diff_easy">Easy</string>
+    <string name="rhythm_midi_diff_normal">Normal</string>
+    <string name="rhythm_midi_diff_hard">Hard</string>
+    <string name="rhythm_midi_options_generate">Generate</string>
+    <string name="rhythm_midi_options_none_selected">Select at least one difficulty</string>
+</resources>
