@@ -7,7 +7,7 @@ PiscesPlayer — Android 音乐播放器（100% Kotlin，Jetpack Compose + Mater
 ## 开发环境与路径引用（两套，2026-11-23 起）
 
 本项目在 **PC（Windows）** 与 **手机（DSH Go · proot Ubuntu 24.04 aarch64）** 两套环境开发，
-共用同一 git 仓库。下表定义各环境的路径；**本文其余路径引用按下表换算，散落的 `D:\...` 引用不逐个改写**。
+共用同一 git 仓库。**两套环境的路径不同 —— PC 用 `D:\...`，手机用 `/storage/...` / `/root/...`，引用路径必须先认准环境，手机侧不要照抄 `D:\...`**。下表是权威换算表；本文散落的路径引用一律双写「PC / 手机」两式，漏写的按下表换算。
 
 | 概念 | PC（Windows） | 手机（proot Ubuntu） |
 |---|---|---|
@@ -21,7 +21,7 @@ PiscesPlayer — Android 音乐播放器（100% Kotlin，Jetpack Compose + Mater
 
 - ¹ proot 内即 `/sdcard/my-git-projects/workspace`（`/root/手机存储/my-git-projects/workspace` 是同一位置）。
   它是 Codeup `my-projects` 的克隆，与 PC 的 `D:\workspace` **同一仓库**，`design/piscesplayer/docs` 结构一致。
-- ² 例：节奏游戏文档库在 `D:\3rd-party-projects\RhythmChartLab\docs`。
+- ² 例：节奏游戏文档库 PC 在 `D:\3rd-party-projects\RhythmChartLab\docs`、手机在 `/storage/emulated/0/my-git-projects/rhythm-chart-lab/docs`。
 - ³ 目录名小写连字符风格（如 `rhythm-chart-lab` 对应 PC 的 `RhythmChartLab`）；内部结构一致，文档间相对引用两边通用。
 - **PiscesPlayer 手机侧唯一工作克隆 = `/root/PiscesPlayer`**（2026-11-23 定）：`/sdcard` 是 FUSE
   大容量存储，Gradle 在其上构建慢且易卡，`/root` 还随运行时升级保留。
@@ -59,10 +59,11 @@ PiscesPlayer — Android 音乐播放器（100% Kotlin，Jetpack Compose + Mater
 - **AI 子系统**：本 fork 自研 `data/ai/`（OpenAI 兼容协议，用户自配 endpoint / key / 模型，请求日志只存本地）与 OSS 基线的本地 NLP（`data/playlist/nlp/PlaylistIntentEngine`）**并存**；没有内置云端 AI 凭据或默认上报。
 - **版权红线**：从**专有 `PixelPlayerHQ/PixelPlayer`** 或其派生实现搬功能时，**原创算法/解析层**（parser、matcher、分桶、日志收集等）可搬，提交注明 `Original work, GPL-3.0-or-later`；**glue 层**（ViewModel / DI / DAO / 设置项 / UI 接线 / strings）必须在本仓库重写；**禁止整文件复制专有 PixelPlayer 的实现**。
 
-## 设计文档（私有仓库 `D:\workspace`）
+## 设计文档（私有仓库 workspace）
 
-PiscesPlayer 的设计、调研、计划、评审类文档统一存放在**私有仓库 `D:\workspace`**
-（Codeup `my-projects`，远端 `git@codeup.aliyun.com:63f6dbf33c5c77b98fc5cfd1/my-projects.git`）
+PiscesPlayer 的设计、调研、计划、评审类文档统一存放在**私有仓库 workspace**
+（PC `D:\workspace` / 手机 `/storage/emulated/0/my-git-projects/workspace`，
+Codeup `my-projects`，远端 `git@codeup.aliyun.com:63f6dbf33c5c77b98fc5cfd1/my-projects.git`）
 的 `design/piscesplayer` 子目录，不入本仓库；文档在其 `docs/` 子目录下
 （沿用原目录结构，文档间互引 `docs/xxx.md` 依旧有效）。2026-11-17 起本仓库 `docs/` 只保留
 运维/发布类文档（`RELEASE.md`、`REBRAND.md`、`FDROID.md`、`DEPENDENCY_LICENSES.md`、
@@ -70,7 +71,8 @@ PiscesPlayer 的设计、调研、计划、评审类文档统一存放在**私�
 
 - **新设计文档写入** `D:\workspace\design\piscesplayer\docs\`（手机：`/storage/emulated/0/my-git-projects/workspace/design/piscesplayer/docs/`），不要在本仓库 `docs/` 新建。
 - 代码注释与旧文档中的 `docs/<设计文档>.md` 引用一律对应
-  `D:\workspace\design\piscesplayer\docs\<设计文档>.md`（散落引用不逐个改）；
+  `design/piscesplayer/docs/<设计文档>.md`（PC 前缀 `D:\workspace\`、手机前缀
+  `/storage/emulated/0/my-git-projects/workspace/`；散落引用不逐个改）；
   引用运维文档（RELEASE/REBRAND/FDROID 等）的仍指本仓库 `docs/`。
 
 ## 节奏游戏文档
@@ -105,7 +107,9 @@ PiscesPlayer 的设计、调研、计划、评审类文档统一存放在**私�
 - **Compose 栈由 `material3` 锚定**：它当前钉在 `1.5.0-alpha27`。升它的 alpha 号会经传递依赖
   拖动整条 Compose 栈（`alpha28` 会把栈从 `1.12.1` stable 顶进 `1.13.0-alpha01`），
   而 `composeBom` 与显式声明的 `composeUi` / `foundation` / `animation` **取较高者**、
-  必须同批改。动之前先读（私有文档仓库）`D:\workspace\design\piscesplayer\docs\dependency-upgrade-2026-09.md` §9 / §10。
+  必须同批改。动之前先读（私有文档仓库 PC `D:\workspace\design\piscesplayer\docs\` /
+  手机 `/storage/emulated/0/my-git-projects/workspace/design/piscesplayer/docs/`）
+  `dependency-upgrade-2026-09.md` §9 / §10。
 
 ## 目标设备与屏幕尺寸（UI 布局前提）
 
@@ -127,7 +131,9 @@ PiscesPlayer 的设计、调研、计划、评审类文档统一存放在**私�
 
 已确认接受的代价：`AiMixSheet.ResultPhase` 是「固定行 + `heightIn(max = 320.dp)` 列表」，
 短屏 / 大字号下底部「重新生成」理论上会被裁。**决定不修**；备选方案（滚动区改
-`weight(1f, fill = false)`）见（私有文档仓库）`D:\workspace\design\piscesplayer\docs\ai-thinking-persistence-plan.md` §7.6，已否决。
+`weight(1f, fill = false)`）见（私有文档仓库 PC `D:\workspace\design\piscesplayer\docs\` /
+手机 `/storage/emulated/0/my-git-projects/workspace/design/piscesplayer/docs/`）
+`ai-thinking-persistence-plan.md` §7.6，已否决。
 
 ## 常用命令（PowerShell = PC；手机用 `bash`，见「开发环境与路径引用 · 构建命令差异」）
 
@@ -282,7 +288,7 @@ nightly 缺 secret 时退化成随机一次性钥匙。detach 后"fork 默认禁
 - **构建成功 ≠ 已签名**，唯一可信判据是
   `apksigner verify --print-certs -v <apk>` → `Verifies` + `v2 scheme: true` + `CN=pisces312`
   （只有 v2、没有 v1 是正常的）；`aapt2 dump badging` 核对 `versionName` / `versionCode` / `native-code`。
-- 本机 build-tools：`D:/dev/android_sdk/build-tools/37.0.0/`。
+- 本机 build-tools：PC `D:/dev/android_sdk/build-tools/37.0.0/`、手机 `/root/android-sdk/build-tools/37.0.0/`。
 
 发版链路：`main` → 版本号提交 → `tag v<版本名>` → `assembleRelease` → `gh release create`。
 版本号使用纯语义化 `X.Y.Z`（不再带 `-pisces.N` 后缀），版本码沿用 `主版本 * 100000 + 序号`。
@@ -315,7 +321,9 @@ OSS 有**设置搜索**，开关不注册就搜不到：
    调用点显式传入，让编译器强制接线。
    `PlaylistViewModel` / `SettingsViewModel` / `EqualizerViewModel` 等的默认值**保留** —— 它们没有清理单例状态的行为。
    **已知例外（待修）**：`ExternalPlayerActivity.kt` 仍独立持有第二个实例（`by viewModels()`），
-   是上面第 1 条约束的现存违反案例，修复方案见（私有文档仓库）`D:\workspace\design\piscesplayer\docs\implementation-review-0.4.2-critical-verdict.md` §1.3。
+   是上面第 1 条约束的现存违反案例，修复方案见（私有文档仓库 PC `D:\workspace\design\piscesplayer\docs\` /
+   手机 `/storage/emulated/0/my-git-projects/workspace/design/piscesplayer/docs/`）
+   `implementation-review-0.4.2-critical-verdict.md` §1.3。
    **注意 owner 协议挡不住冷启顺序**：首个 owner 若恰好是短命 VM，它死亡时 owner 匹配、照样拆 holder ——
    所以 owner 校验只是纵深防御，**不能替代消除第二 owner**。
 2. **新增屏幕 / 覆盖层要接进传递链**：`AppNavigation` 的 `composable(route)` → `ScreenWrapper` → 目标 composable；
