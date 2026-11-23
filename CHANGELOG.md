@@ -3,6 +3,20 @@
 All notable changes to PiscesPlayer will be documented in this file. PiscesPlayer is a fork of
 PixelPlayerOSS; versions up to and including 0.4.3 were published under the upstream name.
 
+## [Unreleased]
+
+### Changed
+- Rhythm game: the derived/other chart cards were redesigned — the title owns a full line and
+  scrolls (marquee) when it overflows, every parameter (source, note count, notes per second,
+  best score, delay/skip/fall) is a rounded chip under the title, and the action row keeps the
+  export/settings/delete icon buttons on the left with "Start" anchored to the right edge.
+- Rhythm game song picker: reworked into two swipeable tabs modelled on the library tabs —
+  "With charts" (with an All/Recent scope filter defaulting to All, plus a difficulty filter)
+  and "Without charts". Both tabs share the search field and the common song sort options; the
+  old chart-presence dropdown filter and the "current song" shortcut row are gone.
+- Rhythm game: the mini player is now hidden across the whole flow (song picker and chart
+  setup screens included), so those screens use the freed bottom space.
+
 ## [1.0.4] - 2026-11-22
 
 ### Added

@@ -1,5 +1,7 @@
 package com.pisces312.piscesplayer.presentation.rhythm
 
+import com.pisces312.piscesplayer.data.model.Song
+import com.pisces312.piscesplayer.data.model.SortOption
 import com.pisces312.piscesplayer.data.rhythm.DspDifficultySpec
 import com.pisces312.piscesplayer.data.rhythm.RhythmChart
 import java.text.Collator
@@ -125,5 +127,58 @@ internal fun RhythmSongCandidate.presentDifficulties(): List<RhythmDifficultyFil
         RhythmDifficultyFilter.HARD,
         RhythmDifficultyFilter.UNGRADED,
     ).filter(::matchesDifficulty)
+
+internal typealias RhythmSongPair = Pair<Song, RhythmSongCandidate>
+
+/**
+ * The common song sort shared with the library. [SortOption.SongDefaultOrder] keeps the
+ * filtered order [filterRhythmSongCandidates] produced (title for the 全部 scope, recency
+ * for 最近); every other option re-orders by that option's semantics.
+ */
+internal fun sortRhythmSongPairs(
+    pairs: List<RhythmSongPair>,
+    option: SortOption,
+): List<RhythmSongPair> {
+    val comparator: Comparator<RhythmSongPair> = when (option) {
+        SortOption.SongDefaultOrder -> return pairs
+        SortOption.SongTitleZA -> compareByDescending<RhythmSongPair> { it.first.title.lowercase() }
+            .thenBy { it.first.artist.lowercase() }
+            .thenBy { it.first.id }
+        SortOption.SongArtist -> compareBy(
+            { it.first.artist.lowercase() },
+            { it.first.title.lowercase() },
+            { it.first.id },
+        )
+        SortOption.SongArtistDesc -> compareByDescending<RhythmSongPair> { it.first.artist.lowercase() }
+            .thenBy { it.first.title.lowercase() }
+            .thenBy { it.first.id }
+        SortOption.SongAlbum -> compareBy(
+            { it.first.album.lowercase() },
+            { it.first.title.lowercase() },
+            { it.first.id },
+        )
+        SortOption.SongAlbumDesc -> compareByDescending<RhythmSongPair> { it.first.album.lowercase() }
+            .thenBy { it.first.title.lowercase() }
+            .thenBy { it.first.id }
+        SortOption.SongDateAdded -> compareByDescending<RhythmSongPair> { it.first.dateAdded }
+            .thenBy { it.first.id }
+        SortOption.SongDateAddedAsc -> compareBy(
+            { it.first.dateAdded },
+            { it.first.id },
+        )
+        SortOption.SongDuration -> compareByDescending<RhythmSongPair> { it.first.duration }
+            .thenBy { it.first.id }
+        SortOption.SongDurationAsc -> compareBy(
+            { it.first.duration },
+            { it.first.id },
+        )
+        else -> compareBy(
+            { it.first.title.lowercase() },
+            { it.first.artist.lowercase() },
+            { it.first.id },
+        )
+    }
+    return pairs.sortedWith(comparator)
+}
 
 private const val MAX_RECENT_SONGS = 100

@@ -457,6 +457,9 @@
         <item quantity="other">%1$d charts · %2$s</item>
     </plurals>
     <string name="rhythm_picker_difficulty_chart_count">%1$s charts · %2$d</string>
+    <string name="rhythm_picker_tab_with_charts">With charts</string>
+    <string name="rhythm_picker_tab_without_charts">Without charts</string>
+    <string name="rhythm_picker_sort_label">Sort</string>
     <string name="rhythm_import_osu">Import .osu chart</string>
     <string name="rhythm_import_failed">Import failed: %1$s</string>
     <string name="rhythm_record_entry">Tap record</string>
@@ -480,6 +483,12 @@
     <string name="rhythm_empty_hint">Import an osu!mania 4-key tap chart for this song, then play it here. Hold notes and other key modes are not supported yet.</string>
     <string name="rhythm_chart_stats">%1$d notes · %2$s notes/s</string>
     <string name="rhythm_best_score">Best score: %1$d</string>
+    <string name="rhythm_card_notes">%1$d notes</string>
+    <string name="rhythm_card_nps">%1$s notes/s</string>
+    <string name="rhythm_card_best_score">Best %1$d</string>
+    <string name="rhythm_card_delay_ms">Delay %1$d ms</string>
+    <string name="rhythm_card_lead_in_ms">Skip %1$d ms</string>
+    <string name="rhythm_card_approach_ms">Fall %1$d ms</string>
     <string name="rhythm_play_chart">Play</string>
     <string name="rhythm_delete_chart_icon">Delete imported chart</string>
     <string name="rhythm_delete_chart_title">Delete chart</string>

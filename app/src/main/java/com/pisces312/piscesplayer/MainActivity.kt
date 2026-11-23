@@ -1034,6 +1034,11 @@ class MainActivity : ComponentActivity() {
                         val routesWithHiddenMiniPlayer = remember {
                             setOf(
                                 Screen.NavBarCrRad.route,
+                                // The whole rhythm game flow hides the mini player (2026-11-22):
+                                // song picker and chart setup included, so "Start" is the only
+                                // playback entry while browsing charts.
+                                Screen.RhythmSongPicker.route,
+                                Screen.RhythmSetup.route,
                                 Screen.RhythmGame.route,
                                 Screen.RhythmRecord.route,
                                 Screen.MusicQuiz.route,

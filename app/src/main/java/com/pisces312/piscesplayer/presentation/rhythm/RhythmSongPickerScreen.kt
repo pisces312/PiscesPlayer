@@ -1,8 +1,14 @@
+/*
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ * Original work in 2026 (rhythm game song picker).
+ */
 package com.pisces312.piscesplayer.presentation.rhythm
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -15,6 +21,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
@@ -34,7 +42,9 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -45,6 +55,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -62,15 +73,25 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.pisces312.piscesplayer.R
 import com.pisces312.piscesplayer.data.model.Song
+import com.pisces312.piscesplayer.data.model.SortOption
 import com.pisces312.piscesplayer.data.offline.CloudOfflineRepository
 import com.pisces312.piscesplayer.data.rhythm.RhythmChartMeta
 import com.pisces312.piscesplayer.data.rhythm.RhythmLatencyStore
-import com.pisces312.piscesplayer.presentation.components.MiniPlayerBottomSpacer
-import com.pisces312.piscesplayer.presentation.components.MiniPlayerHeight
+import com.pisces312.piscesplayer.presentation.components.LibrarySortBottomSheet
 import com.pisces312.piscesplayer.presentation.components.SmartImage
 import com.pisces312.piscesplayer.presentation.components.SmartImageListTargetSize
 import com.pisces312.piscesplayer.presentation.viewmodel.PlayerViewModel
+import kotlinx.collections.immutable.toImmutableList
+import kotlinx.coroutines.launch
 
+/**
+ * Rhythm game song picker.
+ *
+ * Two swipeable tabs modelled on the library tab pattern (2026-11-22): tab 1 lists songs
+ * that already have charts (with a 全部/最近 scope filter and a difficulty filter), tab 2
+ * lists songs without charts. Both tabs share the search field and the common song sort
+ * options; the tab itself replaces the old "chart presence" dropdown filter.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RhythmSongPickerScreen(
@@ -81,7 +102,6 @@ fun RhythmSongPickerScreen(
 ) {
     val allSongs by playerViewModel.allSongsFlow.collectAsStateWithLifecycle()
     val playbackHistory by playerViewModel.playbackHistory.collectAsStateWithLifecycle()
-    val stablePlayerState by playerViewModel.stablePlayerState.collectAsStateWithLifecycle()
     val chartCatalog by pickerViewModel.chartCatalog.collectAsStateWithLifecycle()
     val lifecycleOwner = LocalLifecycleOwner.current
     val context = LocalContext.current
@@ -104,13 +124,18 @@ fun RhythmSongPickerScreen(
     }
 
     var query by rememberSaveable { mutableStateOf("") }
-    // Defaults mirror RhythmSongFilterState: the entry exists to play charts, so start at
-    // "all songs with charts"; recency and the no-chart view are the deliberate opt-ins.
     var scope by rememberSaveable { mutableStateOf(RhythmSongScope.ALL) }
     var difficulty by rememberSaveable { mutableStateOf(RhythmDifficultyFilter.ALL) }
-    var chartFilter by rememberSaveable { mutableStateOf(RhythmChartFilter.WITH_CHARTS) }
-    val filters = RhythmSongFilterState(scope, difficulty, chartFilter)
-    val listState = rememberLazyListState()
+    // The common song sort, persisted by storage key across process death. The default keeps
+    // the tab's natural order: title for 全部, recency for 最近.
+    var sortKey by rememberSaveable { mutableStateOf(SortOption.SongDefaultOrder.storageKey) }
+    val sortOption = remember(sortKey) {
+        SortOption.SONGS.firstOrNull { it.storageKey == sortKey } ?: SortOption.SongDefaultOrder
+    }
+    var showSortSheet by remember { mutableStateOf(false) }
+
+    val pagerState = rememberPagerState(pageCount = { TAB_COUNT })
+    val pagerScope = rememberCoroutineScope()
     val locale = remember { java.util.Locale.getDefault() }
 
     val localSongs = remember(allSongs) {
@@ -125,23 +150,26 @@ fun RhythmSongPickerScreen(
     val candidates = remember(localSongs, chartCatalog) {
         localSongs.map { it.toCandidate(chartCatalog.orEmpty()[it.id].orEmpty()) }
     }
-    val filteredCandidates = remember(candidates, recentSongIds, query, filters, locale) {
-        filterRhythmSongCandidates(candidates, recentSongIds, query, filters, locale)
+    val tabCounts = remember(candidates) {
+        listOf(
+            candidates.count { it.chartCount > 0 },
+            candidates.count { it.chartCount == 0 },
+        )
     }
-    val filteredSongs = remember(filteredCandidates, songsById) {
-        filteredCandidates.mapNotNull { candidate ->
-            songsById[candidate.id]?.let { it to candidate }
-        }
-    }
-    // The setup screen resolves songs from the Room library. Quick play and deleted songs can
-    // remain in player state, but offering them here would lead to a permanently loading setup.
-    val currentSong = stablePlayerState.currentSong?.let { songsById[it.id] }
     val recentLocalCount = remember(recentSongIds, songsById) {
         recentSongIds.count(songsById::containsKey)
     }
 
-    LaunchedEffect(query, scope, difficulty, chartFilter) {
-        listState.scrollToItem(0)
+    // The tab IS the chart-presence filter; scope/difficulty are shared by both tabs and only
+    // surfaced in the with-charts one.
+    val filtersWithCharts = RhythmSongFilterState(scope, difficulty, RhythmChartFilter.WITH_CHARTS)
+    val filtersWithoutCharts = RhythmSongFilterState(scope, difficulty, RhythmChartFilter.WITHOUT_CHARTS)
+    val filteredByTab = remember(candidates, recentSongIds, query, filtersWithCharts, filtersWithoutCharts, locale, songsById, sortOption) {
+        listOf(filtersWithCharts, filtersWithoutCharts).map { filters ->
+            val filtered = filterRhythmSongCandidates(candidates, recentSongIds, query, filters, locale)
+                .mapNotNull { candidate -> songsById[candidate.id]?.let { it to candidate } }
+            sortRhythmSongPairs(filtered, sortOption)
+        }
     }
 
     Scaffold(
@@ -188,68 +216,11 @@ fun RhythmSongPickerScreen(
                 shape = RoundedCornerShape(18.dp),
             )
 
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                RhythmFilterSelector(
-                    selected = scope,
-                    options = listOf(
-                        RhythmSongScope.RECENT to stringResource(R.string.rhythm_picker_scope_recent),
-                        RhythmSongScope.ALL to stringResource(R.string.rhythm_picker_scope_all),
-                    ),
-                    label = stringResource(
-                        if (scope == RhythmSongScope.RECENT) {
-                            R.string.rhythm_picker_scope_recent
-                        } else {
-                            R.string.rhythm_picker_scope_all
-                        }
-                    ),
-                    emphasized = scope != RhythmSongScope.ALL,
-                    onSelected = { scope = it },
-                    modifier = Modifier.weight(1f),
-                )
-                RhythmFilterSelector(
-                    selected = difficulty,
-                    options = difficultyOptions(),
-                    label = stringResource(
-                        R.string.rhythm_picker_difficulty_chip,
-                        difficultyLabel(difficulty),
-                    ),
-                    emphasized = difficulty != RhythmDifficultyFilter.ALL,
-                    onSelected = { selected ->
-                        filters.withDifficulty(selected).let {
-                            difficulty = it.difficulty
-                            chartFilter = it.charts
-                        }
-                    },
-                    modifier = Modifier.weight(1.25f),
-                )
-                RhythmFilterSelector(
-                    selected = chartFilter,
-                    options = chartOptions(),
-                    label = stringResource(
-                        R.string.rhythm_picker_charts_chip,
-                        chartFilterLabel(chartFilter),
-                    ),
-                    emphasized = chartFilter != RhythmChartFilter.WITH_CHARTS,
-                    onSelected = { selected ->
-                        filters.withCharts(selected).let {
-                            difficulty = it.difficulty
-                            chartFilter = it.charts
-                        }
-                    },
-                    modifier = Modifier.weight(1.15f),
-                )
-            }
-
             if (bluetoothRoute) {
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp),
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
                     colors = CardDefaults.cardColors(
                         containerColor = MaterialTheme.colorScheme.tertiaryContainer,
                     ),
@@ -267,126 +238,231 @@ fun RhythmSongPickerScreen(
                         )
                     }
                 }
-                Spacer(Modifier.height(12.dp))
             }
 
-            val loadedChartCatalog = chartCatalog
-            if (currentSong != null && query.isBlank() && loadedChartCatalog != null) {
-                // Unknown chart state is not the same as a song with no charts.
-                val currentCandidate = currentSong.toCandidate(
-                    loadedChartCatalog[currentSong.id].orEmpty(),
+            PrimaryTabRow(selectedTabIndex = pagerState.currentPage) {
+                PickerTab(
+                    title = stringResource(R.string.rhythm_picker_tab_with_charts),
+                    count = tabCounts[0],
+                    selected = pagerState.currentPage == 0,
+                    onClick = { pagerScope.launch { pagerState.animateScrollToPage(0) } },
                 )
-                Text(
-                    text = stringResource(R.string.rhythm_picker_current_song),
-                    modifier = Modifier.padding(horizontal = 20.dp),
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.primary,
+                PickerTab(
+                    title = stringResource(R.string.rhythm_picker_tab_without_charts),
+                    count = tabCounts[1],
+                    selected = pagerState.currentPage == 1,
+                    onClick = { pagerScope.launch { pagerState.animateScrollToPage(1) } },
                 )
-                Spacer(Modifier.height(6.dp))
-                RhythmSongRow(
-                    song = currentSong,
-                    summary = rhythmChartSummary(currentCandidate, difficulty),
-                    onClick = { onSongSelected(currentSong.id) },
-                    modifier = Modifier.padding(horizontal = 16.dp),
-                    emphasized = true,
-                )
-                Spacer(Modifier.height(12.dp))
             }
 
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 4.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    text = pluralStringResource(
-                        R.plurals.rhythm_picker_result_count,
-                        filteredSongs.size,
-                        stringResource(
-                            if (scope == RhythmSongScope.RECENT) {
-                                R.string.rhythm_picker_scope_recent
-                            } else {
-                                R.string.rhythm_picker_scope_all
-                            }
-                        ),
-                        filteredSongs.size,
-                    ),
-                    modifier = Modifier.weight(1f),
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                if (!filters.isDefault) {
-                    TextButton(
-                        onClick = {
-                            scope = RhythmSongScope.ALL
-                            difficulty = RhythmDifficultyFilter.ALL
-                            chartFilter = RhythmChartFilter.WITH_CHARTS
-                        },
-                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
-                    ) {
-                        Text(stringResource(R.string.rhythm_picker_reset))
-                    }
-                }
-            }
+            HorizontalPager(
+                state = pagerState,
+                modifier = Modifier.weight(1f),
+            ) { page ->
+                val listState = rememberLazyListState()
+                val filters = if (page == 0) filtersWithCharts else filtersWithoutCharts
+                val filteredSongs = filteredByTab[page]
 
-            when {
-                chartCatalog == null -> {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        CircularProgressIndicator()
-                    }
+                LaunchedEffect(query, scope, difficulty, sortKey) {
+                    listState.scrollToItem(0)
                 }
-                filteredSongs.isEmpty() -> {
-                    RhythmPickerEmptyState(
-                        localLibraryEmpty = localSongs.isEmpty(),
-                        query = query,
-                        recentEmpty = scope == RhythmSongScope.RECENT && recentLocalCount == 0,
-                        filtersActive = !filters.isDefault,
-                        showSearchAll = scope == RhythmSongScope.RECENT && query.isNotBlank(),
-                        onClearSearch = { query = "" },
-                        onSearchAll = { scope = RhythmSongScope.ALL },
-                        onShowAll = { scope = RhythmSongScope.ALL },
-                        onReset = {
-                            scope = RhythmSongScope.ALL
-                            difficulty = RhythmDifficultyFilter.ALL
-                            chartFilter = RhythmChartFilter.WITH_CHARTS
-                        },
-                    )
-                }
-                else -> {
-                    LazyColumn(
-                        state = listState,
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(
-                            start = 16.dp,
-                            end = 16.dp,
-                            top = 8.dp,
-                            // Scaffold.innerPadding already includes the system navigation inset.
-                            bottom = MiniPlayerHeight + MiniPlayerBottomSpacer + 16.dp,
-                        ),
+
+                Column(modifier = Modifier.fillMaxSize()) {
+                    // Tab 1 owns the 全部/最近 scope and the difficulty filter; tab 2 needs
+                    // neither (it is a flat "no charts yet" view). Both keep the sort entry.
+                    FlowRow(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        items(
-                            items = filteredSongs,
-                            key = { (song, _) -> song.id },
-                            contentType = { "rhythm_song" },
-                        ) { (song, candidate) ->
-                            RhythmSongRow(
-                                song = song,
-                                summary = rhythmChartSummary(candidate, difficulty),
-                                onClick = { onSongSelected(song.id) },
+                        if (page == 0) {
+                            FilterChip(
+                                selected = scope == RhythmSongScope.ALL,
+                                onClick = { scope = RhythmSongScope.ALL },
+                                label = { Text(stringResource(R.string.rhythm_picker_scope_all)) },
                             )
+                            FilterChip(
+                                selected = scope == RhythmSongScope.RECENT,
+                                onClick = { scope = RhythmSongScope.RECENT },
+                                label = { Text(stringResource(R.string.rhythm_picker_scope_recent)) },
+                            )
+                            RhythmFilterSelector(
+                                selected = difficulty,
+                                options = difficultyOptions(),
+                                label = stringResource(
+                                    R.string.rhythm_picker_difficulty_chip,
+                                    difficultyLabel(difficulty),
+                                ),
+                                emphasized = difficulty != RhythmDifficultyFilter.ALL,
+                                onSelected = { difficulty = it },
+                            )
+                        }
+                        FilterChip(
+                            selected = sortOption != SortOption.SongDefaultOrder,
+                            onClick = { showSortSheet = true },
+                            label = {
+                                Text(
+                                    text = if (sortOption == SortOption.SongDefaultOrder) {
+                                        stringResource(R.string.rhythm_picker_sort_label)
+                                    } else {
+                                        sortOption.displayName
+                                    },
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                            },
+                            trailingIcon = {
+                                Icon(
+                                    imageVector = Icons.Rounded.ArrowDropDown,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp),
+                                )
+                            },
+                        )
+                    }
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 20.dp, vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            text = pluralStringResource(
+                                R.plurals.rhythm_picker_result_count,
+                                filteredSongs.size,
+                                stringResource(
+                                    if (scope == RhythmSongScope.RECENT) {
+                                        R.string.rhythm_picker_scope_recent
+                                    } else {
+                                        R.string.rhythm_picker_scope_all
+                                    }
+                                ),
+                                filteredSongs.size,
+                            ),
+                            modifier = Modifier.weight(1f),
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                        if (scope != RhythmSongScope.ALL || difficulty != RhythmDifficultyFilter.ALL) {
+                            TextButton(
+                                onClick = {
+                                    scope = RhythmSongScope.ALL
+                                    difficulty = RhythmDifficultyFilter.ALL
+                                },
+                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
+                            ) {
+                                Text(stringResource(R.string.rhythm_picker_reset))
+                            }
+                        }
+                    }
+
+                    when {
+                        chartCatalog == null -> {
+                            Box(
+                                modifier = Modifier.fillMaxSize(),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                CircularProgressIndicator()
+                            }
+                        }
+                        filteredSongs.isEmpty() -> {
+                            RhythmPickerEmptyState(
+                                localLibraryEmpty = localSongs.isEmpty(),
+                                query = query,
+                                recentEmpty = scope == RhythmSongScope.RECENT && recentLocalCount == 0,
+                                filtersActive = scope != RhythmSongScope.ALL ||
+                                    difficulty != RhythmDifficultyFilter.ALL,
+                                showSearchAll = scope == RhythmSongScope.RECENT && query.isNotBlank(),
+                                onClearSearch = { query = "" },
+                                onSearchAll = { scope = RhythmSongScope.ALL },
+                                onShowAll = { scope = RhythmSongScope.ALL },
+                                onReset = {
+                                    scope = RhythmSongScope.ALL
+                                    difficulty = RhythmDifficultyFilter.ALL
+                                },
+                            )
+                        }
+                        else -> {
+                            LazyColumn(
+                                state = listState,
+                                modifier = Modifier.fillMaxSize(),
+                                contentPadding = PaddingValues(
+                                    start = 16.dp,
+                                    end = 16.dp,
+                                    top = 8.dp,
+                                    // Scaffold.innerPadding already includes the system
+                                    // navigation inset; the mini player is hidden on this
+                                    // route (2026-11-22), so no player reservation either.
+                                    bottom = 16.dp,
+                                ),
+                                verticalArrangement = Arrangement.spacedBy(8.dp),
+                            ) {
+                                items(
+                                    items = filteredSongs,
+                                    key = { (song, _) -> song.id },
+                                    contentType = { "rhythm_song" },
+                                ) { (song, candidate) ->
+                                    RhythmSongRow(
+                                        song = song,
+                                        summary = rhythmChartSummary(candidate, difficulty),
+                                        onClick = { onSongSelected(song.id) },
+                                    )
+                                }
+                            }
                         }
                     }
                 }
             }
         }
     }
+
+    if (showSortSheet) {
+        LibrarySortBottomSheet(
+            title = stringResource(R.string.presentation_batch_d_sort_by),
+            options = SortOption.SONGS.toImmutableList(),
+            selectedOption = sortOption,
+            onDismiss = { showSortSheet = false },
+            onOptionSelected = { option ->
+                sortKey = option.storageKey
+                showSortSheet = false
+            },
+            onDirectionToggle = { option -> sortKey = option.storageKey },
+        )
+    }
+}
+
+private const val TAB_COUNT = 2
+
+@Composable
+private fun PickerTab(
+    title: String,
+    count: Int,
+    selected: Boolean,
+    onClick: () -> Unit,
+) {
+    Tab(
+        selected = selected,
+        onClick = onClick,
+        text = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = title,
+                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                )
+                Spacer(Modifier.width(5.dp))
+                Text(
+                    text = count.toString(),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        },
+    )
 }
 
 @Composable
@@ -417,7 +493,6 @@ private fun <T> RhythmFilterSelector(
                     modifier = Modifier.size(18.dp),
                 )
             },
-            modifier = Modifier.fillMaxWidth(),
         )
         DropdownMenu(
             expanded = expanded,
@@ -447,17 +522,12 @@ private fun RhythmSongRow(
     summary: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    emphasized: Boolean = false,
 ) {
     Card(
         onClick = onClick,
         modifier = modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
-            containerColor = if (emphasized) {
-                MaterialTheme.colorScheme.secondaryContainer
-            } else {
-                MaterialTheme.colorScheme.surfaceContainerLow
-            },
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
         ),
     ) {
         Row(
@@ -589,13 +659,6 @@ private fun difficultyOptions(): List<Pair<RhythmDifficultyFilter, String>> = li
 )
 
 @Composable
-private fun chartOptions(): List<Pair<RhythmChartFilter, String>> = listOf(
-    RhythmChartFilter.ALL to chartFilterLabel(RhythmChartFilter.ALL),
-    RhythmChartFilter.WITH_CHARTS to chartFilterLabel(RhythmChartFilter.WITH_CHARTS),
-    RhythmChartFilter.WITHOUT_CHARTS to chartFilterLabel(RhythmChartFilter.WITHOUT_CHARTS),
-)
-
-@Composable
 private fun difficultyLabel(difficulty: RhythmDifficultyFilter): String = stringResource(
     when (difficulty) {
         RhythmDifficultyFilter.ALL -> R.string.rhythm_picker_difficulty_all
@@ -603,15 +666,6 @@ private fun difficultyLabel(difficulty: RhythmDifficultyFilter): String = string
         RhythmDifficultyFilter.NORMAL -> R.string.rhythm_generate_difficulty_normal
         RhythmDifficultyFilter.HARD -> R.string.rhythm_generate_difficulty_hard
         RhythmDifficultyFilter.UNGRADED -> R.string.rhythm_picker_difficulty_ungraded
-    },
-)
-
-@Composable
-private fun chartFilterLabel(filter: RhythmChartFilter): String = stringResource(
-    when (filter) {
-        RhythmChartFilter.ALL -> R.string.rhythm_picker_charts_all
-        RhythmChartFilter.WITH_CHARTS -> R.string.rhythm_picker_charts_present
-        RhythmChartFilter.WITHOUT_CHARTS -> R.string.rhythm_picker_charts_missing
     },
 )
 

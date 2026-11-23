@@ -8,9 +8,12 @@ import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -22,6 +25,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.outlined.AutoAwesome
@@ -31,18 +35,22 @@ import androidx.compose.material.icons.outlined.FileDownload
 import androidx.compose.material.icons.outlined.MusicNote
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.UploadFile
+import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -58,6 +66,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
@@ -81,8 +90,7 @@ import com.pisces312.piscesplayer.data.rhythm.RhythmDeriveSettings
 import com.pisces312.piscesplayer.data.rhythm.RhythmLatencyStore
 
 import com.pisces312.piscesplayer.data.rhythm.RhythmRepository
-import com.pisces312.piscesplayer.presentation.components.MiniPlayerBottomSpacer
-import com.pisces312.piscesplayer.presentation.components.MiniPlayerHeight
+import com.pisces312.piscesplayer.presentation.components.AutoScrollingText
 import com.pisces312.piscesplayer.presentation.navigation.Screen
 import com.pisces312.piscesplayer.presentation.navigation.navigateSafely
 import com.pisces312.piscesplayer.presentation.viewmodel.PlayerViewModel
@@ -437,14 +445,14 @@ fun RhythmSetupScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding),
-            // The collapsed player floats above this screen: the mini player is only hidden on
-            // the RhythmGame route, not here. Scaffold.innerPadding already handles the system
-            // navigation inset, so only reserve the player and its visual gap here.
+            // The mini player is hidden across the whole rhythm game flow (2026-11-22), so
+            // no player reservation is needed here; Scaffold.innerPadding already handles
+            // the system navigation inset.
             contentPadding = PaddingValues(
                 start = 16.dp,
                 end = 16.dp,
                 top = 16.dp,
-                bottom = MiniPlayerHeight + MiniPlayerBottomSpacer + 16.dp,
+                bottom = 16.dp,
             ),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
@@ -1050,6 +1058,15 @@ private fun MasterCard(
     }
 }
 
+/**
+ * One playable chart card (derived or imported/tapped).
+ *
+ * Layout (2026-11-22 redesign): the title owns a full line and marques when it overflows;
+ * every parameter is its own rounded chip below the title (source highlighted, the play-time
+ * values de-emphasised as outline chips); the action row keeps the secondary icon buttons on
+ * the left and anchors the primary "Start" to the right edge for thumb reach.
+ */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun ChartRow(
     meta: RhythmChartMeta,
@@ -1062,106 +1079,149 @@ private fun ChartRow(
     onExport: (() -> Unit)? = null,
 ) {
     Card(modifier = Modifier.fillMaxWidth()) {
+        val cardContainer = CardDefaults.cardColors().containerColor
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
+            AutoScrollingText(
+                text = meta.difficultyName,
+                style = MaterialTheme.typography.titleMedium,
+                gradientEdgeColor = cardContainer,
+                modifier = Modifier.fillMaxWidth(),
+            )
+
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                ChartParamChip(
+                    text = stringResource(
+                        when (meta.source) {
+                            RhythmChart.SOURCE_DSP -> R.string.rhythm_source_dsp
+                            RhythmChart.SOURCE_TAP -> R.string.rhythm_source_tap
+                            else -> R.string.rhythm_source_osu
+                        },
+                    ),
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                )
+                ChartParamChip(text = stringResource(R.string.rhythm_card_notes, stats.count))
+                ChartParamChip(
+                    text = stringResource(
+                        R.string.rhythm_card_nps,
+                        String.format(Locale.US, "%.1f", stats.notesPerSec),
+                    ),
+                )
+                ChartParamChip(
+                    text = stringResource(R.string.rhythm_card_best_score, meta.bestScore),
+                    contentColor = MaterialTheme.colorScheme.primary,
+                )
+                ChartParamChip(
+                    text = stringResource(R.string.rhythm_card_delay_ms, playSettings.delayMs),
+                    outlined = true,
+                )
+                ChartParamChip(
+                    text = stringResource(R.string.rhythm_card_lead_in_ms, playSettings.leadInMs),
+                    outlined = true,
+                )
+                ChartParamChip(
+                    text = stringResource(R.string.rhythm_card_approach_ms, playSettings.approachMs),
+                    outlined = true,
+                )
+                if (staleMaster) {
+                    ChartParamChip(
+                        text = stringResource(R.string.rhythm_chart_stale_master),
+                        outlined = true,
+                        contentColor = MaterialTheme.colorScheme.error,
+                        borderColor = MaterialTheme.colorScheme.error,
+                    )
+                }
+            }
+
             Row(
                 modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = meta.difficultyName,
-                        style = MaterialTheme.typography.titleMedium,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Text(
-                            text = stringResource(
-                                when (meta.source) {
-                                    RhythmChart.SOURCE_DSP -> R.string.rhythm_source_dsp
-                                    RhythmChart.SOURCE_TAP -> R.string.rhythm_source_tap
-                                    else -> R.string.rhythm_source_osu
-                                },
-                            ),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.primary,
-                        )
-                        Text(
-                            text = stringResource(
-                                R.string.rhythm_chart_stats,
-                                stats.count,
-                                String.format(Locale.US, "%.1f", stats.notesPerSec),
-                            ),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                        if (staleMaster) {
-                            Text(
-                                text = stringResource(R.string.rhythm_chart_stale_master),
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.error,
-                            )
-                        }
-                    }
-                }
                 if (onExport != null) {
-                    IconButton(onClick = onExport) {
+                    FilledTonalIconButton(
+                        onClick = onExport,
+                        modifier = Modifier.size(46.dp),
+                        shape = RoundedCornerShape(14.dp),
+                    ) {
                         Icon(
                             imageVector = Icons.Outlined.FileDownload,
                             contentDescription = stringResource(R.string.rhythm_export_chart_cd),
                         )
                     }
                 }
-                IconButton(onClick = onSettings) {
+                FilledTonalIconButton(
+                    onClick = onSettings,
+                    modifier = Modifier.size(46.dp),
+                    shape = RoundedCornerShape(14.dp),
+                ) {
                     Icon(
                         imageVector = Icons.Outlined.Settings,
                         contentDescription = stringResource(R.string.rhythm_settings_open),
                     )
                 }
-                IconButton(onClick = onDelete) {
+                FilledTonalIconButton(
+                    onClick = onDelete,
+                    modifier = Modifier.size(46.dp),
+                    shape = RoundedCornerShape(14.dp),
+                ) {
                     Icon(
                         imageVector = Icons.Outlined.Delete,
                         contentDescription = stringResource(R.string.rhythm_delete_chart_icon),
                     )
                 }
-            }
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    text = stringResource(R.string.rhythm_best_score, meta.bestScore),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.weight(1f),
-                )
-                OutlinedButton(onClick = onPlay) {
+                // Primary action anchored to the right edge: the thumb reaches "Start" without
+                // crossing the card.
+                Button(
+                    onClick = onPlay,
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(46.dp),
+                    shape = RoundedCornerShape(23.dp),
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.PlayArrow,
+                        contentDescription = null,
+                    )
+                    Spacer(Modifier.width(8.dp))
                     Text(stringResource(R.string.rhythm_play_chart))
                 }
             }
-
-            Text(
-                text = stringResource(
-                    R.string.rhythm_card_play_settings,
-                    playSettings.delayMs,
-                    playSettings.leadInMs,
-                    playSettings.approachMs,
-                ),
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
         }
+    }
+}
+
+/** Rounded-rectangle parameter chip for the chart card. */
+@Composable
+private fun ChartParamChip(
+    text: String,
+    modifier: Modifier = Modifier,
+    containerColor: Color = MaterialTheme.colorScheme.surfaceContainerHigh,
+    contentColor: Color = MaterialTheme.colorScheme.onSurfaceVariant,
+    outlined: Boolean = false,
+    borderColor: Color = MaterialTheme.colorScheme.outlineVariant,
+) {
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(9.dp),
+        color = if (outlined) Color.Transparent else containerColor,
+        contentColor = contentColor,
+        border = if (outlined) BorderStroke(1.dp, borderColor) else null,
+    ) {
+        Text(
+            text = text,
+            style = MaterialTheme.typography.labelMedium,
+            maxLines = 1,
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+        )
     }
 }
 
