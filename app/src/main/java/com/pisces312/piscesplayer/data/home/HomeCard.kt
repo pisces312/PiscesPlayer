@@ -68,5 +68,5 @@ val DefaultHomeLayout: List<HomeCard> = listOf(
     HomeCard(uid = "default_daily_mix", type = HomeCardType.DAILY_MIX, size = HomeCardSize.L_2x2),
     HomeCard(uid = "default_game_rhythm", type = HomeCardType.GAME_RHYTHM, size = HomeCardSize.S_1x1),
     HomeCard(uid = "default_game_quiz", type = HomeCardType.GAME_QUIZ, size = HomeCardSize.S_1x1),
-    HomeCard(uid = "default_soundscape", type = HomeCardType.SOUNDSCAPE, size = HomeCardSize.L_2x2),
+    HomeCard(uid = "default_soundscape", type = HomeCardType.SOUNDSCAPE, size = HomeCardSize.S_1x1),
 )

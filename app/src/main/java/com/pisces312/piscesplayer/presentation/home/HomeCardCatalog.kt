@@ -71,7 +71,7 @@ enum class HomeCardCatalog(
         type = HomeCardType.SOUNDSCAPE,
         nameRes = R.string.soundscape_title,
         subtitleRes = R.string.home_grid_soundscape_subtitle,
-        defaultSize = HomeCardSize.L_2x2,
+        defaultSize = HomeCardSize.S_1x1,
         icon = HomeCardIcon.VectorIcon(Icons.Rounded.Bedtime),
     ),
     LEARN_CLASSICAL(

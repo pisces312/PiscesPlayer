@@ -491,6 +491,11 @@ fun HomeScreen(
                     }
                 },
             contentPadding = PaddingValues(
+                // v1.3.1: cards keep the old home's 16dp side margins (the pre-grid AI
+                // playlist card sat 16dp from the screen edges); without this the grid
+                // is flush against both screen edges.
+                start = 16.dp,
+                end = 16.dp,
                 top = innerPadding.calculateTopPadding(),
                 bottom = paddingValuesParent.calculateBottomPadding() + 38.dp + bottomPadding,
             ),

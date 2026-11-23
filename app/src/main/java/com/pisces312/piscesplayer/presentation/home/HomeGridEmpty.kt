@@ -34,7 +34,9 @@ fun HomeGridEmpty(
         modifier = modifier
             .fillMaxSize()
             .heightIn(min = 420.dp)
-            .padding(horizontal = 32.dp, vertical = 32.dp),
+            // The LazyColumn already contributes 16dp horizontal content padding; keep the
+            // total 32dp distance from the screen edges by only padding 16dp internally.
+            .padding(horizontal = 16.dp, vertical = 32.dp),
         contentAlignment = Alignment.Center,
     ) {
         Column(
