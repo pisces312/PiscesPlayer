@@ -1,4 +1,4 @@
-﻿# Release build wrapper: fails fast when the signing environment variables are
+# Release build wrapper: fails fast when the signing environment variables are
 # unavailable, instead of silently producing an UNSIGNED release APK after a
 # full Gradle build.
 #
@@ -13,7 +13,12 @@
 # Note: keep this file ASCII/English. The previous version had Chinese strings
 # and required a UTF-8 BOM so Windows PowerShell 5.1 would not mis-decode it;
 # English-only removes that whole class of encoding problem.
-# Requires: pwsh on PATH, Android SDK at $env:ANDROID_HOME or the fallback below.
+# Requires: powershell (5.1) on PATH, Android SDK at $env:ANDROID_HOME or the fallback below.
+#
+# Also note: do NOT pipe this script's output through a PowerShell pipeline
+# (`.\build-release.bat | ...` deadlocks: gradle writes to stdout and stderr
+# at the same time and PS 5.1 drains them sequentially). Redirect to a file
+# instead if a log is needed.
 
 $ErrorActionPreference = 'Stop'
 
@@ -53,7 +58,11 @@ Write-Host '[build-release] Signing variables present; building the signed relea
 & $PSScriptRoot\gradlew.bat :app:assembleRelease
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-$apk = Get-ChildItem "$PSScriptRoot\app\build\outputs\apk\release\*.apk" | Select-Object -First 1
+# Same resolve-then-index pattern as the apksigner lookup below: piping
+# Get-ChildItem into Select-Object -First 1 under $ErrorActionPreference='Stop'
+# can hang on the pipeline's early-exit path.
+$apks = @(Get-ChildItem "$PSScriptRoot\app\build\outputs\apk\release\*.apk" -ErrorAction SilentlyContinue)
+$apk = if ($apks.Count -gt 0) { $apks[0] } else { $null }
 if (-not $apk) {
     Write-Host '[build-release] Build succeeded but no APK artifact was found.' -ForegroundColor Red
     exit 1
