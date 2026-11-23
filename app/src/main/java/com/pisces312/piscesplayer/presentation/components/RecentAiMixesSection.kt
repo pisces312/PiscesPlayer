@@ -5,7 +5,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -14,7 +13,6 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.AutoAwesome
-import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -31,8 +29,8 @@ import com.pisces312.piscesplayer.R
 import com.pisces312.piscesplayer.data.model.Playlist
 import racra.compose.smooth_corner_rect_library.AbsoluteSmoothCornerShape
 
-/** How many mixes the home row shows before pointing at the full list. */
-private const val HOME_AI_MIX_PREVIEW_COUNT = 4
+/** How many mixes the home row previews; the full list opens with a card tap (v1.3.4). */
+private const val HOME_AI_MIX_PREVIEW_COUNT = 6
 
 private val MIX_CARD_WIDTH = 152.dp
 
@@ -44,33 +42,22 @@ private val MIX_CARD_HEIGHT = 56.dp
  * Horizontal shelf of recent generated mixes, embedded below the AI generation CTA.
  *
  * It deliberately has no section heading or outer card: the AI entry supplies both the context
- * and the shared home card container. Tapping a mix plays it from the first track.
+ * and the shared home card container. Tapping a mix plays it from the first track; the full
+ * list opens with a tap on the card body (v1.3.4), so this row carries no show-all button.
  */
 @Composable
 fun RecentAiMixesRow(
     mixes: List<Playlist>,
     onMixClick: (Playlist) -> Unit,
-    onShowAll: () -> Unit,
     modifier: Modifier = Modifier,
     previewCount: Int = HOME_AI_MIX_PREVIEW_COUNT
 ) {
-    Column(modifier = modifier) {
-        LazyRow(
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            items(mixes.take(previewCount), key = { it.id }) { mix ->
-                RecentAiMixCard(mix = mix, onClick = { onMixClick(mix) })
-            }
-        }
-        if (mixes.size > previewCount) {
-            FilledTonalButton(
-                onClick = onShowAll,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 8.dp)
-            ) {
-                Text(stringResource(R.string.home_recent_ai_mixes_show_more, mixes.size))
-            }
+    LazyRow(
+        modifier = modifier,
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        items(mixes.take(previewCount), key = { it.id }) { mix ->
+            RecentAiMixCard(mix = mix, onClick = { onMixClick(mix) })
         }
     }
 }

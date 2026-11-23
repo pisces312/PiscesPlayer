@@ -144,10 +144,14 @@ private fun HomeGridCardGenericContent(
             )
             Spacer(Modifier.width(if (wide) 14.dp else 10.dp))
             Column(modifier = Modifier.weight(1f, fill = false)) {
-                // Title size is unified with the AI playlist card (titleLarge SemiBold).
+                // Title size is graded by card height (plan v1.3.4 decision 24):
+                // 1×1 tiles get titleMedium — titleLarge read too big on a 187×96dp
+                // tile; wider/taller cards keep the AI-playlist titleLarge.
                 Text(
                     text = title,
-                    style = MaterialTheme.typography.titleLarge,
+                    style = if (card.size.spanY == 1 && card.size.spanX == 1)
+                        MaterialTheme.typography.titleMedium
+                    else MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 1,

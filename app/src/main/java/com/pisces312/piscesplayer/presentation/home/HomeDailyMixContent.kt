@@ -44,13 +44,13 @@ import racra.compose.smooth_corner_rect_library.AbsoluteSmoothCornerShape
 private const val CAPSULE_PREVIEW_COUNT = 10
 
 /**
- * The 每日推荐 card body for the home grid (plan §12 decision 9, v1.3.2/1.3.3
- * decisions 16/21) — hero header + song-capsule row. Since v1.3.3 both actions
- * (shuffle play / view all) live in the header's top-right corner as a matched
- * pair of 48dp filled-tonal icon buttons, which freed the middle band: capsules
- * are vertically centred and the song name may wrap to two lines.
+ * The 每日推荐 card body for the home grid (plan §12 decisions 9/16/21/23) —
+ * hero header + song-capsule row. v1.3.4: shuffle play is the only header action
+ * (48dp circle, primary while active);「查看全部」moved to a card-body tap, which
+ * freed the middle band: capsules are vertically centred and the song name may
+ * wrap to two lines.
  *
- * - 2×1: only the hero header row (title + subtitle + the two actions).
+ * - 2×1: only the hero header row (title + subtitle + shuffle).
  * - 2×2: header, then the capsule row centred in the remaining space.
  */
 @Composable
@@ -60,7 +60,6 @@ fun HomeDailyMixContent(
     isShuffleEnabled: Boolean,
     onPlayShuffled: () -> Unit,
     onSongClick: (Song) -> Unit,
-    onViewAll: () -> Unit,
 ) {
     val colors = MaterialTheme.colorScheme
     val tall = card.size.spanY == 2
@@ -74,37 +73,21 @@ fun HomeDailyMixContent(
             // The grid card already pads 16dp.
             contentPadding = PaddingValues(0.dp),
             action = {
-                // Matched pair: identical size / shape / tonal style. The shuffle
-                // button alone switches to primary colours while shuffle is active.
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    FilledTonalIconButton(
-                        onClick = onPlayShuffled,
-                        modifier = Modifier.size(48.dp),
-                        colors = IconButtonDefaults.filledTonalIconButtonColors(
-                            containerColor = if (isShuffleEnabled) colors.primary else colors.tertiaryContainer,
-                            contentColor = if (isShuffleEnabled) colors.onPrimary else colors.onTertiaryContainer,
-                        ),
-                    ) {
-                        Icon(
-                            painter = painterResource(R.drawable.rounded_shuffle_24),
-                            contentDescription = stringResource(R.string.cd_shuffle_play),
-                            modifier = Modifier.size(22.dp),
-                        )
-                    }
-                    FilledTonalIconButton(
-                        onClick = onViewAll,
-                        modifier = Modifier.size(48.dp),
-                        colors = IconButtonDefaults.filledTonalIconButtonColors(
-                            containerColor = colors.tertiaryContainer,
-                            contentColor = colors.onTertiaryContainer,
-                        ),
-                    ) {
-                        Icon(
-                            painter = painterResource(R.drawable.rounded_arrow_forward_24),
-                            contentDescription = stringResource(R.string.presentation_batch_g_daily_mix_see_all),
-                            modifier = Modifier.size(22.dp),
-                        )
-                    }
+                // v1.3.4: the only card action — view-all moved to a card-body tap, so
+                // shuffle plays the corner alone (48dp circle, primary while active).
+                FilledTonalIconButton(
+                    onClick = onPlayShuffled,
+                    modifier = Modifier.size(48.dp),
+                    colors = IconButtonDefaults.filledTonalIconButtonColors(
+                        containerColor = if (isShuffleEnabled) colors.primary else colors.tertiaryContainer,
+                        contentColor = if (isShuffleEnabled) colors.onPrimary else colors.onTertiaryContainer,
+                    ),
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.rounded_shuffle_24),
+                        contentDescription = stringResource(R.string.cd_shuffle_play),
+                        modifier = Modifier.size(22.dp),
+                    )
                 }
             },
         )

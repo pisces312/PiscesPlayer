@@ -1,5 +1,10 @@
 package com.pisces312.piscesplayer.presentation.components
 
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -19,10 +24,12 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -39,11 +46,13 @@ import com.pisces312.piscesplayer.R
  * ```
  *
  * - Short press on the capsule: gather the moment's signals and generate straight away.
- * - Long press on the capsule (or tapping the card body): open the shared sheet so the user can
- *   describe it themselves, with the same signals available as read-only chips.
+ * - Long press on the capsule: open the shared sheet so the user can describe it
+ *   themselves, with the same signals available as read-only chips.
  *
- * When recent mixes exist, they sit below the generation controls without a second section
- * title. Generation and generation history therefore read as one home destination.
+ * v1.3.4: the card BODY is deliberately passive — the surrounding grid card routes a
+ * body tap to the full AI-mixes list, so this Surface carries no onClick of its own.
+ * The serendipity capsule is the only interactive element inside and gets a gentle
+ * breathing highlight so the eye lands on it first.
  *
  * When no provider is configured the subtitle says so and the caller routes to AI settings
  * instead of opening the generation sheet.
@@ -53,14 +62,14 @@ fun AiGenerateEntryCard(
         configured: Boolean,
         /** Short press on the pill: collect signals and generate without another tap. */
         onQuickGenerate: () -> Unit,
-        /** Long press on the pill (and the card body): open the editable describe sheet. */
+        /** Long press on the pill: open the editable describe sheet. */
         onOpenDescribe: () -> Unit,
         modifier: Modifier = Modifier,
         /** Recent mixes share this card below the generation controls. */
         recentContent: (@Composable () -> Unit)? = null
 ) {
+    // Passive container — taps fall through to the grid card (full mixes list).
     Surface(
-            onClick = onOpenDescribe,
             shape = HomeCardShape,
             color = MaterialTheme.colorScheme.surfaceContainer,
             modifier = modifier.fillMaxWidth()
@@ -115,7 +124,10 @@ fun AiGenerateEntryCard(
                                 icon = Icons.Rounded.AutoFixHigh,
                                 color = MaterialTheme.colorScheme.primary,
                                 onClick = onQuickGenerate,
-                                onLongClick = onOpenDescribe
+                                onLongClick = onOpenDescribe,
+                                // The one text-carrying action on home: highlight it with
+                                // a gentle breathing pulse (plan v1.3.4 decision 22).
+                                highlight = true,
                         )
                     }
                 }
@@ -145,8 +157,17 @@ private fun ActionPill(
         color: Color,
         icon: androidx.compose.ui.graphics.vector.ImageVector? = null,
         onClick: (() -> Unit)? = null,
-        onLongClick: (() -> Unit)? = null
+        onLongClick: (() -> Unit)? = null,
+        /** A soft infinite breathing pulse that pulls the eye without motion clutter. */
+        highlight: Boolean = false,
 ) {
+    val pulse by rememberInfiniteTransition(label = "serendipity_pulse").animateFloat(
+            initialValue = 0f,
+            targetValue = 1f,
+            animationSpec = infiniteRepeatable(tween(1400), RepeatMode.Reverse),
+            label = "serendipity_pulse_value",
+    )
+
     val content: @Composable () -> Unit = {
         Row(
                 modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp),
@@ -174,10 +195,20 @@ private fun ActionPill(
                 shape = CircleShape,
                 color = color,
                 modifier =
-                        Modifier.clip(CircleShape).combinedClickable(
-                                onClick = { onClick?.invoke() },
-                                onLongClick = onLongClick
-                        )
+                        Modifier.clip(CircleShape)
+                                .graphicsLayer {
+                                    if (highlight) {
+                                        val eased = 0.5f - 0.5f * kotlin.math.cos(pulse * kotlin.math.PI.toFloat())
+                                        val scale = 1f + 0.035f * eased
+                                        scaleX = scale
+                                        scaleY = scale
+                                        shadowElevation = (3f + 9f * eased).dp.toPx()
+                                    }
+                                }
+                                .combinedClickable(
+                                        onClick = { onClick?.invoke() },
+                                        onLongClick = onLongClick
+                                )
         ) {
             content()
         }

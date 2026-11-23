@@ -6,6 +6,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
@@ -358,11 +359,18 @@ fun HomeScreen(
         when (card.type) {
             HomeCardType.AI_PLAYLIST -> {
                 {
+                    // v1.3.4: the body is passive — a tap anywhere on the card (outside the
+                    // capsule / a mix) opens the full AI-mixes list — so the content block
+                    // centres vertically inside the 2×2 cell instead of hugging the top.
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center,
+                    ) {
                     AiGenerateEntryCard(
                         configured = isAiConfigured,
                         // Short press on the capsule: gather the moment's signals and generate.
                         onQuickGenerate = { openAiEntry(true) },
-                        // Card body / long press: the editable describe sheet.
+                        // Long press on the capsule: the editable describe sheet.
                         onOpenDescribe = { openAiEntry(false) },
                         modifier = Modifier.fillMaxWidth(),
                         // The recent-mixes shelf only fits the 2×2 hero; the 2×1 banner is the
@@ -384,13 +392,11 @@ fun HomeScreen(
                                             }
                                         }
                                     },
-                                    onShowAll = {
-                                        navController.navigateSafely(Screen.AiMixes.route)
-                                    }
                                 )
                             }
                         } else null,
                     )
+                    }
                 }
             }
             HomeCardType.DAILY_MIX -> {
@@ -416,9 +422,6 @@ fun HomeScreen(
                             } else {
                                 playerViewModel.showAndPlaySong(song, mixSongs, dailyMixQueueName)
                             }
-                        },
-                        onViewAll = {
-                            navController.navigateSafely(Screen.DailyMixScreen.route)
                         },
                     )
                 }
