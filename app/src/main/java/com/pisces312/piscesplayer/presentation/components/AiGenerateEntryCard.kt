@@ -72,9 +72,9 @@ fun AiGenerateEntryCard(
         modifier: Modifier = Modifier,
         /** Recent mixes share this card below the generation controls. */
         recentContent: (@Composable () -> Unit)? = null,
-        /** v1.3.8: the 2×2 hero gets the plump 72dp jelly (user-picked plan B);
-         *  compact spans (banner / 1×1 / 1×2) keep the 56dp pill so the entry row
-         *  plus hint still fit a 96dp cell. */
+        /** v1.3.9: the 2×2 hero gets the plump 96dp jelly (user-picked plan B, grown
+         *  twice to eat the leftover vertical gaps); compact spans (banner / 1×1 / 1×2)
+         *  keep a 64dp pill so the entry row plus hint still fit a 96dp cell. */
         largePill: Boolean = true
 ) {
     // Passive container — taps fall through to the grid card (full mixes list).
@@ -136,7 +136,7 @@ fun AiGenerateEntryCard(
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             textAlign = TextAlign.Center,
                             maxLines = 1,
-                            modifier = Modifier.padding(top = 4.dp)
+                            modifier = Modifier.padding(top = 6.dp)
                     )
                 }
             }
@@ -168,11 +168,15 @@ private fun ActionPill(
         onLongClick: (() -> Unit)? = null,
         /** A soft infinite breathing pulse that pulls the eye without motion clutter. */
         highlight: Boolean = false,
-        /** v1.3.8 (user-picked plan B): the 2×2 hero pill is a plump 72dp jelly with
-         *  18sp text; compact spans keep a 56dp pill so the row fits a 96dp cell. */
+        /** v1.3.9 (user-picked plan B, grown twice): the 2×2 hero pill is a plump 96dp
+         *  jelly with 20sp text; compact spans keep a 64dp pill so the row fits a 96dp
+         *  cell. */
         large: Boolean = true,
 ) {
-    val pillHeight = if (large) 72.dp else 56.dp
+    // v1.3.9 (user feedback): no shadow at all — the animated shadowElevation was the
+    // priciest per-frame cost and read as "no visible shadow" anyway. Scale + sway +
+    // morph stay.
+    val pillHeight = if (large) 96.dp else 64.dp
     val pulse by rememberInfiniteTransition(label = "serendipity_pulse").animateFloat(
             initialValue = 0f,
             targetValue = 1f,
@@ -209,7 +213,7 @@ private fun ActionPill(
                         imageVector = icon,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.onPrimary,
-                        modifier = Modifier.size(if (large) 22.dp else 15.dp)
+                        modifier = Modifier.size(if (large) 26.dp else 18.dp)
                 )
             }
             Text(
@@ -217,7 +221,7 @@ private fun ActionPill(
                     style =
                             if (large)
                                     MaterialTheme.typography.titleMedium
-                                            .copy(fontSize = 18.sp, lineHeight = 22.sp)
+                                            .copy(fontSize = 20.sp, lineHeight = 24.sp)
                             else MaterialTheme.typography.labelLarge,
                     fontWeight = if (large) FontWeight.SemiBold else null,
                     color = MaterialTheme.colorScheme.onPrimary
@@ -242,11 +246,10 @@ private fun ActionPill(
                                 .graphicsLayer {
                                     if (highlight) {
                                         // v1.3.5: noticeably livelier than the first pass
-                                        // (scale 1→1.05, shadow 4→18dp, eased sine).
+                                        // (scale 1→1.05, eased sine). v1.3.9: shadow dropped.
                                         val scale = 1f + 0.05f * eased
                                         scaleX = scale
                                         scaleY = scale
-                                        shadowElevation = (4f + 14f * eased).dp.toPx()
                                         rotationZ = 8f * sway
                                     }
                                 }

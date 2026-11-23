@@ -13,7 +13,7 @@ PixelPlayerOSS; versions up to and including 0.4.3 were published under the upst
   Serendipity gestures, Daily Mix) with a link to the full changelog.
 - Home: the Serendipity button breathes as a live jelly — its outline morphs through eight
   organic phases (a travelling bulge on a superellipse) while the whole pill sways gently
-  and pulses in scale/shadow, all on separate clocks (Material 3 Expressive shape morphing);
+  and pulses in scale, all on separate clocks (Material 3 Expressive shape morphing);
   the short-press/long-press hint is one line directly under the button.
 
 ### Fixed
@@ -22,10 +22,12 @@ PixelPlayerOSS; versions up to and including 0.4.3 were published under the upst
   `Files.move(REPLACE_EXISTING)` on every platform.
 
 ### Changed
-- Home: the Serendipity pill grew from 35dp to a plump 72dp jelly on the 2x2 AI card (18sp label,
-  22dp icon), and the entry card now fills its whole grid cell — the recent-mixes shelf hugs the
-  bottom and the ~27dp of dead space above/below the content is gone. Smaller card spans
-  (2x1 banner, 1x1, 1x2) fall back to a 56dp pill so the entry row plus hint still fit.
+- Home: the Serendipity pill grew from 35dp to a plump 96dp jelly on the 2x2 AI card (20sp label,
+  26dp icon), and the entry card now fills its whole grid cell — the recent-mixes shelf hugs the
+  bottom and the vertical dead space around the content is gone. Smaller card spans
+  (2x1 banner, 1x1, 1x2) fall back to a 64dp pill so the entry row plus hint still fit.
+  The breathing pulse no longer animates a shadow (it read as invisible and cost the most
+  per-frame work); the shape morph, scale pulse and gentle sway stay.
 - Rhythm game: the derived/other chart cards were redesigned — the title owns a full line and
   scrolls (marquee) when it overflows, every parameter (source, note count, notes per second,
   best score, delay/skip/fall) is a rounded chip under the title, and the action row keeps the

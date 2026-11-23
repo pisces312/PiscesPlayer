@@ -372,8 +372,8 @@ fun HomeScreen(
                         // Long press on the capsule: the editable describe sheet.
                         onOpenDescribe = { openAiEntry(false) },
                         modifier = Modifier.fillMaxWidth(),
-                        // The plump 72dp jelly fits the 2×2 hero only; the 2×1 banner
-                        // and 1×1 / 1×2 spans fall back to the 56dp pill.
+                        // The plump 96dp jelly fits the 2×2 hero only; the 2×1 banner
+                        // and 1×1 / 1×2 spans fall back to the 64dp pill.
                         largePill = card.size.spanX == 2 && card.size.spanY == 2,
                         // The recent-mixes shelf only fits spans two rows tall; the
                         // 2×1 banner is the entry row alone.
