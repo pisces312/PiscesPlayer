@@ -4,6 +4,8 @@ import android.Manifest
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
@@ -44,6 +46,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
@@ -79,6 +82,7 @@ import com.pisces312.piscesplayer.presentation.home.HomeCardCatalog
 import com.pisces312.piscesplayer.presentation.home.HomeDailyMixContent
 import com.pisces312.piscesplayer.presentation.home.HomeGrid
 import com.pisces312.piscesplayer.presentation.home.HomeGridEmpty
+import com.pisces312.piscesplayer.presentation.home.HomeGridGestureOwners
 import com.pisces312.piscesplayer.presentation.home.HomeGridSpec
 import com.pisces312.piscesplayer.presentation.home.HomeHelpSheet
 import com.pisces312.piscesplayer.presentation.home.HomePlaylistPickerSheet
@@ -130,6 +134,12 @@ fun HomeScreen(
     var showStreamingSheet by rememberSaveable { mutableStateOf(false) }
     var draggingUid by rememberSaveable { mutableStateOf<String?>(null) }
     var dragAccum by remember { mutableStateOf(Offset.Zero) }
+    // Long-press arbitration. A card control that handles the long press itself (the
+    // Serendipity pill) claims its bounds here, and the grid's edit-mode long press leaves
+    // gestures that start on that claim alone — otherwise both fire at the same timeout.
+    // See HomeGridGestureOwners.
+    val gridGestureOwners = remember { HomeGridGestureOwners() }
+    var gridPressDown by remember { mutableStateOf<Offset?>(null) }
 
     // ---- 每日推荐 data (feeds the DAILY_MIX card body, plan §12 decision 9) ----
     // settingsViewModel stays a parameter for future home preferences; the grid card no
@@ -522,6 +532,7 @@ fun HomeScreen(
                         onAddTileClick = { sheet = HomeSheet.Add },
                         showAddTile = true,
                         contentFor = { null },
+                        gestureOwners = gridGestureOwners,
                     )
                 } else {
                     HomeGrid(
@@ -541,66 +552,92 @@ fun HomeScreen(
                         onAddTileClick = { sheet = HomeSheet.Add },
                         showAddTile = true,
                         contentFor = contentFor,
+                        gestureOwners = gridGestureOwners,
                         // Keyed on Unit on purpose: move() mutates `cards` and entering edit
                         // mode flips `editMode` mid-gesture — a keyed pointerInput would
                         // restart the detector and kill the drag. The gesture block reads the
                         // state delegates directly, so it always sees current values.
-                        modifier = Modifier.pointerInput(Unit) {
-                            detectDragGesturesAfterLongPress(
-                                onDragStart = { startOffset ->
-                                    val currentCards = cards
-                                    val origin = homeCardOriginAt(
-                                        startOffset = startOffset,
-                                        cards = currentCards,
-                                        rowPitchPx = rowPitchPx,
-                                        cellHeightPx = cellHeightPx,
-                                        gridWidthPx = gridWidthPx,
-                                    )
-                                    val hit = origin?.let { (row, col) ->
-                                        currentCards.firstOrNull { card ->
-                                            val p = placeHomeCards(currentCards).placements[card.uid]
-                                            p != null &&
-                                                row in p.row until (p.row + card.size.spanY) &&
-                                                col in p.column until (p.column + card.size.spanX)
+                        modifier = Modifier
+                            // Where the press began, in grid space. The long-press detector
+                            // below only reports the finger's position at its timeout, which
+                            // may have drifted off the control the press started on; the
+                            // long-press exclusion check must use the down.
+                            .pointerInput(Unit) {
+                                awaitEachGesture {
+                                    gridPressDown =
+                                        awaitFirstDown(
+                                                requireUnconsumed = false,
+                                                pass = PointerEventPass.Initial,
+                                            )
+                                            .position
+                                }
+                            }
+                            .pointerInput(Unit) {
+                                detectDragGesturesAfterLongPress(
+                                    onDragStart = dragStart@{ startOffset ->
+                                        // A control inside a card that handles the long press
+                                        // itself (the Serendipity pill) claimed this area: its
+                                        // own onLongClick already fired, so entering edit mode
+                                        // here would make both gestures take effect at once.
+                                        if (gridGestureOwners.owns(gridPressDown ?: startOffset)) {
+                                            return@dragStart
                                         }
-                                    }
-                                    if (hit != null) {
-                                        draggingUid = hit.uid
+                                        val currentCards = cards
+                                        val origin = homeCardOriginAt(
+                                            startOffset = startOffset,
+                                            cards = currentCards,
+                                            rowPitchPx = rowPitchPx,
+                                            cellHeightPx = cellHeightPx,
+                                            gridWidthPx = gridWidthPx,
+                                        )
+                                        val hit = origin?.let { (row, col) ->
+                                            currentCards.firstOrNull { card ->
+                                                val p = placeHomeCards(currentCards).placements[card.uid]
+                                                p != null &&
+                                                    row in p.row until (p.row + card.size.spanY) &&
+                                                    col in p.column until (p.column + card.size.spanX)
+                                            }
+                                        }
+                                        if (hit != null) {
+                                            draggingUid = hit.uid
+                                            dragAccum = Offset.Zero
+                                            // v1.3: a single long-press gesture does everything —
+                                            // it enters edit mode and, if the finger keeps moving,
+                                            // drags the card in the same hold (iOS-home style). A
+                                            // long press without a move lands in edit mode.
+                                            if (!editMode) editMode = true
+                                            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                                        }
+                                    },
+                                    onDrag = onDrag@{ change, dragAmount ->
+                                        // No drag was started (a claimed long press, or the
+                                        // card was tapped in edit mode): stay out of the
+                                        // gesture entirely and let the detector re-arm.
+                                        val uid = draggingUid ?: return@onDrag
+                                        change.consume()
+                                        dragAccum += dragAmount
+                                        val insertRow = (dragAccum.y / rowPitchPx).roundToInt()
+                                        val fromIndex = cards.indexOfFirst { it.uid == uid }
+                                        if (fromIndex >= 0 && insertRow != 0) {
+                                            val toIndex = (fromIndex + insertRow)
+                                                .coerceIn(0, cards.lastIndex)
+                                            if (toIndex != fromIndex) {
+                                                homeLayoutViewModel.move(fromIndex, toIndex)
+                                                dragAccum = Offset(dragAccum.x, dragAccum.y - insertRow * rowPitchPx)
+                                                haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                            }
+                                        }
+                                    },
+                                    onDragEnd = {
+                                        draggingUid = null
                                         dragAccum = Offset.Zero
-                                        // v1.3: a single long-press gesture does everything —
-                                        // it enters edit mode and, if the finger keeps moving,
-                                        // drags the card in the same hold (iOS-home style). A
-                                        // long press without a move lands in edit mode.
-                                        if (!editMode) editMode = true
-                                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                                    }
-                                },
-                                onDrag = { change, dragAmount ->
-                                    change.consume()
-                                    val uid = draggingUid ?: return@detectDragGesturesAfterLongPress
-                                    dragAccum += dragAmount
-                                    val insertRow = (dragAccum.y / rowPitchPx).roundToInt()
-                                    val fromIndex = cards.indexOfFirst { it.uid == uid }
-                                    if (fromIndex >= 0 && insertRow != 0) {
-                                        val toIndex = (fromIndex + insertRow)
-                                            .coerceIn(0, cards.lastIndex)
-                                        if (toIndex != fromIndex) {
-                                            homeLayoutViewModel.move(fromIndex, toIndex)
-                                            dragAccum = Offset(dragAccum.x, dragAccum.y - insertRow * rowPitchPx)
-                                            haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                        }
-                                    }
-                                },
-                                onDragEnd = {
-                                    draggingUid = null
-                                    dragAccum = Offset.Zero
-                                    homeLayoutViewModel.persist()
-                                },
-                                onDragCancel = {
-                                    draggingUid = null
-                                    dragAccum = Offset.Zero
-                                },
-                            )
+                                        homeLayoutViewModel.persist()
+                                    },
+                                    onDragCancel = {
+                                        draggingUid = null
+                                        dragAccum = Offset.Zero
+                                    },
+                                )
                         },
                     )
                 }

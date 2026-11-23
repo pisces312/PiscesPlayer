@@ -18,12 +18,14 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Constraints
@@ -79,6 +81,12 @@ fun HomeGrid(
     showAddTile: Boolean = true,
     /** v1.3 (plan §12.3): real content for special cards (AI 歌单 / 每日推荐); null → generic tile. */
     contentFor: (HomeCard) -> (@Composable () -> Unit)? = { null },
+    /**
+     * Shared with the caller's long-press detector so a control that handles the long press
+     * itself (the Serendipity pill) can keep it: see [HomeGridGestureOwners]. Optional — without
+     * it the grid behaves exactly as before.
+     */
+    gestureOwners: HomeGridGestureOwners? = null,
 ) {
     if (cards.isEmpty() && !showAddTile) return
 
@@ -95,75 +103,79 @@ fun HomeGrid(
     val totalRows = maxOf(placement.totalRows, tailPlacement.row + 1)
     val gridHeightDp = with(density) { (totalRows * rowPitchPx - gapPx).toDp() }
 
-    Layout(
-        modifier = modifier
-            .fillMaxWidth()
-            .height(gridHeightDp),
-        content = {
-            cards.forEachIndexed { index, card ->
-                key(card.uid) {
-                    Box {
-                        HomeGridCard(
-                            card = card,
-                            playlist = if (card.type == HomeCardType.PLAYLIST)
-                                card.targetId?.let { playlists[it] } else null,
-                            editMode = editMode,
-                            isDragging = draggingUid == card.uid,
-                            onClick = { onCardClick(card) },
-                            onRemove = { onCardRemove(index) },
-                            modifier = Modifier.fillMaxWidth(),
-                            content = contentFor(card),
-                        )
+    CompositionLocalProvider(LocalHomeGridGestureOwners provides gestureOwners) {
+        Layout(
+                modifier = modifier
+                    .fillMaxWidth()
+                    .height(gridHeightDp)
+                    // Claims are declared by card bodies in this grid's local space.
+                    .onGloballyPositioned { gestureOwners?.attachGrid(it) },
+                content = {
+                    cards.forEachIndexed { index, card ->
+                        key(card.uid) {
+                            Box {
+                                HomeGridCard(
+                                    card = card,
+                                    playlist = if (card.type == HomeCardType.PLAYLIST)
+                                        card.targetId?.let { playlists[it] } else null,
+                                    editMode = editMode,
+                                    isDragging = draggingUid == card.uid,
+                                    onClick = { onCardClick(card) },
+                                    onRemove = { onCardRemove(index) },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    content = contentFor(card),
+                                )
 
-                        if (editMode) {
-                            HomeGridSizeChip(
-                                card = card,
-                                onCycle = { onCardCycleSize(card.uid) },
-                                modifier = Modifier
-                                    .align(Alignment.BottomEnd)
-                                    .padding(7.dp),
-                            )
+                                if (editMode) {
+                                    HomeGridSizeChip(
+                                        card = card,
+                                        onCycle = { onCardCycleSize(card.uid) },
+                                        modifier = Modifier
+                                            .align(Alignment.BottomEnd)
+                                            .padding(7.dp),
+                                    )
+                                }
+                            }
                         }
                     }
+                    if (showAddTile) {
+                        key("__add_tile__") {
+                            HomeGridAddTile(onClick = onAddTileClick)
+                        }
+                    }
+            },
+        ) { measurables, constraints ->
+            // v1.3.2: derive the cell width from the incoming width so the two outer
+            // gutters equal HomeGridSpec.OuterPadding exactly on any screen width
+            // (a fixed cell width would drift left-aligned once the available width
+            // stopped matching the reference 411dp device).
+            val cellWidthPx = (constraints.maxWidth - (HomeGridSpec.GridColumns - 1) * gapPx) /
+                HomeGridSpec.GridColumns
+            val columnPitchPx = cellWidthPx + gapPx
+            val placeables = measurables.mapIndexed { i, measurable ->
+                val isTile = i == cards.size
+                if (isTile) {
+                    measurable.measure(
+                        Constraints.fixed(cellWidthPx.roundToInt(), cellHeightPx.roundToInt())
+                    )
+                } else {
+                    val card = cards[i]
+                    val widthPx = card.size.spanX * cellWidthPx + (card.size.spanX - 1) * gapPx
+                    val heightPx = card.size.spanY * cellHeightPx + (card.size.spanY - 1) * gapPx
+                    measurable.measure(
+                        Constraints.fixed(widthPx.roundToInt(), heightPx.roundToInt())
+                    )
                 }
             }
-            if (showAddTile) {
-                key("__add_tile__") {
-                    HomeGridAddTile(onClick = onAddTileClick)
+            layout(constraints.maxWidth, (totalRows * rowPitchPx - gapPx).roundToInt()) {
+                placeables.forEachIndexed { i, placeable ->
+                    val origin = if (i == cards.size) tailPlacement
+                    else placement.placements[cards[i].uid] ?: return@forEachIndexed
+                    placeable.placeRelative(
+                        x = (origin.column * columnPitchPx).roundToInt(),
+                        y = (origin.row * rowPitchPx).roundToInt(),
+                    )
                 }
-            }
-        },
-    ) { measurables, constraints ->
-        // v1.3.2: derive the cell width from the incoming width so the two outer
-        // gutters equal HomeGridSpec.OuterPadding exactly on any screen width
-        // (a fixed cell width would drift left-aligned once the available width
-        // stopped matching the reference 411dp device).
-        val cellWidthPx = (constraints.maxWidth - (HomeGridSpec.GridColumns - 1) * gapPx) /
-            HomeGridSpec.GridColumns
-        val columnPitchPx = cellWidthPx + gapPx
-        val placeables = measurables.mapIndexed { i, measurable ->
-            val isTile = i == cards.size
-            if (isTile) {
-                measurable.measure(
-                    Constraints.fixed(cellWidthPx.roundToInt(), cellHeightPx.roundToInt())
-                )
-            } else {
-                val card = cards[i]
-                val widthPx = card.size.spanX * cellWidthPx + (card.size.spanX - 1) * gapPx
-                val heightPx = card.size.spanY * cellHeightPx + (card.size.spanY - 1) * gapPx
-                measurable.measure(
-                    Constraints.fixed(widthPx.roundToInt(), heightPx.roundToInt())
-                )
-            }
-        }
-        layout(constraints.maxWidth, (totalRows * rowPitchPx - gapPx).roundToInt()) {
-            placeables.forEachIndexed { i, placeable ->
-                val origin = if (i == cards.size) tailPlacement
-                else placement.placements[cards[i].uid] ?: return@forEachIndexed
-                placeable.placeRelative(
-                    x = (origin.column * columnPitchPx).roundToInt(),
-                    y = (origin.row * rowPitchPx).roundToInt(),
-                )
             }
         }
     }

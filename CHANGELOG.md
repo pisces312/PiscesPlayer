@@ -22,6 +22,9 @@ PixelPlayerOSS; versions up to and including 0.4.3 were published under the upst
   the short-press/long-press hint is one line directly under the button.
 
 ### Fixed
+- Home: long-pressing the Serendipity pill also entered grid edit mode, because the grid's own
+  long-press detector starts from a down the pill had already consumed and fired at the same
+  timeout. The pill now claims its bounds, and the grid leaves that gesture to it.
 - Remote artwork cache: replacing an existing cache file used `File.renameTo`, which fails on
   Windows JVMs when the destination exists (POSIX rename replaces silently). Now uses
   `Files.move(REPLACE_EXISTING)` on every platform.

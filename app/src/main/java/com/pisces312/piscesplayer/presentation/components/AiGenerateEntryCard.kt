@@ -38,6 +38,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.pisces312.piscesplayer.R
+import com.pisces312.piscesplayer.presentation.home.homeGridLongPressOwner
 import com.pisces312.piscesplayer.ui.theme.ShapeCache
 
 /**
@@ -260,6 +261,11 @@ private fun ActionPill(
                                 // v1.3.9: poking the jelly squashes it — press feedback
                                 // on top of the idle morph/breathe animation.
                                 .jellyPress()
+                                // v1.3.10: the pill owns the long press it handles itself.
+                                // The home grid's own long press (edit mode + drag) starts
+                                // from a down that children may have consumed, so it would
+                                // otherwise fire at the same time as the pill's onLongClick.
+                                .homeGridLongPressOwner()
         ) {
             content()
         }
