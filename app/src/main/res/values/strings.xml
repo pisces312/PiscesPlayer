@@ -713,6 +713,8 @@
     <string name="rhythm_ui_style_neon">Neon</string>
     <string name="rhythm_ui_style_neon_desc">Glowing notes, hit particles, beat pulses</string>
     <string name="rhythm_visual_low_motion">Low motion</string>
+    <string name="rhythm_start_style_title">Choose interface</string>
+    <string name="rhythm_start_style_message">Which interface should %1$s start with?</string>
     <string name="rhythm_visual_low_motion_hint">Neon only: turns off particles, star field and pulses. The glowing judgement line and strength-scaled notes stay.</string>
     <string name="rhythm_latency_title">Latency calibration</string>
     <string name="rhythm_latency_ready_current">%1$s · current offset %2$d ms</string>

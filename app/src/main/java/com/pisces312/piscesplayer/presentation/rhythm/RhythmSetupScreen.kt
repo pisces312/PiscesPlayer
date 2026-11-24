@@ -188,6 +188,9 @@ fun RhythmSetupScreen(
     var pendingDelete by remember { mutableStateOf<RhythmChartMeta?>(null) }
     var pendingDeleteDerived by remember { mutableStateOf(false) }
     var settingsTarget by remember { mutableStateOf<RhythmChartMeta?>(null) }
+    // Chart queued for a run while the start dialog picks the interface; every chart source
+    // funnels through here so the classic/neon choice is offered for all songs, not just MIDI.
+    var pendingStart by remember { mutableStateOf<RhythmChartMeta?>(null) }
 
     // Route-keyed latency offset: what the game will compensate for on the next run. Refreshed
     // with the snapshot so returning from a calibration (or plugging another route) shows the
@@ -258,9 +261,14 @@ fun RhythmSetupScreen(
         scope.launch { reload() }
     }
 
-    /** Start a run: every chart plays as stored (the play-time A/B re-bake was retired). */
+    /**
+     * Start a run: every chart plays as stored (the play-time A/B re-bake was retired).
+     * The tap queues the chart instead of navigating directly — the start dialog then offers
+     * the classic/neon interface choice for every chart source (MIDI, DSP master/derived,
+     * tapped, osu import), not only the MIDI ones.
+     */
     fun playChart(meta: RhythmChartMeta) {
-        navController.navigateSafely(Screen.RhythmGame.createRoute(songId, meta.chartId))
+        pendingStart = meta
     }
 
     fun startGeneration(params: RhythmAnalysisParams) {
@@ -823,6 +831,22 @@ fun RhythmSetupScreen(
         )
     }
 
+    // Every chart start (any source) offers the classic/neon choice; the pick is remembered
+    // as the global default so the Game Visuals card and the next run agree.
+    pendingStart?.let { meta ->
+        StartStyleDialog(
+            chartName = meta.difficultyName,
+            currentStyle = uiStyle,
+            onStart = { style ->
+                pendingStart = null
+                uiStyle = style
+                uiPreferences.uiStyle = style
+                navController.navigateSafely(Screen.RhythmGame.createRoute(songId, meta.chartId))
+            },
+            onDismiss = { pendingStart = null },
+        )
+    }
+
     if (showGenerateSheet) {
         RhythmGenerateSheet(
             songTitle = song?.title.orEmpty(),
@@ -1094,6 +1118,78 @@ private fun GameVisualsCard(
             }
         }
     }
+}
+
+/**
+ * 「选择界面」: every chart start offers the classic/neon choice up front — for every chart
+ * source (MIDI, DSP master/derived, tapped, osu import), not only the MIDI ones. Picking a
+ * style starts the run immediately and remembers it as the global default ([RhythmUiPreferences]).
+ */
+@Composable
+private fun StartStyleDialog(
+    chartName: String,
+    currentStyle: RhythmUiStyle,
+    onStart: (RhythmUiStyle) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var selected by remember { mutableStateOf(currentStyle) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.rhythm_start_style_title)) },
+        text = {
+            Column {
+                Text(
+                    text = stringResource(R.string.rhythm_start_style_message, chartName),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                RhythmUiStyle.entries.forEach { style ->
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { selected = style },
+                    ) {
+                        RadioButton(
+                            selected = selected == style,
+                            onClick = { selected = style },
+                        )
+                        Column {
+                            Text(
+                                text = stringResource(
+                                    when (style) {
+                                        RhythmUiStyle.CLASSIC -> R.string.rhythm_ui_style_classic
+                                        RhythmUiStyle.NEON -> R.string.rhythm_ui_style_neon
+                                    },
+                                ),
+                                style = MaterialTheme.typography.bodyMedium,
+                            )
+                            Text(
+                                text = stringResource(
+                                    when (style) {
+                                        RhythmUiStyle.CLASSIC -> R.string.rhythm_ui_style_classic_desc
+                                        RhythmUiStyle.NEON -> R.string.rhythm_ui_style_neon_desc
+                                    },
+                                ),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { onStart(selected) }) {
+                Text(stringResource(R.string.rhythm_play_chart))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.cancel))
+            }
+        },
+    )
 }
 
 @Composable
