@@ -482,7 +482,7 @@ fun ArtistDetailScreen(
                     showSongInfoBottomSheet = false
                 },
                 onNavigateToRhythmGame = {
-                    navController.navigateSafely(Screen.RhythmSetup.createRoute(currentSong.id))
+                    navController.navigateSafely(Screen.RhythmQuick.createRoute(currentSong.id))
                     showSongInfoBottomSheet = false
                 },
                 onAddToPlayList = {

@@ -131,6 +131,20 @@ sealed class Screen(val route: String) {
             "rhythm_game/${Uri.encode(songId)}/${Uri.encode(chartId)}"
     }
 
+    /**
+     * Quick start: prepare the missing charts (master + Easy/Hard under the v1 preset) and jump
+     * straight into the game. [difficulty] is [DIFFICULTY_EASY] / [DIFFICULTY_HARD] to start
+     * that rung directly, or [DIFFICULTY_PICK] to show the Easy/Hard chooser first.
+     */
+    object RhythmQuick : Screen("rhythm_quick/{songId}/{difficulty}") {
+        const val DIFFICULTY_PICK = "pick"
+        const val DIFFICULTY_EASY = "easy"
+        const val DIFFICULTY_HARD = "hard"
+
+        fun createRoute(songId: String, difficulty: String = DIFFICULTY_PICK) =
+            "rhythm_quick/${Uri.encode(songId)}/$difficulty"
+    }
+
     object RhythmRecord : Screen("rhythm_record/{songId}") {
         fun createRoute(songId: String) = "rhythm_record/${Uri.encode(songId)}"
     }

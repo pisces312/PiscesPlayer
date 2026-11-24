@@ -766,6 +766,7 @@ class MainActivity : ComponentActivity() {
                 Screen.RhythmSongPicker.route,
                 Screen.RhythmSetup.route,
                 Screen.RhythmGame.route,
+                Screen.RhythmQuick.route,
                 Screen.RhythmRecord.route,
                 Screen.Updates.route,
                 Screen.ClassicalBrowse.route,
@@ -1040,6 +1041,7 @@ class MainActivity : ComponentActivity() {
                                 Screen.RhythmSongPicker.route,
                                 Screen.RhythmSetup.route,
                                 Screen.RhythmGame.route,
+                                Screen.RhythmQuick.route,
                                 Screen.RhythmRecord.route,
                                 Screen.MusicQuiz.route,
                                 // 入梦 is its own mixer: starting it stops music, so a mini

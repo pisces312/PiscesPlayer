@@ -307,7 +307,7 @@ fun RecentlyPlayedScreen(
                     showSongInfoBottomSheet = false
                 },
                 onNavigateToRhythmGame = {
-                    navController.navigateSafely(Screen.RhythmSetup.createRoute(song.id))
+                    navController.navigateSafely(Screen.RhythmQuick.createRoute(song.id))
                     showSongInfoBottomSheet = false
                 },
                 onAddToPlayList = {

@@ -6,6 +6,16 @@ PixelPlayerOSS; versions up to and including 0.4.3 were published under the upst
 ## [Unreleased]
 
 ### Added
+- Rhythm game: quick start everywhere. The song picker's row arrow became a game icon that
+  jumps straight into a run — missing charts are generated on the way (master + Easy/Hard
+  under the default v1 preset) and the game starts on Hard, with a wave progress bar while the
+  charts are prepared. The song-info game button now pops an Easy/Hard chooser (plus a chart
+  management entry) that runs the same pipeline for the picked rung. Charts that already exist
+  are used as-is, never regenerated.
+- Rhythm game: the chart setup page has one card with three uniform creation entries —
+  "Quick generate" (one tap: master + Easy/Hard under the v1 preset; long-press for the
+  advanced parameter sheets), "Import chart" and "Tap a chart" — with the generated charts
+  listed below. Device latency and game visuals moved behind a settings button in the top bar.
 - Rhythm game: MIDI chart generation now offers a parameter sheet (difficulty rungs with
   per-rung note-per-second caps and chord width, lane strategy) and defaults to three rungs
   (Easy ~1 hit/s, Normal ~2, Hard ≤4) instead of dumping the file's raw note density into the

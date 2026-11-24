@@ -83,6 +83,7 @@ import com.pisces312.piscesplayer.presentation.screens.ClassicalBrowseScreen
 import com.pisces312.piscesplayer.presentation.screens.ClassicalComposerDetailScreen
 import com.pisces312.piscesplayer.presentation.screens.ClassicalWorkDetailScreen
 import com.pisces312.piscesplayer.presentation.rhythm.RhythmGameScreen
+import com.pisces312.piscesplayer.presentation.rhythm.RhythmQuickGameScreen
 import com.pisces312.piscesplayer.presentation.rhythm.RhythmRecordScreen
 import com.pisces312.piscesplayer.presentation.rhythm.RhythmSetupScreen
 import com.pisces312.piscesplayer.presentation.rhythm.RhythmSongPickerScreen
@@ -959,6 +960,14 @@ fun AppNavigation(
                         onSongSelected = { songId ->
                             navController.navigateSafely(Screen.RhythmSetup.createRoute(songId))
                         },
+                        onQuickStart = { song ->
+                            navController.navigateSafely(
+                                Screen.RhythmQuick.createRoute(
+                                    song.id,
+                                    Screen.RhythmQuick.DIFFICULTY_HARD,
+                                ),
+                            )
+                        },
                     )
                 }
             }
@@ -996,6 +1005,27 @@ fun AppNavigation(
                     playerViewModel = playerViewModel,
                     onExit = { navController.popBackStack() },
                 )
+            }
+            composable(
+                Screen.RhythmQuick.route,
+                arguments = listOf(
+                    navArgument("songId") { type = NavType.StringType },
+                    navArgument("difficulty") { type = NavType.StringType },
+                ),
+                enterTransition = { enterTransition() },
+                exitTransition = { exitTransition() },
+                popEnterTransition = { popEnterTransition() },
+                popExitTransition = { popExitTransition() },
+            ) { backStackEntry ->
+                ScreenWrapper(navController = navController, playerViewModel = playerViewModel) {
+                    RhythmQuickGameScreen(
+                        songId = backStackEntry.arguments?.getString("songId").orEmpty(),
+                        difficulty = backStackEntry.arguments?.getString("difficulty")
+                            ?: Screen.RhythmQuick.DIFFICULTY_PICK,
+                        navController = navController,
+                        playerViewModel = playerViewModel,
+                    )
+                }
             }
             composable(
                 Screen.RhythmRecord.route,

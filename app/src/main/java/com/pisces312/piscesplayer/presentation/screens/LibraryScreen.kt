@@ -1679,7 +1679,7 @@ fun LibraryScreen(
                     playerViewModel.sendToast(context.getString(R.string.toast_playing_next))
                 },
                 onNavigateToRhythmGame = {
-                    navController.navigateSafely(Screen.RhythmSetup.createRoute(currentSong.id))
+                    navController.navigateSafely(Screen.RhythmQuick.createRoute(currentSong.id))
                     showSongInfoBottomSheet = false
                 },
                 onAddToPlayList = {

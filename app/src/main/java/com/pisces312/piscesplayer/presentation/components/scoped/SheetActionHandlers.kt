@@ -133,7 +133,7 @@ internal fun rememberSheetActionHandlers(
             playerViewModelState.value.collapsePlayerSheet()
             queueSheetControllerState.value.animate(false)
             sheetModalOverlayControllerState.value.updateSelectedSongForInfo(null)
-            navController.navigateSafely(Screen.RhythmSetup.createRoute(song.id))
+            navController.navigateSafely(Screen.RhythmQuick.createRoute(song.id))
         }
     }
 

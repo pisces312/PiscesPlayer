@@ -26,17 +26,18 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
-import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.rounded.ArrowDropDown
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material.icons.rounded.SportsEsports
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -102,6 +103,7 @@ fun RhythmSongPickerScreen(
     playerViewModel: PlayerViewModel,
     onBack: () -> Unit,
     onSongSelected: (String) -> Unit,
+    onQuickStart: (Song) -> Unit,
     pickerViewModel: RhythmSongPickerViewModel = hiltViewModel(),
 ) {
     val allSongs by playerViewModel.allSongsFlow.collectAsStateWithLifecycle()
@@ -477,6 +479,7 @@ fun RhythmSongPickerScreen(
                                         subtitle = displayNames.subtitle ?: song.displayArtist,
                                         summary = rhythmChartSummary(candidate, difficulty),
                                         onClick = { onSongSelected(song.id) },
+                                        onQuickStart = { onQuickStart(song) },
                                     )
                                 }
                             }
@@ -589,6 +592,7 @@ private fun RhythmSongRow(
     subtitle: String,
     summary: String,
     onClick: () -> Unit,
+    onQuickStart: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Card(
@@ -634,11 +638,19 @@ private fun RhythmSongRow(
                 )
             }
             Spacer(Modifier.width(8.dp))
-            Icon(
-                imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            // Quick start: the trailing arrow is now a game icon that jumps straight into a run
+            // (missing charts are generated on the way). The row itself still opens the chart
+            // management page.
+            FilledTonalIconButton(
+                onClick = onQuickStart,
+                modifier = Modifier.size(46.dp),
+                shape = RoundedCornerShape(14.dp),
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.SportsEsports,
+                    contentDescription = stringResource(R.string.rhythm_quick_start_cd),
+                )
+            }
         }
     }
 }

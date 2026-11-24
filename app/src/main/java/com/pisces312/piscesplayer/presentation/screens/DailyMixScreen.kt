@@ -182,7 +182,7 @@ fun DailyMixScreen(
                 showSongInfoSheet = false
             },
             onNavigateToRhythmGame = {
-                navController.navigateSafely(Screen.RhythmSetup.createRoute(song.id))
+                navController.navigateSafely(Screen.RhythmQuick.createRoute(song.id))
                 showSongInfoSheet = false
             },
             onAddToPlayList = {

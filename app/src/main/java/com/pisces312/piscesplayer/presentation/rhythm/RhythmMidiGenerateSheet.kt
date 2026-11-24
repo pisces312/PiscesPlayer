@@ -45,27 +45,30 @@ import java.util.Locale
 import kotlin.math.roundToInt
 
 /** The three default difficulty rungs with localized labels (shared with quick generate). */
-@Composable
-internal fun defaultMidiDifficulties(): List<MidiDifficulty> = listOf(
+internal fun defaultMidiDifficulties(context: android.content.Context): List<MidiDifficulty> = listOf(
     MidiDifficulty(
-        label = stringResource(R.string.rhythm_midi_diff_easy),
+        label = context.getString(R.string.rhythm_midi_diff_easy),
         gridDiv = 1,
         maxHitsPerSecond = 1.0,
         maxChord = 1,
     ),
     MidiDifficulty(
-        label = stringResource(R.string.rhythm_midi_diff_normal),
+        label = context.getString(R.string.rhythm_midi_diff_normal),
         gridDiv = 2,
         maxHitsPerSecond = 2.0,
         maxChord = 2,
     ),
     MidiDifficulty(
-        label = stringResource(R.string.rhythm_midi_diff_hard),
+        label = context.getString(R.string.rhythm_midi_diff_hard),
         gridDiv = 4,
         maxHitsPerSecond = 4.0,
         maxChord = 2,
     ),
 )
+
+@Composable
+internal fun defaultMidiDifficulties(): List<MidiDifficulty> =
+    defaultMidiDifficulties(androidx.compose.ui.platform.LocalContext.current)
 
 /** One selectable difficulty rung with its editable generation parameters. */
 private data class DifficultyDraft(val difficulty: MidiDifficulty, val selected: Boolean)

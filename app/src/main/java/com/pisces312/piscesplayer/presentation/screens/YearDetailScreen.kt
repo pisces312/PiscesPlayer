@@ -244,7 +244,7 @@ fun YearDetailScreen(
             onAddToQueue = { playerViewModel.addSongToQueue(infoSong) },
             onAddNextToQueue = { playerViewModel.addSongNextToQueue(infoSong) },
             onNavigateToRhythmGame = {
-                navController.navigateSafely(Screen.RhythmSetup.createRoute(infoSong.id))
+                navController.navigateSafely(Screen.RhythmQuick.createRoute(infoSong.id))
                 showSongInfoBottomSheet = false
             },
             onAddToPlayList = { showPlaylistBottomSheet = true },
