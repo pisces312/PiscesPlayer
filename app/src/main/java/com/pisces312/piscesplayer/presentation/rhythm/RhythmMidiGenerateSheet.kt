@@ -6,6 +6,8 @@ package com.pisces312.piscesplayer.presentation.rhythm
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -22,6 +24,7 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Slider
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -36,8 +39,10 @@ import com.pisces312.piscesplayer.R
 import com.pisces312.piscesplayer.data.rhythm.MidiChartOptions
 import com.pisces312.piscesplayer.data.rhythm.MidiDifficulty
 import com.pisces312.piscesplayer.data.rhythm.MidiLaneStrategy
+import com.pisces312.piscesplayer.data.rhythm.MidiRepeatMode
 import com.pisces312.piscesplayer.presentation.components.rememberModalSheetState
 import java.util.Locale
+import kotlin.math.roundToInt
 
 /** The three default difficulty rungs with localized labels (shared with quick generate). */
 @Composable
@@ -70,9 +75,11 @@ private data class DifficultyDraft(val difficulty: MidiDifficulty, val selected:
  *
  * MIDI generation is a cheap deterministic function of the file, so there is no preview to
  * compute: pick the difficulty rungs (each becomes one chart per playable track), tune their
- * density caps and chord sizes, choose how notes map onto the four lanes, and generate.
+ * density caps and chord sizes, choose how notes map onto the four lanes (melody follow by
+ * default), how repeated hits alternate, and the rhythm-breathing knobs (weak-note filter,
+ * phrase breathing, density gradient, jump penalty), and generate.
  */
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 internal fun RhythmMidiGenerateSheet(
     generating: Boolean,
@@ -85,7 +92,12 @@ internal fun RhythmMidiGenerateSheet(
     var drafts by remember {
         mutableStateOf(defaults.map { DifficultyDraft(it, selected = true) })
     }
-    var laneStrategy by remember { mutableStateOf(MidiLaneStrategy.PITCH_RANGE) }
+    var laneStrategy by remember { mutableStateOf(MidiLaneStrategy.MELODIC) }
+    var repeatMode by remember { mutableStateOf(MidiRepeatMode.TWO_LANE) }
+    var weakNoteVelocity by remember { mutableStateOf(16f) }
+    var phraseBreathing by remember { mutableStateOf(true) }
+    var densityGradient by remember { mutableStateOf(true) }
+    var jumpPenalty by remember { mutableStateOf(true) }
 
     // Open at full height: at partial height the generate button sits on the visible edge
     // and the settings look cut off.
@@ -138,7 +150,13 @@ internal fun RhythmMidiGenerateSheet(
             }
 
             SectionLabel(stringResource(R.string.rhythm_midi_options_lane))
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                FilterChip(
+                    selected = laneStrategy == MidiLaneStrategy.MELODIC,
+                    enabled = !generating,
+                    onClick = { laneStrategy = MidiLaneStrategy.MELODIC },
+                    label = { Text(stringResource(R.string.rhythm_midi_options_lane_melodic)) },
+                )
                 FilterChip(
                     selected = laneStrategy == MidiLaneStrategy.PITCH_RANGE,
                     enabled = !generating,
@@ -152,6 +170,51 @@ internal fun RhythmMidiGenerateSheet(
                     label = { Text(stringResource(R.string.rhythm_midi_options_lane_round_robin)) },
                 )
             }
+
+            SectionLabel(stringResource(R.string.rhythm_midi_options_repeat))
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                FilterChip(
+                    selected = repeatMode == MidiRepeatMode.TWO_LANE,
+                    enabled = !generating,
+                    onClick = { repeatMode = MidiRepeatMode.TWO_LANE },
+                    label = { Text(stringResource(R.string.rhythm_midi_options_repeat_two)) },
+                )
+                FilterChip(
+                    selected = repeatMode == MidiRepeatMode.THREE_LANE,
+                    enabled = !generating,
+                    onClick = { repeatMode = MidiRepeatMode.THREE_LANE },
+                    label = { Text(stringResource(R.string.rhythm_midi_options_repeat_three)) },
+                )
+            }
+
+            SliderRow(
+                label = stringResource(R.string.rhythm_midi_options_weak_filter),
+                valueText = weakNoteVelocity.roundToInt().toString(),
+                value = weakNoteVelocity,
+                range = 0f..40f,
+                steps = 39,
+                enabled = !generating,
+                // The stepped slider only delivers whole velocities.
+                onValueChange = { weakNoteVelocity = it.roundToInt().toFloat() },
+            )
+            SwitchRow(
+                label = stringResource(R.string.rhythm_midi_options_phrase_breathing),
+                checked = phraseBreathing,
+                enabled = !generating,
+                onCheckedChange = { phraseBreathing = it },
+            )
+            SwitchRow(
+                label = stringResource(R.string.rhythm_midi_options_density_gradient),
+                checked = densityGradient,
+                enabled = !generating,
+                onCheckedChange = { densityGradient = it },
+            )
+            SwitchRow(
+                label = stringResource(R.string.rhythm_midi_options_jump_penalty),
+                checked = jumpPenalty,
+                enabled = !generating,
+                onCheckedChange = { jumpPenalty = it },
+            )
 
             error?.let { message ->
                 Text(
@@ -178,6 +241,11 @@ internal fun RhythmMidiGenerateSheet(
                             MidiChartOptions(
                                 difficulties = drafts.filter { it.selected }.map { it.difficulty },
                                 laneStrategy = laneStrategy,
+                                repeatMode = repeatMode,
+                                weakNoteVelocity = weakNoteVelocity.roundToInt(),
+                                phraseBreathing = phraseBreathing,
+                                densityGradient = densityGradient,
+                                jumpPenalty = jumpPenalty,
                             ),
                         )
                     },
@@ -263,6 +331,27 @@ private fun SectionLabel(text: String) {
         style = MaterialTheme.typography.labelLarge,
         color = MaterialTheme.colorScheme.primary,
     )
+}
+
+@Composable
+private fun SwitchRow(
+    label: String,
+    checked: Boolean,
+    enabled: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.weight(1f),
+        )
+        Switch(
+            checked = checked,
+            onCheckedChange = onCheckedChange,
+            enabled = enabled,
+        )
+    }
 }
 
 @Composable

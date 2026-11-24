@@ -7,8 +7,16 @@
     <string name="rhythm_midi_options_nps">≈ %1$s notes/s</string>
     <string name="rhythm_midi_options_max_chord">Max chord size</string>
     <string name="rhythm_midi_options_lane">Lane assignment</string>
+    <string name="rhythm_midi_options_lane_melodic">Melody follow</string>
     <string name="rhythm_midi_options_lane_pitch">By pitch range</string>
     <string name="rhythm_midi_options_lane_round_robin">Round robin</string>
+    <string name="rhythm_midi_options_repeat">Repeated notes</string>
+    <string name="rhythm_midi_options_repeat_two">Two-lane alternation</string>
+    <string name="rhythm_midi_options_repeat_three">Three-lane rotation</string>
+    <string name="rhythm_midi_options_weak_filter">Weak note filter (0 = off)</string>
+    <string name="rhythm_midi_options_phrase_breathing">Phrase breathing</string>
+    <string name="rhythm_midi_options_density_gradient">Density gradient</string>
+    <string name="rhythm_midi_options_jump_penalty">Jump penalty</string>
     <string name="rhythm_midi_diff_easy">Easy</string>
     <string name="rhythm_midi_diff_normal">Normal</string>
     <string name="rhythm_midi_diff_hard">Hard</string>

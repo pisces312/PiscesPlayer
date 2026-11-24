@@ -7,8 +7,16 @@
     <string name="rhythm_midi_options_nps">约 %1$s 音/秒</string>
     <string name="rhythm_midi_options_max_chord">和弦上限</string>
     <string name="rhythm_midi_options_lane">落键方式</string>
+    <string name="rhythm_midi_options_lane_melodic">旋律跟随</string>
     <string name="rhythm_midi_options_lane_pitch">按音域分轨</string>
     <string name="rhythm_midi_options_lane_round_robin">轮流落键</string>
+    <string name="rhythm_midi_options_repeat">同音反复</string>
+    <string name="rhythm_midi_options_repeat_two">双轨交替</string>
+    <string name="rhythm_midi_options_repeat_three">三轨轮换</string>
+    <string name="rhythm_midi_options_weak_filter">弱音过滤（0=关）</string>
+    <string name="rhythm_midi_options_phrase_breathing">乐句呼吸</string>
+    <string name="rhythm_midi_options_density_gradient">密度渐变</string>
+    <string name="rhythm_midi_options_jump_penalty">跳键惩罚</string>
     <string name="rhythm_midi_diff_easy">简单</string>
     <string name="rhythm_midi_diff_normal">标准</string>
     <string name="rhythm_midi_diff_hard">困难</string>
