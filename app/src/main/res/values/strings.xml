@@ -545,6 +545,8 @@
     <string name="rhythm_card_play_settings">Delay %1$d ms · Skip %2$d ms · Fall %3$d ms</string>
     <string name="rhythm_bt_warning_title">Bluetooth audio route</string>
     <string name="rhythm_bt_warning_body">Bluetooth links add a large, route-dependent output latency that notes can only meet through calibration, and the first note is the most sensitive. For the best timing use the built-in speaker or a wired headset.</string>
+    <string name="rhythm_bt_warning_dismiss">Dismiss</string>
+    <string name="rhythm_bt_warning_calibrate">Calibrate</string>
     <string name="rhythm_restart">Restart</string>
     <string name="rhythm_exit">Exit</string>
     <string name="rhythm_paused_title">Paused</string>

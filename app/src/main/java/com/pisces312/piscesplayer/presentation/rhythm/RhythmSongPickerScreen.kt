@@ -130,6 +130,11 @@ fun RhythmSongPickerScreen(
     val bluetoothRoute = remember(routeProbeTick) {
         RhythmLatencyStore.deviceKey(context) == RhythmLatencyStore.DEVICE_BLUETOOTH
     }
+    // Dismissing the Bluetooth hint lasts for this visit only (saved across the setup-screen
+    // round trip): the latency problem is real on every run, so a fresh picker entry (a new
+    // back-stack entry) shows the hint again.
+    var btWarningDismissed by rememberSaveable { mutableStateOf(false) }
+    var showLatencyCalibration by remember { mutableStateOf(false) }
 
     var query by rememberSaveable { mutableStateOf("") }
     var scope by rememberSaveable { mutableStateOf(RhythmSongScope.ALL) }
@@ -243,7 +248,7 @@ fun RhythmSongPickerScreen(
                 shape = RoundedCornerShape(18.dp),
             )
 
-            if (bluetoothRoute) {
+            if (bluetoothRoute && !btWarningDismissed) {
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -253,16 +258,32 @@ fun RhythmSongPickerScreen(
                     ),
                 ) {
                     Column(modifier = Modifier.padding(12.dp)) {
-                        Text(
-                            text = stringResource(R.string.rhythm_bt_warning_title),
-                            style = MaterialTheme.typography.titleSmall,
-                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = stringResource(R.string.rhythm_bt_warning_title),
+                                style = MaterialTheme.typography.titleSmall,
+                                modifier = Modifier.weight(1f),
+                            )
+                            IconButton(
+                                onClick = { btWarningDismissed = true },
+                                modifier = Modifier.size(24.dp),
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Rounded.Close,
+                                    contentDescription = stringResource(R.string.rhythm_bt_warning_dismiss),
+                                    modifier = Modifier.size(18.dp),
+                                )
+                            }
+                        }
                         Spacer(Modifier.height(4.dp))
                         Text(
                             text = stringResource(R.string.rhythm_bt_warning_body),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onTertiaryContainer,
                         )
+                        TextButton(onClick = { showLatencyCalibration = true }) {
+                            Text(stringResource(R.string.rhythm_bt_warning_calibrate))
+                        }
                     }
                 }
             }
@@ -501,6 +522,28 @@ fun RhythmSongPickerScreen(
                 showSortSheet = false
             },
             onDirectionToggle = { option -> sortKey = option.storageKey },
+        )
+    }
+
+    // Full-screen layer emitted last so it covers the scaffold. The offset is a property of the
+    // audio route, not of any song, so calibrating right here on the picker benefits every chart.
+    if (showLatencyCalibration) {
+        RhythmCalibrationOverlay(
+            currentOffsetMs = RhythmLatencyStore.offsetMs(context),
+            playerViewModel = playerViewModel,
+            onApplied = { applied ->
+                showLatencyCalibration = false
+                playerViewModel.sendToast(
+                    context.getString(
+                        R.string.rhythm_latency_applied,
+                        applied,
+                        context.getString(
+                            RhythmLatencyStore.deviceLabelRes(RhythmLatencyStore.deviceKey(context)),
+                        ),
+                    ),
+                )
+            },
+            onDismiss = { showLatencyCalibration = false },
         )
     }
 }

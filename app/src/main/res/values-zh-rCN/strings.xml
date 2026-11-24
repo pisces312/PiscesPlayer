@@ -543,6 +543,8 @@
     <string name="rhythm_card_play_settings">延迟 %1$d ms · 屏蔽 %2$d ms · 下落 %3$d ms</string>
     <string name="rhythm_bt_warning_title">当前为蓝牙音频</string>
     <string name="rhythm_bt_warning_body">蓝牙链路会引入较大且因设备而异的输出延迟，音符只能靠校准补偿，且第一个音符最敏感。想获得最佳判定体验，建议改用外放或有线耳机。</string>
+    <string name="rhythm_bt_warning_dismiss">关闭提示</string>
+    <string name="rhythm_bt_warning_calibrate">去校准</string>
     <string name="rhythm_restart">重开</string>
     <string name="rhythm_exit">退出</string>
     <string name="rhythm_paused_title">已暂停</string>
