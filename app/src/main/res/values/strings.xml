@@ -505,7 +505,6 @@
     <string name="rhythm_delete_derived_message">Delete %1$d derived charts and their best scores? The master chart and imported charts are not affected.</string>
     <string name="rhythm_delete_derived_confirm">Delete all</string>
     <string name="rhythm_delete_derived_done">Deleted %1$d derived charts</string>
-    <string name="rhythm_song_loading">Loading song…</string>
     <string name="rhythm_loading">Preparing gameplay…</string>
     <string name="rhythm_load_failed">Load failed: %1$s</string>
     <string name="rhythm_chart_missing">The imported chart no longer exists. Import it again.</string>
@@ -609,6 +608,7 @@
     <string name="rhythm_master_regenerate">Regenerate</string>
     <string name="rhythm_master_generated_at">Generated %1$s</string>
     <string name="rhythm_master_bpm">BPM %1$s</string>
+    <string name="rhythm_master_derived_count">Derived ×%1$d</string>
     <string name="rhythm_master_overwrite_title">Overwrite the master chart?</string>
     <string name="rhythm_master_overwrite_message">The current master and its best score will be replaced. Charts already derived from it stay playable, but they will be marked as coming from an older master.</string>
     <string name="rhythm_master_overwrite_confirm">Overwrite</string>
@@ -713,8 +713,6 @@
     <string name="rhythm_ui_style_neon">Neon</string>
     <string name="rhythm_ui_style_neon_desc">Glowing notes, hit particles, beat pulses</string>
     <string name="rhythm_visual_low_motion">Low motion</string>
-    <string name="rhythm_start_style_title">Choose interface</string>
-    <string name="rhythm_start_style_message">Which interface should %1$s start with?</string>
     <string name="rhythm_visual_low_motion_hint">Neon only: turns off particles, star field and pulses. The glowing judgement line and strength-scaled notes stay.</string>
     <string name="rhythm_latency_title">Latency calibration</string>
     <string name="rhythm_latency_ready_current">%1$s · current offset %2$d ms</string>

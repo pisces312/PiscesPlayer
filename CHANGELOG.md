@@ -58,6 +58,14 @@ PixelPlayerOSS; versions up to and including 0.4.3 were published under the upst
   scrolls (marquee) when it overflows, every parameter (source, note count, notes per second,
   best score, delay/skip/fall) is a rounded chip under the title, and the action row keeps the
   export/settings/delete icon buttons on the left with "Start" anchored to the right edge.
+- Rhythm game: the song title and artist now sit at the very top of the chart setup page (top
+  bar), and the master chart card was redesigned in the same style as the playable ones —
+  rounded chips for source/notes/density/BPM/age/derived count and an action row of
+  export/settings/delete icon buttons with "Derive" as the right-anchored primary. The master
+  itself is no longer playable (its raw onset set is far too dense), so its "Start" button is
+  gone and export (same formats as the derived charts) took its place. Starting any chart no
+  longer pops the classic/neon chooser dialog: the "Game visuals" card on this page is the one
+  place for that choice and the run follows it directly.
 - Rhythm game song picker: reworked into two swipeable tabs modelled on the library tabs —
   "With charts" (with an All/Recent scope filter defaulting to All, plus a difficulty filter)
   and "Without charts". Both tabs share the search field and the common song sort options; the

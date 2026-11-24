@@ -188,9 +188,6 @@ fun RhythmSetupScreen(
     var pendingDelete by remember { mutableStateOf<RhythmChartMeta?>(null) }
     var pendingDeleteDerived by remember { mutableStateOf(false) }
     var settingsTarget by remember { mutableStateOf<RhythmChartMeta?>(null) }
-    // Chart queued for a run while the start dialog picks the interface; every chart source
-    // funnels through here so the classic/neon choice is offered for all songs, not just MIDI.
-    var pendingStart by remember { mutableStateOf<RhythmChartMeta?>(null) }
 
     // Route-keyed latency offset: what the game will compensate for on the next run. Refreshed
     // with the snapshot so returning from a calibration (or plugging another route) shows the
@@ -262,13 +259,12 @@ fun RhythmSetupScreen(
     }
 
     /**
-     * Start a run: every chart plays as stored (the play-time A/B re-bake was retired).
-     * The tap queues the chart instead of navigating directly — the start dialog then offers
-     * the classic/neon interface choice for every chart source (MIDI, DSP master/derived,
-     * tapped, osu import), not only the MIDI ones.
+     * Start a run: every chart plays as stored (the play-time A/B re-bake was retired). The
+     * interface style is already picked on the「游戏视觉」card and persisted
+     * ([RhythmUiPreferences]), so the tap navigates straight into the game — no start dialog.
      */
     fun playChart(meta: RhythmChartMeta) {
-        pendingStart = meta
+        navController.navigateSafely(Screen.RhythmGame.createRoute(songId, meta.chartId))
     }
 
     fun startGeneration(params: RhythmAnalysisParams) {
@@ -480,11 +476,32 @@ fun RhythmSetupScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    Text(
-                        text = stringResource(R.string.rhythm_setup_title),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
+                    // Song title + artist own the very top of the entry page (2026-11-24);
+                    // the fixed screen label only shows while the song is still loading.
+                    val headerSong = song
+                    if (headerSong != null) {
+                        Column {
+                            Text(
+                                text = headerSong.title,
+                                style = MaterialTheme.typography.titleMedium,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                            Text(
+                                text = headerSong.displayArtist,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+                    } else {
+                        Text(
+                            text = stringResource(R.string.rhythm_setup_title),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
                 },
                 navigationIcon = {
                     IconButton(onClick = onNavigationIconClick) {
@@ -541,10 +558,6 @@ fun RhythmSetupScreen(
             }
 
             item {
-                SongHeader(song = song)
-            }
-
-            item {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Button(
                         onClick = { importLauncher.launch(arrayOf("*/*")) },
@@ -588,6 +601,12 @@ fun RhythmSetupScreen(
                 }
             }
 
+            if (song?.isRhythmMidiSong() != true) {
+                item {
+                    SectionHeader(stringResource(R.string.rhythm_master_section))
+                }
+            }
+
             item {
                 // MIDI 曲目没有 DSP 母带：入口换成一键生成 MIDI 谱面，已有谱面仍在下方列表。
                 if (song?.isRhythmMidiSong() == true) {
@@ -621,7 +640,7 @@ fun RhythmSetupScreen(
                         ),
                         deriving = deriving,
                         derivedCount = snapshot.derived.size,
-                        onPlay = { playChart(masterMeta) },
+                        onExport = { exportTarget = masterMeta },
                         onDerive = { if (snapshot.masterChart != null) showDeriveSheet = true },
                         onRegenerate = {
                             generationError = null
@@ -831,22 +850,6 @@ fun RhythmSetupScreen(
         )
     }
 
-    // Every chart start (any source) offers the classic/neon choice; the pick is remembered
-    // as the global default so the Game Visuals card and the next run agree.
-    pendingStart?.let { meta ->
-        StartStyleDialog(
-            chartName = meta.difficultyName,
-            currentStyle = uiStyle,
-            onStart = { style ->
-                pendingStart = null
-                uiStyle = style
-                uiPreferences.uiStyle = style
-                navController.navigateSafely(Screen.RhythmGame.createRoute(songId, meta.chartId))
-            },
-            onDismiss = { pendingStart = null },
-        )
-    }
-
     if (showGenerateSheet) {
         RhythmGenerateSheet(
             songTitle = song?.title.orEmpty(),
@@ -954,25 +957,6 @@ fun RhythmSetupScreen(
                 )
             },
             onDismiss = { showLatencyCalibration = false },
-        )
-    }
-}
-
-@Composable
-private fun SongHeader(song: Song?) {
-    Column {
-        Text(
-            text = song?.title ?: stringResource(R.string.rhythm_song_loading),
-            style = MaterialTheme.typography.titleLarge,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
-        Text(
-            text = song?.displayArtist.orEmpty(),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
         )
     }
 }
@@ -1120,78 +1104,6 @@ private fun GameVisualsCard(
     }
 }
 
-/**
- * 「选择界面」: every chart start offers the classic/neon choice up front — for every chart
- * source (MIDI, DSP master/derived, tapped, osu import), not only the MIDI ones. Picking a
- * style starts the run immediately and remembers it as the global default ([RhythmUiPreferences]).
- */
-@Composable
-private fun StartStyleDialog(
-    chartName: String,
-    currentStyle: RhythmUiStyle,
-    onStart: (RhythmUiStyle) -> Unit,
-    onDismiss: () -> Unit,
-) {
-    var selected by remember { mutableStateOf(currentStyle) }
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.rhythm_start_style_title)) },
-        text = {
-            Column {
-                Text(
-                    text = stringResource(R.string.rhythm_start_style_message, chartName),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                RhythmUiStyle.entries.forEach { style ->
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { selected = style },
-                    ) {
-                        RadioButton(
-                            selected = selected == style,
-                            onClick = { selected = style },
-                        )
-                        Column {
-                            Text(
-                                text = stringResource(
-                                    when (style) {
-                                        RhythmUiStyle.CLASSIC -> R.string.rhythm_ui_style_classic
-                                        RhythmUiStyle.NEON -> R.string.rhythm_ui_style_neon
-                                    },
-                                ),
-                                style = MaterialTheme.typography.bodyMedium,
-                            )
-                            Text(
-                                text = stringResource(
-                                    when (style) {
-                                        RhythmUiStyle.CLASSIC -> R.string.rhythm_ui_style_classic_desc
-                                        RhythmUiStyle.NEON -> R.string.rhythm_ui_style_neon_desc
-                                    },
-                                ),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = { onStart(selected) }) {
-                Text(stringResource(R.string.rhythm_play_chart))
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.cancel))
-            }
-        },
-    )
-}
-
 @Composable
 private fun MidiGenerateCard(
     generating: Boolean,
@@ -1286,6 +1198,16 @@ private fun MasterMissingCard(enabled: Boolean, onGenerate: () -> Unit) {
     }
 }
 
+/**
+ * The master chart card (2026-11-24 redesign, styled after the playable chart cards below):
+ * the name owns a full line, every fact is a rounded chip under it and the action row keeps the
+ * secondary icon buttons on the left with the primary action anchored to the right edge. The
+ * master itself is not playable any more — its raw onset set is far too dense to tap — so the
+ * "start" button was dropped and export (same formats as the derived charts) took its place
+ * next to settings and delete; deriving is what the master exists for, so it owns the primary
+ * slot.
+ */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun MasterCard(
     meta: RhythmChartMeta,
@@ -1293,7 +1215,7 @@ private fun MasterCard(
     stats: VisibleStats,
     deriving: Boolean,
     derivedCount: Int,
-    onPlay: () -> Unit,
+    onExport: () -> Unit,
     onDerive: () -> Unit,
     onRegenerate: () -> Unit,
     onSettings: () -> Unit,
@@ -1301,81 +1223,107 @@ private fun MasterCard(
     onDeleteDerived: () -> Unit,
 ) {
     Card(modifier = Modifier.fillMaxWidth()) {
+        val cardContainer = CardDefaults.cardColors().containerColor
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    imageVector = Icons.Outlined.MusicNote,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                )
-                Spacer(Modifier.width(10.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = stringResource(R.string.rhythm_master_name),
-                        style = MaterialTheme.typography.titleMedium,
-                    )
-                    Text(
-                        text = stringResource(
-                            R.string.rhythm_chart_stats,
-                            stats.count,
-                            String.format(Locale.US, "%.1f", stats.notesPerSec),
-                        ),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-                IconButton(onClick = onSettings) {
-                    Icon(
-                        imageVector = Icons.Outlined.Settings,
-                        contentDescription = stringResource(R.string.rhythm_settings_open),
-                    )
-                }
-                IconButton(onClick = onDelete) {
-                    Icon(
-                        imageVector = Icons.Outlined.Delete,
-                        contentDescription = stringResource(R.string.rhythm_delete_chart_icon),
-                    )
-                }
-            }
+            AutoScrollingText(
+                text = stringResource(R.string.rhythm_master_name),
+                style = MaterialTheme.typography.titleMedium,
+                gradientEdgeColor = cardContainer,
+                modifier = Modifier.fillMaxWidth(),
+            )
 
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalAlignment = Alignment.CenterVertically,
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
+                ChartParamChip(
+                    text = stringResource(R.string.rhythm_source_dsp),
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                )
+                ChartParamChip(text = stringResource(R.string.rhythm_card_notes, stats.count))
+                ChartParamChip(
+                    text = stringResource(
+                        R.string.rhythm_card_nps,
+                        String.format(Locale.US, "%.1f", stats.notesPerSec),
+                    ),
+                )
                 if (bpmText.isNotEmpty()) {
-                    Text(
-                        text = stringResource(R.string.rhythm_master_bpm, bpmText),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+                    ChartParamChip(text = stringResource(R.string.rhythm_master_bpm, bpmText))
                 }
-                Text(
+                ChartParamChip(
                     text = stringResource(
                         R.string.rhythm_master_generated_at,
                         MASTER_NAME_FORMATTER.format(Instant.ofEpochMilli(meta.importedAtMs)),
                     ),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                ChartParamChip(
+                    text = stringResource(R.string.rhythm_master_derived_count, derivedCount),
                 )
             }
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                Button(onClick = onPlay, modifier = Modifier.weight(1f)) {
-                    Text(stringResource(R.string.rhythm_play_chart))
+                FilledTonalIconButton(
+                    onClick = onExport,
+                    modifier = Modifier.size(46.dp),
+                    shape = RoundedCornerShape(14.dp),
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.FileDownload,
+                        contentDescription = stringResource(R.string.rhythm_export_chart_cd),
+                    )
                 }
-                OutlinedButton(
+                FilledTonalIconButton(
+                    onClick = onSettings,
+                    modifier = Modifier.size(46.dp),
+                    shape = RoundedCornerShape(14.dp),
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.Settings,
+                        contentDescription = stringResource(R.string.rhythm_settings_open),
+                    )
+                }
+                FilledTonalIconButton(
+                    onClick = onDelete,
+                    modifier = Modifier.size(46.dp),
+                    shape = RoundedCornerShape(14.dp),
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.Delete,
+                        contentDescription = stringResource(R.string.rhythm_delete_chart_icon),
+                    )
+                }
+                // Primary action anchored to the right edge, like "start" on the playable cards:
+                // deriving is the one thing the master is kept around for.
+                Button(
                     onClick = onDerive,
                     enabled = !deriving,
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(46.dp),
+                    shape = RoundedCornerShape(23.dp),
                 ) {
+                    if (deriving) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(20.dp),
+                            strokeWidth = 2.dp,
+                        )
+                    } else {
+                        Icon(
+                            imageVector = Icons.Outlined.AutoAwesome,
+                            contentDescription = null,
+                        )
+                    }
+                    Spacer(Modifier.width(8.dp))
                     Text(stringResource(R.string.rhythm_derive_action))
                 }
             }

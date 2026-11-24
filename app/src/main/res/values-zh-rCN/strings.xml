@@ -503,7 +503,6 @@
     <string name="rhythm_delete_derived_message">将删除 %1$d 个派生谱面及其最高分。母谱与导入谱面不受影响。</string>
     <string name="rhythm_delete_derived_confirm">全部删除</string>
     <string name="rhythm_delete_derived_done">已删除 %1$d 个派生谱</string>
-    <string name="rhythm_song_loading">正在加载歌曲…</string>
     <string name="rhythm_loading">正在准备游戏…</string>
     <string name="rhythm_load_failed">加载失败：%1$s</string>
     <string name="rhythm_chart_missing">导入的谱面已不存在，请重新导入。</string>
@@ -607,6 +606,7 @@
     <string name="rhythm_master_regenerate">重新生成</string>
     <string name="rhythm_master_generated_at">生成于 %1$s</string>
     <string name="rhythm_master_bpm">BPM %1$s</string>
+    <string name="rhythm_master_derived_count">派生谱 ×%1$d</string>
     <string name="rhythm_master_overwrite_title">覆盖当前母谱？</string>
     <string name="rhythm_master_overwrite_message">当前母谱及其最高分将被替换。已派生的谱面仍可游玩，但会标记为派生自旧母谱。</string>
     <string name="rhythm_master_overwrite_confirm">覆盖</string>
@@ -711,8 +711,6 @@
     <string name="rhythm_ui_style_neon">霓虹</string>
     <string name="rhythm_ui_style_neon_desc">发光音符、命中粒子、拍点脉动</string>
     <string name="rhythm_visual_low_motion">低动态模式</string>
-    <string name="rhythm_start_style_title">选择界面</string>
-    <string name="rhythm_start_style_message">%1$s 本次使用哪种界面开始？</string>
     <string name="rhythm_visual_low_motion_hint">仅对霓虹界面生效：关闭粒子、星点与脉冲等动态效果，保留发光判定线与力度音符。</string>
     <string name="rhythm_latency_title">延迟校准</string>
     <string name="rhythm_latency_ready_current">%1$s · 当前 offset %2$d 毫秒</string>
