@@ -704,6 +704,14 @@
     <string name="rhythm_latency_device_speaker">扬声器</string>
     <string name="rhythm_latency_device_usb">USB</string>
     <string name="rhythm_latency_device_other">其他</string>
+    <string name="rhythm_visual_section">游戏视觉</string>
+    <string name="rhythm_ui_style_label">界面风格</string>
+    <string name="rhythm_ui_style_classic">经典</string>
+    <string name="rhythm_ui_style_classic_desc">现有朴素界面，保持不变</string>
+    <string name="rhythm_ui_style_neon">霓虹</string>
+    <string name="rhythm_ui_style_neon_desc">发光音符、命中粒子、拍点脉动</string>
+    <string name="rhythm_visual_low_motion">低动态模式</string>
+    <string name="rhythm_visual_low_motion_hint">仅对霓虹界面生效：关闭粒子、星点与脉冲等动态效果，保留发光判定线与力度音符。</string>
     <string name="rhythm_latency_title">延迟校准</string>
     <string name="rhythm_latency_ready_current">%1$s · 当前 offset %2$d 毫秒</string>
     <string name="rhythm_latency_hint">将通过当前音频路由播放 10 拍节拍声（蓝牙链路会完整计入其延迟）。前 2 拍不要点（预热链路，且这两拍你还在反应）；从第 3 拍起跟着节拍点按——像跟歌打拍子一样预测着点，不要等听到再反应。手快手慢没关系，取平均后个人习惯会抵消，校准的是你加设备的整体延迟。</string>

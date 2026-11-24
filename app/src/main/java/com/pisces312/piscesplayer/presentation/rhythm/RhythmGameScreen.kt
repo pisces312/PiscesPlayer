@@ -73,6 +73,8 @@ import com.pisces312.piscesplayer.data.rhythm.RhythmLatencyStore
 import com.pisces312.piscesplayer.data.rhythm.RhythmPcmAudio
 import com.pisces312.piscesplayer.data.rhythm.RhythmPcmDecoder
 import com.pisces312.piscesplayer.data.rhythm.RhythmRepository
+import com.pisces312.piscesplayer.data.rhythm.RhythmUiPreferences
+import com.pisces312.piscesplayer.data.rhythm.RhythmUiStyle
 import com.pisces312.piscesplayer.data.rhythm.delayAfterTap
 import java.io.File
 import java.text.SimpleDateFormat
@@ -88,7 +90,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /** m:ss.d at 100ms granularity, monospace-width so the HUD time does not wiggle. */
-private fun formatHudClock(ms: Double): String {
+internal fun formatHudClock(ms: Double): String {
     val totalSec = (ms / 1000.0).coerceAtLeast(0.0)
     val minutes = (totalSec / 60).toInt()
     return String.format(Locale.US, "%d:%04.1f", minutes, totalSec - minutes * 60)
@@ -140,8 +142,16 @@ fun RhythmGameScreen(
     // Judgement feedback is one-shot: an event is shown, then aged out by the frame loop.
     var judgementFeedback by remember { mutableStateOf<RhythmTimedJudgement?>(null) }
     var hitEffects by remember { mutableStateOf<List<RhythmHitEffect>>(emptyList()) }
+    // Misses get their own short-lived effects (the neon lane flash needs them); the classic
+    // playfield never reads this list, so the classic path is unchanged.
+    var missEffects by remember { mutableStateOf<List<RhythmHitEffect>>(emptyList()) }
     var feedbackId by remember { mutableLongStateOf(0L) }
     var effectNowNanos by remember { mutableLongStateOf(System.nanoTime()) }
+    // Global visual style: classic (default) renders the pre-existing surface, neon opts into
+    // the glow/particle variants. Read once on entry — mid-run switching is not a use case.
+    val uiPreferences = remember { RhythmUiPreferences(context.applicationContext) }
+    val neonStyle = remember { uiPreferences.uiStyle == RhythmUiStyle.NEON }
+    val lowMotion = remember { uiPreferences.lowMotion }
     val touchTracker = remember(session, runId) { RhythmLaneTouchTracker() }
     // Per-run clock diagnostics: the loop feeds it one sample per frame, the result screen shows
     // the auto-classified drift, and both pause and result screens can export the raw trace.
@@ -161,6 +171,8 @@ fun RhythmGameScreen(
         judgementFeedback = RhythmTimedJudgement(feedbackId, event, nowNanos)
         if (event.judgement != RhythmJudgement.MISS) {
             hitEffects = hitEffects + RhythmHitEffect(feedbackId, event.lane, event.judgement, nowNanos)
+        } else {
+            missEffects = missEffects + RhythmHitEffect(feedbackId, event.lane, event.judgement, nowNanos)
         }
     }
 
@@ -284,6 +296,7 @@ fun RhythmGameScreen(
         val currentSession = session ?: return@LaunchedEffect
         judgementFeedback = null
         hitEffects = emptyList()
+        missEffects = emptyList()
         touchTracker.clear()
         driftReport = null
         currentSession.clock.stop()
@@ -313,6 +326,11 @@ fun RhythmGameScreen(
             if (hitEffects.isNotEmpty()) {
                 hitEffects = hitEffects.filter {
                     animationNow - it.startedAtNanos <= RHYTHM_HIT_EFFECT_MS * 1_000_000L
+                }
+            }
+            if (missEffects.isNotEmpty()) {
+                missEffects = missEffects.filter {
+                    animationNow - it.startedAtNanos <= RHYTHM_MISS_EFFECT_MS * 1_000_000L
                 }
             }
             if (!paused) {
@@ -399,6 +417,18 @@ fun RhythmGameScreen(
     }
 
     val currentSession = session
+    // One judgement path shared by both surfaces: style only changes how the run is drawn.
+    val handleLaneDown: (Int) -> Unit = { lane ->
+        if (!paused && result == null && countdown == 0 && currentSession != null) {
+            val tapTimeMs = currentSession.clock.nowMs()
+            val event = currentSession.keyDown(lane, tapTimeMs)
+            presentJudgement(event)
+            // Same wall base as the trace, so a tap row lines up with the
+            // 50ms samples; one list append per tap, no per-frame cost.
+            driftRecorder.recordTap(lane, tapTimeMs, event.noteId, event.errorMs, System.nanoTime())
+            frameTick += 1
+        }
+    }
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -417,50 +447,85 @@ fun RhythmGameScreen(
             )
 
             else -> Column(modifier = Modifier.fillMaxSize()) {
-                RhythmHud(
-                    session = currentSession,
-                    songMs = songMs,
-                    leadInMs = chartSettings.leadInMs,
-                    paused = paused,
-                    frameTick = frameTick,
-                    onTogglePause = {
-                        if (paused) {
-                            currentSession.resume()
-                        } else {
-                            currentSession.pause()
-                        }
-                        paused = !paused
-                        touchTracker.clear()
-                    },
-                )
-                Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
-                    RhythmPlayfield(
+                if (neonStyle) {
+                    RhythmNeonHud(
                         session = currentSession,
                         songMs = songMs,
+                        leadInMs = chartSettings.leadInMs,
+                        paused = paused,
                         frameTick = frameTick,
-                        touchTracker = touchTracker,
-                        hitEffects = hitEffects,
-                        effectNowNanos = effectNowNanos,
-                        inputEnabled = !paused && result == null && countdown == 0,
-                        onLaneDown = { lane ->
-                            if (!paused && result == null && countdown == 0) {
-                                val tapTimeMs = currentSession.clock.nowMs()
-                                val event = currentSession.keyDown(lane, tapTimeMs)
-                                presentJudgement(event)
-                                // Same wall base as the trace, so a tap row lines up with the
-                                // 50ms samples; one list append per tap, no per-frame cost.
-                                driftRecorder.recordTap(lane, tapTimeMs, event.noteId, event.errorMs, System.nanoTime())
-                                frameTick += 1
+                        onTogglePause = {
+                            if (paused) {
+                                currentSession.resume()
+                            } else {
+                                currentSession.pause()
                             }
+                            paused = !paused
+                            touchTracker.clear()
                         },
-                        modifier = Modifier.fillMaxSize(),
                     )
-                    RhythmFeedbackOverlay(
-                        combo = currentSession.engine.combo,
-                        feedback = judgementFeedback,
-                        nowNanos = effectNowNanos,
-                        modifier = Modifier.fillMaxSize(),
+                } else {
+                    RhythmHud(
+                        session = currentSession,
+                        songMs = songMs,
+                        leadInMs = chartSettings.leadInMs,
+                        paused = paused,
+                        frameTick = frameTick,
+                        onTogglePause = {
+                            if (paused) {
+                                currentSession.resume()
+                            } else {
+                                currentSession.pause()
+                            }
+                            paused = !paused
+                            touchTracker.clear()
+                        },
                     )
+                }
+                Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
+                    if (neonStyle) {
+                        RhythmPlayfieldNeon(
+                            session = currentSession,
+                            songMs = songMs,
+                            frameTick = frameTick,
+                            touchTracker = touchTracker,
+                            hitEffects = hitEffects,
+                            missEffects = missEffects,
+                            effectNowNanos = effectNowNanos,
+                            inputEnabled = !paused && result == null && countdown == 0,
+                            lowMotion = lowMotion,
+                            onLaneDown = handleLaneDown,
+                            modifier = Modifier.fillMaxSize(),
+                        )
+                    } else {
+                        RhythmPlayfield(
+                            session = currentSession,
+                            songMs = songMs,
+                            frameTick = frameTick,
+                            touchTracker = touchTracker,
+                            hitEffects = hitEffects,
+                            effectNowNanos = effectNowNanos,
+                            inputEnabled = !paused && result == null && countdown == 0,
+                            onLaneDown = handleLaneDown,
+                            modifier = Modifier.fillMaxSize(),
+                        )
+                    }
+                    if (neonStyle) {
+                        RhythmNeonFeedbackOverlay(
+                            combo = currentSession.engine.combo,
+                            feedback = judgementFeedback,
+                            nowNanos = effectNowNanos,
+                            lowMotion = lowMotion,
+                            modifier = Modifier.fillMaxSize(),
+                        )
+                    } else {
+                        RhythmFeedbackOverlay(
+                            combo = currentSession.engine.combo,
+                            feedback = judgementFeedback,
+                            nowNanos = effectNowNanos,
+                            modifier = Modifier.fillMaxSize(),
+                        )
+                    }
                 }
             }
         }
@@ -480,28 +545,43 @@ fun RhythmGameScreen(
         }
 
         if (currentSession != null && paused && result == null) {
-            RhythmPauseOverlay(
-                offsetMs = currentSession.clock.offsetMs,
-                onResume = {
-                    currentSession.resume()
-                    paused = false
-                    touchTracker.clear()
-                },
-                onOffset = ::adjustDelay,
-                onRestart = {
-                    result = null
-                    paused = false
-                    runId += 1
-                },
-                onExit = ::exitGame,
-                onExportDiagnostics = ::exportDiagnostics,
-                onViewDiagnostics = {
-                    scope.launch {
-                        val text = withContext(Dispatchers.Default) { buildDiagnosticsText() }
-                        if (text.isNotEmpty()) diagnosticsLogText = text
-                    }
-                },
-            )
+            val resumeRun = {
+                currentSession.resume()
+                paused = false
+                touchTracker.clear()
+            }
+            val restartRun = {
+                result = null
+                paused = false
+                runId += 1
+            }
+            val viewDiagnostics: () -> Unit = {
+                scope.launch {
+                    val text = withContext(Dispatchers.Default) { buildDiagnosticsText() }
+                    if (text.isNotEmpty()) diagnosticsLogText = text
+                }
+            }
+            if (neonStyle) {
+                RhythmNeonPauseOverlay(
+                    offsetMs = currentSession.clock.offsetMs,
+                    onResume = resumeRun,
+                    onOffset = ::adjustDelay,
+                    onRestart = restartRun,
+                    onExit = ::exitGame,
+                    onExportDiagnostics = ::exportDiagnostics,
+                    onViewDiagnostics = viewDiagnostics,
+                )
+            } else {
+                RhythmPauseOverlay(
+                    offsetMs = currentSession.clock.offsetMs,
+                    onResume = resumeRun,
+                    onOffset = ::adjustDelay,
+                    onRestart = restartRun,
+                    onExit = ::exitGame,
+                    onExportDiagnostics = ::exportDiagnostics,
+                    onViewDiagnostics = viewDiagnostics,
+                )
+            }
         }
 
         diagnosticsLogText?.let { logText ->
@@ -512,17 +592,28 @@ fun RhythmGameScreen(
         }
 
         result?.let { sessionResult ->
-            RhythmResultOverlay(
-                result = sessionResult,
-                driftReport = driftReport,
-                onRetry = {
-                    result = null
-                    paused = false
-                    runId += 1
-                },
-                onExit = ::exitGame,
-                onExportDiagnostics = ::exportDiagnostics,
-            )
+            val retryRun = {
+                result = null
+                paused = false
+                runId += 1
+            }
+            if (neonStyle) {
+                RhythmNeonResultOverlay(
+                    result = sessionResult,
+                    driftReport = driftReport,
+                    onRetry = retryRun,
+                    onExit = ::exitGame,
+                    onExportDiagnostics = ::exportDiagnostics,
+                )
+            } else {
+                RhythmResultOverlay(
+                    result = sessionResult,
+                    driftReport = driftReport,
+                    onRetry = retryRun,
+                    onExit = ::exitGame,
+                    onExportDiagnostics = ::exportDiagnostics,
+                )
+            }
         }
     }
 }
@@ -752,7 +843,7 @@ private fun RhythmDiagnosticsLogDialog(
 }
 
 @Composable
-private fun driftSummary(report: RhythmDriftReport): String = when (report.kind) {
+internal fun driftSummary(report: RhythmDriftReport): String = when (report.kind) {
     RhythmDriftKind.STABLE -> stringResource(R.string.rhythm_drift_stable)
     RhythmDriftKind.PROGRESSIVE_OVER_RUN ->
         stringResource(R.string.rhythm_drift_over, abs(report.endResidualMs), abs(report.driftPpm))

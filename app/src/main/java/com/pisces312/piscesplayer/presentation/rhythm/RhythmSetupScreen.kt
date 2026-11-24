@@ -51,6 +51,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -91,6 +92,8 @@ import com.pisces312.piscesplayer.data.rhythm.RhythmDeriveSettings
 import com.pisces312.piscesplayer.data.rhythm.RhythmLatencyStore
 
 import com.pisces312.piscesplayer.data.rhythm.RhythmRepository
+import com.pisces312.piscesplayer.data.rhythm.RhythmUiPreferences
+import com.pisces312.piscesplayer.data.rhythm.RhythmUiStyle
 import com.pisces312.piscesplayer.presentation.components.AutoScrollingText
 import com.pisces312.piscesplayer.presentation.navigation.Screen
 import com.pisces312.piscesplayer.presentation.navigation.navigateSafely
@@ -192,6 +195,12 @@ fun RhythmSetupScreen(
     var latencyDeviceKey by remember { mutableStateOf(RhythmLatencyStore.deviceKey(context)) }
     var latencyOffsetMs by remember { mutableIntStateOf(RhythmLatencyStore.offsetMs(context)) }
     var showLatencyCalibration by remember { mutableStateOf(false) }
+
+    // Global game visuals (style + low motion). Persisted immediately on every change so the
+    // next gameplay entry renders with the choice even if the process is killed in between.
+    val uiPreferences = remember { RhythmUiPreferences(context.applicationContext) }
+    var uiStyle by remember { mutableStateOf(uiPreferences.uiStyle) }
+    var lowMotion by remember { mutableStateOf(uiPreferences.lowMotion) }
 
     // Chart export: the format dialog parks the target here until the SAF create-document
     // round trip returns the destination uri.
@@ -505,6 +514,21 @@ fun RhythmSetupScreen(
                     deviceKey = latencyDeviceKey,
                     offsetMs = latencyOffsetMs,
                     onCalibrate = { showLatencyCalibration = true },
+                )
+            }
+
+            item {
+                GameVisualsCard(
+                    uiStyle = uiStyle,
+                    lowMotion = lowMotion,
+                    onStyleChange = { style ->
+                        uiStyle = style
+                        uiPreferences.uiStyle = style
+                    },
+                    onLowMotionChange = { enabled ->
+                        lowMotion = enabled
+                        uiPreferences.lowMotion = enabled
+                    },
                 )
             }
 
@@ -978,6 +1002,95 @@ private fun LatencyCalibrationCard(
             }
             OutlinedButton(onClick = onCalibrate) {
                 Text(stringResource(R.string.rhythm_latency_calibrate))
+            }
+        }
+    }
+}
+
+/**
+ * 「游戏视觉」: the global visual-style choice for the rhythm game surface.
+ *
+ * Classic (default) is the pre-existing plain interface and stays untouched as the fallback;
+ * neon opts into the glowing surface. Low motion only tames the neon surface's animated
+ * extras (particles, star field, pulses), so it is presented as a neon-only refinement.
+ * Every change is persisted immediately ([RhythmUiPreferences]).
+ */
+@Composable
+private fun GameVisualsCard(
+    uiStyle: RhythmUiStyle,
+    lowMotion: Boolean,
+    onStyleChange: (RhythmUiStyle) -> Unit,
+    onLowMotionChange: (Boolean) -> Unit,
+) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(2.dp),
+        ) {
+            Text(
+                text = stringResource(R.string.rhythm_visual_section),
+                style = MaterialTheme.typography.titleMedium,
+            )
+            Text(
+                text = stringResource(R.string.rhythm_ui_style_label),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            RhythmUiStyle.entries.forEach { style ->
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onStyleChange(style) },
+                ) {
+                    RadioButton(
+                        selected = uiStyle == style,
+                        onClick = { onStyleChange(style) },
+                    )
+                    Column {
+                        Text(
+                            text = stringResource(
+                                when (style) {
+                                    RhythmUiStyle.CLASSIC -> R.string.rhythm_ui_style_classic
+                                    RhythmUiStyle.NEON -> R.string.rhythm_ui_style_neon
+                                },
+                            ),
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                        Text(
+                            text = stringResource(
+                                when (style) {
+                                    RhythmUiStyle.CLASSIC -> R.string.rhythm_ui_style_classic_desc
+                                    RhythmUiStyle.NEON -> R.string.rhythm_ui_style_neon_desc
+                                },
+                            ),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            }
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = stringResource(R.string.rhythm_visual_low_motion),
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                    Text(
+                        text = stringResource(R.string.rhythm_visual_low_motion_hint),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Switch(
+                    checked = lowMotion,
+                    onCheckedChange = onLowMotionChange,
+                )
             }
         }
     }
