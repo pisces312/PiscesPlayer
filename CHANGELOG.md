@@ -6,16 +6,19 @@ PixelPlayerOSS; versions up to and including 0.4.3 were published under the upst
 ## [Unreleased]
 
 ### Added
-- Rhythm game: quick start everywhere. The song picker's row arrow became a game icon that
-  jumps straight into a run — missing charts are generated on the way (master + Easy/Hard
-  under the default v1 preset) and the game starts on Hard, with a wave progress bar while the
-  charts are prepared. The song-info game button now pops an Easy/Hard chooser (plus a chart
-  management entry) that runs the same pipeline for the picked rung. Charts that already exist
-  are used as-is, never regenerated.
+- Rhythm game: quick start everywhere. The song picker's row arrow became a game icon: it
+  prepares the missing charts (master + Easy/Hard under the default v1 preset, wave progress
+  bar, cancellable) and then pops the rung chooser — Easy / Hard / "Custom difficulty", the
+  last opening the full chart setup page. The song-info game button pops the same chooser
+  right away and prepares after a rung is picked. Charts that already exist are used as-is,
+  never regenerated; cancelling a preparation deletes what the run created, and a missing
+  target rung is an error with retry, never a silent difficulty swap. Auto-generated MIDI
+  charts now come as two rungs (Easy/Hard) like the DSP ladder.
 - Rhythm game: the chart setup page has one card with three uniform creation entries —
-  "Quick generate" (one tap: master + Easy/Hard under the v1 preset; long-press for the
-  advanced parameter sheets), "Import chart" and "Tap a chart" — with the generated charts
-  listed below. Device latency and game visuals moved behind a settings button in the top bar.
+  "Generate charts" (analyses the master, then the derive sheet opens with its parameters
+  tunable; long-press for the analysis parameters), "Import chart" and "Tap a chart" — with
+  the generated charts listed below. Device latency and game visuals moved behind a settings
+  button in the top bar.
 - Rhythm game: MIDI chart generation now offers a parameter sheet (difficulty rungs with
   per-rung note-per-second caps and chord width, lane strategy) and defaults to three rungs
   (Easy ~1 hit/s, Normal ~2, Hard ≤4) instead of dumping the file's raw note density into the

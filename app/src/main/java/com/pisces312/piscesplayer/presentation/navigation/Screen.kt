@@ -134,10 +134,13 @@ sealed class Screen(val route: String) {
     /**
      * Quick start: prepare the missing charts (master + Easy/Hard under the v1 preset) and jump
      * straight into the game. [difficulty] is [DIFFICULTY_EASY] / [DIFFICULTY_HARD] to start
-     * that rung directly, or [DIFFICULTY_PICK] to show the Easy/Hard chooser first.
+     * that rung directly, [DIFFICULTY_PREPARE] to prepare first and then pop the rung chooser
+     * (the song picker's game icon), or [DIFFICULTY_PICK] to pop the chooser first (the
+     * song-info game button).
      */
     object RhythmQuick : Screen("rhythm_quick/{songId}/{difficulty}") {
         const val DIFFICULTY_PICK = "pick"
+        const val DIFFICULTY_PREPARE = "prepare"
         const val DIFFICULTY_EASY = "easy"
         const val DIFFICULTY_HARD = "hard"
 

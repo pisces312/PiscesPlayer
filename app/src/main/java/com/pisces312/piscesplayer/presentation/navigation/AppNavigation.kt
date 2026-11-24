@@ -964,7 +964,7 @@ fun AppNavigation(
                             navController.navigateSafely(
                                 Screen.RhythmQuick.createRoute(
                                     song.id,
-                                    Screen.RhythmQuick.DIFFICULTY_HARD,
+                                    Screen.RhythmQuick.DIFFICULTY_PREPARE,
                                 ),
                             )
                         },

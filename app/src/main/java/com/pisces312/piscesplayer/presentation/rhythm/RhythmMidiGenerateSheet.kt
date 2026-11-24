@@ -44,19 +44,17 @@ import com.pisces312.piscesplayer.presentation.components.rememberModalSheetStat
 import java.util.Locale
 import kotlin.math.roundToInt
 
-/** The three default difficulty rungs with localized labels (shared with quick generate). */
+/**
+ * The default difficulty rungs with localized labels (shared with quick generate). Two rungs
+ * only (2026-11-24): auto-generated MIDI charts cannot guarantee a middle rung's playability,
+ * so the ladder stays at Easy/Hard like the DSP derive ladder.
+ */
 internal fun defaultMidiDifficulties(context: android.content.Context): List<MidiDifficulty> = listOf(
     MidiDifficulty(
         label = context.getString(R.string.rhythm_midi_diff_easy),
         gridDiv = 1,
         maxHitsPerSecond = 1.0,
         maxChord = 1,
-    ),
-    MidiDifficulty(
-        label = context.getString(R.string.rhythm_midi_diff_normal),
-        gridDiv = 2,
-        maxHitsPerSecond = 2.0,
-        maxChord = 2,
     ),
     MidiDifficulty(
         label = context.getString(R.string.rhythm_midi_diff_hard),
