@@ -61,6 +61,21 @@ PixelPlayerOSS; versions up to and including 0.4.3 were published under the upst
   `Files.move(REPLACE_EXISTING)` on every platform.
 
 ### Changed
+- Rhythm game: the Bluetooth latency warning on the song picker is now dismissible (✕, per
+  visit — re-entering the picker shows it again) and carries a "Calibrate" action that opens
+  the latency calibration overlay right there, since the offset is a property of the audio
+  route and benefits every chart.
+- Rhythm game: the master chart card's actions moved around — the play-settings icon is gone
+  (the master is not playable), "Regenerate" collapsed into a sync icon, and all icon buttons
+  (export / regenerate / delete) now sit at the right end of the title row. Below the info
+  chips, "Delete derived (N)" and the primary "Derive charts" share one row, the primary
+  still right-anchored.
+- Rhythm game: force-quitting a run from the pause menu's "Exit" now still settles the run —
+  unplayed tail notes count as misses exactly like a natural end, the result screen pops up
+  and the score is recorded (best score still only ever increases). Runs still in the
+  countdown have no score yet and just leave. The system back gesture still only pauses.
+- Rhythm game: the default game visual style is now Neon; users who explicitly picked Classic
+  keep it. Only never-set preferences flip.
 - Home: the Serendipity pill grew from 35dp to a plump 96dp jelly on the 2x2 AI card (20sp label,
   26dp icon), and the entry card now fills its whole grid cell — the recent-mixes shelf hugs the
   bottom and the vertical dead space around the content is gone. Smaller card spans

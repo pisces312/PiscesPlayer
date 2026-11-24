@@ -355,7 +355,27 @@ fun RhythmGameScreen(
         }
     }
 
+    /**
+     * Exit path. Force-quitting from the pause menu still settles the run (2026-11-25): every
+     * unplayed tail note becomes a miss exactly like a natural end, so the score is the real
+     * score of what was played and the result screen pops up + records it. The result screen's
+     * own exit then leaves for real. Runs still in the countdown have no score yet and just
+     * leave.
+     */
     fun exitGame() {
+        val currentSession = session
+        if (currentSession != null && result == null && countdown == 0) {
+            val sessionResult = currentSession.settle()
+            result = sessionResult
+            driftReport = driftRecorder.analyze(currentSession.chart.notes)
+            currentSession.clock.stop()
+            scope.launch {
+                withContext(Dispatchers.IO) {
+                    repository.recordScore(chartId, sessionResult.score)
+                }
+            }
+            return
+        }
         session?.clock?.stop()
         audioClock?.release()
         onExit()

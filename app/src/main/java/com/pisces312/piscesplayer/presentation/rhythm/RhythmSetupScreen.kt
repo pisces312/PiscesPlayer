@@ -37,6 +37,7 @@ import androidx.compose.material.icons.outlined.DeleteSweep
 import androidx.compose.material.icons.outlined.FileDownload
 import androidx.compose.material.icons.outlined.MusicNote
 import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.outlined.Sync
 import androidx.compose.material.icons.outlined.UploadFile
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material3.AlertDialog
@@ -685,7 +686,6 @@ fun RhythmSetupScreen(
                             overwriting = true
                             showGenerateSheet = true
                         },
-                        onSettings = { settingsTarget = masterMeta },
                         onDelete = { pendingDelete = masterMeta },
                         onDeleteDerived = { pendingDeleteDerived = true },
                     )
@@ -1331,7 +1331,6 @@ private fun MasterCard(
     onExport: () -> Unit,
     onDerive: () -> Unit,
     onRegenerate: () -> Unit,
-    onSettings: () -> Unit,
     onDelete: () -> Unit,
     onDeleteDerived: () -> Unit,
 ) {
@@ -1343,12 +1342,48 @@ private fun MasterCard(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            AutoScrollingText(
-                text = stringResource(R.string.rhythm_master_name),
-                style = MaterialTheme.typography.titleMedium,
-                gradientEdgeColor = cardContainer,
-                modifier = Modifier.fillMaxWidth(),
-            )
+            // Title row owns the icon actions (2026-11-25): the master is not playable, so the
+            // play-settings entry is gone and "regenerate" collapsed into a sync icon.
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                AutoScrollingText(
+                    text = stringResource(R.string.rhythm_master_name),
+                    style = MaterialTheme.typography.titleMedium,
+                    gradientEdgeColor = cardContainer,
+                    modifier = Modifier.weight(1f),
+                )
+                FilledTonalIconButton(
+                    onClick = onExport,
+                    modifier = Modifier.size(46.dp),
+                    shape = RoundedCornerShape(14.dp),
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.FileDownload,
+                        contentDescription = stringResource(R.string.rhythm_export_chart_cd),
+                    )
+                }
+                Spacer(Modifier.width(8.dp))
+                FilledTonalIconButton(
+                    onClick = onRegenerate,
+                    modifier = Modifier.size(46.dp),
+                    shape = RoundedCornerShape(14.dp),
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.Sync,
+                        contentDescription = stringResource(R.string.rhythm_master_regenerate),
+                    )
+                }
+                Spacer(Modifier.width(8.dp))
+                FilledTonalIconButton(
+                    onClick = onDelete,
+                    modifier = Modifier.size(46.dp),
+                    shape = RoundedCornerShape(14.dp),
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.Delete,
+                        contentDescription = stringResource(R.string.rhythm_delete_chart_icon),
+                    )
+                }
+            }
 
             FlowRow(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -1380,43 +1415,32 @@ private fun MasterCard(
                 )
             }
 
+            // One action row below the info (2026-11-25): "delete derived" and the primary
+            // "derive charts" share the line, the primary anchored right for thumb reach like
+            // "start" on the playable cards. Delete-all is only offered while there are derived
+            // charts to delete.
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                FilledTonalIconButton(
-                    onClick = onExport,
-                    modifier = Modifier.size(46.dp),
-                    shape = RoundedCornerShape(14.dp),
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.FileDownload,
-                        contentDescription = stringResource(R.string.rhythm_export_chart_cd),
-                    )
+                if (derivedCount > 0) {
+                    TextButton(
+                        onClick = onDeleteDerived,
+                        enabled = !deriving,
+                        colors = ButtonDefaults.textButtonColors(
+                            contentColor = MaterialTheme.colorScheme.error,
+                        ),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.DeleteSweep,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp),
+                        )
+                        Spacer(Modifier.width(6.dp))
+                        Text(stringResource(R.string.rhythm_delete_derived_all, derivedCount))
+                    }
                 }
-                FilledTonalIconButton(
-                    onClick = onSettings,
-                    modifier = Modifier.size(46.dp),
-                    shape = RoundedCornerShape(14.dp),
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.Settings,
-                        contentDescription = stringResource(R.string.rhythm_settings_open),
-                    )
-                }
-                FilledTonalIconButton(
-                    onClick = onDelete,
-                    modifier = Modifier.size(46.dp),
-                    shape = RoundedCornerShape(14.dp),
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.Delete,
-                        contentDescription = stringResource(R.string.rhythm_delete_chart_icon),
-                    )
-                }
-                // Primary action anchored to the right edge, like "start" on the playable cards:
-                // deriving is the one thing the master is kept around for.
                 Button(
                     onClick = onDerive,
                     enabled = !deriving,
@@ -1438,35 +1462,6 @@ private fun MasterCard(
                     }
                     Spacer(Modifier.width(8.dp))
                     Text(stringResource(R.string.rhythm_derive_action))
-                }
-            }
-
-            // Maintenance row: infrequent chart-keeping actions kept out of the primary row.
-            // Delete-all is only offered while there are derived charts to delete.
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                TextButton(onClick = onRegenerate) {
-                    Text(stringResource(R.string.rhythm_master_regenerate))
-                }
-                if (derivedCount > 0) {
-                    TextButton(
-                        onClick = onDeleteDerived,
-                        enabled = !deriving,
-                        colors = ButtonDefaults.textButtonColors(
-                            contentColor = MaterialTheme.colorScheme.error,
-                        ),
-                    ) {
-                        Icon(
-                            imageVector = Icons.Outlined.DeleteSweep,
-                            contentDescription = null,
-                            modifier = Modifier.size(18.dp),
-                        )
-                        Spacer(Modifier.width(6.dp))
-                        Text(stringResource(R.string.rhythm_delete_derived_all, derivedCount))
-                    }
                 }
             }
         }

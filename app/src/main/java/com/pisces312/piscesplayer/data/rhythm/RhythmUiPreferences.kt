@@ -10,9 +10,9 @@ import android.content.SharedPreferences
 /**
  * Visual style of the rhythm game surface.
  *
- * [CLASSIC] is the plain pre-existing playfield and stays the default so the old, battle-tested
- * interface remains the fallback while the neon visuals are being tuned. [NEON] opts into the
- * glow/particle presentation implemented in separate composables.
+ * [NEON] is the default since 2026-11-25 (user decision: the glow/particle presentation is the
+ * face of the game). [CLASSIC] is the plain pre-existing playfield, kept for users who picked it
+ * explicitly. The stored value always wins — only never-set preferences flip to neon.
  */
 enum class RhythmUiStyle { CLASSIC, NEON }
 
@@ -20,7 +20,7 @@ enum class RhythmUiStyle { CLASSIC, NEON }
  * Global rhythm-game visual preferences (song-independent), persisted immediately on every write
  * like [RhythmLatencyStore].
  *
- * - [uiStyle]: classic (default) or neon surface.
+ * - [uiStyle]: neon (default) or classic surface.
  * - [lowMotion]: only meaningful for [RhythmUiStyle.NEON]; turns the animated extras (particles,
  *   star field, beat pulses, screen pulses) off while keeping the glowing judgement line and the
  *   strength-scaled notes.
@@ -32,7 +32,7 @@ class RhythmUiPreferences(context: Context) {
     var uiStyle: RhythmUiStyle
         get() {
             val stored = prefs.getString(KEY_UI_STYLE, null)
-            return RhythmUiStyle.entries.firstOrNull { it.name == stored } ?: RhythmUiStyle.CLASSIC
+            return RhythmUiStyle.entries.firstOrNull { it.name == stored } ?: RhythmUiStyle.NEON
         }
         set(value) {
             prefs.edit().putString(KEY_UI_STYLE, value.name).apply()
