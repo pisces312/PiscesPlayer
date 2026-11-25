@@ -27,12 +27,11 @@ PiscesPlayer — Android 音乐播放器（100% Kotlin，Jetpack Compose + Mater
   大容量存储，Gradle 在其上构建慢且易卡，`/root` 还随运行时升级保留。
   `/sdcard/my-git-projects/PiscesPlayer` 只作镜像 / 同步副本，**不在其上改动**；其他项目仍在
   `/storage/emulated/0/my-git-projects/<项目>`。
-- **文档仓库手机侧同步差异（2026-11-24 核对）**：`workspace/design/piscesplayer/docs` 与
-  `rhythm-chart-lab/docs` 手机上都在、结构与本文一致，可直接读写；差别在 git 同步——
-  `rhythm-chart-lab` 的 remote 是 GitHub（`github.com:pisces312/rhythm-chart-lab`），手机可直接
-  pull/push；`workspace`（my-projects）的 remote 是 Codeup（SSH），手机公钥未在 Codeup 授权，
-  `git fetch/push` 报 `Permission denied (publickey)`，手机上只能改本地树、提交同步靠 PC 侧
-  （把手机 `~/.ssh/id_ed25519.pub` 加进 Codeup 公钥即恢复）。另：`/sdcard` FUSE 偶尔 `ls` 不到
+- **文档仓库手机侧同步差异（2026-11-24 核对，2026-11-26 更新）**：`workspace/design/piscesplayer/docs` 与
+  `rhythm-chart-lab/docs` 手机上都在、结构与本文一致，可直接读写、git pull/push 均可用
+  （`rhythm-chart-lab` remote 是 GitHub，`workspace`/my-projects 是 Codeup SSH；此前
+  `Permission denied (publickey)` 的问题已解决，2026-11-26 实测手机侧 push Codeup 成功）。
+  另：`/sdcard` FUSE 偶尔 `ls` 不到
   实际存在的目录，核对目录存否用 `git ls-tree HEAD`，别单凭一次 `ls` 判定不存在。
 
 ### 构建命令差异
