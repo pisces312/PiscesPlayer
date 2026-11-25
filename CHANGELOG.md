@@ -5,6 +5,8 @@ PixelPlayerOSS; versions up to and including 0.4.3 were published under the upst
 
 ## [Unreleased]
 
+## [1.0.5] - 2026-11-25
+
 ### Added
 - Rhythm game: quick start everywhere. The song picker's row arrow became a game icon: it
   prepares the missing charts (master + Easy/Hard under the default v1 preset, wave progress
