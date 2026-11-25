@@ -687,13 +687,22 @@ fun RhythmSetupScreen(
                             showGenerateSheet = true
                         },
                         onDelete = { pendingDelete = masterMeta },
-                        onDeleteDerived = { pendingDeleteDerived = true },
                     )
                 }
             }
 
             if (snapshot.derived.isNotEmpty()) {
-                item { SectionHeader(stringResource(R.string.rhythm_derived_section)) }
+                // Delete-all hangs off the section title row (2026-11-25): it acts on exactly the
+                // charts listed underneath, and keeps the master card's derive button full width.
+                item {
+                    SectionHeader(stringResource(R.string.rhythm_derived_section)) {
+                        DeleteDerivedPill(
+                            count = snapshot.derived.size,
+                            enabled = !deriving,
+                            onClick = { pendingDeleteDerived = true },
+                        )
+                    }
+                }
                 items(snapshot.derived, key = { it.chartId }) { meta ->
                     val settings = snapshot.settings[meta.chartId] ?: RhythmChartSettings.DEFAULT
                     ChartRow(
@@ -1010,12 +1019,63 @@ fun RhythmSetupScreen(
 }
 
 @Composable
-private fun SectionHeader(title: String) {
-    Text(
-        text = title,
-        style = MaterialTheme.typography.labelLarge,
-        color = MaterialTheme.colorScheme.primary,
-    )
+private fun SectionHeader(
+    title: String,
+    trailing: (@Composable () -> Unit)? = null,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.primary,
+        )
+        trailing?.invoke()
+    }
+}
+
+/**
+ * Destructive "delete every derived chart" action, rendered as a pill on the derived-charts
+ * section title row (2026-11-25). It keeps the full label including the count, so the label is
+ * locked to one line with ellipsis instead of wrapping under the fixed height.
+ */
+@Composable
+private fun DeleteDerivedPill(
+    count: Int,
+    enabled: Boolean,
+    onClick: () -> Unit,
+) {
+    OutlinedButton(
+        onClick = onClick,
+        enabled = enabled,
+        modifier = Modifier.height(40.dp),
+        shape = RoundedCornerShape(20.dp),
+        border = BorderStroke(
+            width = 1.dp,
+            color = MaterialTheme.colorScheme.error.copy(alpha = 0.55f),
+        ),
+        colors = ButtonDefaults.outlinedButtonColors(
+            contentColor = MaterialTheme.colorScheme.error,
+            disabledContentColor = MaterialTheme.colorScheme.error.copy(alpha = 0.38f),
+        ),
+        contentPadding = PaddingValues(horizontal = 12.dp),
+    ) {
+        Icon(
+            imageVector = Icons.Outlined.DeleteSweep,
+            contentDescription = null,
+            modifier = Modifier.size(16.dp),
+        )
+        Spacer(Modifier.width(5.dp))
+        Text(
+            text = stringResource(R.string.rhythm_delete_derived_all, count),
+            style = MaterialTheme.typography.labelLarge,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
 }
 
 /**
@@ -1313,12 +1373,10 @@ private fun QuickEntryRow(
 
 /**
  * The master chart card (2026-11-24 redesign, styled after the playable chart cards below):
- * the name owns a full line, every fact is a rounded chip under it and the action row keeps the
- * secondary icon buttons on the left with the primary action anchored to the right edge. The
- * master itself is not playable any more — its raw onset set is far too dense to tap — so the
- * "start" button was dropped and export (same formats as the derived charts) took its place
- * next to settings and delete; deriving is what the master exists for, so it owns the primary
- * slot.
+ * the name owns a full line, every fact is a rounded chip under it and the icon actions
+ * (export / regenerate / delete) sit on the title row. The master itself is not playable any
+ * more — its raw onset set is far too dense to tap — deriving is what the master exists for,
+ * so its button owns the whole action line below the facts.
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -1332,7 +1390,6 @@ private fun MasterCard(
     onDerive: () -> Unit,
     onRegenerate: () -> Unit,
     onDelete: () -> Unit,
-    onDeleteDerived: () -> Unit,
 ) {
     Card(modifier = Modifier.fillMaxWidth()) {
         val cardContainer = CardDefaults.cardColors().containerColor
@@ -1415,54 +1472,35 @@ private fun MasterCard(
                 )
             }
 
-            // One action row below the info (2026-11-25): "delete derived" and the primary
-            // "derive charts" share the line, the primary anchored right for thumb reach like
-            // "start" on the playable cards. Delete-all is only offered while there are derived
-            // charts to delete.
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                verticalAlignment = Alignment.CenterVertically,
+            // The primary action owns the whole line below the info (2026-11-25); deleting derived
+            // charts moved up to the "derived charts" section title row, which owns that list.
+            Button(
+                onClick = onDerive,
+                enabled = !deriving,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(46.dp),
+                shape = RoundedCornerShape(23.dp),
+                contentPadding = PaddingValues(horizontal = 14.dp),
             ) {
-                if (derivedCount > 0) {
-                    TextButton(
-                        onClick = onDeleteDerived,
-                        enabled = !deriving,
-                        colors = ButtonDefaults.textButtonColors(
-                            contentColor = MaterialTheme.colorScheme.error,
-                        ),
-                    ) {
-                        Icon(
-                            imageVector = Icons.Outlined.DeleteSweep,
-                            contentDescription = null,
-                            modifier = Modifier.size(18.dp),
-                        )
-                        Spacer(Modifier.width(6.dp))
-                        Text(stringResource(R.string.rhythm_delete_derived_all, derivedCount))
-                    }
+                if (deriving) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(20.dp),
+                        strokeWidth = 2.dp,
+                    )
+                } else {
+                    Icon(
+                        imageVector = Icons.Outlined.AutoAwesome,
+                        contentDescription = null,
+                        modifier = Modifier.size(20.dp),
+                    )
                 }
-                Button(
-                    onClick = onDerive,
-                    enabled = !deriving,
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(46.dp),
-                    shape = RoundedCornerShape(23.dp),
-                ) {
-                    if (deriving) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(20.dp),
-                            strokeWidth = 2.dp,
-                        )
-                    } else {
-                        Icon(
-                            imageVector = Icons.Outlined.AutoAwesome,
-                            contentDescription = null,
-                        )
-                    }
-                    Spacer(Modifier.width(8.dp))
-                    Text(stringResource(R.string.rhythm_derive_action))
-                }
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    text = stringResource(R.string.rhythm_derive_action),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
             }
         }
     }

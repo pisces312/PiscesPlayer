@@ -522,7 +522,7 @@
     <string name="rhythm_delete_chart_message">Delete the imported chart %1$s and its best score? The original .osu file is not affected.</string>
     <string name="rhythm_delete_chart_confirm">Delete</string>
     <string name="rhythm_delete_chart_cancel">Cancel</string>
-    <string name="rhythm_delete_derived_all">Delete derived charts (%1$d)</string>
+    <string name="rhythm_delete_derived_all">Delete derived (%1$d)</string>
     <string name="rhythm_delete_derived_title">Delete all derived charts?</string>
     <string name="rhythm_delete_derived_message">Delete %1$d derived charts and their best scores? The master chart and imported charts are not affected.</string>
     <string name="rhythm_delete_derived_confirm">Delete all</string>
