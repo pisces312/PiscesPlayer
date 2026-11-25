@@ -542,7 +542,7 @@ fun RhythmSongPickerScreen(
                 playerViewModel.sendToast(
                     context.getString(
                         R.string.rhythm_latency_applied,
-                        device.displayName.ifBlank { context.getString(device.kind.labelRes) },
+                        device.displayLabel(context),
                         applied,
                         sigma.roundToInt(),
                     ),

@@ -222,7 +222,7 @@ fun RhythmSetupScreen(
     }
 
     fun latencyLabelOf(device: com.pisces312.piscesplayer.data.rhythm.LatencyDevice): String =
-        device.displayName.ifBlank { context.getString(device.kind.labelRes) }
+        device.displayLabel(context)
 
     // The Bluetooth permission is the difference between one shared number and one per headset:
     // asked once, from the settings sheet, and never blocking calibration itself.

@@ -5,6 +5,8 @@
  */
 package com.pisces312.piscesplayer.presentation.rhythm
 
+import android.content.Context
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -15,6 +17,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -24,7 +27,6 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
-import androidx.compose.material.icons.rounded.KeyboardArrowUp
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.FilledTonalButton
@@ -41,10 +43,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
@@ -63,18 +67,33 @@ import com.pisces312.piscesplayer.data.rhythm.parseLatencyInput
 import kotlinx.coroutines.delay
 import kotlin.math.roundToInt
 
-/** Device name to show: the framework's product name, or the kind when there is none. */
+/**
+ * Device name to show in the card header, the saved list, the calibration overlay and the toasts.
+ *
+ * Only an identifiable route (Bluetooth MAC / name, USB product name) may show its own name: a
+ * built-in speaker reports the phone model as its product name and a 3.5 mm headset reports no
+ * identity at all, so both are named by route kind instead. The rendered form is
+ * "AirPods Pro (Bluetooth)" / "扬声器" so the same device never shows up under two names.
+ */
+private fun LatencyDevice.labelWith(kindLabel: String): String =
+    if (identifiable && displayName.isNotBlank()) "$displayName ($kindLabel)" else kindLabel
+
+/** Compose flavour of [labelWith], for callers that have `stringResource` available. */
 @Composable
 internal fun LatencyDevice.displayLabel(): String =
-    displayName.ifBlank { stringResource(kind.labelRes) }
+    labelWith(stringResource(kind.labelRes))
+
+/** Non-Compose flavour, for toasts and the song picker screen. */
+internal fun LatencyDevice.displayLabel(context: Context): String =
+    labelWith(context.getString(kind.labelRes))
 
 /**
- * 「音频延迟」: the active output, the offset and every stored record in ONE card.
+ * 「音频延迟」: one card with three subsections — calibration, manual offset, saved devices.
  *
- * Laid out like [GameVisualsCard] on purpose — same container, same 16 dp padding, same
- * 16 px title, sections separated by hairlines instead of a second tinted card. Three separate
- * blocks on the sheet background (device card / bare offset row / list card) read as three
- * unrelated settings even though they are one value.
+ * Laid out like [GameVisualsCard] on purpose — same container, same 16 dp padding, same 16 px
+ * title, sections separated by hairlines instead of a second tinted card. The three subsection
+ * titles sit one size below the card title so the card still reads as ONE value with three ways
+ * to touch it, not as three unrelated settings.
  *
  * The confirm button is the only write path: typing is a draft, losing focus or closing the
  * sheet discards it. The header value therefore has to say which number is actually in effect —
@@ -111,11 +130,15 @@ internal fun LatencyCard(
 
     val jitter = setting.sigmaMs
     val jittery = (jitter ?: 0.0) > LATENCY_JITTER_WARN_MS
-    val kindLabel = stringResource(device.kind.labelRes)
     val sourceLabel = sourceLabel(setting)
     val sigmaLabel = jitter?.let { stringResource(R.string.rhythm_latency_sigma, it.roundToInt()) }
     val stampLabel = setting.updatedAtMs.takeIf { it != 0L }?.let { updatedAgoLabel(setting) }
-    val meta = listOfNotNull(kindLabel, sourceLabel, sigmaLabel, stampLabel).joinToString(" · ")
+    val meta = listOfNotNull(
+        device.displayLabel(),
+        sourceLabel,
+        sigmaLabel,
+        stampLabel,
+    ).joinToString(" · ")
 
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(
@@ -170,9 +193,18 @@ internal fun LatencyCard(
 
             SectionDivider()
 
+            CalibrationSection(
+                calibratedOffsetMs = calibratedOffsetMs,
+                manualInEffect = setting.source == LatencySource.MANUAL,
+                onCalibrate = onCalibrate,
+                onRestore = onRestore,
+            )
+
+            SectionDivider()
+
             Text(
                 text = stringResource(R.string.rhythm_latency_manual_title),
-                style = MaterialTheme.typography.titleMedium,
+                style = MaterialTheme.typography.titleSmall,
             )
             Row(
                 modifier = Modifier
@@ -208,62 +240,19 @@ internal fun LatencyCard(
                 }
             }
             Text(
-                text = stringResource(
-                    if (setting.source == LatencySource.MANUAL) {
-                        R.string.rhythm_latency_manual_hint_shared
-                    } else {
-                        R.string.rhythm_latency_manual_hint
-                    },
-                ),
+                text = stringResource(R.string.rhythm_latency_manual_hint),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(top = 8.dp),
             )
 
-            SectionDivider()
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                FilledTonalButton(onClick = onCalibrate) {
-                    Text(
-                        text = stringResource(
-                            if (setting.hasRecord) {
-                                R.string.rhythm_latency_recalibrate
-                            } else {
-                                R.string.rhythm_latency_calibrate
-                            },
-                        ),
-                    )
-                }
-                Spacer(Modifier.weight(1f))
-                if (calibratedOffsetMs != null && setting.source == LatencySource.MANUAL) {
-                    TextButton(onClick = onRestore) {
-                        Text(
-                            text = stringResource(
-                                R.string.rhythm_latency_restore_calibrated,
-                                formatOffset(calibratedOffsetMs),
-                            ),
-                            style = MaterialTheme.typography.bodySmall,
-                        )
-                    }
-                } else {
-                    Text(
-                        text = stringResource(R.string.rhythm_latency_meta_duration),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
+            if (saved.isNotEmpty()) {
+                SectionDivider()
+                SavedDevicesSection(active = setting, saved = saved, onForget = onForget)
             }
 
             if (device.kind == LatencyRouteKind.BLUETOOTH && !nearbyGranted) {
                 NearbyDevicesHint(onRequest = onRequestNearby)
-            }
-
-            if (saved.isNotEmpty()) {
-                SectionDivider()
-                SavedDevicesSection(active = setting, saved = saved, onForget = onForget)
             }
         }
     }
@@ -275,6 +264,87 @@ private fun SectionDivider() {
         modifier = Modifier.padding(vertical = 14.dp),
         color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f),
     )
+}
+
+/**
+ * 校准: what the last measurement was, what the test does, and the button that runs it.
+ *
+ * The restore action belongs here rather than next to the offset field: it undoes a hand edit,
+ * which is only possible because the overlay keeps the last measurement.
+ */
+@Composable
+private fun CalibrationSection(
+    calibratedOffsetMs: Int?,
+    manualInEffect: Boolean,
+    onCalibrate: () -> Unit,
+    onRestore: () -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = stringResource(R.string.rhythm_latency_calibration_title),
+            style = MaterialTheme.typography.titleSmall,
+            modifier = Modifier.weight(1f),
+        )
+        Text(
+            text = if (calibratedOffsetMs != null) {
+                stringResource(
+                    R.string.rhythm_latency_calibrated_at,
+                    formatOffset(calibratedOffsetMs),
+                )
+            } else {
+                stringResource(R.string.rhythm_latency_uncalibrated)
+            },
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+    Text(
+        text = stringResource(R.string.rhythm_latency_calibration_hint),
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.padding(top = 4.dp),
+    )
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        FilledTonalButton(onClick = onCalibrate) {
+            Text(
+                text = stringResource(
+                    if (calibratedOffsetMs != null) {
+                        R.string.rhythm_latency_recalibrate
+                    } else {
+                        R.string.rhythm_latency_calibrate
+                    },
+                ),
+            )
+        }
+        Spacer(Modifier.weight(1f))
+        Text(
+            text = stringResource(R.string.rhythm_latency_meta_duration),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+    if (manualInEffect && calibratedOffsetMs != null) {
+        TextButton(
+            onClick = onRestore,
+            modifier = Modifier.padding(top = 2.dp),
+        ) {
+            Text(
+                text = stringResource(
+                    R.string.rhythm_latency_restore_calibrated,
+                    formatOffset(calibratedOffsetMs),
+                ),
+                style = MaterialTheme.typography.bodySmall,
+            )
+        }
+    }
 }
 
 /**
@@ -407,6 +477,12 @@ internal fun toggleLatencySign(raw: String): String {
  * Every stored record, inside the card and under a hairline. Needed because the value is per
  * device: without this list a headset that is not connected would keep a number nobody can see
  * or reset.
+ *
+ * Collapsed by default and collapsed means NO rows: the card header already carries the active
+ * device and its value, so this section is management only. The old "preview three rows" version
+ * did nothing at all while fewer than four devices were stored — the toggle flipped its label but
+ * `take(3)` still showed every row — so a collapsed list is empty, and the control only appears
+ * when there is something to hide.
  */
 @Composable
 private fun SavedDevicesSection(
@@ -414,26 +490,37 @@ private fun SavedDevicesSection(
     saved: List<LatencySetting>,
     onForget: (String) -> Unit,
 ) {
-    var expanded by remember { mutableStateOf(saved.size <= SAVED_DEVICES_COLLAPSED) }
+    var expanded by remember { mutableStateOf(false) }
+    val collapsible = saved.size > 1
+    val rotation by animateFloatAsState(
+        targetValue = if (expanded) 180f else 0f,
+        label = "savedDevicesChevron",
+    )
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 48.dp)
+            .then(
+                if (collapsible) {
+                    Modifier.clickable(role = Role.Button) { expanded = !expanded }
+                } else {
+                    Modifier
+                },
+            ),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
             text = stringResource(R.string.rhythm_latency_saved_devices, saved.size),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = MaterialTheme.typography.titleSmall,
             modifier = Modifier.weight(1f),
         )
-        TextButton(onClick = { expanded = !expanded }) {
+        if (collapsible) {
             Icon(
-                imageVector = if (expanded) {
-                    Icons.Rounded.KeyboardArrowUp
-                } else {
-                    Icons.Rounded.KeyboardArrowDown
-                },
+                imageVector = Icons.Rounded.KeyboardArrowDown,
                 contentDescription = null,
-                modifier = Modifier.size(18.dp),
+                modifier = Modifier
+                    .size(18.dp)
+                    .rotate(rotation),
             )
             Spacer(Modifier.width(4.dp))
             Text(
@@ -448,7 +535,7 @@ private fun SavedDevicesSection(
             )
         }
     }
-    val visible = if (expanded) saved else saved.take(SAVED_DEVICES_COLLAPSED)
+    val visible = if (collapsible && !expanded) emptyList() else saved
     visible.forEachIndexed { index, record ->
         if (index > 0) {
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f))
@@ -536,6 +623,3 @@ private fun NearbyDevicesHint(onRequest: () -> Unit) {
 
 /** Jitter above this is worth a retry; same threshold the entry card used. */
 private const val LATENCY_JITTER_WARN_MS = 30.0
-
-/** Rows shown while the list is collapsed; the current device is always first. */
-private const val SAVED_DEVICES_COLLAPSED = 3

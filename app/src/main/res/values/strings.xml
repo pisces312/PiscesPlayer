@@ -725,10 +725,13 @@
     <string name="rhythm_latency_card_offset">%1$s ms</string>
     <string name="rhythm_latency_calibrate">Calibrate</string>
     <string name="rhythm_latency_recalibrate">Recalibrate</string>
+    <string name="rhythm_latency_calibration_title">Calibration</string>
+    <string name="rhythm_latency_calibration_hint">Tap along to 8 beats to measure this output\'s latency.</string>
+    <string name="rhythm_latency_calibrated_at">Last calibration %1$s ms</string>
     <string name="rhythm_latency_source_calibrated">Calibrated</string>
     <string name="rhythm_latency_source_manual">Manual</string>
     <string name="rhythm_latency_source_inherited">Inherited from %1$s</string>
-    <string name="rhythm_latency_manual_title">Offset</string>
+    <string name="rhythm_latency_manual_title">Manual offset</string>
     <string name="rhythm_latency_manual_unit">ms</string>
     <string name="rhythm_latency_section">Audio latency</string>
     <string name="rhythm_latency_current_value">In effect</string>
@@ -736,8 +739,7 @@
     <string name="rhythm_latency_applied_state">Applied</string>
     <string name="rhythm_latency_edited_today">edited today</string>
     <string name="rhythm_latency_edited_days">edited %1$d days ago</string>
-    <string name="rhythm_latency_manual_hint">Range ±500 ms · recalibrating overwrites a typed value</string>
-    <string name="rhythm_latency_manual_hint_shared">Range ±500 ms · one value, shared with calibration</string>
+    <string name="rhythm_latency_manual_hint">Range ±500 ms · one value shared with calibration; the last write wins</string>
     <string name="rhythm_latency_manual_sign">Toggle sign</string>
     <string name="rhythm_latency_restore_calibrated">Restore last calibration (%1$s ms)</string>
     <string name="rhythm_latency_saved_devices">Saved devices (%1$d)</string>

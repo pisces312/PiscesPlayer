@@ -723,10 +723,13 @@
     <string name="rhythm_latency_card_offset">%1$s ms</string>
     <string name="rhythm_latency_calibrate">校准</string>
     <string name="rhythm_latency_recalibrate">重新校准</string>
+    <string name="rhythm_latency_calibration_title">校准</string>
+    <string name="rhythm_latency_calibration_hint">跟着节拍敲 8 下，自动测出当前输出的延迟。</string>
+    <string name="rhythm_latency_calibrated_at">上次校准 %1$s ms</string>
     <string name="rhythm_latency_source_calibrated">已校准</string>
     <string name="rhythm_latency_source_manual">手动</string>
     <string name="rhythm_latency_source_inherited">继承自%1$s</string>
-    <string name="rhythm_latency_manual_title">偏移</string>
+    <string name="rhythm_latency_manual_title">手动偏移</string>
     <string name="rhythm_latency_manual_unit">ms</string>
     <string name="rhythm_latency_section">音频延迟</string>
     <string name="rhythm_latency_current_value">当前生效</string>
@@ -734,8 +737,7 @@
     <string name="rhythm_latency_applied_state">已应用</string>
     <string name="rhythm_latency_edited_today">今天修改</string>
     <string name="rhythm_latency_edited_days">%1$d 天前修改</string>
-    <string name="rhythm_latency_manual_hint">范围 ±500 ms · 重新校准会覆盖手写的值</string>
-    <string name="rhythm_latency_manual_hint_shared">范围 ±500 ms · 与校准共用同一个值</string>
+    <string name="rhythm_latency_manual_hint">范围 ±500 ms · 与校准共用同一个值，最后写入的生效</string>
     <string name="rhythm_latency_manual_sign">切换正负号</string>
     <string name="rhythm_latency_restore_calibrated">恢复上次校准（%1$s ms）</string>
     <string name="rhythm_latency_saved_devices">已保存的设备（%1$d）</string>
