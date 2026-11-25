@@ -1,7 +1,7 @@
 package com.pisces312.piscesplayer.presentation.home
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -12,13 +12,15 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyHorizontalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Recommend
-import androidx.compose.material3.FilledTonalIconButton
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -31,6 +33,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.pisces312.piscesplayer.R
 import com.pisces312.piscesplayer.data.home.HomeCard
@@ -40,18 +43,51 @@ import com.pisces312.piscesplayer.presentation.components.SmartImage
 import kotlinx.collections.immutable.ImmutableList
 import racra.compose.smooth_corner_rect_library.AbsoluteSmoothCornerShape
 
-/** Capsules shown in the 2×2 card; the rest are reachable via the view-all action. */
+/** Capsules shown in the 2×2 card; the rest are reachable by swiping / the full page. */
 private const val CAPSULE_PREVIEW_COUNT = 10
 
+/** Column gap, row gap and the capsule cap: two 56dp capsules + an 8dp gap = 120dp band. */
+private val CapsuleGap = 8.dp
+
+/** Start padding + cover + cover gap + end padding of one capsule; caps the text column. */
+private val CapsuleChromeWidth = 72.dp
+
+/** 20dp / 60% smooth pill, shared by the song capsules and the 40dp shuffle button. */
+private val DailyMixCapsuleShape = AbsoluteSmoothCornerShape(
+    cornerRadiusTL = 20.dp,
+    smoothnessAsPercentTL = 60,
+    cornerRadiusTR = 20.dp,
+    smoothnessAsPercentTR = 60,
+    cornerRadiusBL = 20.dp,
+    smoothnessAsPercentBL = 60,
+    cornerRadiusBR = 20.dp,
+    smoothnessAsPercentBR = 60,
+)
+
+/** 10dp / 60% smooth album cover inside a capsule. */
+private val DailyMixCoverShape = AbsoluteSmoothCornerShape(
+    cornerRadiusTL = 10.dp,
+    smoothnessAsPercentTL = 60,
+    cornerRadiusTR = 10.dp,
+    smoothnessAsPercentTR = 60,
+    cornerRadiusBL = 10.dp,
+    smoothnessAsPercentBL = 60,
+    cornerRadiusBR = 10.dp,
+    smoothnessAsPercentBR = 60,
+)
+
 /**
- * The 每日推荐 card body for the home grid (plan §12 decisions 9/16/21/23) —
- * hero header + song-capsule row. v1.3.4: shuffle play is the only header action
- * (48dp circle, primary while active);「查看全部」moved to a card-body tap, which
- * freed the middle band: capsules are vertically centred and the song name may
- * wrap to two lines.
+ * The 每日推荐 card body for the home grid (plan §12 decisions 9/16/21/23/28/29).
  *
- * - 2×1: only the hero header row (title + subtitle + shuffle).
- * - 2×2: header, then the capsule row centred in the remaining space.
+ * v1.3.10: the subtitle is gone and the capsule band is two rows instead of one. The second
+ * row is paid for by the shuffle control: it became a 40dp pill (icon + label) instead of a
+ * 48dp icon-only circle, so the header row shrank 48→40dp and the body band grew 112→120dp —
+ * exactly two 56dp capsules plus an 8dp gap. Song capsules keep their v1.3.3 look (40dp cover,
+ * two text lines, one-line truncation) with the name now capped to a single line so the slot
+ * height stays 56dp.
+ *
+ * - 2×1: only the header row (title + shuffle pill).
+ * - 2×2: header, then two horizontally scrolling capsule rows filling the remaining space.
  */
 @Composable
 fun HomeDailyMixContent(
@@ -67,26 +103,36 @@ fun HomeDailyMixContent(
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
         HomeSectionHeader(
             title = stringResource(R.string.presentation_batch_b_daily_mix_title),
-            subtitle = stringResource(R.string.home_your_mix_subtitle),
-            // v1.3.3: every card title carries a leading icon, like the AI playlist card.
+            // v1.3.10: subtitle dropped — the 48dp header row was set by the shuffle control,
+            // so removing it bought no height; the pill-shaped control below is what does.
             icon = Icons.Rounded.Recommend,
             // The grid card already pads 16dp.
             contentPadding = PaddingValues(0.dp),
             action = {
-                // v1.3.4: the only card action — view-all moved to a card-body tap, so
-                // shuffle plays the corner alone (48dp circle, primary while active).
-                FilledTonalIconButton(
+                // v1.3.10: 40dp pill (icon + label) replaces the 48dp icon-only circle. The
+                // 8dp it frees is the second capsule row; the label also makes the action
+                // discoverable. Height must be forced — M3 would otherwise keep a 48dp
+                // layout around a 40dp visual and give nothing back.
+                FilledTonalButton(
                     onClick = onPlayShuffled,
-                    modifier = Modifier.size(48.dp),
-                    colors = IconButtonDefaults.filledTonalIconButtonColors(
+                    modifier = Modifier.height(40.dp),
+                    shape = DailyMixCapsuleShape,
+                    contentPadding = PaddingValues(horizontal = 14.dp),
+                    colors = ButtonDefaults.filledTonalButtonColors(
                         containerColor = if (isShuffleEnabled) colors.primary else colors.tertiaryContainer,
                         contentColor = if (isShuffleEnabled) colors.onPrimary else colors.onTertiaryContainer,
                     ),
                 ) {
                     Icon(
                         painter = painterResource(R.drawable.rounded_shuffle_24),
-                        contentDescription = stringResource(R.string.cd_shuffle_play),
-                        modifier = Modifier.size(22.dp),
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                    )
+                    Spacer(Modifier.width(6.dp))
+                    Text(
+                        text = stringResource(R.string.home_daily_mix_shuffle),
+                        style = MaterialTheme.typography.labelLarge,
+                        maxLines = 1,
                     )
                 }
             },
@@ -94,18 +140,28 @@ fun HomeDailyMixContent(
 
         if (tall) {
             Spacer(Modifier.height(12.dp))
-            Box(
+            BoxWithConstraints(
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f),
-                contentAlignment = Alignment.Center,
             ) {
-                LazyRow(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                // Two capsules per row need each capsule to stay within half the band (minus
+                // the 8dp gap); the cap is derived so wide capsules cannot spill over.
+                val maxCapsuleWidth = (maxWidth - CapsuleGap) / 2f
+                LazyHorizontalGrid(
+                    // Fills the whole body band: with two rows the grid derives 56dp slots
+                    // from the 120dp height, which is exactly the capsule height.
+                    rows = GridCells.Fixed(2),
+                    modifier = Modifier.fillMaxSize(),
+                    horizontalArrangement = Arrangement.spacedBy(CapsuleGap),
+                    verticalArrangement = Arrangement.spacedBy(CapsuleGap),
                 ) {
                     items(songs.take(CAPSULE_PREVIEW_COUNT), key = { it.id }) { song ->
-                        DailyMixSongCapsule(song = song, onClick = { onSongClick(song) })
+                        DailyMixSongCapsule(
+                            song = song,
+                            maxCapsuleWidth = maxCapsuleWidth,
+                            onClick = { onSongClick(song) },
+                        )
                     }
                 }
             }
@@ -113,22 +169,15 @@ fun HomeDailyMixContent(
     }
 }
 
-/** One song pill: 40dp rounded cover + a two-line-capable song name over the artist. */
+/**
+ * One song pill: 40dp rounded cover + a one-line song name over the artist. Both text lines
+ * are capped at [maxCapsuleWidth] to keep the two-row grid from being widened by long titles.
+ */
 @Composable
-private fun DailyMixSongCapsule(song: Song, onClick: () -> Unit) {
-    val capsuleShape = AbsoluteSmoothCornerShape(
-        cornerRadiusTL = 20.dp,
-        smoothnessAsPercentTL = 60,
-        cornerRadiusTR = 20.dp,
-        smoothnessAsPercentTR = 60,
-        cornerRadiusBL = 20.dp,
-        smoothnessAsPercentBL = 60,
-        cornerRadiusBR = 20.dp,
-        smoothnessAsPercentBR = 60,
-    )
+private fun DailyMixSongCapsule(song: Song, maxCapsuleWidth: Dp, onClick: () -> Unit) {
     Surface(
         onClick = onClick,
-        shape = capsuleShape,
+        shape = DailyMixCapsuleShape,
         color = MaterialTheme.colorScheme.surfaceContainerHigh,
     ) {
         Row(
@@ -141,27 +190,19 @@ private fun DailyMixSongCapsule(song: Song, onClick: () -> Unit) {
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
                     .size(40.dp)
-                    .clip(AbsoluteSmoothCornerShape(
-                        cornerRadiusTL = 10.dp,
-                        smoothnessAsPercentTL = 60,
-                        cornerRadiusTR = 10.dp,
-                        smoothnessAsPercentTR = 60,
-                        cornerRadiusBL = 10.dp,
-                        smoothnessAsPercentBL = 60,
-                        cornerRadiusBR = 10.dp,
-                        smoothnessAsPercentBR = 60,
-                    )),
+                    .clip(DailyMixCoverShape),
             )
             Spacer(Modifier.width(10.dp))
-            Column {
+            // v1.3.10: capped and single-line (v1.3.3's maxLines = 2 was dead code anyway —
+            // a LazyList measures children with an unbounded main axis, so a long name just
+            // widened the pill instead of wrapping); the two-row grid needs a fixed 56dp slot.
+            Column(modifier = Modifier.widthIn(max = maxCapsuleWidth - CapsuleChromeWidth)) {
                 Text(
                     text = song.title,
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Medium,
                     color = MaterialTheme.colorScheme.onSurface,
-                    // v1.3.3: the actions moved out of the card body, so the name
-                    // can take two lines instead of truncating at one.
-                    maxLines = 2,
+                    maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
                 Text(

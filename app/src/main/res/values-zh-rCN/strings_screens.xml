@@ -128,13 +128,13 @@
     <string name="dialog_delete_song_message">“%1$s” — %2$s\n\n该歌曲会从设备永久删除，无法恢复。</string>
 
     <string name="home_your_mix_title">新发现</string>
-    <string name="home_your_mix_subtitle">本地生成 · 熟悉与新发现</string>
     <string name="home_recent_ai_mixes_title">最近生成</string>
     <string name="home_recent_ai_mixes_show_more">显示全部 %1$d 个混音</string>
     <string name="home_empty_placeholder_title">暂无内容</string>
     <string name="home_empty_placeholder_subtitle">当程序扫描到歌曲或者同步服务器源后，推荐内容就会显示在这里。</string>
     <string name="home_empty_placeholder_refresh">刷新</string>
     <string name="cd_shuffle_play">随机播放</string>
+    <string name="home_daily_mix_shuffle">随机播放</string>
     <string name="cd_album_art_for_title">%1$s 的专辑封面</string>
     <string name="cd_options">选项</string>
     <string name="genre_quick_fill">快速填充流派</string>

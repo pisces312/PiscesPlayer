@@ -108,6 +108,12 @@ PixelPlayerOSS; versions up to and including 0.4.3 were published under the upst
   without a chart.
 - Rhythm game: the mini player is now hidden across the whole flow (song picker and chart
   setup screens included), so those screens use the freed bottom space.
+- Home: the Daily Mix card is denser — its subtitle is gone, the song capsules now sit in two
+  horizontally scrolling rows (about four to five songs at a glance instead of two), and the
+  shuffle control became a 40dp pill with an icon and a "Shuffle" label instead of a 48dp
+  icon-only circle. The shorter header (48→40dp) pays for the second row: capsules keep their
+  height, and song names are capped to one line so a long title no longer stretches a pill
+  past the card edge.
 
 ## [1.0.4] - 2026-11-22
 

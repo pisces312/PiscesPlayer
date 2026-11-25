@@ -129,13 +129,13 @@
     <string name="dialog_delete_song_message">\"%1$s\" by %2$s\n\nThis song will be permanently deleted from your device and cannot be recovered.</string>
 
     <string name="home_your_mix_title">Discover</string>
-    <string name="home_your_mix_subtitle">Generated locally · Familiar picks &amp; fresh finds</string>
     <string name="home_recent_ai_mixes_title">Recently generated</string>
     <string name="home_recent_ai_mixes_show_more">Show all %1$d mixes</string>
     <string name="home_empty_placeholder_title">No data to show yet</string>
     <string name="home_empty_placeholder_subtitle">Your mix will appear here when PiscesPlayer finds songs or syncs a source.</string>
     <string name="home_empty_placeholder_refresh">Refresh</string>
     <string name="cd_shuffle_play">Shuffle Play</string>
+    <string name="home_daily_mix_shuffle">Shuffle</string>
     <string name="cd_album_art_for_title">Album art for %1$s</string>
     <string name="cd_options">Options</string>
     <string name="genre_quick_fill">Quick Fill Genre</string>
