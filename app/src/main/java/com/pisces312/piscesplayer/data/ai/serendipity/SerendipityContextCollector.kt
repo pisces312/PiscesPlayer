@@ -12,8 +12,10 @@ import androidx.core.content.ContextCompat
 import com.pisces312.piscesplayer.data.preferences.AiPreferencesRepository
 import com.pisces312.piscesplayer.di.FastOkHttpClient
 import dagger.hilt.android.qualifiers.ApplicationContext
+import java.time.ZoneId
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
+import java.time.format.TextStyle
 import java.util.Locale
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -30,10 +32,12 @@ import okhttp3.Request
 import org.json.JSONObject
 
 /**
- * Reads the signals Serendipity builds its prompt from: the clock, the weather at city level and
- * today's step count.
+ * Reads the signals Serendipity builds its prompt from: the clock and the device's zone/language
+ * (both free), plus the weather at city level and today's step count (both optional).
  *
- * Four rules shape this class:
+ * Five rules shape this class:
+ * - **Something always comes back.** Time, time zone and system language need no permission, so a
+ *   user who granted nothing still gets a prompt anchored in the moment.
  * - **Nothing is guessed.** A signal that cannot be read stays `null` and is dropped from the
  *   prompt, so the sheet can show the user what was actually available.
  * - **Failure is never fatal.** Every network call and sensor read is optional; an offline device
@@ -62,11 +66,43 @@ constructor(
                 weekday = now.dayOfWeek,
                 clockTime = now.format(CLOCK_FORMAT),
                 timeOfDay = SerendipityTimeOfDay.at(now.hour),
+                timeZone = timeZoneLabel(),
+                deviceLanguage = deviceLanguageLabel(),
                 city = city?.promptName,
                 cityLabel = city?.label,
                 weather = city?.let { fetchWeather(it) },
                 stepsToday = readStepsToday()
         )
+    }
+
+    /**
+     * The zone's long English name ("China Standard Time"), which reads as a place to a model in a
+     * way a raw id does not.
+     *
+     * ICU ships a name for most zones; a few only come back as their own id or as "GMT+08:00", and
+     * both are passed through unchanged rather than guessed at. No permission involved — this is
+     * what replaces a city when the user granted nothing.
+     */
+    private fun timeZoneLabel(): String {
+        val zone = ZoneId.systemDefault()
+        val display = runCatching { zone.getDisplayName(TextStyle.FULL, Locale.ENGLISH) }.getOrNull()
+        return display?.takeIf { it.isNotBlank() && it != zone.id } ?: zone.id
+    }
+
+    /**
+     * The language the device runs in, in English ("Chinese (Simplified)").
+     *
+     * `null` for an English device: the prompt is written in English anyway, and whatever region a
+     * locale hints at is already said better by the time zone. The script is only appended when the
+     * locale names one — Android's own default locale is a bare `zh_CN` on most Chinese ROMs, which
+     * is fine because [timeZoneLabel] supplies the region.
+     */
+    private fun deviceLanguageLabel(): String? {
+        val locale = Locale.getDefault()
+        if (locale.language.equals(Locale.ENGLISH.language, ignoreCase = true)) return null
+        val language = locale.getDisplayLanguage(Locale.ENGLISH).ifBlank { return null }
+        val script = locale.getDisplayScript(Locale.ENGLISH)
+        return if (script.isBlank()) language else "$language ($script)"
     }
 
     /**

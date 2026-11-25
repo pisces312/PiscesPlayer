@@ -32,7 +32,8 @@ object AiSystemPromptEngine {
     fun serendipityRephraseSystemPrompt(): String =
             """
             You rewrite a short description of the present moment into one vivid English sentence.
-            Keep every fact (day, time, weather, city, step count) exactly as given.
+            Keep every fact (day, time, time zone, device language, weather, city, step count)
+            exactly as given, and never invent a fact the draft does not state.
             Reply with that single sentence and nothing else: no lists, no quotes, no explanation.
             """
                     .trimIndent()

@@ -10,15 +10,21 @@ import org.junit.Test
 
 class SerendipityPromptComposerTest {
 
-    private val timeOnly =
+    /** The zero-permission baseline: time, zone and language, nothing else. */
+    private val bareMoment =
             SerendipityContext(
                     weekday = DayOfWeek.FRIDAY,
                     clockTime = "19:20",
-                    timeOfDay = SerendipityTimeOfDay.EVENING
+                    timeOfDay = SerendipityTimeOfDay.EVENING,
+                    timeZone = "China Standard Time",
+                    deviceLanguage = "Chinese"
             )
 
+    /** An English device: the collector drops the language, so no language clause appears. */
+    private val timeOnly = bareMoment.copy(deviceLanguage = null)
+
     private val fullSignals =
-            timeOnly.copy(
+            bareMoment.copy(
                     city = "Shanghai",
                     weather = SerendipityWeather(SerendipityWeatherGroup.RAIN, 14),
                     stepsToday = 8_412
@@ -29,7 +35,9 @@ class SerendipityPromptComposerTest {
         val prompt = SerendipityPromptComposer.compose(fullSignals, variant = 0)
 
         assertThat(prompt).isEqualTo(
-                "Friday 19:20, evening. Rain, 14°C, in Shanghai. " +
+                "Friday 19:20, evening, China Standard Time. " +
+                        "The phone is set to Chinese. " +
+                        "Rain, 14°C, in Shanghai. " +
                         "About 8,400 steps today, an active day. " +
                         "Pick songs that fit this exact moment."
         )
@@ -40,7 +48,8 @@ class SerendipityPromptComposerTest {
         val prompt = SerendipityPromptComposer.compose(timeOnly, variant = 0)
 
         assertThat(prompt).isEqualTo(
-                "Friday 19:20, evening. Pick songs that fit this exact moment."
+                "Friday 19:20, evening, China Standard Time. " +
+                        "Nothing else about this day is known — pick music that suits the moment."
         )
         assertThat(prompt).doesNotContain("°C")
         assertThat(prompt).doesNotContain("steps")
@@ -48,16 +57,52 @@ class SerendipityPromptComposerTest {
     }
 
     @Test
+    fun `the zone is present even when nothing else could be read`() {
+        val prompt = SerendipityPromptComposer.compose(timeOnly, variant = 2)
+
+        assertThat(prompt).contains("China Standard Time")
+    }
+
+    @Test
+    fun `an english device drops the language clause`() {
+        val prompt = SerendipityPromptComposer.compose(timeOnly, variant = 0)
+
+        assertThat(prompt).doesNotContain("The phone is set to")
+        assertThat(prompt).doesNotContain("system language")
+    }
+
+    @Test
+    fun `a read signal switches the closing away from the cold start set`() {
+        val withCityOnly = bareMoment.copy(city = "Shanghai")
+
+        assertThat(SerendipityPromptComposer.compose(withCityOnly, variant = 0))
+                .endsWith("Pick songs that fit this exact moment.")
+    }
+
+    @Test
     fun `city is omitted when the weather is known but the city is not`() {
         val prompt = SerendipityPromptComposer.compose(
-                timeOnly.copy(weather = SerendipityWeather(SerendipityWeatherGroup.CLEAR, 3)),
+                bareMoment.copy(weather = SerendipityWeather(SerendipityWeatherGroup.CLEAR, 3)),
                 variant = 0
         )
 
         assertThat(prompt).isEqualTo(
-                "Friday 19:20, evening. Clear skies, 3°C. " +
+                "Friday 19:20, evening, China Standard Time. " +
+                        "The phone is set to Chinese. " +
+                        "Clear skies, 3°C. " +
                         "Pick songs that fit this exact moment."
         )
+    }
+
+    @Test
+    fun `late night reads as english rather than a templated preposition`() {
+        val prompt = SerendipityPromptComposer.compose(
+                timeOnly.copy(clockTime = "02:10", timeOfDay = SerendipityTimeOfDay.LATE_NIGHT),
+                variant = 3
+        )
+
+        assertThat(prompt).contains("Friday, 02:10 late at night, China Standard Time.")
+        assertThat(prompt).doesNotContain("in the late night")
     }
 
     @Test
@@ -79,6 +124,16 @@ class SerendipityPromptComposerTest {
     }
 
     @Test
+    fun `the cold start closings differ across variants`() {
+        val variants =
+                (0 until SerendipityPromptComposer.VARIANT_COUNT).map {
+                    SerendipityPromptComposer.compose(timeOnly, it)
+                }
+
+        assertThat(variants.toSet()).hasSize(SerendipityPromptComposer.VARIANT_COUNT)
+    }
+
+    @Test
     fun `an out of range variant wraps around instead of crashing`() {
         val wrapped = SerendipityPromptComposer.compose(fullSignals, variant = 7)
 
@@ -94,7 +149,7 @@ class SerendipityPromptComposerTest {
     @Test
     fun `steps are floored to the hundred so the prompt is not precise`() {
         val prompt = SerendipityPromptComposer.compose(
-                timeOnly.copy(stepsToday = 8_499),
+                bareMoment.copy(stepsToday = 8_499),
                 variant = 0
         )
 

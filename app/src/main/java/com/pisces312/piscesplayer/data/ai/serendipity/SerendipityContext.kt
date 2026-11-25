@@ -5,9 +5,12 @@ import java.time.DayOfWeek
 /**
  * Everything Serendipity knows about "right now".
  *
- * Every optional signal is nullable on purpose: a signal that could not be read is dropped from
- * the prompt instead of being guessed or replaced by a placeholder, so the user can see in the
- * sheet exactly what the mix was based on.
+ * [weekday], [clockTime], [timeOfDay] and [timeZone] always exist — they cost no permission, so
+ * even a device that granted nothing still gets a mix anchored in the moment.
+ *
+ * Every further signal is nullable on purpose: a signal that could not be read is dropped from the
+ * prompt instead of being guessed or replaced by a placeholder, so the user can see in the sheet
+ * exactly what the mix was based on.
  *
  * Coordinates never appear here — the location is only ever turned into a city name.
  */
@@ -15,6 +18,23 @@ data class SerendipityContext(
     val weekday: DayOfWeek,
     val clockTime: String,
     val timeOfDay: SerendipityTimeOfDay,
+    /**
+     * Long English name of the device's zone ("China Standard Time"), falling back to the raw IANA
+     * id when ICU has no long name for it.
+     *
+     * Always present, like [clockTime]: it needs no permission and is the only geographic anchor
+     * left when the user grants nothing, which is why every prompt carries it rather than only the
+     * ones that know a city.
+     */
+    val timeZone: String,
+    /**
+     * Language (+ script) the device runs in, in English ("Chinese (Simplified)").
+     *
+     * `null` on an English device: the region a locale would imply is already carried by
+     * [timeZone], so naming English adds nothing but noise. Set by the collector rather than
+     * filtered in the composer, so the composer stays "null means drop the sentence".
+     */
+    val deviceLanguage: String? = null,
     /**
      * Place name for the prompt, which is English end to end; a district carries its city with it
      * ("Huangpu, Shanghai").
