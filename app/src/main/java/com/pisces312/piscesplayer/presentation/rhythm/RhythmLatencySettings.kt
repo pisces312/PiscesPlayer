@@ -5,55 +5,62 @@
  */
 package com.pisces312.piscesplayer.presentation.rhythm
 
-import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Headphones
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.KeyboardArrowUp
-import androidx.compose.material.icons.rounded.Speaker
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.pisces312.piscesplayer.R
 import com.pisces312.piscesplayer.data.rhythm.LatencyDevice
 import com.pisces312.piscesplayer.data.rhythm.LatencyRouteKind
 import com.pisces312.piscesplayer.data.rhythm.LatencySetting
 import com.pisces312.piscesplayer.data.rhythm.LatencySource
 import com.pisces312.piscesplayer.data.rhythm.parseLatencyInput
+import kotlinx.coroutines.delay
 import kotlin.math.roundToInt
 
 /** Device name to show: the framework's product name, or the kind when there is none. */
@@ -62,109 +69,164 @@ internal fun LatencyDevice.displayLabel(): String =
     displayName.ifBlank { stringResource(kind.labelRes) }
 
 /**
- * The active output and the number the next run will apply.
+ * 「音频延迟」: the active output, the offset and every stored record in ONE card.
  *
- * The offset is one value however it was produced: a measurement, a hand edit, or the kind
- * baseline it inherits. The badge says which, because a hand-edited number has no jitter and
- * should not pretend to.
+ * Laid out like [GameVisualsCard] on purpose — same container, same 16 dp padding, same
+ * 16 px title, sections separated by hairlines instead of a second tinted card. Three separate
+ * blocks on the sheet background (device card / bare offset row / list card) read as three
+ * unrelated settings even though they are one value.
+ *
+ * The confirm button is the only write path: typing is a draft, losing focus or closing the
+ * sheet discards it. The header value therefore has to say which number is actually in effect —
+ * while a draft differs it dims and reads「未应用」.
  */
 @Composable
-internal fun LatencyDeviceCard(
+internal fun LatencyCard(
     setting: LatencySetting,
     calibratedOffsetMs: Int?,
+    saved: List<LatencySetting>,
+    nearbyGranted: Boolean,
     onCalibrate: () -> Unit,
     onRestore: () -> Unit,
+    onApply: (Int) -> Unit,
+    onForget: (String) -> Unit,
+    onRequestNearby: () -> Unit,
 ) {
     val device = setting.device
+    var draft by remember(device.id) { mutableStateOf(formatOffset(setting.offsetMs)) }
+    // Follow the stored number when it changes from outside (calibrate, restore, device switch).
+    // Typing never changes setting.offsetMs, so an unsaved draft survives recomposition.
+    LaunchedEffect(device.id, setting.offsetMs) { draft = formatOffset(setting.offsetMs) }
+
+    val parsed = parseLatencyInput(draft)
+    val dirty = parsed != null && parsed != setting.offsetMs
+    var justApplied by remember { mutableStateOf(false) }
+    LaunchedEffect(dirty) { if (dirty) justApplied = false }
+    LaunchedEffect(justApplied) {
+        if (justApplied) {
+            delay(2_000)
+            justApplied = false
+        }
+    }
+
     val jitter = setting.sigmaMs
     val jittery = (jitter ?: 0.0) > LATENCY_JITTER_WARN_MS
+    val kindLabel = stringResource(device.kind.labelRes)
+    val sourceLabel = sourceLabel(setting)
+    val sigmaLabel = jitter?.let { stringResource(R.string.rhythm_latency_sigma, it.roundToInt()) }
+    val stampLabel = setting.updatedAtMs.takeIf { it != 0L }?.let { updatedAgoLabel(setting) }
+    val meta = listOfNotNull(kindLabel, sourceLabel, sigmaLabel, stampLabel).joinToString(" · ")
+
     Card(modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(start = 16.dp, end = 12.dp, top = 14.dp, bottom = 8.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    imageVector = if (device.kind == LatencyRouteKind.SPEAKER) {
-                        Icons.Rounded.Speaker
-                    } else {
-                        Icons.Rounded.Headphones
-                    },
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(20.dp),
-                )
-                Spacer(Modifier.width(10.dp))
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+        ) {
+            Row(verticalAlignment = Alignment.Top) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = device.displayLabel(),
-                        style = MaterialTheme.typography.titleSmall,
+                        text = stringResource(R.string.rhythm_latency_section),
+                        style = MaterialTheme.typography.titleMedium,
                     )
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Text(
-                            text = stringResource(device.kind.labelRes),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                        Text(
-                            text = sourceLabel(setting),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = when (setting.source) {
-                                LatencySource.MANUAL -> MaterialTheme.colorScheme.primary
-                                LatencySource.NONE -> MaterialTheme.colorScheme.primary
-                                else -> MaterialTheme.colorScheme.onSurfaceVariant
-                            },
-                        )
-                        if (jitter != null) {
-                            Text(
-                                text = stringResource(
-                                    R.string.rhythm_latency_sigma,
-                                    jitter.roundToInt(),
-                                ),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = if (jittery) {
-                                    MaterialTheme.colorScheme.error
-                                } else {
-                                    MaterialTheme.colorScheme.onSurfaceVariant
-                                },
-                            )
-                        }
-                        if (setting.updatedAtMs != 0L) {
-                            Text(
-                                text = measuredAgoLabel(setting.updatedAtMs),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                    }
+                    Text(
+                        text = meta,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = if (jittery) {
+                            MaterialTheme.colorScheme.error
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        },
+                        modifier = Modifier.padding(top = 4.dp),
+                    )
                 }
-                if (setting.hasRecord) {
+                Column(horizontalAlignment = Alignment.End) {
                     Text(
                         text = stringResource(
                             R.string.rhythm_latency_card_offset,
                             formatOffset(setting.offsetMs),
                         ),
                         style = MaterialTheme.typography.titleMedium,
+                        color = if (dirty) {
+                            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.42f)
+                        } else {
+                            MaterialTheme.colorScheme.onSurface
+                        },
+                    )
+                    Text(
+                        text = stringResource(
+                            if (dirty) {
+                                R.string.rhythm_latency_pending_value
+                            } else {
+                                R.string.rhythm_latency_current_value
+                            },
+                        ),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 2.dp),
                     )
                 }
             }
+
+            SectionDivider()
+
+            Text(
+                text = stringResource(R.string.rhythm_latency_manual_title),
+                style = MaterialTheme.typography.titleMedium,
+            )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                OffsetInputField(
+                    text = draft,
+                    onTextChange = { draft = it },
+                    onFlipSign = { draft = toggleLatencySign(draft) },
+                )
+                Spacer(Modifier.width(12.dp))
+                Button(
+                    onClick = {
+                        val target = parseLatencyInput(draft) ?: return@Button
+                        draft = formatOffset(target)
+                        justApplied = true
+                        onApply(target)
+                    },
+                    enabled = dirty,
+                    modifier = Modifier.height(48.dp),
+                ) {
+                    Text(
+                        text = stringResource(
+                            if (justApplied && !dirty) {
+                                R.string.rhythm_latency_applied_state
+                            } else {
+                                R.string.rhythm_latency_apply
+                            },
+                        ),
+                    )
+                }
+            }
+            Text(
+                text = stringResource(
+                    if (setting.source == LatencySource.MANUAL) {
+                        R.string.rhythm_latency_manual_hint_shared
+                    } else {
+                        R.string.rhythm_latency_manual_hint
+                    },
+                ),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 8.dp),
+            )
+
+            SectionDivider()
+
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                if (calibratedOffsetMs != null && setting.source == LatencySource.MANUAL) {
-                    TextButton(onClick = onRestore) {
-                        Text(
-                            text = stringResource(
-                                R.string.rhythm_latency_restore_calibrated,
-                                formatOffset(calibratedOffsetMs),
-                            ),
-                            style = MaterialTheme.typography.bodySmall,
-                        )
-                    }
-                }
-                Spacer(Modifier.weight(1f))
-                Button(onClick = onCalibrate) {
+                FilledTonalButton(onClick = onCalibrate) {
                     Text(
                         text = stringResource(
                             if (setting.hasRecord) {
@@ -175,8 +237,128 @@ internal fun LatencyDeviceCard(
                         ),
                     )
                 }
+                Spacer(Modifier.weight(1f))
+                if (calibratedOffsetMs != null && setting.source == LatencySource.MANUAL) {
+                    TextButton(onClick = onRestore) {
+                        Text(
+                            text = stringResource(
+                                R.string.rhythm_latency_restore_calibrated,
+                                formatOffset(calibratedOffsetMs),
+                            ),
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                    }
+                } else {
+                    Text(
+                        text = stringResource(R.string.rhythm_latency_meta_duration),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+
+            if (device.kind == LatencyRouteKind.BLUETOOTH && !nearbyGranted) {
+                NearbyDevicesHint(onRequest = onRequestNearby)
+            }
+
+            if (saved.isNotEmpty()) {
+                SectionDivider()
+                SavedDevicesSection(active = setting, saved = saved, onForget = onForget)
             }
         }
+    }
+}
+
+@Composable
+private fun SectionDivider() {
+    HorizontalDivider(
+        modifier = Modifier.padding(vertical = 14.dp),
+        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f),
+    )
+}
+
+/**
+ * The offset field: a 48 dp box holding the sign, the number and the unit.
+ *
+ * Sized down from a stock `OutlinedTextField` (56 dp tall with 16 dp of padding, and its own
+ * floating label) because the label belongs to the row above: at 16 px next to a 20 px number the
+ * two looked like a caption and a headline rather than one setting.
+ *
+ * The sign lives inside the box as a tap target, not as a second button beside it — a numeric
+ * keyboard has no minus key, and `±` is part of the number, not an action on it.
+ */
+@Composable
+private fun OffsetInputField(
+    text: String,
+    onTextChange: (String) -> Unit,
+    onFlipSign: () -> Unit,
+) {
+    val focusManager = LocalFocusManager.current
+    val signLabel = stringResource(R.string.rhythm_latency_manual_sign)
+    var focused by remember { mutableStateOf(false) }
+    Row(
+        modifier = Modifier
+            .width(132.dp)
+            .height(48.dp)
+            .border(
+                width = if (focused) 2.dp else 1.dp,
+                color = if (focused) {
+                    MaterialTheme.colorScheme.primary
+                } else {
+                    MaterialTheme.colorScheme.outline
+                },
+                shape = RoundedCornerShape(6.dp),
+            ),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxHeight()
+                .width(34.dp)
+                .clickable(onClick = onFlipSign)
+                .semantics { contentDescription = signLabel },
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                text = "±",
+                fontSize = 16.sp,
+                color = MaterialTheme.colorScheme.primary,
+            )
+        }
+        Box(
+            modifier = Modifier
+                .width(1.dp)
+                .fillMaxHeight()
+                .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
+        )
+        BasicTextField(
+            value = text,
+            onValueChange = onTextChange,
+            singleLine = true,
+            textStyle = TextStyle(
+                color = MaterialTheme.colorScheme.onSurface,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Medium,
+                textAlign = TextAlign.End,
+            ),
+            cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+            keyboardOptions = KeyboardOptions(
+                keyboardType = KeyboardType.Number,
+                imeAction = ImeAction.Done,
+            ),
+            // Done only closes the keyboard: writing is the confirm button's job.
+            keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
+            modifier = Modifier
+                .weight(1f)
+                .padding(start = 8.dp, end = 4.dp)
+                .onFocusChanged { focused = it.isFocused },
+        )
+        Text(
+            text = stringResource(R.string.rhythm_latency_manual_unit),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(end = 8.dp),
+        )
     }
 }
 
@@ -192,112 +374,23 @@ private fun sourceLabel(setting: LatencySetting): String = when (setting.source)
 }
 
 /**
- * Hand-edited offset. One field, no slider: the intent here is "I know I want −437", and a step
- * button can only approach it.
- *
- * Commits on IME done, on focus loss and when the sheet leaves composition, never per keystroke —
- * a half-typed `-` or `-4` is not a value. Anything unparsable restores the previous number, so
- * clearing the field never silently writes 0.
+ * Age of the value. A typed number was not measured, so it must not claim to have been: the
+ * screen used to read「手动 · 今天测量」for a hand edit.
  */
 @Composable
-internal fun LatencyOffsetField(
-    setting: LatencySetting,
-    onCommit: (Int) -> Unit,
-) {
-    val focusManager = LocalFocusManager.current
-    val signLabel = stringResource(R.string.rhythm_latency_manual_sign)
-    var text by remember(setting.device.id, setting.offsetMs) {
-        mutableStateOf(formatOffset(setting.offsetMs))
-    }
-    val latestText = rememberUpdatedState(text)
-    val latestValue = rememberUpdatedState(setting.offsetMs)
-    val latestCommit = rememberUpdatedState(onCommit)
-    var hadFocus by remember { mutableStateOf(false) }
-
-    fun commitNow(raw: String = text) {
-        val parsed = parseLatencyInput(raw)
-        if (parsed == null) {
-            text = formatOffset(setting.offsetMs)
-            return
-        }
-        text = formatOffset(parsed)
-        if (parsed != setting.offsetMs) onCommit(parsed)
-    }
-
-    // Swiping the sheet away must not drop what was typed.
-    DisposableEffect(setting.device.id) {
-        onDispose {
-            val parsed = parseLatencyInput(latestText.value) ?: return@onDispose
-            if (parsed != latestValue.value) latestCommit.value(parsed)
-        }
-    }
-
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(
-            text = stringResource(R.string.rhythm_latency_manual_title),
-            style = MaterialTheme.typography.bodyMedium,
-            modifier = Modifier.weight(1f),
+private fun updatedAgoLabel(setting: LatencySetting): String {
+    val days = ((System.currentTimeMillis() - setting.updatedAtMs) / 86_400_000L).toInt()
+    val manual = setting.source == LatencySource.MANUAL
+    return if (days <= 0) {
+        stringResource(
+            if (manual) R.string.rhythm_latency_edited_today else R.string.rhythm_latency_measured_today,
         )
-        OutlinedTextField(
-            value = text,
-            onValueChange = { text = it },
-            singleLine = true,
-            textStyle = MaterialTheme.typography.titleMedium.copy(
-                textAlign = TextAlign.End,
-                fontWeight = FontWeight.Medium,
-            ),
-            keyboardOptions = KeyboardOptions(
-                keyboardType = KeyboardType.Number,
-                imeAction = ImeAction.Done,
-            ),
-            keyboardActions = KeyboardActions(
-                onDone = {
-                    commitNow()
-                    focusManager.clearFocus()
-                },
-            ),
-            suffix = { Text(stringResource(R.string.rhythm_latency_manual_unit)) },
-            modifier = Modifier
-                .width(132.dp)
-                .onFocusChanged { state ->
-                    if (state.isFocused) {
-                        hadFocus = true
-                    } else if (hadFocus) {
-                        hadFocus = false
-                        commitNow()
-                    }
-                },
+    } else {
+        stringResource(
+            if (manual) R.string.rhythm_latency_edited_days else R.string.rhythm_latency_measured_days,
+            days,
         )
-        Spacer(Modifier.width(8.dp))
-        // Most numeric keyboards have no minus key, so the sign cannot depend on typing.
-        OutlinedButton(
-            modifier = Modifier.semantics {
-                contentDescription = signLabel
-            },
-            onClick = {
-                // Commit the flipped text explicitly: `text` was only just assigned, so a second
-                // read through a remembered snapshot would still see the old value.
-                val flipped = toggleLatencySign(text)
-                text = flipped
-                commitNow(flipped)
-            },
-        ) {
-            Text(text = "±")
-        }
     }
-    Text(
-        text = stringResource(R.string.rhythm_latency_manual_range),
-        style = MaterialTheme.typography.bodySmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-    )
-    Text(
-        text = stringResource(R.string.rhythm_latency_manual_shared_hint),
-        style = MaterialTheme.typography.bodySmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-    )
 }
 
 /** Flips the sign of whatever is in the field, leaving an unparsable draft untouched. */
@@ -311,68 +404,60 @@ internal fun toggleLatencySign(raw: String): String {
 }
 
 /**
- * Every stored record. Needed because the value is per device: without this list a headset that is
- * not connected would keep a number nobody can see or reset.
+ * Every stored record, inside the card and under a hairline. Needed because the value is per
+ * device: without this list a headset that is not connected would keep a number nobody can see
+ * or reset.
  */
 @Composable
-internal fun SavedLatencyDevices(
+private fun SavedDevicesSection(
     active: LatencySetting,
     saved: List<LatencySetting>,
     onForget: (String) -> Unit,
 ) {
-    if (saved.isEmpty()) return
     var expanded by remember { mutableStateOf(saved.size <= SAVED_DEVICES_COLLAPSED) }
-    Column(modifier = Modifier.fillMaxWidth()) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(
-                text = stringResource(R.string.rhythm_latency_saved_devices, saved.size),
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.weight(1f),
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = stringResource(R.string.rhythm_latency_saved_devices, saved.size),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.weight(1f),
+        )
+        TextButton(onClick = { expanded = !expanded }) {
+            Icon(
+                imageVector = if (expanded) {
+                    Icons.Rounded.KeyboardArrowUp
+                } else {
+                    Icons.Rounded.KeyboardArrowDown
+                },
+                contentDescription = null,
+                modifier = Modifier.size(18.dp),
             )
-            TextButton(onClick = { expanded = !expanded }) {
-                Icon(
-                    imageVector = if (expanded) {
-                        Icons.Rounded.KeyboardArrowUp
+            Spacer(Modifier.width(4.dp))
+            Text(
+                text = stringResource(
+                    if (expanded) {
+                        R.string.rhythm_latency_saved_collapse
                     } else {
-                        Icons.Rounded.KeyboardArrowDown
+                        R.string.rhythm_latency_saved_expand
                     },
-                    contentDescription = null,
-                    modifier = Modifier.size(18.dp),
-                )
-                Spacer(Modifier.width(4.dp))
-                Text(
-                    text = stringResource(
-                        if (expanded) {
-                            R.string.rhythm_latency_saved_collapse
-                        } else {
-                            R.string.rhythm_latency_saved_expand
-                        },
-                    ),
-                    style = MaterialTheme.typography.bodySmall,
-                )
-            }
+                ),
+                style = MaterialTheme.typography.bodySmall,
+            )
         }
-        val visible = if (expanded) saved else saved.take(SAVED_DEVICES_COLLAPSED)
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
-            ),
-        ) {
-            Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 4.dp)) {
-                visible.forEach { record ->
-                    SavedDeviceRow(
-                        record = record,
-                        active = record.device.id == active.device.id,
-                        onForget = { onForget(record.device.id) },
-                    )
-                }
-            }
+    }
+    val visible = if (expanded) saved else saved.take(SAVED_DEVICES_COLLAPSED)
+    visible.forEachIndexed { index, record ->
+        if (index > 0) {
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f))
         }
+        SavedDeviceRow(
+            record = record,
+            active = record.device.id == active.device.id,
+            onForget = { onForget(record.device.id) },
+        )
     }
 }
 
@@ -385,11 +470,10 @@ private fun SavedDeviceRow(
     val stateLabel = stringResource(
         if (active) R.string.rhythm_latency_device_current else R.string.rhythm_latency_device_disconnected,
     )
-    val source = sourceLabel(record)
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 8.dp),
+            .padding(top = 10.dp, bottom = 2.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(modifier = Modifier.weight(1f)) {
@@ -399,9 +483,10 @@ private fun SavedDeviceRow(
                 fontWeight = if (active) FontWeight.Medium else FontWeight.Normal,
             )
             Text(
-                text = "$stateLabel · $source",
+                text = "$stateLabel · ${sourceLabel(record)}",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 2.dp),
             )
         }
         Text(
@@ -415,6 +500,7 @@ private fun SavedDeviceRow(
             Text(
                 text = stringResource(R.string.rhythm_latency_forget),
                 style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
     }
@@ -426,17 +512,20 @@ private fun SavedDeviceRow(
  * only from here.
  */
 @Composable
-internal fun NearbyDevicesHint(onRequest: () -> Unit) {
-    Column(modifier = Modifier.fillMaxWidth()) {
+private fun NearbyDevicesHint(onRequest: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
         Text(
             text = stringResource(R.string.rhythm_latency_generic_device),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.weight(1f),
         )
-        TextButton(
-            onClick = onRequest,
-            contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp),
-        ) {
+        TextButton(onClick = onRequest) {
             Text(
                 text = stringResource(R.string.rhythm_latency_allow_nearby),
                 style = MaterialTheme.typography.bodySmall,

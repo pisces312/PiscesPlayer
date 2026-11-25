@@ -955,9 +955,11 @@ fun RhythmSetupScreen(
                     text = stringResource(R.string.rhythm_settings_sheet_title),
                     style = MaterialTheme.typography.titleLarge,
                 )
-                LatencyDeviceCard(
+                LatencyCard(
                     setting = latencySetting,
                     calibratedOffsetMs = calibratedOffsetMs,
+                    saved = savedLatency,
+                    nearbyGranted = nearbyGranted,
                     onCalibrate = {
                         // The overlay is a Box in this window, while the sheet is its own window:
                         // leaving it open would draw the sheet over the overlay and swallow taps
@@ -969,24 +971,15 @@ fun RhythmSetupScreen(
                         RhythmLatencyStore.restoreCalibrated(context, latencySetting.device)
                         refreshLatency()
                     },
-                )
-                LatencyOffsetField(
-                    setting = latencySetting,
-                    onCommit = { ms ->
+                    onApply = { ms ->
                         RhythmLatencyStore.setManual(context, latencySetting.device, ms)
                         refreshLatency()
                     },
-                )
-                if (latencySetting.device.kind == LatencyRouteKind.BLUETOOTH && !nearbyGranted) {
-                    NearbyDevicesHint(onRequest = { requestNearbyPermission() })
-                }
-                SavedLatencyDevices(
-                    active = latencySetting,
-                    saved = savedLatency,
                     onForget = { id ->
                         RhythmLatencyStore.forget(context, id)
                         refreshLatency()
                     },
+                    onRequestNearby = { requestNearbyPermission() },
                 )
                 GameVisualsCard(
                     uiStyle = uiStyle,

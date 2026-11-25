@@ -730,8 +730,14 @@
     <string name="rhythm_latency_source_inherited">Inherited from %1$s</string>
     <string name="rhythm_latency_manual_title">Offset</string>
     <string name="rhythm_latency_manual_unit">ms</string>
-    <string name="rhythm_latency_manual_range">Range \u2212500 to +500 ms</string>
-    <string name="rhythm_latency_manual_shared_hint">Same value as calibration \u2014 recalibrating overwrites it.</string>
+    <string name="rhythm_latency_section">Audio latency</string>
+    <string name="rhythm_latency_current_value">In effect</string>
+    <string name="rhythm_latency_pending_value">Not applied</string>
+    <string name="rhythm_latency_applied_state">Applied</string>
+    <string name="rhythm_latency_edited_today">edited today</string>
+    <string name="rhythm_latency_edited_days">edited %1$d days ago</string>
+    <string name="rhythm_latency_manual_hint">Range ±500 ms · recalibrating overwrites a typed value</string>
+    <string name="rhythm_latency_manual_hint_shared">Range ±500 ms · one value, shared with calibration</string>
     <string name="rhythm_latency_manual_sign">Toggle sign</string>
     <string name="rhythm_latency_restore_calibrated">Restore last calibration (%1$s ms)</string>
     <string name="rhythm_latency_saved_devices">Saved devices (%1$d)</string>

@@ -195,7 +195,8 @@ object RhythmLatencyStore {
             .apply()
     }
 
-    /** Puts the last measured value (and its jitter) back. False when nothing was measured. */    fun restoreCalibrated(context: Context, device: LatencyDevice): Boolean {
+    /** Puts the last measured value (and its jitter) back. False when nothing was measured. */
+    fun restoreCalibrated(context: Context, device: LatencyDevice): Boolean {
         val prefs = prefs(context)
         val key = KEY_CALIBRATED_OFFSET_PREFIX + device.id
         if (!prefs.contains(key)) return false

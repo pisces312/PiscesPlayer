@@ -728,8 +728,14 @@
     <string name="rhythm_latency_source_inherited">继承自%1$s</string>
     <string name="rhythm_latency_manual_title">偏移</string>
     <string name="rhythm_latency_manual_unit">ms</string>
-    <string name="rhythm_latency_manual_range">范围 −500 ~ +500 ms</string>
-    <string name="rhythm_latency_manual_shared_hint">与校准共用同一个参数；重新校准会覆盖手写的值。</string>
+    <string name="rhythm_latency_section">音频延迟</string>
+    <string name="rhythm_latency_current_value">当前生效</string>
+    <string name="rhythm_latency_pending_value">未应用</string>
+    <string name="rhythm_latency_applied_state">已应用</string>
+    <string name="rhythm_latency_edited_today">今天修改</string>
+    <string name="rhythm_latency_edited_days">%1$d 天前修改</string>
+    <string name="rhythm_latency_manual_hint">范围 ±500 ms · 重新校准会覆盖手写的值</string>
+    <string name="rhythm_latency_manual_hint_shared">范围 ±500 ms · 与校准共用同一个值</string>
     <string name="rhythm_latency_manual_sign">切换正负号</string>
     <string name="rhythm_latency_restore_calibrated">恢复上次校准（%1$s ms）</string>
     <string name="rhythm_latency_saved_devices">已保存的设备（%1$d）</string>
