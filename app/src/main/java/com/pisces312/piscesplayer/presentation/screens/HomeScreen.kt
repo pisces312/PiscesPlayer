@@ -162,6 +162,9 @@ fun HomeScreen(
     val serendipityState by playlistViewModel.serendipityState.collectAsStateWithLifecycle()
     val serendipityWantsLocation by
             playlistViewModel.serendipityWantsLocation.collectAsStateWithLifecycle()
+    // v1.3.11: false until the user dismisses the result-sheet tip or long-presses once.
+    val serendipityTipLearned by
+            playlistViewModel.serendipityTipLearned.collectAsStateWithLifecycle()
     val aiPlaylistPreviewState by playlistViewModel.aiPlaylistPreviewState.collectAsStateWithLifecycle()
     var showAiMixSheet by rememberSaveable { mutableStateOf(false) }
     // Short press auto-generates and then auto-plays (without saving); long press / card tap
@@ -184,7 +187,12 @@ fun HomeScreen(
         aiEntryIsQuick = quick
         autoPlayAfterGenerate = quick
         if (quick) playlistViewModel.quickGenerateSerendipity()
-        else playlistViewModel.openSerendipity()
+        else {
+            // v1.3.11: opening the describe sheet means the long press was discovered —
+            // the tip card has done its job (plan decision 35).
+            playlistViewModel.markSerendipityTipLearned()
+            playlistViewModel.openSerendipity()
+        }
         showAiMixSheet = true
     }
 
@@ -769,6 +777,10 @@ fun HomeScreen(
                 },
                 onReshuffleSerendipity = playlistViewModel::reshuffleSerendipityPrompt,
                 onRephraseSerendipity = playlistViewModel::rephraseSerendipityPrompt,
+                // v1.3.11: teach the long press on short-press results only (the long-press
+                // entry already knows it), until the user has "learned" it.
+                showSerendipityTip = aiEntryIsQuick && !serendipityTipLearned,
+                onDismissSerendipityTip = playlistViewModel::markSerendipityTipLearned,
                 onGenerate = { prompt, maxLength ->
                     playlistViewModel.generateSerendipityPreview(prompt, maxLength)
                 },

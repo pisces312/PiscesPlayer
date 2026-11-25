@@ -50,7 +50,9 @@
     <string name="ai_playlist_entry_subtitle">描述你想听的音乐</string>
     <string name="ai_playlist_entry_unconfigured">请先在设置中配置 AI</string>
     <string name="ai_playlist_entry_action">说一句</string>
-    <string name="ai_serendipity_button_hint">短按即听 · 长按说一句</string>
+    <string name="ai_serendipity_tip_title">小提示</string>
+    <string name="ai_serendipity_tip_body">长按「不期而遇」可以说一句你想要的音乐，直接按你的想法生成歌单。</string>
+    <string name="ai_serendipity_tip_dismiss">关闭提示</string>
     <string name="ai_serendipity_button">不期而遇！</string>
     <string name="playlist_ai_prompt_label">AI 描述</string>
     <string name="playlist_ai_prompt_details_title">提示词详情</string>

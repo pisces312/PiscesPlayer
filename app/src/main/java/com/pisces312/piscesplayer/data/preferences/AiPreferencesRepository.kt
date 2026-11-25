@@ -116,6 +116,14 @@ constructor(private val dataStore: DataStore<Preferences>) {
         val SERENDIPITY_STEP_DAY = longPreferencesKey("ai_serendipity_step_day")
         val SERENDIPITY_STEP_BASELINE = intPreferencesKey("ai_serendipity_step_baseline")
 
+        /**
+         * v1.3.11: "learned the long press" marker for the Serendipity tip card. Once the user
+         * either dismisses the tip or uses the long-press describe flow, the tip never appears
+         * again (plan decision 35). Kept out of [allAiPreferenceKeyNames] like the step counters:
+         * it is a per-device onboarding flag, meaningless when restored to another phone.
+         */
+        val SERENDIPITY_TIP_LEARNED = booleanPreferencesKey("ai_serendipity_tip_learned")
+
         fun getApiKey(provider: AiProvider) = stringPreferencesKey("${provider.keyPrefix}_api_key")
 
         fun getModel(provider: AiProvider) = stringPreferencesKey("${provider.keyPrefix}_model")
@@ -261,6 +269,17 @@ constructor(private val dataStore: DataStore<Preferences>) {
 
     suspend fun setSerendipityCity(city: String) {
         dataStore.edit { preferences -> preferences[Keys.SERENDIPITY_CITY] = city.trim() }
+    }
+
+    /**
+     * Whether the Serendipity long-press tip has served its purpose (dismissed or long-press
+     * used); see [Keys.SERENDIPITY_TIP_LEARNED].
+     */
+    fun getSerendipityTipLearned(): Flow<Boolean> =
+            dataStore.data.map { preferences -> preferences[Keys.SERENDIPITY_TIP_LEARNED] ?: false }
+
+    suspend fun setSerendipityTipLearned() {
+        dataStore.edit { preferences -> preferences[Keys.SERENDIPITY_TIP_LEARNED] = true }
     }
 
     /**

@@ -121,6 +121,11 @@ PixelPlayerOSS; versions up to and including 0.4.3 were published under the upst
   recent-mixes shelf: the squash/tilt fought the horizontal swipes inside those cards and
   fired a haptic tick on every touch-down. Library tiles, artist rows and the Serendipity
   pill keep it.
+- Home: the standing gesture hint under the Serendipity button is gone. Instead, every
+  short-press result sheet carries a one-shot tip card (same style as the rhythm game's
+  Bluetooth notice) explaining that a long press lets you describe the music you want; it
+  dismisses with a small ✕ and never comes back once dismissed or once the long press has
+  been used.
 
 ## [1.0.4] - 2026-11-22
 

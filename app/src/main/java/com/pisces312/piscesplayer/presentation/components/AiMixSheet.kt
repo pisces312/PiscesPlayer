@@ -28,6 +28,8 @@ import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.ExpandMore
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilterChip
@@ -60,6 +62,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.pisces312.piscesplayer.R
+import racra.compose.smooth_corner_rect_library.AbsoluteSmoothCornerShape
 import com.pisces312.piscesplayer.data.model.Song
 import com.pisces312.piscesplayer.presentation.viewmodel.AiGenerationStage
 import com.pisces312.piscesplayer.presentation.viewmodel.NlpPlaylistPreviewState
@@ -107,6 +110,13 @@ fun AiMixSheet(
     autoSavedName: String? = null,
     /** Replay the given result from the start without saving or closing. */
     onReplay: ((List<Song>) -> Unit)? = null,
+    /**
+     * v1.3.11: the Serendipity long-press tip card on the result phase (plan decision 35).
+     * Shown only for short-press results while the user has not "learned" the long press yet;
+     * [onDismissSerendipityTip] marks it learned for good.
+     */
+    showSerendipityTip: Boolean = false,
+    onDismissSerendipityTip: (() -> Unit)? = null,
     onReshuffleSerendipity: (() -> Unit)? = null,
     onRephraseSerendipity: (() -> Unit)? = null
 ) {
@@ -224,6 +234,8 @@ fun AiMixSheet(
                     mixName = mixName,
                     onNameChange = { mixName = it },
                     autoSavedName = autoSavedName,
+                    showSerendipityTip = showSerendipityTip,
+                    onDismissSerendipityTip = onDismissSerendipityTip,
                     onPlay = { onSave(mixName, resultSongs.toList(), prompt.trim(), true) },
                     onSaveOnly = { onSave(mixName, resultSongs.toList(), prompt.trim(), false) },
                     onReplay = onReplay?.let { replay -> { replay(resultSongs.toList()) } },
@@ -591,6 +603,8 @@ private fun ResultPhase(
     mixName: String,
     onNameChange: (String) -> Unit,
     autoSavedName: String?,
+    showSerendipityTip: Boolean = false,
+    onDismissSerendipityTip: (() -> Unit)? = null,
     onPlay: () -> Unit,
     onSaveOnly: () -> Unit,
     onReplay: (() -> Unit)?,
@@ -605,6 +619,13 @@ private fun ResultPhase(
     val thinkingText = state.thinkingText
 
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        // v1.3.11: one-shot teaching card (plan decision 35) — same visual grammar as the
+        // rhythm game's Bluetooth warning: a tinted card with a title row and a small ✕.
+        // It appears only on short-press results until the user dismisses it or long-presses
+        // once; both mark it learned, after which it never returns.
+        if (showSerendipityTip) {
+            SerendipityTipCard(onDismiss = { onDismissSerendipityTip?.invoke() })
+        }
         state.errorMessage?.let { message ->
             Text(
                 text = message,
@@ -733,6 +754,61 @@ private fun ResultPhase(
             modifier = Modifier.fillMaxWidth()
         ) {
             Text(stringResource(R.string.presentation_batch_e_describe_regenerate))
+        }
+    }
+}
+
+/**
+ * v1.3.11 (plan decision 35): teaches the Serendipity long press at the moment the user just
+ * short-pressed. Visual grammar mirrors the rhythm game's Bluetooth warning — `tertiaryContainer`
+ * card, title row with a small close button (24dp target / 18dp icon) — with a larger body
+ * (16sp instead of the warning's 12sp) as requested.
+ */
+@Composable
+private fun SerendipityTipCard(onDismiss: () -> Unit) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.tertiaryContainer
+        ),
+        shape = AbsoluteSmoothCornerShape(
+            cornerRadiusTL = 18.dp,
+            smoothnessAsPercentTL = 60,
+            cornerRadiusTR = 18.dp,
+            smoothnessAsPercentTR = 60,
+            cornerRadiusBL = 18.dp,
+            smoothnessAsPercentBL = 60,
+            cornerRadiusBR = 18.dp,
+            smoothnessAsPercentBR = 60
+        )
+    ) {
+        Column(modifier = Modifier.padding(12.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = stringResource(R.string.ai_serendipity_tip_title),
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onTertiaryContainer,
+                    modifier = Modifier.weight(1f)
+                )
+                IconButton(
+                    onClick = onDismiss,
+                    modifier = Modifier.size(24.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.Close,
+                        contentDescription = stringResource(R.string.ai_serendipity_tip_dismiss),
+                        modifier = Modifier.size(18.dp),
+                        tint = MaterialTheme.colorScheme.onTertiaryContainer
+                    )
+                }
+            }
+            Spacer(Modifier.height(4.dp))
+            Text(
+                text = stringResource(R.string.ai_serendipity_tip_body),
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onTertiaryContainer
+            )
         }
     }
 }

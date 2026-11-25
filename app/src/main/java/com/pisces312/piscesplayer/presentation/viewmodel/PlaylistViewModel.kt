@@ -794,6 +794,20 @@ class PlaylistViewModel @Inject constructor(
         viewModelScope.launch { aiPreferences.setSerendipitySampleMode(mode) }
     }
 
+    /**
+     * v1.3.11: whether the Serendipity long-press tip card has served its purpose (the user
+     * dismissed it or used the long-press describe flow). While false, every short-press
+     * result shows the tip again; once true it never returns (plan decision 35).
+     */
+    val serendipityTipLearned: StateFlow<Boolean> =
+            aiPreferences
+                    .getSerendipityTipLearned()
+                    .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+
+    fun markSerendipityTipLearned() {
+        viewModelScope.launch { aiPreferences.setSerendipityTipLearned() }
+    }
+
     /** Resolves songs by id, used to list the originally generated songs of an AI playlist. */
     fun songsByIds(ids: List<String>): Flow<List<Song>> = musicRepository.getSongsByIds(ids)
 

@@ -124,21 +124,20 @@ fun AiGenerateEntryCard(
                             highlight = true,
                             large = largePill,
                     )
-                    Text(
-                            // v1.3.7: ONE line directly under the pill (user feedback:
-                            // two lines read like a caption for the whole card). The
-                            // " · " separator keeps the two gestures scannable.
-                            text =
-                                    stringResource(
-                                            if (configured) R.string.ai_serendipity_button_hint
-                                            else R.string.ai_playlist_entry_unconfigured
-                                    ),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            textAlign = TextAlign.Center,
-                            maxLines = 1,
-                            modifier = Modifier.padding(top = 6.dp)
-                    )
+                    // v1.3.11 (plan decision 35): the standing gesture hint is gone —
+                    // the short-press result sheet now teaches the long press once
+                    // (SerendipityTipCard) and retires when learned. Only the unconfigured
+                    // status line stays: it is state, not documentation.
+                    if (!configured) {
+                        Text(
+                                text = stringResource(R.string.ai_playlist_entry_unconfigured),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                textAlign = TextAlign.Center,
+                                maxLines = 1,
+                                modifier = Modifier.padding(top = 6.dp)
+                        )
+                    }
                 }
             }
             if (recentContent != null) {

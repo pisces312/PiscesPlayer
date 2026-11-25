@@ -49,7 +49,9 @@
     <string name="ai_playlist_entry_subtitle">Describe the music you want to hear</string>
     <string name="ai_playlist_entry_unconfigured">Set up AI in settings first</string>
     <string name="ai_playlist_entry_action">Describe</string>
-    <string name="ai_serendipity_button_hint">Tap to listen · hold to describe</string>
+    <string name="ai_serendipity_tip_title">Tip</string>
+    <string name="ai_serendipity_tip_body">Press and hold Serendipity to describe the music you want — the mix comes straight from your words.</string>
+    <string name="ai_serendipity_tip_dismiss">Dismiss</string>
     <string name="ai_serendipity_button">Serendipity!</string>
     <string name="playlist_ai_prompt_label">AI prompt</string>
     <string name="playlist_ai_prompt_details_title">Prompt details</string>
