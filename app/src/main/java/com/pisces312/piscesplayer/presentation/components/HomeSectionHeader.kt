@@ -19,6 +19,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -43,6 +44,12 @@ fun HomeSectionHeader(
     modifier: Modifier = Modifier,
     /** Zero it when the header sits inside [HomeSectionCard]; the card already pads. */
     contentPadding: PaddingValues = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+    /**
+     * v1.3.10: home grid cards title their content one step down (18sp / titleMedium) so the
+     * card title never outranks the content inside it; page-level section headers keep the
+     * 22sp default.
+     */
+    titleStyle: TextStyle = MaterialTheme.typography.titleLarge,
     action: (@Composable () -> Unit)? = null
 ) {
     Row(
@@ -90,7 +97,7 @@ fun HomeSectionHeader(
         ) {
             Text(
                 text = title,
-                style = MaterialTheme.typography.titleLarge,
+                style = titleStyle,
                 fontWeight = FontWeight.SemiBold,
                 color = MaterialTheme.colorScheme.onSurface,
                 maxLines = 1,

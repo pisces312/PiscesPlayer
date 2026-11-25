@@ -66,7 +66,9 @@ fun RecentAiMixesRow(
 private fun RecentAiMixCard(mix: Playlist, onClick: () -> Unit) {
     Surface(
         onClick = onClick,
-        modifier = Modifier.width(MIX_CARD_WIDTH).height(MIX_CARD_HEIGHT).jellyPress(),
+        // v1.3.10: no jelly press here either — these cards live inside the AI card's
+        // horizontal shelf, so the squash/tilt fought the swipe.
+        modifier = Modifier.width(MIX_CARD_WIDTH).height(MIX_CARD_HEIGHT),
         shape = AbsoluteSmoothCornerShape(
             cornerRadiusTL = 22.dp,
             smoothnessAsPercentTL = 60,

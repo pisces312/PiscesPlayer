@@ -52,7 +52,7 @@ private val CapsuleGap = 8.dp
 /** Start padding + cover + cover gap + end padding of one capsule; caps the text column. */
 private val CapsuleChromeWidth = 72.dp
 
-/** 20dp / 60% smooth pill, shared by the song capsules and the 40dp shuffle button. */
+/** 20dp / 60% smooth pill, shared by the song capsules. */
 private val DailyMixCapsuleShape = AbsoluteSmoothCornerShape(
     cornerRadiusTL = 20.dp,
     smoothnessAsPercentTL = 60,
@@ -61,6 +61,18 @@ private val DailyMixCapsuleShape = AbsoluteSmoothCornerShape(
     cornerRadiusBL = 20.dp,
     smoothnessAsPercentBL = 60,
     cornerRadiusBR = 20.dp,
+    smoothnessAsPercentBR = 60,
+)
+
+/** 17dp / 60% pill for the 34dp shuffle button (half its height, so it reads as a capsule). */
+private val DailyMixButtonShape = AbsoluteSmoothCornerShape(
+    cornerRadiusTL = 17.dp,
+    smoothnessAsPercentTL = 60,
+    cornerRadiusTR = 17.dp,
+    smoothnessAsPercentTR = 60,
+    cornerRadiusBL = 17.dp,
+    smoothnessAsPercentBL = 60,
+    cornerRadiusBR = 17.dp,
     smoothnessAsPercentBR = 60,
 )
 
@@ -80,11 +92,13 @@ private val DailyMixCoverShape = AbsoluteSmoothCornerShape(
  * The 每日推荐 card body for the home grid (plan §12 decisions 9/16/21/23/28/29).
  *
  * v1.3.10: the subtitle is gone and the capsule band is two rows instead of one. The second
- * row is paid for by the shuffle control: it became a 40dp pill (icon + label) instead of a
- * 48dp icon-only circle, so the header row shrank 48→40dp and the body band grew 112→120dp —
- * exactly two 56dp capsules plus an 8dp gap. Song capsules keep their v1.3.3 look (40dp cover,
- * two text lines, one-line truncation) with the name now capped to a single line so the slot
- * height stays 56dp.
+ * row is paid for by the shuffle control: it became a 34dp pill (icon + label) instead of a
+ * 48dp icon-only circle, so the header row shrank 48→34dp and the body band grew 112→126dp —
+ * the 120dp two-row block (2×56 + 8) now sits with 3dp above and below. The card title drops to
+ * 18sp (titleMedium + SemiBold) so it no longer outranks its own content. Song capsules keep
+ * their v1.3.3 look (40dp cover, two text lines) with the name capped to a single line so the
+ * slot height stays 56dp. 34dp is the floor: below it the 34dp leading icon tile decides the
+ * header height, not the button.
  *
  * - 2×1: only the header row (title + shuffle pill).
  * - 2×2: header, then two horizontally scrolling capsule rows filling the remaining space.
@@ -106,18 +120,19 @@ fun HomeDailyMixContent(
             // v1.3.10: subtitle dropped — the 48dp header row was set by the shuffle control,
             // so removing it bought no height; the pill-shaped control below is what does.
             icon = Icons.Rounded.Recommend,
+            titleStyle = MaterialTheme.typography.titleMedium,
             // The grid card already pads 16dp.
             contentPadding = PaddingValues(0.dp),
             action = {
-                // v1.3.10: 40dp pill (icon + label) replaces the 48dp icon-only circle. The
-                // 8dp it frees is the second capsule row; the label also makes the action
-                // discoverable. Height must be forced — M3 would otherwise keep a 48dp
-                // layout around a 40dp visual and give nothing back.
+                // v1.3.10: a 34dp pill (icon + label) replaces the 48dp icon-only circle.
+                // It matches the 34dp icon tile, which is what now sets the header height —
+                // shrinking further buys nothing. Height must be forced: M3 would otherwise
+                // keep a 48dp layout around a 40dp visual and give nothing back.
                 FilledTonalButton(
                     onClick = onPlayShuffled,
-                    modifier = Modifier.height(40.dp),
-                    shape = DailyMixCapsuleShape,
-                    contentPadding = PaddingValues(horizontal = 14.dp),
+                    modifier = Modifier.height(34.dp),
+                    shape = DailyMixButtonShape,
+                    contentPadding = PaddingValues(horizontal = 12.dp),
                     colors = ButtonDefaults.filledTonalButtonColors(
                         containerColor = if (isShuffleEnabled) colors.primary else colors.tertiaryContainer,
                         contentColor = if (isShuffleEnabled) colors.onPrimary else colors.onTertiaryContainer,
@@ -126,12 +141,12 @@ fun HomeDailyMixContent(
                     Icon(
                         painter = painterResource(R.drawable.rounded_shuffle_24),
                         contentDescription = null,
-                        modifier = Modifier.size(18.dp),
+                        modifier = Modifier.size(16.dp),
                     )
                     Spacer(Modifier.width(6.dp))
                     Text(
                         text = stringResource(R.string.home_daily_mix_shuffle),
-                        style = MaterialTheme.typography.labelLarge,
+                        style = MaterialTheme.typography.labelMedium,
                         maxLines = 1,
                     )
                 }
@@ -150,7 +165,7 @@ fun HomeDailyMixContent(
                 val maxCapsuleWidth = (maxWidth - CapsuleGap) / 2f
                 LazyHorizontalGrid(
                     // Fills the whole body band: with two rows the grid derives 56dp slots
-                    // from the 120dp height, which is exactly the capsule height.
+                    // from the 126dp height, which is exactly the capsule height.
                     rows = GridCells.Fixed(2),
                     modifier = Modifier.fillMaxSize(),
                     horizontalArrangement = Arrangement.spacedBy(CapsuleGap),

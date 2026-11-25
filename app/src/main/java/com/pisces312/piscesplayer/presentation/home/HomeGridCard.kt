@@ -38,7 +38,6 @@ import androidx.compose.ui.unit.dp
 import com.pisces312.piscesplayer.R
 import com.pisces312.piscesplayer.data.home.HomeCard
 import com.pisces312.piscesplayer.data.model.Playlist
-import com.pisces312.piscesplayer.presentation.components.jellyPress
 import racra.compose.smooth_corner_rect_library.AbsoluteSmoothCornerShape
 
 /**
@@ -75,9 +74,11 @@ fun HomeGridCard(
             .fillMaxSize()
             .clip(HomeGridCardShape)
             .background(MaterialTheme.colorScheme.surfaceContainer)
-            // v1.3.9: jelly press feedback (squash/pivot around the touch point,
-            // bouncy settle). Off in edit mode — the drag-lift owns the transform there.
-            .jellyPress(enabled = !editMode)
+            // v1.3.10: jelly press removed from the grid cards (user feedback: the squash
+            // and tilt fought the horizontal swipes inside the AI / Daily Mix cards, and it
+            // fired a haptic tick on every touch-down). The tap ripple is the whole press
+            // feedback now; the jelly feel lives on the library tiles and the Serendipity
+            // pill, which have no inner scrollers. Drag lift (edit mode) is unaffected.
             .graphicsLayer {
                 val lift = isDragging
                 scaleX = if (lift) 1.03f else 1f
@@ -148,14 +149,12 @@ private fun HomeGridCardGenericContent(
             )
             Spacer(Modifier.width(if (wide) 14.dp else 10.dp))
             Column(modifier = Modifier.weight(1f, fill = false)) {
-                // Title size is graded by card height (plan v1.3.4 decision 24):
-                // 1×1 tiles get titleMedium — titleLarge read too big on a 187×96dp
-                // tile; wider/taller cards keep the AI-playlist titleLarge.
+                // v1.3.10 (decision 24 revision): one title size for every card span —
+                // 18sp/titleMedium. The old 22sp on wide cards read bigger than the content
+                // inside them (14/12sp rows); 1×1 tiles already used this size.
                 Text(
                     text = title,
-                    style = if (card.size.spanY == 1 && card.size.spanX == 1)
-                        MaterialTheme.typography.titleMedium
-                    else MaterialTheme.typography.titleLarge,
+                    style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 1,

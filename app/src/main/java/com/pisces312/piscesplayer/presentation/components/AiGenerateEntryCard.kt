@@ -36,7 +36,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.pisces312.piscesplayer.R
 import com.pisces312.piscesplayer.presentation.home.homeGridLongPressOwner
 import com.pisces312.piscesplayer.ui.theme.ShapeCache
@@ -104,7 +103,8 @@ fun AiGenerateEntryCard(
                 Spacer(modifier = Modifier.width(14.dp))
                 Text(
                         text = stringResource(R.string.ai_playlist_entry_title),
-                        style = MaterialTheme.typography.titleLarge,
+                        // v1.3.10: same 18sp as every other card title (decision 24 revision).
+                        style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.onSurface,
                         modifier = Modifier.weight(1f)
@@ -219,10 +219,11 @@ private fun ActionPill(
             }
             Text(
                     text = text,
+                    // v1.3.10: the verb label is now the card-title size (18sp) — an action
+                    // should not outrank the card title. The pill keeps its 96dp hero size:
+                    // its presence comes from shape/color/motion, not from font size.
                     style =
-                            if (large)
-                                    MaterialTheme.typography.titleMedium
-                                            .copy(fontSize = 20.sp, lineHeight = 24.sp)
+                            if (large) MaterialTheme.typography.titleMedium
                             else MaterialTheme.typography.labelLarge,
                     fontWeight = if (large) FontWeight.SemiBold else null,
                     color = MaterialTheme.colorScheme.onPrimary

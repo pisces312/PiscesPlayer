@@ -110,10 +110,17 @@ PixelPlayerOSS; versions up to and including 0.4.3 were published under the upst
   setup screens included), so those screens use the freed bottom space.
 - Home: the Daily Mix card is denser — its subtitle is gone, the song capsules now sit in two
   horizontally scrolling rows (about four to five songs at a glance instead of two), and the
-  shuffle control became a 40dp pill with an icon and a "Shuffle" label instead of a 48dp
-  icon-only circle. The shorter header (48→40dp) pays for the second row: capsules keep their
-  height, and song names are capped to one line so a long title no longer stretches a pill
-  past the card edge.
+  shuffle control is a 34dp pill with an icon and a "Shuffle" label instead of a 48dp
+  icon-only circle. The shorter header (48→34dp) is what pays for the second row: capsules
+  keep their height, and song names are capped to one line so a long title no longer
+  stretches a pill past the card edge.
+- Home: all grid cards now title their content at one size (18sp) — the 22sp on wide cards
+  outranked the 14/12sp rows inside them — and the Serendipity label dropped to the same
+  18sp; its 96dp jelly keeps its size, shape and motion.
+- Home: the jelly press feedback is gone from the grid cards and from the AI card's
+  recent-mixes shelf: the squash/tilt fought the horizontal swipes inside those cards and
+  fired a haptic tick on every touch-down. Library tiles, artist rows and the Serendipity
+  pill keep it.
 
 ## [1.0.4] - 2026-11-22
 
