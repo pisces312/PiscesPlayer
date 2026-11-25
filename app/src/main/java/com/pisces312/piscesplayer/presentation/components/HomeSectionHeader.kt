@@ -29,8 +29,10 @@ import racra.compose.smooth_corner_rect_library.AbsoluteSmoothCornerShape
  * Shared section header for the home screen.
  *
  * Every functional block on home (AI, local recommendations, recently played) uses the
- * same header grammar: a tinted icon tile, a title, an optional subtitle, and an
- * optional trailing action. The tile color is the block's identity color; everything
+ * same header grammar: a leading icon, a title, an optional subtitle, and an
+ * optional trailing action. Page-level sections put the icon in a tinted tile whose
+ * color is the block's identity color; grid cards pass [iconTile] = false for the bare
+ * 28dp glyph that matches `AiGenerateEntryCard` and the generic card tiles. Everything
  * else (typography, spacing, shape) is identical so the sections read as one system.
  */
 @Composable
@@ -41,6 +43,12 @@ fun HomeSectionHeader(
     iconPainter: Painter? = null,
     iconContainerColor: Color = MaterialTheme.colorScheme.surfaceContainerHigh,
     iconContentColor: Color = MaterialTheme.colorScheme.onSurface,
+    /**
+     * v1.3.11 (decision 37 revision): the tinted tile is the page-section grammar.
+     * Grid cards (Daily Mix) pass false — bare 28dp icon like every other card on the
+     * grid, so the tile no longer reads as a second title style next to them.
+     */
+    iconTile: Boolean = true,
     modifier: Modifier = Modifier,
     /** Zero it when the header sits inside [HomeSectionCard]; the card already pads. */
     contentPadding: PaddingValues = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
@@ -59,42 +67,65 @@ fun HomeSectionHeader(
         verticalAlignment = Alignment.CenterVertically
     ) {
         if (icon != null || iconPainter != null) {
-            Surface(
-                shape = AbsoluteSmoothCornerShape(
-                    cornerRadiusTL = 12.dp,
-                    smoothnessAsPercentTL = 60,
-                    cornerRadiusTR = 12.dp,
-                    smoothnessAsPercentTR = 60,
-                    cornerRadiusBL = 12.dp,
-                    smoothnessAsPercentBL = 60,
-                    cornerRadiusBR = 12.dp,
-                    smoothnessAsPercentBR = 60
-                ),
-                color = iconContainerColor,
-                modifier = Modifier.size(34.dp)
-            ) {
-                // v1.3.11: 7dp → 5dp padding, i.e. a 24dp glyph in the 34dp tile (was 20dp).
-                // At 20dp the glyph read a size smaller than every neighbouring card title
-                // icon on home (28dp bare icons in AI / generic cards) — the tile stayed the
-                // same 34dp so header height, the 34dp shuffle-pill alignment and the capsule
-                // band geometry are untouched. 24dp is the M3 standard icon size.
+            if (iconTile) {
+                Surface(
+                    shape = AbsoluteSmoothCornerShape(
+                        cornerRadiusTL = 12.dp,
+                        smoothnessAsPercentTL = 60,
+                        cornerRadiusTR = 12.dp,
+                        smoothnessAsPercentTR = 60,
+                        cornerRadiusBL = 12.dp,
+                        smoothnessAsPercentBL = 60,
+                        cornerRadiusBR = 12.dp,
+                        smoothnessAsPercentBR = 60
+                    ),
+                    color = iconContainerColor,
+                    modifier = Modifier.size(34.dp)
+                ) {
+                    // v1.3.11: 7dp → 5dp padding, i.e. a 24dp glyph in the 34dp tile (was 20dp).
+                    // At 20dp the glyph read a size smaller than every neighbouring card title
+                    // icon on home (28dp bare icons in AI / generic cards) — the tile stayed the
+                    // same 34dp so header height, the 34dp shuffle-pill alignment and the capsule
+                    // band geometry are untouched. 24dp is the M3 standard icon size.
+                    if (icon != null) {
+                        Icon(
+                            imageVector = icon,
+                            contentDescription = null,
+                            tint = iconContentColor,
+                            modifier = Modifier.padding(5.dp)
+                        )
+                    } else if (iconPainter != null) {
+                        Icon(
+                            painter = iconPainter,
+                            contentDescription = null,
+                            tint = iconContentColor,
+                            modifier = Modifier.padding(5.dp)
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.width(12.dp))
+            } else {
+                // v1.3.11 (decision 37 revision): grid cards drop the tile entirely and use
+                // the bare 28dp glyph + 14dp gap of AiGenerateEntryCard / the generic tiles,
+                // so a card title never sits behind a different icon grammar than its grid
+                // siblings. Page sections keep the tile.
                 if (icon != null) {
                     Icon(
                         imageVector = icon,
                         contentDescription = null,
                         tint = iconContentColor,
-                        modifier = Modifier.padding(5.dp)
+                        modifier = Modifier.size(28.dp)
                     )
                 } else if (iconPainter != null) {
                     Icon(
                         painter = iconPainter,
                         contentDescription = null,
                         tint = iconContentColor,
-                        modifier = Modifier.padding(5.dp)
+                        modifier = Modifier.size(28.dp)
                     )
                 }
+                Spacer(modifier = Modifier.width(14.dp))
             }
-            Spacer(modifier = Modifier.width(12.dp))
         }
         Column(
             modifier = Modifier.weight(1f),

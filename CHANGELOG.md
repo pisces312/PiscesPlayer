@@ -117,9 +117,9 @@ PixelPlayerOSS; versions up to and including 0.4.3 were published under the upst
 - Home: all grid cards now title their content at one size (18sp) — the 22sp on wide cards
   outranked the 14/12sp rows inside them — and the Serendipity label dropped to the same
   18sp; its 96dp jelly keeps its size, shape and motion.
-- Home: the icon in the tile before section titles (Daily Mix, Recently played, search
-  sections) grew from 20dp to 24dp — it read a size smaller than the 28dp bare icons on the
-  other cards. The 34dp tile, the header height and everything below it are unchanged.
+- Home: the Daily Mix card title icon is now a bare 28dp glyph like every other card on the
+  grid — the tinted tile behind it is gone. Page sections (Recently played, search) keep the
+  tile, and its glyph grew from 20dp to 24dp so it no longer reads a size small.
 - Home: the jelly press feedback is gone from the grid cards and from the AI card's
   recent-mixes shelf: the squash/tilt fought the horizontal swipes inside those cards and
   fired a haptic tick on every touch-down. Library tiles, artist rows and the Serendipity

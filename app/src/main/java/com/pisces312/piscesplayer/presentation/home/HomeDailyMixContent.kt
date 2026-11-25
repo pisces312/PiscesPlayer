@@ -120,6 +120,10 @@ fun HomeDailyMixContent(
             // v1.3.10: subtitle dropped — the 48dp header row was set by the shuffle control,
             // so removing it bought no height; the pill-shaped control below is what does.
             icon = Icons.Rounded.Recommend,
+            // v1.3.11 (decision 37 revision): no icon tile — this is a grid card, so the
+            // bare 28dp glyph matches AiGenerateEntryCard and the generic tiles. Header
+            // height stays 34dp (the shuffle pill), so the capsule band is unaffected.
+            iconTile = false,
             titleStyle = MaterialTheme.typography.titleMedium,
             // The grid card already pads 16dp.
             contentPadding = PaddingValues(0.dp),
