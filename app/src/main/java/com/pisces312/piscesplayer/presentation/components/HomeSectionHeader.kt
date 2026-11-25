@@ -73,19 +73,24 @@ fun HomeSectionHeader(
                 color = iconContainerColor,
                 modifier = Modifier.size(34.dp)
             ) {
+                // v1.3.11: 7dp → 5dp padding, i.e. a 24dp glyph in the 34dp tile (was 20dp).
+                // At 20dp the glyph read a size smaller than every neighbouring card title
+                // icon on home (28dp bare icons in AI / generic cards) — the tile stayed the
+                // same 34dp so header height, the 34dp shuffle-pill alignment and the capsule
+                // band geometry are untouched. 24dp is the M3 standard icon size.
                 if (icon != null) {
                     Icon(
                         imageVector = icon,
                         contentDescription = null,
                         tint = iconContentColor,
-                        modifier = Modifier.padding(7.dp)
+                        modifier = Modifier.padding(5.dp)
                     )
                 } else if (iconPainter != null) {
                     Icon(
                         painter = iconPainter,
                         contentDescription = null,
                         tint = iconContentColor,
-                        modifier = Modifier.padding(7.dp)
+                        modifier = Modifier.padding(5.dp)
                     )
                 }
             }
