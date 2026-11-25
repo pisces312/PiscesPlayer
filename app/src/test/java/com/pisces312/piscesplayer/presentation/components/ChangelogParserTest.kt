@@ -13,6 +13,7 @@ class ChangelogParserTest {
 
         assertEquals(
             listOf(
+                "1.0.5",
                 "1.0.4",
                 "1.0.3",
                 "1.0.2",
@@ -30,6 +31,7 @@ class ChangelogParserTest {
         )
         assertEquals(
             listOf(
+                "2026-11-25",
                 "2026-11-22",
                 "2026-11-18",
                 "2026-11-14",
@@ -168,11 +170,11 @@ class ChangelogParserTest {
     fun parse_readsEverySectionOfTheShippedReleases() {
         val parsed = ChangelogParser.parse(repositoryChangelog().readText())
 
-        // 1.0.4 and 1.0.3 declare three Keep a Changelog headings; 1.0.2 and 1.0.1
+        // 1.0.5, 1.0.4 and 1.0.3 declare three Keep a Changelog headings; 1.0.2 and 1.0.1
         // declare one; 1.0.0, 0.4.3-pisces.1, 0.4.2-pisces.1 and 0.4.1-pisces.1 declare
         // three; 0.4.0-pisces.1 and 0.2.0 declare four; 0.3.0 and 0.1.0 declare five,
         // 0.1.0 adding its own "App polish included in this FOSS release".
-        assertEquals(listOf(3, 3, 1, 1, 3, 3, 3, 3, 4, 5, 4, 5), parsed.map { it.sections.size })
+        assertEquals(listOf(3, 3, 3, 1, 1, 3, 3, 3, 3, 4, 5, 4, 5), parsed.map { it.sections.size })
         parsed.forEach { version ->
             version.sections.forEach { section ->
                 assertTrue(
