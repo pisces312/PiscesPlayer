@@ -6,10 +6,10 @@ import java.util.Locale
 /**
  * Turns a [SerendipityContext] into the sentence handed to the playlist generator.
  *
- * One clause per signal, in a fixed order: time (with its zone), device language, weather, steps,
- * closing. A clause whose signal is `null` is left out entirely rather than replaced by a
- * placeholder, so the prompt only ever states what was actually read — see
- * [SerendipityContext] for which signals are guaranteed.
+ * One clause per signal, in a fixed order: time (with its zone), date, device language, weather
+ * (or the city alone when the weather could not be read), steps, closing. A clause whose signal is
+ * `null` is left out entirely rather than replaced by a placeholder, so the prompt only ever states
+ * what was actually read — see [SerendipityContext] for which signals are guaranteed.
  *
  * Pure and deterministic: `(context, variant)` always produces the same text, which is what makes
  * "reshuffle" verifiable in unit tests. [variant] is the only source of variation, so the caller
@@ -28,8 +28,16 @@ object SerendipityPromptComposer {
         val index = Math.floorMod(variant, VARIANT_COUNT)
         val parts = mutableListOf<String>()
         parts += timeClause(context, index)
+        parts += dateClause(context, index)
         context.deviceLanguage?.let { parts += languageClause(it, index) }
-        context.weather?.let { parts += weatherClause(it, context.city, index) }
+        val weather = context.weather
+        if (weather != null) {
+            parts += weatherClause(weather, context.city, index)
+        } else {
+            // Without weather the city used to be dropped too, which threw away the only regional
+            // signal an offline device still had.
+            context.city?.let { parts += cityClause(it, index) }
+        }
         context.stepsToday?.let { parts += stepsClause(it, index) }
         parts += closing(context, index)
         return parts.joinToString(" ")
@@ -58,6 +66,30 @@ object SerendipityPromptComposer {
     }
 
     /**
+     * Where the calendar sits, at a granularity that reads as a season rather than a timestamp:
+     * "early November", "mid-November", "late November".
+     *
+     * No hemisphere correction is applied. The date is a fact; "it is winter" would be an
+     * inference, and from the month alone it is wrong for every southern-hemisphere listener. The
+     * zone clause names the region, so a model that cares about the season can place it itself.
+     * One variant states the exact day, which is what makes holidays usable.
+     */
+    private fun dateClause(context: SerendipityContext, index: Int): String {
+        val month = context.month.getDisplayName(TextStyle.FULL, Locale.ENGLISH)
+        val phrase =
+                when (context.dayOfMonth) {
+                    in 1..10 -> "early $month"
+                    in 11..20 -> "mid-$month"
+                    else -> "late $month"
+                }
+        return when (index % 3) {
+            0 -> "It is $phrase."
+            1 -> "The date is $month ${context.dayOfMonth}."
+            else -> "${phrase.replaceFirstChar { it.titlecase(Locale.ENGLISH) }}."
+        }
+    }
+
+    /**
      * The language the phone runs in.
      *
      * Stated as a fact and nothing more: it says which market the listener lives in, not which
@@ -68,6 +100,19 @@ object SerendipityPromptComposer {
                 0 -> "The phone is set to $language."
                 1 -> "Their device runs in $language."
                 else -> "$language is the system language here."
+            }
+
+    /**
+     * The city alone, when the weather could not be read (offline, or the endpoint failed).
+     *
+     * Deliberately silent about where the name came from: it may be the city picked in settings
+     * rather than the device's position, so "last known location" would be a lie.
+     */
+    private fun cityClause(city: String, index: Int): String =
+            when (index % 3) {
+                0 -> "Somewhere in $city."
+                1 -> "The phone is somewhere in $city."
+                else -> "In or around $city."
             }
 
     private fun weatherClause(
@@ -154,7 +199,7 @@ object SerendipityPromptComposer {
                     "Pick music that sounds like this moment."
             )
 
-    /** Used when no optional signal was read at all — time, zone and language are all there is. */
+    /** Used when no optional signal was read — the clock, the zone and the calendar are it. */
     private val COLD_CLOSINGS =
             listOf(
                     "Nothing else about this day is known — pick music that suits the moment.",

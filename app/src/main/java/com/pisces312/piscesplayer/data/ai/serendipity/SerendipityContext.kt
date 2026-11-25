@@ -1,12 +1,13 @@
 package com.pisces312.piscesplayer.data.ai.serendipity
 
 import java.time.DayOfWeek
+import java.time.Month
 
 /**
  * Everything Serendipity knows about "right now".
  *
- * [weekday], [clockTime], [timeOfDay] and [timeZone] always exist — they cost no permission, so
- * even a device that granted nothing still gets a mix anchored in the moment.
+ * [weekday], [clockTime], [timeOfDay], [timeZone] and [month]/[dayOfMonth] always exist — they cost
+ * no permission, so even a device that granted nothing still gets a mix anchored in the moment.
  *
  * Every further signal is nullable on purpose: a signal that could not be read is dropped from the
  * prompt instead of being guessed or replaced by a placeholder, so the user can see in the sheet
@@ -27,6 +28,14 @@ data class SerendipityContext(
      * ones that know a city.
      */
     val timeZone: String,
+    /**
+     * Calendar month and day, which place the moment in a season without any permission.
+     *
+     * Stored as parts rather than a formatted string so the composer stays the one place that
+     * turns signals into English, and so tests can pin the wording.
+     */
+    val month: Month,
+    val dayOfMonth: Int,
     /**
      * Language (+ script) the device runs in, in English ("Chinese (Simplified)").
      *

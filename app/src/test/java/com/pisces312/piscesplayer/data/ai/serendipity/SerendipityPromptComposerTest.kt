@@ -6,17 +6,20 @@ package com.pisces312.piscesplayer.data.ai.serendipity
 
 import com.google.common.truth.Truth.assertThat
 import java.time.DayOfWeek
+import java.time.Month
 import org.junit.Test
 
 class SerendipityPromptComposerTest {
 
-    /** The zero-permission baseline: time, zone and language, nothing else. */
+    /** The zero-permission baseline: clock, zone, calendar and language, nothing else. */
     private val bareMoment =
             SerendipityContext(
                     weekday = DayOfWeek.FRIDAY,
                     clockTime = "19:20",
                     timeOfDay = SerendipityTimeOfDay.EVENING,
                     timeZone = "China Standard Time",
+                    month = Month.NOVEMBER,
+                    dayOfMonth = 26,
                     deviceLanguage = "Chinese"
             )
 
@@ -36,6 +39,7 @@ class SerendipityPromptComposerTest {
 
         assertThat(prompt).isEqualTo(
                 "Friday 19:20, evening, China Standard Time. " +
+                        "It is late November. " +
                         "The phone is set to Chinese. " +
                         "Rain, 14°C, in Shanghai. " +
                         "About 8,400 steps today, an active day. " +
@@ -49,6 +53,7 @@ class SerendipityPromptComposerTest {
 
         assertThat(prompt).isEqualTo(
                 "Friday 19:20, evening, China Standard Time. " +
+                        "It is late November. " +
                         "Nothing else about this day is known — pick music that suits the moment."
         )
         assertThat(prompt).doesNotContain("°C")
@@ -57,10 +62,11 @@ class SerendipityPromptComposerTest {
     }
 
     @Test
-    fun `the zone is present even when nothing else could be read`() {
+    fun `the zone and the date are present even when nothing else could be read`() {
         val prompt = SerendipityPromptComposer.compose(timeOnly, variant = 2)
 
         assertThat(prompt).contains("China Standard Time")
+        assertThat(prompt).contains("November")
     }
 
     @Test
@@ -72,11 +78,37 @@ class SerendipityPromptComposerTest {
     }
 
     @Test
-    fun `a read signal switches the closing away from the cold start set`() {
-        val withCityOnly = bareMoment.copy(city = "Shanghai")
+    fun `the date bucket coarsens to early mid or late`() {
+        assertThat(dateSentence(Month.MARCH, dayOfMonth = 2, variant = 0))
+                .contains("It is early March.")
+        assertThat(dateSentence(Month.MARCH, dayOfMonth = 15, variant = 0))
+                .contains("It is mid-March.")
+        assertThat(dateSentence(Month.MARCH, dayOfMonth = 28, variant = 0))
+                .contains("It is late March.")
+    }
 
-        assertThat(SerendipityPromptComposer.compose(withCityOnly, variant = 0))
-                .endsWith("Pick songs that fit this exact moment.")
+    @Test
+    fun `one variant states the exact day so holidays stay usable`() {
+        assertThat(dateSentence(Month.DECEMBER, dayOfMonth = 24, variant = 1))
+                .contains("The date is December 24.")
+    }
+
+    @Test
+    fun `a city without weather still makes it into the sentence`() {
+        val prompt =
+                SerendipityPromptComposer.compose(bareMoment.copy(city = "Shanghai"), variant = 0)
+
+        assertThat(prompt).contains("Somewhere in Shanghai.")
+        // The city is an optional signal, so the closing stays the normal one.
+        assertThat(prompt).endsWith("Pick songs that fit this exact moment.")
+    }
+
+    @Test
+    fun `a city is never mentioned twice`() {
+        val prompt = SerendipityPromptComposer.compose(fullSignals, variant = 0)
+
+        assertThat(prompt.split("Shanghai")).hasSize(2)
+        assertThat(prompt).doesNotContain("Somewhere in")
     }
 
     @Test
@@ -88,6 +120,7 @@ class SerendipityPromptComposerTest {
 
         assertThat(prompt).isEqualTo(
                 "Friday 19:20, evening, China Standard Time. " +
+                        "It is late November. " +
                         "The phone is set to Chinese. " +
                         "Clear skies, 3°C. " +
                         "Pick songs that fit this exact moment."
@@ -148,10 +181,8 @@ class SerendipityPromptComposerTest {
 
     @Test
     fun `steps are floored to the hundred so the prompt is not precise`() {
-        val prompt = SerendipityPromptComposer.compose(
-                bareMoment.copy(stepsToday = 8_499),
-                variant = 0
-        )
+        val prompt =
+                SerendipityPromptComposer.compose(bareMoment.copy(stepsToday = 8_499), variant = 0)
 
         assertThat(prompt).contains("8,400 steps")
         assertThat(prompt).doesNotContain("8,499")
@@ -189,4 +220,11 @@ class SerendipityPromptComposerTest {
         assertThat(SerendipityTimeOfDay.at(19)).isEqualTo(SerendipityTimeOfDay.EVENING)
         assertThat(SerendipityTimeOfDay.at(2)).isEqualTo(SerendipityTimeOfDay.LATE_NIGHT)
     }
+
+    /** Composes with the date swapped in, everything else bare, to isolate the date clause. */
+    private fun dateSentence(month: Month, dayOfMonth: Int, variant: Int): String =
+            SerendipityPromptComposer.compose(
+                    timeOnly.copy(month = month, dayOfMonth = dayOfMonth),
+                    variant = variant
+            )
 }

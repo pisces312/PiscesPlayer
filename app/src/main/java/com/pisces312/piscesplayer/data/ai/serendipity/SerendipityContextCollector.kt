@@ -67,6 +67,8 @@ constructor(
                 clockTime = now.format(CLOCK_FORMAT),
                 timeOfDay = SerendipityTimeOfDay.at(now.hour),
                 timeZone = timeZoneLabel(),
+                month = now.month,
+                dayOfMonth = now.dayOfMonth,
                 deviceLanguage = deviceLanguageLabel(),
                 city = city?.promptName,
                 cityLabel = city?.label,
