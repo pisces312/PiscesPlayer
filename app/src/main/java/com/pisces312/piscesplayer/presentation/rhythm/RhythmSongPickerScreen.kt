@@ -86,6 +86,7 @@ import com.pisces312.piscesplayer.presentation.components.SmartImage
 import com.pisces312.piscesplayer.presentation.components.SmartImageListTargetSize
 import com.pisces312.piscesplayer.presentation.screens.trackDisplayNames
 import com.pisces312.piscesplayer.presentation.viewmodel.PlayerViewModel
+import kotlin.math.roundToInt
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.launch
 
@@ -530,16 +531,18 @@ fun RhythmSongPickerScreen(
     if (showLatencyCalibration) {
         RhythmCalibrationOverlay(
             currentOffsetMs = RhythmLatencyStore.offsetMs(context),
+            currentSigmaMs = RhythmLatencyStore.sigmaMs(context),
             playerViewModel = playerViewModel,
-            onApplied = { applied ->
+            onApplied = { applied, sigma ->
                 showLatencyCalibration = false
                 playerViewModel.sendToast(
                     context.getString(
                         R.string.rhythm_latency_applied,
-                        applied,
                         context.getString(
                             RhythmLatencyStore.deviceLabelRes(RhythmLatencyStore.deviceKey(context)),
                         ),
+                        applied,
+                        sigma.roundToInt(),
                     ),
                 )
             },

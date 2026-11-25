@@ -1,6 +1,7 @@
 package com.pisces312.piscesplayer.data.rhythm
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -12,9 +13,11 @@ class RhythmLatencyCalibrationTest {
 
     /** Tick wall times at the real metronome spacing (one every PERIOD_MS from 1 s). */
     private fun walls(count: Int = RhythmCalibrationTrack.TICK_COUNT): List<Long> =
-        (0 until count).map {
-            (RhythmCalibrationTrack.FIRST_TICK_MS * 1_000_000L) + it * tickStepNs
-        }
+        (0 until count).map { RhythmCalibrationTrack.tickSongMs(it).toLong() * 1_000_000L }
+
+    /** Wall times of the measured ticks only, in order. */
+    private fun measuredWalls(): List<Long> =
+        walls().drop(RhythmCalibrationTrack.LEAD_IN_TICKS)
 
     private fun readPcm(audio: RhythmPcmAudio, frame: Int, channel: Int = 0): Short {
         val offset = (frame * audio.channels + channel) * 2
@@ -25,6 +28,17 @@ class RhythmLatencyCalibrationTest {
 
     private fun isSilent(audio: RhythmPcmAudio, frame: Int): Boolean =
         (0 until audio.channels).all { readPcm(audio, frame, it).toInt() == 0 }
+
+    @Test
+    fun trackIsSplitIntoLeadInAndMeasuredTicks() {
+        assertEquals(4, RhythmCalibrationTrack.LEAD_IN_TICKS)
+        assertEquals(8, RhythmCalibrationTrack.MEASURED_TICKS)
+        assertEquals(12, RhythmCalibrationTrack.TICK_COUNT)
+        assertFalse(RhythmCalibrationTrack.isMeasured(0))
+        assertFalse(RhythmCalibrationTrack.isMeasured(RhythmCalibrationTrack.LEAD_IN_TICKS - 1))
+        assertTrue(RhythmCalibrationTrack.isMeasured(RhythmCalibrationTrack.LEAD_IN_TICKS))
+        assertTrue(RhythmCalibrationTrack.isMeasured(RhythmCalibrationTrack.TICK_COUNT - 1))
+    }
 
     @Test
     fun calibrationTrackPlacesTicksAtTheDeclaredSongTimes() {
@@ -54,23 +68,22 @@ class RhythmLatencyCalibrationTest {
             ((RhythmCalibrationTrack.FIRST_TICK_MS + RhythmCalibrationTrack.PERIOD_MS / 2) *
                 sampleRate / 1000)
         assertTrue(isSilent(audio, gapFrame))
-        // And the tail after the last tick is silent.
-        val tailFrame = (
-            (RhythmCalibrationTrack.TICK_COUNT - 1) * RhythmCalibrationTrack.PERIOD_MS +
-                RhythmCalibrationTrack.FIRST_TICK_MS + RhythmCalibrationTrack.PERIOD_MS
-            ) * sampleRate / 1000
-        assertTrue(isSilent(audio, tailFrame))
     }
 
     @Test
-    fun analyzeTapOffsetsAveragesThePerceivedLatency() {
+    fun cleanRunMeasuresThePerceivedLatency() {
         val latencyNs = 180_000_000L
         val tickWalls = walls()
-        val taps = tickWalls.map { it + latencyNs }
+        val taps = measuredWalls().map { it + latencyNs }
 
-        val mean = analyzeTapOffsets(taps, tickWalls)
-        assertNotNull(mean)
-        assertEquals(180.0, mean!!, 0.5)
+        val stats = analyzeCalibration(taps, tickWalls)
+        assertNotNull(stats)
+        assertEquals(180.0, stats!!.offsetMs, 0.5)
+        assertEquals(0.0, stats.sigmaMs, 0.5)
+        assertEquals(8, stats.matchedTicks)
+        assertEquals(0, stats.rejectedTicks)
+        assertFalse(stats.isLowConfidence)
+        assertEquals(-180, stats.appliedOffsetMs)
     }
 
     @Test
@@ -81,68 +94,124 @@ class RhythmLatencyCalibrationTest {
         // user read as a "37 ms" low-latency link, and which applied the offset in the wrong
         // direction. At the 1200 ms period the same tap must measure as ~463 ms.
         val tickWalls = walls()
-        val taps = tickWalls.map { it + 463_000_000L }
+        val taps = measuredWalls().map { it + 463_000_000L }
 
-        val mean = analyzeTapOffsets(taps, tickWalls)
-        assertNotNull(mean)
-        assertEquals(463.0, mean!!, 0.5)
+        val stats = analyzeCalibration(taps, tickWalls)
+        assertNotNull(stats)
+        assertEquals(463.0, stats!!.offsetMs, 0.5)
+        assertEquals(-463, stats.appliedOffsetMs)
     }
 
     @Test
     fun latencyOfFiveHundredMillisecondsStillMatchesItsOwnTick() {
         val tickWalls = walls()
-        val taps = tickWalls.map { it + 520_000_000L }
+        val taps = measuredWalls().map { it + 520_000_000L }
 
-        val mean = analyzeTapOffsets(taps, tickWalls)
-        assertNotNull(mean)
-        assertEquals(520.0, mean!!, 0.5)
+        val stats = analyzeCalibration(taps, tickWalls)
+        assertNotNull(stats)
+        assertEquals(520.0, stats!!.offsetMs, 0.5)
     }
 
     @Test
-    fun analyzeTapOffsetsIgnoresTheWarmupTicksAndStrayTaps() {
+    fun aSingleMistimedTapIsRejectedInsteadOfDraggingTheMedian() {
         val tickWalls = walls()
-        // Taps only on the first two (warm-up) ticks: nothing to learn from.
-        val warmupOnly = tickWalls.take(2).map { it + 180_000_000L }
-        assertNull(analyzeTapOffsets(warmupOnly, tickWalls))
+        val measured = measuredWalls()
+        // Seven ticks at 180 ms plus one blunder 300 ms off: the old mean moved by ~37 ms.
+        val taps = measured.mapIndexed { index, wall ->
+            wall + if (index == 5) 480_000_000L else 180_000_000L
+        }
 
-        // Taps on steady-state ticks plus a stray tap beyond the match window of every wall
-        // (half a period): stray is unmatched, the mean survives.
-        val taps = tickWalls.drop(2).map { it + 180_000_000L } +
-            (tickWalls[9] + tickStepNs / 2 + 100_000_000L)
-        val mean = analyzeTapOffsets(taps, tickWalls)
-        assertNotNull(mean)
-        assertEquals(180.0, mean!!, 0.5)
+        val stats = analyzeCalibration(taps, tickWalls)
+        assertNotNull(stats)
+        assertEquals(180.0, stats!!.offsetMs, 0.5)
+        assertEquals(7, stats.matchedTicks)
+        assertEquals(1, stats.rejectedTicks)
+        assertTrue(stats.samples.single { it.rejected }.index == RhythmCalibrationTrack.LEAD_IN_TICKS + 5)
     }
 
     @Test
-    fun analyzeTapOffsetsAveragesMultipleTapsOnOneTick() {
+    fun anAllOverThePlaceRunIsFlaggedLowConfidence() {
         val tickWalls = walls()
-        // Tick 4 gets two taps bracketing 180 ms (160 and 200): averaged per tick first,
-        // so the across-tick mean still lands on 180.
-        val taps = tickWalls.drop(2).mapIndexed { index, wall ->
-            val tick = index + 2
-            if (tick == 4) wall + 160_000_000L else wall + 180_000_000L
-        } + (tickWalls[4] + 200_000_000L)
+        val measured = measuredWalls()
+        // Alternating 100 / 300 ms: the median is 200 ms but the spread is ±100 ms.
+        val taps = measured.mapIndexed { index, wall ->
+            wall + if (index % 2 == 0) 100_000_000L else 300_000_000L
+        }
 
-        val mean = analyzeTapOffsets(taps, tickWalls)
-        assertNotNull(mean)
-        assertEquals(180.0, mean!!, 0.5)
+        val stats = analyzeCalibration(taps, tickWalls)
+        assertNotNull(stats)
+        assertEquals(200.0, stats!!.offsetMs, 0.5)
+        assertTrue(stats.sigmaMs > CalibrationStats.LOW_CONFIDENCE_SIGMA_MS)
+        assertTrue(stats.isLowConfidence)
     }
 
     @Test
-    fun analyzeTapOffsetsRequiresEnoughMatchedTicks() {
+    fun leadInTapsAreNeverMeasured() {
         val tickWalls = walls()
-        val twoTaps = listOf(tickWalls[2] + 180_000_000L, tickWalls[3] + 180_000_000L)
-        assertNull(analyzeTapOffsets(twoTaps, tickWalls))
+        val leadInOnly = tickWalls
+            .take(RhythmCalibrationTrack.LEAD_IN_TICKS)
+            .map { it + 180_000_000L }
+
+        assertNull(analyzeCalibration(leadInOnly, tickWalls))
     }
 
     @Test
-    fun analyzeTapOffsetsSkipsUncrossedTicks() {
+    fun tooFewMatchedTicksProduceNoResult() {
+        val tickWalls = walls()
+        val fourTaps = measuredWalls().take(4).map { it + 180_000_000L }
+
+        assertNull(analyzeCalibration(fourTaps, tickWalls))
+    }
+
+    @Test
+    fun twoTapsOnOneTickCountOnce() {
+        val tickWalls = walls()
+        val measured = measuredWalls()
+        val taps = measured.mapIndexed { index, wall ->
+            wall + if (index == 2) 160_000_000L else 180_000_000L
+        } + (measured[2] + 200_000_000L)
+
+        val stats = analyzeCalibration(taps, tickWalls)
+        assertNotNull(stats)
+        // The per-tick median of 160 / 200 is 180: the extra tap must not weigh twice.
+        assertEquals(180.0, stats!!.offsetMs, 0.5)
+        assertEquals(8, stats.matchedTicks)
+    }
+
+    @Test
+    fun tapsArrivingOutOfOrderAreStillMatched() {
+        val tickWalls = walls()
+        val taps = measuredWalls().map { it + 180_000_000L }.reversed()
+
+        val stats = analyzeCalibration(taps, tickWalls)
+        assertNotNull(stats)
+        assertEquals(180.0, stats!!.offsetMs, 0.5)
+    }
+
+    @Test
+    fun uncrossedTicksCarryNoWallAndAreSkipped() {
         // A pathological run where the clock never reached the last ticks: nulls carry no wall.
-        val partial = walls().mapIndexed { index, wall -> if (index < 5) wall else null }
-        val taps = (2 until 5).map { partial[it]!! + 150_000_000L }
-        val mean = analyzeTapOffsets(taps, partial)
-        assertNotNull(mean)
-        assertEquals(150.0, mean!!, 0.5)
+        val partial = walls().mapIndexed { index, wall ->
+            if (index < RhythmCalibrationTrack.LEAD_IN_TICKS + 3) wall else null
+        }
+        val taps = (RhythmCalibrationTrack.LEAD_IN_TICKS until
+            RhythmCalibrationTrack.LEAD_IN_TICKS + 3).map { partial[it]!! + 150_000_000L }
+
+        assertNull(analyzeCalibration(taps, partial))
+    }
+
+    @Test
+    fun appliedOffsetIsClampedToAPlausibleRange() {
+        val stats = CalibrationStats(
+            offsetMs = 900.0,
+            sigmaMs = 5.0,
+            matchedTicks = 8,
+            rejectedTicks = 0,
+            measuredTicks = 8,
+            taps = 8,
+            samples = emptyList(),
+        )
+
+        assertEquals(-CalibrationStats.MAX_OFFSET_MS, stats.appliedOffsetMs)
     }
 }

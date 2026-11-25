@@ -39,6 +39,7 @@ import androidx.compose.material.icons.outlined.MusicNote
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Sync
 import androidx.compose.material.icons.outlined.UploadFile
+import androidx.compose.material.icons.rounded.Headphones
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -116,6 +117,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancelAndJoin
+import kotlin.math.roundToInt
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -204,6 +206,10 @@ fun RhythmSetupScreen(
     // value that will actually be applied.
     var latencyDeviceKey by remember { mutableStateOf(RhythmLatencyStore.deviceKey(context)) }
     var latencyOffsetMs by remember { mutableIntStateOf(RhythmLatencyStore.offsetMs(context)) }
+    var latencySigmaMs by remember { mutableStateOf(RhythmLatencyStore.sigmaMs(context)) }
+    var latencyCalibratedAtMs by remember {
+        mutableStateOf(RhythmLatencyStore.calibratedAtMs(context))
+    }
     var showLatencyCalibration by remember { mutableStateOf(false) }
 
     // Global game visuals (style + low motion). Persisted immediately on every change so the
@@ -268,6 +274,8 @@ fun RhythmSetupScreen(
         )
         latencyDeviceKey = RhythmLatencyStore.deviceKey(context)
         latencyOffsetMs = RhythmLatencyStore.offsetMs(context)
+        latencySigmaMs = RhythmLatencyStore.sigmaMs(context)
+        latencyCalibratedAtMs = RhythmLatencyStore.calibratedAtMs(context)
     }
 
     fun refresh() {
@@ -906,6 +914,8 @@ fun RhythmSetupScreen(
                 LatencyCalibrationCard(
                     deviceKey = latencyDeviceKey,
                     offsetMs = latencyOffsetMs,
+                    sigmaMs = latencySigmaMs,
+                    calibratedAtMs = latencyCalibratedAtMs,
                     onCalibrate = { showLatencyCalibration = true },
                 )
                 GameVisualsCard(
@@ -1018,15 +1028,19 @@ fun RhythmSetupScreen(
     if (showLatencyCalibration) {
         RhythmCalibrationOverlay(
             currentOffsetMs = latencyOffsetMs,
+            currentSigmaMs = latencySigmaMs,
             playerViewModel = playerViewModel,
-            onApplied = { applied ->
+            onApplied = { applied, sigma ->
                 showLatencyCalibration = false
                 latencyOffsetMs = applied
+                latencySigmaMs = sigma
+                latencyCalibratedAtMs = RhythmLatencyStore.calibratedAtMs(context, latencyDeviceKey)
                 playerViewModel.sendToast(
                     context.getString(
                         R.string.rhythm_latency_applied,
-                        applied,
                         context.getString(RhythmLatencyStore.deviceLabelRes(latencyDeviceKey)),
+                        applied,
+                        sigma.roundToInt(),
                     ),
                 )
             },
@@ -1104,41 +1118,89 @@ private fun DeleteDerivedPill(
 private fun LatencyCalibrationCard(
     deviceKey: String,
     offsetMs: Int,
+    sigmaMs: Double?,
+    calibratedAtMs: Long,
     onCalibrate: () -> Unit,
 ) {
-    Card(modifier = Modifier.fillMaxWidth()) {
+    val deviceLabel = stringResource(RhythmLatencyStore.deviceLabelRes(deviceKey))
+    val calibrated = calibratedAtMs != 0L
+    val jittery = (sigmaMs ?: 0.0) > JITTER_WARN_MS
+    val jitterText = sigmaMs?.let { stringResource(R.string.rhythm_latency_sigma, it.roundToInt()) }
+    val meta = when {
+        !calibrated -> stringResource(R.string.rhythm_latency_card_meta_uncalibrated)
+        jittery -> stringResource(
+            R.string.rhythm_latency_card_meta_warn,
+            jitterText.orEmpty(),
+        )
+
+        else -> stringResource(
+            R.string.rhythm_latency_card_meta,
+            jitterText.orEmpty(),
+            measuredAgoLabel(calibratedAtMs),
+        )
+    }
+    Card(modifier = Modifier.fillMaxWidth().clickable(onClick = onCalibrate)) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
+                .padding(start = 16.dp, end = 12.dp, top = 14.dp, bottom = 14.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
+            Icon(
+                imageVector = Icons.Rounded.Headphones,
+                contentDescription = null,
+                tint = if (calibrated) {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                } else {
+                    MaterialTheme.colorScheme.primary
+                },
+                modifier = Modifier.size(20.dp),
+            )
+            Spacer(Modifier.width(10.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = stringResource(R.string.rhythm_latency_card_title),
-                    style = MaterialTheme.typography.titleMedium,
+                    text = stringResource(
+                        if (calibrated) {
+                            R.string.rhythm_latency_card_route_calibrated
+                        } else {
+                            R.string.rhythm_latency_card_route_uncalibrated
+                        },
+                        deviceLabel,
+                    ),
+                    style = MaterialTheme.typography.titleSmall,
                 )
+                Text(
+                    text = meta,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (jittery) {
+                        MaterialTheme.colorScheme.error
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    },
+                )
+            }
+            if (calibrated) {
+                Spacer(Modifier.width(8.dp))
                 Text(
                     text = stringResource(
-                        R.string.rhythm_latency_card_value,
-                        stringResource(RhythmLatencyStore.deviceLabelRes(deviceKey)),
-                        offsetMs,
+                        R.string.rhythm_latency_card_offset,
+                        formatOffset(offsetMs),
                     ),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Text(
-                    text = stringResource(R.string.rhythm_latency_card_hint),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
                 )
             }
-            OutlinedButton(onClick = onCalibrate) {
-                Text(stringResource(R.string.rhythm_latency_calibrate))
-            }
+            Icon(
+                imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
     }
 }
+
+/** Entry card keeps its own threshold: this is a "worth re-measuring" nudge, not a verdict. */
+private const val JITTER_WARN_MS = 30.0
 
 /**
  * 「游戏视觉」: the global visual-style choice for the rhythm game surface.
