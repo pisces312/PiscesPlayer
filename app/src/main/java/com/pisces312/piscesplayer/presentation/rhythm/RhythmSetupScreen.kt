@@ -424,7 +424,16 @@ fun RhythmSetupScreen(
             return
         }
         if (snapshot.master != null) {
-            showDeriveSheet = true
+            if (snapshot.masterChart != null) {
+                showDeriveSheet = true
+            } else {
+                // Master metadata without a loadable body (failed load / stale row): rebuilding
+                // it needs the explicit overwrite confirmation, so go through the generate sheet
+                // instead of opening a derive sheet with nothing to derive from.
+                generationError = null
+                overwriting = true
+                showGenerateSheet = true
+            }
             return
         }
         generationError = null
@@ -606,12 +615,22 @@ fun RhythmSetupScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             item {
+                // The single creation entry carries the state-dependent label (2026-11-25): with
+                // no master it generates one, with a master present it is the derive entry the
+                // master card used to duplicate, and for MIDI songs it opens the MIDI sheet.
                 QuickEntryCard(
+                    generateTitle = stringResource(
+                        when {
+                            song?.isRhythmMidiSong() == true -> R.string.rhythm_entry_generate
+                            masterMeta != null -> R.string.rhythm_derive_action
+                            else -> R.string.rhythm_entry_generate
+                        },
+                    ),
                     generateHint = stringResource(
-                        if (song?.isRhythmMidiSong() == true) {
-                            R.string.rhythm_entry_generate_hint_midi
-                        } else {
-                            R.string.rhythm_entry_generate_hint
+                        when {
+                            song?.isRhythmMidiSong() == true -> R.string.rhythm_entry_generate_hint_midi
+                            masterMeta != null -> R.string.rhythm_entry_derive_hint
+                            else -> R.string.rhythm_entry_generate_hint
                         },
                     ),
                     quickGenerating = quickGenerating,
@@ -677,10 +696,8 @@ fun RhythmSetupScreen(
                             snapshot.settings[masterMeta.chartId]?.leadInMs ?: 0,
                             masterMeta,
                         ),
-                        deriving = deriving,
                         derivedCount = snapshot.derived.size,
                         onExport = { exportTarget = masterMeta },
-                        onDerive = { if (snapshot.masterChart != null) showDeriveSheet = true },
                         onRegenerate = {
                             generationError = null
                             overwriting = true
@@ -1222,6 +1239,7 @@ private fun GameVisualsCard(
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun QuickEntryCard(
+    generateTitle: String,
     generateHint: String,
     quickGenerating: Boolean,
     quickPhase: RhythmQuickPhase,
@@ -1243,7 +1261,7 @@ private fun QuickEntryCard(
         ) {
             QuickEntryRow(
                 icon = Icons.Outlined.AutoAwesome,
-                title = stringResource(R.string.rhythm_entry_generate),
+                title = generateTitle,
                 subtitle = generateHint,
                 enabled = enabled,
                 onClick = onGenerate,
@@ -1376,7 +1394,8 @@ private fun QuickEntryRow(
  * the name owns a full line, every fact is a rounded chip under it and the icon actions
  * (export / regenerate / delete) sit on the title row. The master itself is not playable any
  * more — its raw onset set is far too dense to tap — deriving is what the master exists for,
- * so its button owns the whole action line below the facts.
+ * so deriving lives on the single creation entry at the top of the page instead of being
+ * duplicated here; this card carries facts and the icon actions only.
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -1384,10 +1403,8 @@ private fun MasterCard(
     meta: RhythmChartMeta,
     bpmText: String,
     stats: VisibleStats,
-    deriving: Boolean,
     derivedCount: Int,
     onExport: () -> Unit,
-    onDerive: () -> Unit,
     onRegenerate: () -> Unit,
     onDelete: () -> Unit,
 ) {
@@ -1469,37 +1486,6 @@ private fun MasterCard(
                 )
                 ChartParamChip(
                     text = stringResource(R.string.rhythm_master_derived_count, derivedCount),
-                )
-            }
-
-            // The primary action owns the whole line below the info (2026-11-25); deleting derived
-            // charts moved up to the "derived charts" section title row, which owns that list.
-            Button(
-                onClick = onDerive,
-                enabled = !deriving,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(46.dp),
-                shape = RoundedCornerShape(23.dp),
-                contentPadding = PaddingValues(horizontal = 14.dp),
-            ) {
-                if (deriving) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(20.dp),
-                        strokeWidth = 2.dp,
-                    )
-                } else {
-                    Icon(
-                        imageVector = Icons.Outlined.AutoAwesome,
-                        contentDescription = null,
-                        modifier = Modifier.size(20.dp),
-                    )
-                }
-                Spacer(Modifier.width(8.dp))
-                Text(
-                    text = stringResource(R.string.rhythm_derive_action),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
                 )
             }
         }

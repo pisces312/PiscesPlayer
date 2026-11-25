@@ -495,6 +495,7 @@
     <string name="rhythm_play_chart">开始</string>
     <string name="rhythm_entry_generate">生成谱面</string>
     <string name="rhythm_entry_generate_hint">生成母谱并派生难度（参数可调）</string>
+    <string name="rhythm_entry_derive_hint">打开派生面板，逐档派生难度（参数可调）</string>
     <string name="rhythm_entry_generate_hint_midi">从音符轨生成谱面（参数可调）</string>
     <string name="rhythm_entry_import">导入谱面</string>
     <string name="rhythm_entry_import_hint">导入 osu!mania 谱面文件</string>

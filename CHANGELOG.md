@@ -65,13 +65,15 @@ PixelPlayerOSS; versions up to and including 0.4.3 were published under the upst
   visit — re-entering the picker shows it again) and carries a "Calibrate" action that opens
   the latency calibration overlay right there, since the offset is a property of the audio
   route and benefits every chart.
-- Rhythm game: the master chart card's actions moved around — the play-settings icon is gone
-  (the master is not playable), "Regenerate" collapsed into a sync icon, and all icon buttons
-  (export / regenerate / delete) now sit at the right end of the title row. Below the info
-  chips the primary "Derive charts" button is now full width, and "Delete derived (N)"
-  became a bordered error pill pinned to the right of the "Derived charts" section title row,
-  right above the charts it removes. Both labels are single-line, so neither wraps under a
-  fixed button height.
+- Rhythm game: the master chart card is facts-only now — the play-settings icon is gone (the
+  master is not playable), "Regenerate" collapsed into a sync icon, and the icon buttons
+  (export / regenerate / delete) sit at the right end of the title row. Its "Derive charts"
+  button was removed because it duplicated the page's creation entry: that entry relabels
+  itself to "Derive charts" (hint: open the derive sheet, parameters tunable) once a master
+  exists and stays "Generate charts" before one does, so there is exactly one derive entry
+  and it says what it will do. "Delete derived (N)" became a bordered error pill pinned to
+  the right of the "Derived charts" section title row, right above the charts it removes.
+  Labels are single-line, so none wraps under a fixed button height.
 - Rhythm game: force-quitting a run from the pause menu's "Exit" now still settles the run —
   unplayed tail notes count as misses exactly like a natural end, the result screen pops up
   and the score is recorded (best score still only ever increases). Runs still in the

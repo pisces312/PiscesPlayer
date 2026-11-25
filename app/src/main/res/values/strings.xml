@@ -497,6 +497,7 @@
     <string name="rhythm_play_chart">Play</string>
     <string name="rhythm_entry_generate">Generate charts</string>
     <string name="rhythm_entry_generate_hint">Generate the master, then derive with tunable parameters</string>
+    <string name="rhythm_entry_derive_hint">Open the derive sheet to add difficulty rungs (tunable)</string>
     <string name="rhythm_entry_generate_hint_midi">Generate charts from the note tracks (tunable)</string>
     <string name="rhythm_entry_import">Import chart</string>
     <string name="rhythm_entry_import_hint">Import an osu!mania chart file</string>
