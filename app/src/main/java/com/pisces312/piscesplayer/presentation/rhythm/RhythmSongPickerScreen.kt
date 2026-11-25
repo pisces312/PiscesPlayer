@@ -80,6 +80,7 @@ import com.pisces312.piscesplayer.data.model.Song
 import com.pisces312.piscesplayer.data.model.SortOption
 import com.pisces312.piscesplayer.data.offline.CloudOfflineRepository
 import com.pisces312.piscesplayer.data.rhythm.RhythmChartMeta
+import com.pisces312.piscesplayer.data.rhythm.LatencyRouteKind
 import com.pisces312.piscesplayer.data.rhythm.RhythmLatencyStore
 import com.pisces312.piscesplayer.presentation.components.LibrarySortBottomSheet
 import com.pisces312.piscesplayer.presentation.components.SmartImage
@@ -129,7 +130,7 @@ fun RhythmSongPickerScreen(
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
     val bluetoothRoute = remember(routeProbeTick) {
-        RhythmLatencyStore.deviceKey(context) == RhythmLatencyStore.DEVICE_BLUETOOTH
+        RhythmLatencyStore.activeDevice(context).kind == LatencyRouteKind.BLUETOOTH
     }
     // Dismissing the Bluetooth hint lasts for this visit only (saved across the setup-screen
     // round trip): the latency problem is real on every run, so a fresh picker entry (a new
@@ -529,18 +530,19 @@ fun RhythmSongPickerScreen(
     // Full-screen layer emitted last so it covers the scaffold. The offset is a property of the
     // audio route, not of any song, so calibrating right here on the picker benefits every chart.
     if (showLatencyCalibration) {
+        val setting = RhythmLatencyStore.resolve(context)
         RhythmCalibrationOverlay(
-            currentOffsetMs = RhythmLatencyStore.offsetMs(context),
-            currentSigmaMs = RhythmLatencyStore.sigmaMs(context),
+            currentOffsetMs = setting.offsetMs,
+            currentSigmaMs = setting.sigmaMs,
             playerViewModel = playerViewModel,
-            onApplied = { applied, sigma ->
+            onApplied = { applied, sigma, device ->
                 showLatencyCalibration = false
+                // Stay on the picker (this is the other entry point; the sheet entry returns to
+                // the sheet instead).
                 playerViewModel.sendToast(
                     context.getString(
                         R.string.rhythm_latency_applied,
-                        context.getString(
-                            RhythmLatencyStore.deviceLabelRes(RhythmLatencyStore.deviceKey(context)),
-                        ),
+                        device.displayName.ifBlank { context.getString(device.kind.labelRes) },
                         applied,
                         sigma.roundToInt(),
                     ),

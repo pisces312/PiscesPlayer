@@ -34,7 +34,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.pisces312.piscesplayer.R
 import com.pisces312.piscesplayer.data.rhythm.RhythmChartSettings
-import com.pisces312.piscesplayer.data.rhythm.RhythmLatencyStore
 import com.pisces312.piscesplayer.data.rhythm.delayAfterTap
 
 /**
@@ -51,7 +50,7 @@ internal fun RhythmChartSettingsSheet(
     chartName: String,
     settings: RhythmChartSettings,
     routeOffsetMs: Int,
-    routeDeviceKey: String,
+    routeLabel: String,
     onChange: (RhythmChartSettings) -> Unit,
     onDismiss: () -> Unit,
 ) {
@@ -107,7 +106,7 @@ internal fun RhythmChartSettingsSheet(
                     } else {
                         stringResource(
                             R.string.rhythm_settings_delay_follow,
-                            stringResource(RhythmLatencyStore.deviceLabelRes(routeDeviceKey)),
+                            routeLabel,
                             routeOffsetMs,
                         )
                     },

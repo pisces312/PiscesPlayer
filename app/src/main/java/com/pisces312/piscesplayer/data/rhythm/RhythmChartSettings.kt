@@ -15,17 +15,18 @@ import kotlinx.serialization.Serializable
  * change would be both slow and destructive. A sidecar with the same base name keeps the
  * lookup one file open.
  *
- * The audio-latency offset is deliberately NOT here: it is a property of the output route
- * (wired / Bluetooth / speaker), stored per route key by [RhythmLatencyStore] and calibrated
- * by tapping along with a generated metronome (see RhythmLatencyCalibration.kt).
+ * The audio-latency offset is deliberately NOT here: it is a property of the output device
+ * (a specific headset, or its whole kind when it cannot be identified), stored per device by
+ * [RhythmLatencyStore] and produced either by tapping along with a generated metronome or by
+ * typing the number (see RhythmLatencyCalibration.kt).
  */
 @Serializable
 data class RhythmChartSettings(
     val schemaVersion: Int = 1,
     /**
-     * Per-chart latency override in ms. Null = follow the route-keyed calibration
-     * ([RhythmLatencyStore]); a value here takes priority over the route value for this
-     * chart only. Set from the chart settings sheet (seeded from the route value) or by
+     * Per-chart latency override in ms. Null = follow the per-device value
+     * ([RhythmLatencyStore]); a value here takes priority over the device value for this
+     * chart only. Set from the chart settings sheet (seeded from the device value) or by
      * tweaking on the pause screen mid-run.
      */
     val delayOverrideMs: Int? = null,

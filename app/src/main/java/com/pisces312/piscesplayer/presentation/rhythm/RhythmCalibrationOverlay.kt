@@ -70,6 +70,7 @@ import com.pisces312.piscesplayer.data.rhythm.CalibrationStats
 import com.pisces312.piscesplayer.data.rhythm.CalibrationTickSample
 import com.pisces312.piscesplayer.data.rhythm.RhythmAudioClock
 import com.pisces312.piscesplayer.data.rhythm.RhythmCalibrationTrack
+import com.pisces312.piscesplayer.data.rhythm.LatencyDevice
 import com.pisces312.piscesplayer.data.rhythm.RhythmLatencyStore
 import com.pisces312.piscesplayer.data.rhythm.RhythmUiPreferences
 import com.pisces312.piscesplayer.data.rhythm.analyzeCalibration
@@ -126,7 +127,7 @@ internal fun RhythmCalibrationOverlay(
     currentOffsetMs: Int,
     currentSigmaMs: Double?,
     playerViewModel: PlayerViewModel,
-    onApplied: (appliedMs: Int, sigmaMs: Double) -> Unit,
+    onApplied: (appliedMs: Int, sigmaMs: Double, device: LatencyDevice) -> Unit,
     onDismiss: () -> Unit,
 ) {
     val context = LocalContext.current
@@ -134,10 +135,14 @@ internal fun RhythmCalibrationOverlay(
     val scope = rememberCoroutineScope()
     val view = LocalView.current
     val topBarGuardPx = with(LocalDensity.current) { TOP_BAR_GUARD.toPx() }
-    val deviceKey = remember { RhythmLatencyStore.deviceKey(context) }
-    val deviceLabel = stringResource(RhythmLatencyStore.deviceLabelRes(deviceKey))
+    // Captured once: the run belongs to the device that was connected when it started, even if
+    // the user unplugs the headset mid-way.
+    val device = remember { RhythmLatencyStore.activeDevice(context) }
+    val deviceLabel = device.displayLabel()
     val lowMotion = remember { RhythmUiPreferences(context).lowMotion }
-    val calibratedAtMs = remember { RhythmLatencyStore.calibratedAtMs(context, deviceKey) }
+    val calibratedAtMs = remember {
+        RhythmLatencyStore.resolve(context, device).updatedAtMs
+    }
 
     // The shared player must be silent: mixing music into the ticks would corrupt the taps.
     LaunchedEffect(Unit) {
@@ -445,13 +450,17 @@ internal fun RhythmCalibrationOverlay(
                                 } else {
                                     TextButton(
                                         onClick = {
-                                            RhythmLatencyStore.setOffsetMs(
+                                            RhythmLatencyStore.saveCalibration(
                                                 context,
+                                                device,
                                                 result.appliedOffsetMs,
                                                 result.sigmaMs,
-                                                deviceKey,
                                             )
-                                            onApplied(result.appliedOffsetMs, result.sigmaMs)
+                                            onApplied(
+                                                result.appliedOffsetMs,
+                                                result.sigmaMs,
+                                                device,
+                                            )
                                         },
                                     ) {
                                         Text(
@@ -468,13 +477,17 @@ internal fun RhythmCalibrationOverlay(
                                 PrimaryButton(
                                     text = stringResource(R.string.rhythm_latency_apply),
                                     onClick = {
-                                        RhythmLatencyStore.setOffsetMs(
+                                        RhythmLatencyStore.saveCalibration(
                                             context,
+                                            device,
                                             result.appliedOffsetMs,
                                             result.sigmaMs,
-                                            deviceKey,
                                         )
-                                        onApplied(result.appliedOffsetMs, result.sigmaMs)
+                                        onApplied(
+                                            result.appliedOffsetMs,
+                                            result.sigmaMs,
+                                            device,
+                                        )
                                     },
                                 )
                                 Row(horizontalArrangement = Arrangement.Center) {

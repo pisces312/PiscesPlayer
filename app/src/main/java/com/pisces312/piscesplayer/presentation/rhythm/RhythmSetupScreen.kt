@@ -11,6 +11,8 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -39,7 +41,6 @@ import androidx.compose.material.icons.outlined.MusicNote
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Sync
 import androidx.compose.material.icons.outlined.UploadFile
-import androidx.compose.material.icons.rounded.Headphones
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -65,9 +66,9 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -77,6 +78,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import android.Manifest
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
@@ -95,6 +98,7 @@ import com.pisces312.piscesplayer.data.rhythm.RhythmAnalysisParams
 import com.pisces312.piscesplayer.data.rhythm.RhythmChart
 import com.pisces312.piscesplayer.data.rhythm.RhythmChartExport
 import com.pisces312.piscesplayer.data.rhythm.RhythmChartMeta
+import com.pisces312.piscesplayer.data.rhythm.LatencyRouteKind
 import com.pisces312.piscesplayer.data.rhythm.RhythmChartSettings
 import com.pisces312.piscesplayer.data.rhythm.RhythmDeriveMode
 import com.pisces312.piscesplayer.data.rhythm.RhythmDeriveSettings
@@ -201,16 +205,44 @@ fun RhythmSetupScreen(
     var pendingDeleteDerived by remember { mutableStateOf(false) }
     var settingsTarget by remember { mutableStateOf<RhythmChartMeta?>(null) }
 
-    // Route-keyed latency offset: what the game will compensate for on the next run. Refreshed
-    // with the snapshot so returning from a calibration (or plugging another route) shows the
-    // value that will actually be applied.
-    var latencyDeviceKey by remember { mutableStateOf(RhythmLatencyStore.deviceKey(context)) }
-    var latencyOffsetMs by remember { mutableIntStateOf(RhythmLatencyStore.offsetMs(context)) }
-    var latencySigmaMs by remember { mutableStateOf(RhythmLatencyStore.sigmaMs(context)) }
-    var latencyCalibratedAtMs by remember {
-        mutableStateOf(RhythmLatencyStore.calibratedAtMs(context))
-    }
+    // Per-device latency: the resolved value for the output that is connected now, its last
+    // measurement (for "restore"), and every saved record — a headset that is not connected still
+    // owns a number nobody else can see otherwise.
+    var latencySetting by remember { mutableStateOf(RhythmLatencyStore.resolve(context)) }
+    var calibratedOffsetMs by remember { mutableStateOf<Int?>(null) }
+    var savedLatency by remember { mutableStateOf(RhythmLatencyStore.savedDevices(context)) }
+    var nearbyGranted by remember { mutableStateOf(RhythmLatencyStore.hasBluetoothConnect(context)) }
     var showLatencyCalibration by remember { mutableStateOf(false) }
+
+    fun refreshLatency() {
+        latencySetting = RhythmLatencyStore.resolve(context)
+        savedLatency = RhythmLatencyStore.savedDevices(context)
+        nearbyGranted = RhythmLatencyStore.hasBluetoothConnect(context)
+        calibratedOffsetMs = RhythmLatencyStore.calibratedOffsetMs(context, latencySetting.device)
+    }
+
+    fun latencyLabelOf(device: com.pisces312.piscesplayer.data.rhythm.LatencyDevice): String =
+        device.displayName.ifBlank { context.getString(device.kind.labelRes) }
+
+    // The Bluetooth permission is the difference between one shared number and one per headset:
+    // asked once, from the settings sheet, and never blocking calibration itself.
+    val nearbyLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+    ) { granted ->
+        RhythmLatencyStore.markNearbyPermissionAsked(context)
+        if (granted) {
+            // The id flips from bt:<name> to bt:<mac>; move the record so it is not "lost".
+            RhythmLatencyStore.adoptNameKeyedRecord(
+                context,
+                RhythmLatencyStore.activeDevice(context),
+            )
+        }
+        refreshLatency()
+    }
+
+    fun requestNearbyPermission() {
+        nearbyLauncher.launch(Manifest.permission.BLUETOOTH_CONNECT)
+    }
 
     // Global game visuals (style + low motion). Persisted immediately on every change so the
     // next gameplay entry renders with the choice even if the process is killed in between.
@@ -240,6 +272,20 @@ fun RhythmSetupScreen(
 
     // Game settings (device latency + game visuals), opened from the top bar.
     var showSettingsSheet by remember { mutableStateOf(false) }
+
+    // Ask once, the first time the settings sheet opens on an unidentified Bluetooth output —
+    // that is exactly when the user is trying to calibrate it. Refusing never blocks anything.
+    LaunchedEffect(showSettingsSheet) {
+        if (
+            showSettingsSheet &&
+            latencySetting.device.kind == LatencyRouteKind.BLUETOOTH &&
+            !nearbyGranted &&
+            !RhythmLatencyStore.nearbyPermissionAsked(context)
+        ) {
+            RhythmLatencyStore.markNearbyPermissionAsked(context)
+            requestNearbyPermission()
+        }
+    }
 
     var showDeriveSheet by remember { mutableStateOf(false) }
     var deriving by remember { mutableStateOf(false) }
@@ -272,10 +318,7 @@ fun RhythmSetupScreen(
             masterChart = masterChart,
             noteTimes = noteTimes,
         )
-        latencyDeviceKey = RhythmLatencyStore.deviceKey(context)
-        latencyOffsetMs = RhythmLatencyStore.offsetMs(context)
-        latencySigmaMs = RhythmLatencyStore.sigmaMs(context)
-        latencyCalibratedAtMs = RhythmLatencyStore.calibratedAtMs(context)
+        refreshLatency()
     }
 
     fun refresh() {
@@ -738,7 +781,7 @@ fun RhythmSetupScreen(
                             meta,
                         ),
                         playSettings = ChartPlaySettings(
-                            delayMs = settings.delayOverrideMs ?: latencyOffsetMs,
+                            delayMs = settings.delayOverrideMs ?: latencySetting.offsetMs,
                             leadInMs = settings.leadInMs,
                             approachMs = settings.approachMs,
                         ),
@@ -767,7 +810,7 @@ fun RhythmSetupScreen(
                             meta,
                         ),
                         playSettings = ChartPlaySettings(
-                            delayMs = settings.delayOverrideMs ?: latencyOffsetMs,
+                            delayMs = settings.delayOverrideMs ?: latencySetting.offsetMs,
                             leadInMs = settings.leadInMs,
                             approachMs = settings.approachMs,
                         ),
@@ -871,8 +914,8 @@ fun RhythmSetupScreen(
         RhythmChartSettingsSheet(
             chartName = meta.difficultyName,
             settings = snapshot.settings[meta.chartId] ?: RhythmChartSettings.DEFAULT,
-            routeOffsetMs = latencyOffsetMs,
-            routeDeviceKey = latencyDeviceKey,
+            routeOffsetMs = latencySetting.offsetMs,
+            routeLabel = latencyLabelOf(latencySetting.device),
             onChange = { updated -> saveSettings(meta, updated) },
             onDismiss = { settingsTarget = null },
         )
@@ -904,6 +947,7 @@ fun RhythmSetupScreen(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .verticalScroll(rememberScrollState())
                     .padding(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 24.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
@@ -911,12 +955,38 @@ fun RhythmSetupScreen(
                     text = stringResource(R.string.rhythm_settings_sheet_title),
                     style = MaterialTheme.typography.titleLarge,
                 )
-                LatencyCalibrationCard(
-                    deviceKey = latencyDeviceKey,
-                    offsetMs = latencyOffsetMs,
-                    sigmaMs = latencySigmaMs,
-                    calibratedAtMs = latencyCalibratedAtMs,
-                    onCalibrate = { showLatencyCalibration = true },
+                LatencyDeviceCard(
+                    setting = latencySetting,
+                    calibratedOffsetMs = calibratedOffsetMs,
+                    onCalibrate = {
+                        // The overlay is a Box in this window, while the sheet is its own window:
+                        // leaving it open would draw the sheet over the overlay and swallow taps
+                        // during the measured beats.
+                        showSettingsSheet = false
+                        showLatencyCalibration = true
+                    },
+                    onRestore = {
+                        RhythmLatencyStore.restoreCalibrated(context, latencySetting.device)
+                        refreshLatency()
+                    },
+                )
+                LatencyOffsetField(
+                    setting = latencySetting,
+                    onCommit = { ms ->
+                        RhythmLatencyStore.setManual(context, latencySetting.device, ms)
+                        refreshLatency()
+                    },
+                )
+                if (latencySetting.device.kind == LatencyRouteKind.BLUETOOTH && !nearbyGranted) {
+                    NearbyDevicesHint(onRequest = { requestNearbyPermission() })
+                }
+                SavedLatencyDevices(
+                    active = latencySetting,
+                    saved = savedLatency,
+                    onForget = { id ->
+                        RhythmLatencyStore.forget(context, id)
+                        refreshLatency()
+                    },
                 )
                 GameVisualsCard(
                     uiStyle = uiStyle,
@@ -1027,24 +1097,36 @@ fun RhythmSetupScreen(
     // apply, and start a run while the link is still warm.
     if (showLatencyCalibration) {
         RhythmCalibrationOverlay(
-            currentOffsetMs = latencyOffsetMs,
-            currentSigmaMs = latencySigmaMs,
+            currentOffsetMs = latencySetting.offsetMs,
+            currentSigmaMs = latencySetting.sigmaMs,
             playerViewModel = playerViewModel,
-            onApplied = { applied, sigma ->
+            onApplied = { applied, sigma, device ->
                 showLatencyCalibration = false
-                latencyOffsetMs = applied
-                latencySigmaMs = sigma
-                latencyCalibratedAtMs = RhythmLatencyStore.calibratedAtMs(context, latencyDeviceKey)
+                // Came from the sheet: land back on it, showing the value that was just saved.
+                showSettingsSheet = true
+                val active = RhythmLatencyStore.activeDevice(context)
+                refreshLatency()
                 playerViewModel.sendToast(
-                    context.getString(
-                        R.string.rhythm_latency_applied,
-                        context.getString(RhythmLatencyStore.deviceLabelRes(latencyDeviceKey)),
-                        applied,
-                        sigma.roundToInt(),
-                    ),
+                    if (active.id == device.id) {
+                        context.getString(
+                            R.string.rhythm_latency_applied,
+                            latencyLabelOf(device),
+                            applied,
+                            sigma.roundToInt(),
+                        )
+                    } else {
+                        context.getString(
+                            R.string.rhythm_latency_saved_to_other,
+                            latencyLabelOf(device),
+                            latencyLabelOf(active),
+                        )
+                    },
                 )
             },
-            onDismiss = { showLatencyCalibration = false },
+            onDismiss = {
+                showLatencyCalibration = false
+                showSettingsSheet = true
+            },
         )
     }
 }
@@ -1108,99 +1190,6 @@ private fun DeleteDerivedPill(
         )
     }
 }
-
-/**
- * The route-keyed latency offset that the next run will apply, with the calibration entry.
- * The offset is a property of the audio route (wired / Bluetooth / speaker), not of any chart:
- * calibrating here measures it once and every chart benefits.
- */
-@Composable
-private fun LatencyCalibrationCard(
-    deviceKey: String,
-    offsetMs: Int,
-    sigmaMs: Double?,
-    calibratedAtMs: Long,
-    onCalibrate: () -> Unit,
-) {
-    val deviceLabel = stringResource(RhythmLatencyStore.deviceLabelRes(deviceKey))
-    val calibrated = calibratedAtMs != 0L
-    val jittery = (sigmaMs ?: 0.0) > JITTER_WARN_MS
-    val jitterText = sigmaMs?.let { stringResource(R.string.rhythm_latency_sigma, it.roundToInt()) }
-    val meta = when {
-        !calibrated -> stringResource(R.string.rhythm_latency_card_meta_uncalibrated)
-        jittery -> stringResource(
-            R.string.rhythm_latency_card_meta_warn,
-            jitterText.orEmpty(),
-        )
-
-        else -> stringResource(
-            R.string.rhythm_latency_card_meta,
-            jitterText.orEmpty(),
-            measuredAgoLabel(calibratedAtMs),
-        )
-    }
-    Card(modifier = Modifier.fillMaxWidth().clickable(onClick = onCalibrate)) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(start = 16.dp, end = 12.dp, top = 14.dp, bottom = 14.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Icon(
-                imageVector = Icons.Rounded.Headphones,
-                contentDescription = null,
-                tint = if (calibrated) {
-                    MaterialTheme.colorScheme.onSurfaceVariant
-                } else {
-                    MaterialTheme.colorScheme.primary
-                },
-                modifier = Modifier.size(20.dp),
-            )
-            Spacer(Modifier.width(10.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = stringResource(
-                        if (calibrated) {
-                            R.string.rhythm_latency_card_route_calibrated
-                        } else {
-                            R.string.rhythm_latency_card_route_uncalibrated
-                        },
-                        deviceLabel,
-                    ),
-                    style = MaterialTheme.typography.titleSmall,
-                )
-                Text(
-                    text = meta,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = if (jittery) {
-                        MaterialTheme.colorScheme.error
-                    } else {
-                        MaterialTheme.colorScheme.onSurfaceVariant
-                    },
-                )
-            }
-            if (calibrated) {
-                Spacer(Modifier.width(8.dp))
-                Text(
-                    text = stringResource(
-                        R.string.rhythm_latency_card_offset,
-                        formatOffset(offsetMs),
-                    ),
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onSurface,
-                )
-            }
-            Icon(
-                imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-    }
-}
-
-/** Entry card keeps its own threshold: this is a "worth re-measuring" nudge, not a verdict. */
-private const val JITTER_WARN_MS = 30.0
 
 /**
  * 「游戏视觉」: the global visual-style choice for the rhythm game surface.

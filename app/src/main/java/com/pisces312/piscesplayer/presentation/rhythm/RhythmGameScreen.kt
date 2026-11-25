@@ -240,7 +240,7 @@ fun RhythmGameScreen(
                 // note is right).
                 val settings = repository.loadSettings(chartId)
                 chartSettings = settings
-                val routeOffsetMs = RhythmLatencyStore.offsetMs(context)
+                val routeOffsetMs = RhythmLatencyStore.resolve(context).offsetMs
                 val effectiveOffset = settings.delayOverrideMs ?: routeOffsetMs
                 val clock = RhythmAudioClock(pcm, offsetMs = effectiveOffset.toDouble())
                 audioClock = clock
