@@ -223,6 +223,15 @@ Codeup `my-projects`，远端 `git@codeup.aliyun.com:63f6dbf33c5c77b98fc5cfd1/my
 **`keystore.properties` 和 `.jks` 都不该出现在仓库里**：`.gitignore` 已覆盖，实际也不存在。
 看到它们说明环境变量没生效，别当成"缺签名文件"去补。
 
+### debug 签名全平台统一（2026-11-26 起）
+
+PC 与手机的 `~/.android/debug.keystore` 用**同一把** debug key（alias `androiddebugkey`、
+口令 `android`，即 PC 原生 debug key），debug 包可跨机器互相覆盖安装、不再报
+`INSTALL_FAILED_UPDATE_INCOMPATIBLE`。备份在私有仓库 workspace `keys/engine/debug.keystore`
+（换机 / 重置后放回手机 `/root/.android/debug.keystore`）；2026-11-26 前的旧引擎 key 留档
+`keys/engine/debug-cde0-legacy.keystore`，它签名的存量 debug 包换 key 后只能卸载重装。
+**不需要任何构建配置改动** —— AGP 默认 debug 签名就读 `~/.android/debug.keystore`。
+
 ### 正式版必须签名：`build-release.bat`（2026-11-17 起）
 
 凡是交付 / 安装给他人的 release APK **必须带 `CN=pisces312` 签名**。签名变量缺失时
