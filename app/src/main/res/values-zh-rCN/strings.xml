@@ -433,7 +433,8 @@
     <string name="rhythm_picker_search_all">在全部歌曲中搜索</string>
     <string name="rhythm_picker_scope_recent">最近</string>
     <string name="rhythm_picker_scope_all">全部</string>
-    <string name="rhythm_picker_difficulty_chip">难度：%1$s</string>
+    <string name="rhythm_picker_difficulty_label">难度</string>
+    <string name="rhythm_picker_difficulty_chip">难度 · %1$s</string>
     <string name="rhythm_picker_charts_chip">谱面：%1$s</string>
     <string name="rhythm_picker_difficulty_all">全部</string>
     <string name="rhythm_picker_difficulty_ungraded">未分级</string>

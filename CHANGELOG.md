@@ -5,6 +5,17 @@ PixelPlayerOSS; versions up to and including 0.4.3 were published under the upst
 
 ## [Unreleased]
 
+### Added
+- Rhythm game: the song picker's top bar now carries the game settings button (device latency
+  + game visuals) — the same shared sheet as the chart setup page, including the one-time
+  Bluetooth permission ask; calibration entered from the sheet returns to it afterwards.
+
+### Changed
+- Rhythm game: the song picker's filters are one row of dropdowns — the All/Recent scope merged
+  into one dropdown showing its current value (now also surfaced on the "Without charts" tab,
+  which previously filtered invisibly), the difficulty dropdown reads "Difficulty" ("Difficulty
+  · Hard" when filtered) instead of "Difficulty: All", and the sort menu sits on the same row.
+
 ## [1.0.5] - 2026-11-25
 
 ### Added

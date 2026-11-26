@@ -26,6 +26,7 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.rounded.ArrowDropDown
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Close
@@ -95,9 +96,10 @@ import kotlinx.coroutines.launch
  * Rhythm game song picker.
  *
  * Two swipeable tabs modelled on the library tab pattern (2026-11-22): tab 1 lists songs
- * that already have charts (with a 全部/最近 scope filter and a difficulty filter), tab 2
- * lists songs without charts. Both tabs share the search field and the common song sort
- * options; the tab itself replaces the old "chart presence" dropdown filter.
+ * that already have charts (with a 全部/最近 scope dropdown and a difficulty dropdown), tab 2
+ * lists songs without charts (scope + sort). Both tabs share the search field and the common
+ * song sort options; the tab itself replaces the old "chart presence" dropdown filter. The
+ * top bar carries the shared game settings button (2026-11-26).
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -137,6 +139,11 @@ fun RhythmSongPickerScreen(
     // back-stack entry) shows the hint again.
     var btWarningDismissed by rememberSaveable { mutableStateOf(false) }
     var showLatencyCalibration by remember { mutableStateOf(false) }
+    // Game settings (device latency + game visuals) from the top bar. Calibration entered
+    // from the sheet lands back on it afterwards, like the setup screen does; the Bluetooth
+    // hint entry just stays on the picker.
+    var showSettingsSheet by remember { mutableStateOf(false) }
+    var calibrationFromSheet by remember { mutableStateOf(false) }
 
     var query by rememberSaveable { mutableStateOf("") }
     var scope by rememberSaveable { mutableStateOf(RhythmSongScope.ALL) }
@@ -215,6 +222,16 @@ fun RhythmSongPickerScreen(
                         Icon(
                             imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
                             contentDescription = stringResource(R.string.auth_cd_back),
+                        )
+                    }
+                },
+                actions = {
+                    // The same game settings entry as the setup screen (2026-11-26): device
+                    // latency + game visuals live behind one settings button.
+                    IconButton(onClick = { showSettingsSheet = true }) {
+                        Icon(
+                            imageVector = Icons.Outlined.Settings,
+                            contentDescription = stringResource(R.string.rhythm_settings_cd),
                         )
                     }
                 },
@@ -345,8 +362,11 @@ fun RhythmSongPickerScreen(
                             )
                         }
                     }
-                    // Tab 1 owns the 全部/最近 scope and the difficulty filter; tab 2 needs
-                    // neither (it is a flat "no charts yet" view). Both keep the sort entry.
+                    // Filters on one row (2026-11-26): the 全部/最近 scope merged into a
+                    // dropdown that shows its current value, the difficulty dropdown labelled
+                    // 难度 (value suffix only when filtered), and the sort entry. Tab 1 owns
+                    // scope + difficulty; tab 2 shares the scope dropdown (it used to filter
+                    // the list invisibly); the MIDI tab keeps only the sort entry.
                     FlowRow(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -354,24 +374,38 @@ fun RhythmSongPickerScreen(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
+                        if (page == 0 || page == 1) {
+                            RhythmFilterSelector(
+                                selected = scope,
+                                options = listOf(
+                                    RhythmSongScope.ALL to
+                                        stringResource(R.string.rhythm_picker_scope_all),
+                                    RhythmSongScope.RECENT to
+                                        stringResource(R.string.rhythm_picker_scope_recent),
+                                ),
+                                label = stringResource(
+                                    if (scope == RhythmSongScope.RECENT) {
+                                        R.string.rhythm_picker_scope_recent
+                                    } else {
+                                        R.string.rhythm_picker_scope_all
+                                    }
+                                ),
+                                emphasized = scope != RhythmSongScope.ALL,
+                                onSelected = { scope = it },
+                            )
+                        }
                         if (page == 0) {
-                            FilterChip(
-                                selected = scope == RhythmSongScope.ALL,
-                                onClick = { scope = RhythmSongScope.ALL },
-                                label = { Text(stringResource(R.string.rhythm_picker_scope_all)) },
-                            )
-                            FilterChip(
-                                selected = scope == RhythmSongScope.RECENT,
-                                onClick = { scope = RhythmSongScope.RECENT },
-                                label = { Text(stringResource(R.string.rhythm_picker_scope_recent)) },
-                            )
                             RhythmFilterSelector(
                                 selected = difficulty,
                                 options = difficultyOptions(),
-                                label = stringResource(
-                                    R.string.rhythm_picker_difficulty_chip,
-                                    difficultyLabel(difficulty),
-                                ),
+                                label = if (difficulty == RhythmDifficultyFilter.ALL) {
+                                    stringResource(R.string.rhythm_picker_difficulty_label)
+                                } else {
+                                    stringResource(
+                                        R.string.rhythm_picker_difficulty_chip,
+                                        difficultyLabel(difficulty),
+                                    )
+                                },
                                 emphasized = difficulty != RhythmDifficultyFilter.ALL,
                                 onSelected = { difficulty = it },
                             )
@@ -527,6 +561,20 @@ fun RhythmSongPickerScreen(
         )
     }
 
+    // Game settings from the top bar: the same sheet as the setup screen.
+    if (showSettingsSheet) {
+        RhythmGameSettingsSheet(
+            onCalibrate = {
+                // The sheet is its own window and would cover the overlay and swallow taps
+                // during the measured beats: close it first, return after the round trip.
+                showSettingsSheet = false
+                calibrationFromSheet = true
+                showLatencyCalibration = true
+            },
+            onDismiss = { showSettingsSheet = false },
+        )
+    }
+
     // Full-screen layer emitted last so it covers the scaffold. The offset is a property of the
     // audio route, not of any song, so calibrating right here on the picker benefits every chart.
     if (showLatencyCalibration) {
@@ -537,8 +585,12 @@ fun RhythmSongPickerScreen(
             playerViewModel = playerViewModel,
             onApplied = { applied, sigma, device ->
                 showLatencyCalibration = false
-                // Stay on the picker (this is the other entry point; the sheet entry returns to
-                // the sheet instead).
+                // The sheet entry lands back on the sheet (like the setup screen); the
+                // Bluetooth-hint entry stays on the picker.
+                if (calibrationFromSheet) {
+                    calibrationFromSheet = false
+                    showSettingsSheet = true
+                }
                 playerViewModel.sendToast(
                     context.getString(
                         R.string.rhythm_latency_applied,
@@ -548,7 +600,13 @@ fun RhythmSongPickerScreen(
                     ),
                 )
             },
-            onDismiss = { showLatencyCalibration = false },
+            onDismiss = {
+                showLatencyCalibration = false
+                if (calibrationFromSheet) {
+                    calibrationFromSheet = false
+                    showSettingsSheet = true
+                }
+            },
         )
     }
 }

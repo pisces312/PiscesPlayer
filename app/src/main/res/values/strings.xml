@@ -433,7 +433,8 @@
     <string name="rhythm_picker_search_all">Search all songs</string>
     <string name="rhythm_picker_scope_recent">Recent</string>
     <string name="rhythm_picker_scope_all">All</string>
-    <string name="rhythm_picker_difficulty_chip">Difficulty: %1$s</string>
+    <string name="rhythm_picker_difficulty_label">Difficulty</string>
+    <string name="rhythm_picker_difficulty_chip">Difficulty · %1$s</string>
     <string name="rhythm_picker_charts_chip">Charts: %1$s</string>
     <string name="rhythm_picker_difficulty_all">All</string>
     <string name="rhythm_picker_difficulty_ungraded">Ungraded</string>
