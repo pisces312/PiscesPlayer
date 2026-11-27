@@ -129,6 +129,19 @@ data class MimeTypeCountRow(
     val count: Int
 )
 
+/**
+ * Queries behind the library screen (songs / albums / artists / years / genres / folders /
+ * liked, plus their counts and drill-downs) carry `source_type NOT IN (7)`.
+ *
+ * `7` is [SourceType.CLASSICAL], the built-in classical MIDI pack — reachable only through
+ * 音乐学习, never through a library tab. The literal is spelled out because `@Query` needs a
+ * compile-time constant and [SourceType.APP_PROVIDED] is a list; when a new app-provided pack
+ * is added, update this predicate in the same commit (search for `NOT IN (7)`).
+ *
+ * Deliberately **not** filtered: search, `getAllSongs` (quiz / rhythm pickers read it through
+ * `MusicRepository.getAudioFiles()`), random / first-playable, home mix (already excludes the
+ * pack in SQL), and song-id lookups (playback of a built-in needs them).
+ */
 @Dao
 interface MusicDao {
 
@@ -546,7 +559,7 @@ interface MusicDao {
         }
     }
 
-    @Query("SELECT COUNT(*) FROM songs")
+    @Query("SELECT COUNT(*) FROM songs WHERE source_type NOT IN (7)")
     fun getSongCount(): Flow<Int>
 
     @Query("SELECT COUNT(*) FROM songs WHERE source_type != 0")
@@ -681,6 +694,7 @@ interface MusicDao {
     @Query("""
         SELECT id, parent_directory_path, title, album_art_uri_string FROM songs
         WHERE (:applyDirectoryFilter = 0 OR id < 0 OR parent_directory_path IN (:allowedParentDirs))
+        AND source_type NOT IN (7)
         AND (
             :filterMode = 0
             OR (
@@ -884,6 +898,7 @@ interface MusicDao {
         SELECT songs.* FROM songs
         INNER JOIN favorites ON songs.id = favorites.song_id AND favorites.is_favorite = 1
         WHERE (:applyDirectoryFilter = 0 OR songs.id < 0 OR songs.parent_directory_path IN (:allowedParentDirs))
+        AND songs.source_type NOT IN (7)
         AND (
             :filterMode = 0
             OR (
@@ -927,6 +942,7 @@ interface MusicDao {
         SELECT songs.* FROM songs
         INNER JOIN favorites ON songs.id = favorites.song_id AND favorites.is_favorite = 1
         WHERE (:applyDirectoryFilter = 0 OR songs.id < 0 OR songs.parent_directory_path IN (:allowedParentDirs))
+        AND songs.source_type NOT IN (7)
         AND (
             :filterMode = 0
             OR (
@@ -951,6 +967,7 @@ interface MusicDao {
         FROM songs
         INNER JOIN favorites ON songs.id = favorites.song_id AND favorites.is_favorite = 1
         WHERE (:applyDirectoryFilter = 0 OR songs.id < 0 OR songs.parent_directory_path IN (:allowedParentDirs))
+        AND songs.source_type NOT IN (7)
         AND (
             :filterMode = 0
             OR (
@@ -997,6 +1014,7 @@ interface MusicDao {
         SELECT COUNT(*) FROM songs
         INNER JOIN favorites ON songs.id = favorites.song_id AND favorites.is_favorite = 1
         WHERE (:applyDirectoryFilter = 0 OR songs.id < 0 OR songs.parent_directory_path IN (:allowedParentDirs))
+        AND songs.source_type NOT IN (7)
         AND (
             :filterMode = 0
             OR (
@@ -1223,6 +1241,7 @@ interface MusicDao {
         FROM songs
         INNER JOIN albums ON albums.id = songs.album_id
         WHERE (:applyDirectoryFilter = 0 OR songs.id < 0 OR songs.parent_directory_path IN (:allowedParentDirs))
+        AND songs.source_type NOT IN (7)
         AND (
             :filterMode = 0
             OR (
@@ -1267,6 +1286,7 @@ interface MusicDao {
         FROM songs
         INNER JOIN albums ON albums.id = songs.album_id
         WHERE (:applyDirectoryFilter = 0 OR songs.id < 0 OR songs.parent_directory_path IN (:allowedParentDirs))
+        AND songs.source_type NOT IN (7)
         AND (
             :filterMode = 0
             OR (
@@ -1324,6 +1344,7 @@ interface MusicDao {
         FROM songs
         INNER JOIN albums ON albums.id = songs.album_id
         WHERE (:applyDirectoryFilter = 0 OR songs.id < 0 OR songs.parent_directory_path IN (:allowedParentDirs))
+        AND songs.source_type NOT IN (7)
         AND (
             :filterMode = 0
             OR (
@@ -1516,6 +1537,7 @@ interface MusicDao {
         SELECT DISTINCT artists.* FROM artists
         INNER JOIN songs ON artists.id = songs.artist_id
         WHERE (:applyDirectoryFilter = 0 OR songs.id < 0 OR songs.parent_directory_path IN (:allowedParentDirs))
+        AND songs.source_type NOT IN (7)
         ORDER BY artists.name ASC
     """)
     fun getArtists(
@@ -1530,6 +1552,7 @@ interface MusicDao {
         INNER JOIN song_artist_cross_ref ON song_artist_cross_ref.song_id = songs.id
         INNER JOIN artists ON artists.id = song_artist_cross_ref.artist_id
         WHERE (:applyDirectoryFilter = 0 OR songs.id < 0 OR songs.parent_directory_path IN (:allowedParentDirs))
+        AND songs.source_type NOT IN (7)
         AND (
             :filterMode = 0
             OR (
@@ -1570,6 +1593,7 @@ interface MusicDao {
         FROM songs
         INNER JOIN artists ON artists.id = songs.album_artist_id
         WHERE (:applyDirectoryFilter = 0 OR songs.id < 0 OR songs.parent_directory_path IN (:allowedParentDirs))
+        AND songs.source_type NOT IN (7)
         AND (
             :filterMode = 0
             OR (
@@ -1604,6 +1628,7 @@ interface MusicDao {
         INNER JOIN song_artist_cross_ref ON song_artist_cross_ref.song_id = songs.id
         INNER JOIN artists ON artists.id = song_artist_cross_ref.artist_id
         WHERE (:applyDirectoryFilter = 0 OR songs.id < 0 OR songs.parent_directory_path IN (:allowedParentDirs))
+        AND songs.source_type NOT IN (7)
         AND (
             :filterMode = 0
             OR (
@@ -1717,6 +1742,7 @@ interface MusicDao {
         FROM songs
         WHERE year > 0
         AND (:applyDirectoryFilter = 0 OR id < 0 OR parent_directory_path IN (:allowedParentDirs))
+        AND source_type NOT IN (7)
         GROUP BY year
         ORDER BY
             CASE WHEN :sortOrder = 'year_bucket_oldest' THEN year END ASC,
@@ -1734,6 +1760,7 @@ interface MusicDao {
         SELECT COUNT(*) FROM songs
         WHERE year <= 0
         AND (:applyDirectoryFilter = 0 OR id < 0 OR parent_directory_path IN (:allowedParentDirs))
+        AND source_type NOT IN (7)
     """)
     fun getUnknownYearCount(
         allowedParentDirs: List<String>,
@@ -1753,6 +1780,7 @@ interface MusicDao {
         LEFT JOIN song_engagements ON songs.id = song_engagements.song_id
         WHERE ((:year = 0 AND songs.year <= 0) OR songs.year = :year)
         AND (:applyDirectoryFilter = 0 OR songs.id < 0 OR songs.parent_directory_path IN (:allowedParentDirs))
+        AND songs.source_type NOT IN (7)
         ORDER BY
             CASE WHEN :sortOrder = 'year_song_play_count' THEN song_engagements.play_count END DESC,
             CASE WHEN :sortOrder = 'year_song_play_count_asc' THEN song_engagements.play_count END ASC,
@@ -1821,6 +1849,7 @@ interface MusicDao {
     @Query("""
         SELECT * FROM songs
         WHERE (:applyDirectoryFilter = 0 OR id < 0 OR parent_directory_path IN (:allowedParentDirs))
+        AND source_type NOT IN (7)
         AND genre LIKE :genreName
         ORDER BY title ASC
     """)
@@ -1862,6 +1891,7 @@ interface MusicDao {
     @Query("""
         SELECT * FROM songs
         WHERE (:applyDirectoryFilter = 0 OR id < 0 OR parent_directory_path IN (:allowedParentDirs))
+        AND source_type NOT IN (7)
         AND (genre IS NULL OR genre = '')
         ORDER BY title ASC
     """)
@@ -1877,6 +1907,7 @@ interface MusicDao {
         SELECT DISTINCT genre FROM songs
         WHERE genre IS NOT NULL AND genre != ''
         AND (:applyDirectoryFilter = 0 OR id < 0 OR parent_directory_path IN (:allowedParentDirs))
+        AND source_type NOT IN (7)
         ORDER BY genre ASC
     """)
     fun getUniqueGenres(
@@ -1888,6 +1919,7 @@ interface MusicDao {
         SELECT EXISTS(
             SELECT 1 FROM songs
             WHERE (:applyDirectoryFilter = 0 OR id < 0 OR parent_directory_path IN (:allowedParentDirs))
+            AND source_type NOT IN (7)
             AND (genre IS NULL OR genre = '')
         )
     """)

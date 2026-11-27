@@ -32,17 +32,20 @@ object SourceType {
     /**
      * App-provided content packs (随 app 分发的内置内容).
      *
-     * Single policy rule for everything in this list: app-provided content behaves like a
-     * normal song everywhere it is *read* (playback, search, library tabs, manual playlists,
-     * quiz / rhythm pickers), but is never written into user-data pools and never competes
-     * as a recommendation candidate — i.e. no listening stats, no recently played, no AI /
-     * NLP / smart playlist sampling, no daily mix / your mix, no scrobbles. The reason is
-     * twofold: the pack would drown the user's own library in the pools, and user data must
-     * never depend on shipped content that resource updates may replace or remove.
+     * Single policy rule for everything in this list: app-provided content stays playable,
+     * searchable, addable to playlists and eligible for quiz / rhythm pickers, but it is
+     * **hidden from the library screen** — every library tab, its counts and its drill-downs
+     * carry `source_type NOT IN (7)` (see [MusicDao]), so 音乐学习 is the only way in. It is
+     * also never written into user-data pools and never competes as a recommendation
+     * candidate — i.e. no listening stats, no recently played, no AI / NLP / smart playlist
+     * sampling, no daily mix / your mix, no scrobbles. The reasons: a bundled pack is not
+     * the user's library and would drown it in the pools, and user data must never depend on
+     * shipped content that resource updates may replace or remove.
      *
      * Future built-in packs register their source type here and everything downstream
      * ([isAppProvided], [Song.isBuiltIn], the home-mix SQL exclusion, the stats gate in
-     * MusicService) follows automatically — no per-feature special-casing.
+     * MusicService) follows automatically — except the library-tab SQL predicates, which are
+     * literal `NOT IN (7)` and must be updated alongside a new pack.
      */
     val APP_PROVIDED: List<Int> = listOf(CLASSICAL)
 
