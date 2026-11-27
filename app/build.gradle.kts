@@ -19,7 +19,7 @@ import org.gradle.process.ExecOperations
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.time.Instant
-import java.time.ZoneId
+import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import java.util.jar.JarEntry
 import java.util.jar.JarOutputStream
@@ -117,9 +117,16 @@ abstract class GenerateBuildInfo : DefaultTask() {
         val changedFiles = status?.lineSequence()?.count { it.isNotBlank() } ?: 0
         val dirty = changedFiles > 0
 
-        val now = Instant.now()
+        // Reproducible builds: F-Droid's build server exports SOURCE_DATE_EPOCH, so honour it and
+        // fall back to the commit date. A wall-clock timestamp would make every build unique and
+        // the reproducible-build comparison could never match. UTC keeps the ISO string stable
+        // across build machines in different time zones.
+        val buildEpochSec = System.getenv("SOURCE_DATE_EPOCH")?.trim()?.toLongOrNull()
+            ?: commitTimeEpochSec.toLongOrNull()
+            ?: 0L
+        val now = Instant.ofEpochSecond(buildEpochSec)
         val buildTimeIso = DateTimeFormatter.ISO_OFFSET_DATE_TIME
-            .format(now.atZone(ZoneId.systemDefault()))
+            .format(now.atZone(ZoneOffset.UTC))
 
         val outputFile = outputDirectory.file("build-info.properties").get().asFile
         outputFile.parentFile.mkdirs()
