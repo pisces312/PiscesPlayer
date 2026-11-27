@@ -451,6 +451,16 @@ android {
         density.enableSplit = true
         language.enableSplit = true
     }
+
+    // Reproducible builds: the F-Droid buildserver image has no NDK, so AGP cannot strip
+    // native libs there ("Unable to strip ... packaging them as they are") while local
+    // builds with an NDK do strip them. Keep debug symbols for every .so so the packaged
+    // libs are identical regardless of whether an NDK is installed.
+    packaging {
+        jniLibs {
+            keepDebugSymbols += "**/*.so"
+        }
+    }
 }
 
 androidComponents {
