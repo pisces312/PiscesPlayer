@@ -436,6 +436,14 @@ android {
         buildConfig = true
     }
 
+    // AGP writes an encrypted "Dependency metadata" block (ID 0x504B4453) into the APK Signing
+    // Block by default. F-Droid's scanner rejects any APK carrying it, so keep it out of both
+    // the APK and any App Bundle. It carries no runtime data; removing it does not change the app.
+    dependenciesInfo {
+        includeInApk = false
+        includeInBundle = false
+    }
+
     testOptions {
         unitTests.isReturnDefaultValues = true
         unitTests.all { it.useJUnitPlatform() }
