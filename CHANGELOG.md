@@ -8,10 +8,10 @@ PixelPlayerOSS; versions up to and including 0.4.3 were published under the upst
 ## [1.0.7] - 2026-11-27
 
 ### Changed
-- About: the build information shows only what the checked-out commit determines — short hash and
-  commit date. The build-time clock, branch name and `-dirty` marker are gone; they described the
-  machine that ran the build rather than the source, and made two builds of the same commit differ.
-  The copied text still carries the full hash, `git describe` and the commit date.
+- Build info: the About page shows the commit and its date in debug builds only; release builds
+  show just the version name. Release APKs carry no git metadata at all — no commit hashes,
+  `git describe`, commit date or VCS info block — so their bytes depend only on the source tree,
+  and editing docs or scripts no longer changes the build output.
 - Releases: one universal APK (arm64-v8a, armeabi-v7a, x86, x86_64) instead of an arm64-v8a split,
   so a single download works on every device and matches what F-Droid rebuilds from source.
 

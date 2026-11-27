@@ -83,6 +83,14 @@ abstract class GenerateBuildInfo : DefaultTask() {
     @get:Input
     abstract val versionName: Property<String>
 
+    /**
+     * False for release builds: the APK then carries no git metadata at all, so its bytes are a
+     * pure function of the source tree. See `vcsInfo.include = false` in the release build type
+     * for the AGP-generated half of the same story.
+     */
+    @get:Input
+    abstract val includeGitInfo: Property<Boolean>
+
     @get:OutputDirectory
     abstract val outputDirectory: DirectoryProperty
 
@@ -108,6 +116,14 @@ abstract class GenerateBuildInfo : DefaultTask() {
 
     @TaskAction
     fun generate() {
+        val outputFile = outputDirectory.file("build-info.properties").get().asFile
+        outputFile.parentFile.mkdirs()
+
+        if (!includeGitInfo.get()) {
+            outputFile.writeText("versionName=${versionName.get()}\n", Charsets.UTF_8)
+            return
+        }
+
         val commit = git("rev-parse", "--short=8", "HEAD") ?: "unknown"
         val commitFull = git("rev-parse", "HEAD") ?: "unknown"
         // Committer date, not author date: amend/rebase/cherry-pick move the committer date.
@@ -116,8 +132,6 @@ abstract class GenerateBuildInfo : DefaultTask() {
         // appended there but not here is enough to break byte-identical rebuilds.
         val describe = git("describe", "--tags", "--always") ?: commit
 
-        val outputFile = outputDirectory.file("build-info.properties").get().asFile
-        outputFile.parentFile.mkdirs()
         outputFile.writeText(
             buildString {
                 appendLine("commit=$commit")
@@ -295,17 +309,9 @@ val copyChangelog = tasks.register<CopyAssetFile>("copyChangelog") {
     outputDirectory.set(generatedChangelogAssets)
 }
 
-val generatedBuildInfoAssets = layout.buildDirectory.dir("generated/assets/build-info")
-val generateBuildInfo = tasks.register<GenerateBuildInfo>("generateBuildInfo") {
-    // WorkBuddy's PowerShell sessions do not always have git on PATH; override with
-    // -Ppixelplayer.gitExecutable=<path> or set it once in ~/.gradle/gradle.properties.
-    gitExecutable.set(providers.gradleProperty("pixelplayer.gitExecutable").getOrElse("git"))
-    repositoryRoot.set(rootProject.layout.projectDirectory.asFile.absolutePath)
-    versionName.set(providers.gradleProperty("APP_VERSION_NAME").getOrElse("0.0.0"))
-    outputDirectory.set(generatedBuildInfoAssets)
-    // A fresh build time is the point of this task, so it can never be UP-TO-DATE.
-    outputs.upToDateWhen { false }
-}
+// generateBuildInfo is registered per variant inside androidComponents below: release builds
+// emit only versionName (no git metadata — see vcsInfo.include in the release build type),
+// debug builds emit the full commit facts for diagnostics.
 
 @Suppress("DEPRECATION")
 android {
@@ -400,6 +406,10 @@ android {
             if (hasReleaseSigningConfig) {
                 signingConfig = signingConfigs.getByName("release")
             }
+            // Keep the git commit hash out of META-INF/version-control-info.textproto so the
+            // release APK is a pure function of the source tree: a docs-only commit must not
+            // change the bytes. Recommended by F-Droid's reproducible-builds documentation.
+            vcsInfo.include = false
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(
@@ -477,6 +487,20 @@ androidComponents {
             copyChangelog,
             CopyAssetFile::outputDirectory,
         )
+
+        val generateBuildInfo = tasks.register<GenerateBuildInfo>(
+            "generateBuildInfo${variant.name.replaceFirstChar { it.uppercase() }}",
+        ) {
+            // WorkBuddy's PowerShell sessions do not always have git on PATH; override with
+            // -Ppixelplayer.gitExecutable=<path> or set it once in ~/.gradle/gradle.properties.
+            gitExecutable.set(providers.gradleProperty("pixelplayer.gitExecutable").getOrElse("git"))
+            repositoryRoot.set(rootProject.layout.projectDirectory.asFile.absolutePath)
+            versionName.set(providers.gradleProperty("APP_VERSION_NAME").getOrElse("0.0.0"))
+            includeGitInfo.set(variant.buildType == "debug")
+            outputDirectory.set(layout.buildDirectory.dir("generated/assets/build-info/${variant.name}"))
+            // Derived from HEAD at build time, so it can never be UP-TO-DATE.
+            outputs.upToDateWhen { false }
+        }
         variant.sources.assets?.addGeneratedSourceDirectory(
             generateBuildInfo,
             GenerateBuildInfo::outputDirectory,

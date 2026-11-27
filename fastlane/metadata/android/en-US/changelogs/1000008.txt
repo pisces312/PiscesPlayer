@@ -1,4 +1,4 @@
 PiscesPlayer 1.0.7:
 
-* About: build info now shows only the commit and its date, not the build machine's clock, branch or dirty state.
+* Build info: debug builds show the commit and its date in About; release builds show only the version name and carry no git metadata, so the APK bytes depend only on the source tree.
 * Releases: one universal APK for arm64-v8a, armeabi-v7a, x86 and x86_64 — it also matches what F-Droid rebuilds from source.
