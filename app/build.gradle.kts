@@ -18,9 +18,6 @@ import org.gradle.api.tasks.TaskAction
 import org.gradle.process.ExecOperations
 import java.io.ByteArrayOutputStream
 import java.io.File
-import java.time.Instant
-import java.time.ZoneOffset
-import java.time.format.DateTimeFormatter
 import java.util.jar.JarEntry
 import java.util.jar.JarOutputStream
 import java.util.zip.ZipFile
@@ -62,14 +59,18 @@ abstract class CopyAssetFile : DefaultTask() {
 }
 
 /**
- * Writes the source revision and build timestamp into an asset that the About screen reads.
+ * Writes the source revision into an asset that the About screen reads.
  *
- * Both the git calls and [Instant.now] happen in the task action, never during configuration:
- * a value read at configuration time is serialized into the configuration cache and would go
- * stale on the next build. `outputs.upToDateWhen { false }` is set at registration time so the
- * timestamp is refreshed on every build. Keeping this in assets (instead of BuildConfig or
- * resValue) means a changed timestamp only re-runs mergeAssets/packaging - Kotlin compilation
- * and R8 stay UP-TO-DATE.
+ * Only facts about the checked-out commit go in here - never the clock, the branch name or a
+ * `-dirty` marker. F-Droid's build server applies prebuild patches (leaving the tree dirty) and
+ * builds in a different directory, so any of those would make two builds of the same commit
+ * differ and break the reproducible-build comparison.
+ *
+ * The git calls happen in the task action, never during configuration: a value read at
+ * configuration time is serialized into the configuration cache and would go stale on the next
+ * build. `outputs.upToDateWhen { false }` is set at registration time so the asset is refreshed
+ * on every build. Keeping this in assets (instead of BuildConfig or resValue) means a refreshed
+ * asset only re-runs mergeAssets/packaging - Kotlin compilation and R8 stay UP-TO-DATE.
  */
 abstract class GenerateBuildInfo : DefaultTask() {
 
@@ -111,22 +112,9 @@ abstract class GenerateBuildInfo : DefaultTask() {
         val commitFull = git("rev-parse", "HEAD") ?: "unknown"
         // Committer date, not author date: amend/rebase/cherry-pick move the committer date.
         val commitTimeEpochSec = git("log", "-1", "--format=%ct") ?: ""
-        val branch = git("rev-parse", "--abbrev-ref", "HEAD") ?: "unknown"
-        val describe = git("describe", "--tags", "--always", "--dirty") ?: commit
-        val status = git("status", "--porcelain")
-        val changedFiles = status?.lineSequence()?.count { it.isNotBlank() } ?: 0
-        val dirty = changedFiles > 0
-
-        // Reproducible builds: F-Droid's build server exports SOURCE_DATE_EPOCH, so honour it and
-        // fall back to the commit date. A wall-clock timestamp would make every build unique and
-        // the reproducible-build comparison could never match. UTC keeps the ISO string stable
-        // across build machines in different time zones.
-        val buildEpochSec = System.getenv("SOURCE_DATE_EPOCH")?.trim()?.toLongOrNull()
-            ?: commitTimeEpochSec.toLongOrNull()
-            ?: 0L
-        val now = Instant.ofEpochSecond(buildEpochSec)
-        val buildTimeIso = DateTimeFormatter.ISO_OFFSET_DATE_TIME
-            .format(now.atZone(ZoneOffset.UTC))
+        // No --dirty: the build server's prebuild patches leave the tree dirty, so a suffix
+        // appended there but not here is enough to break byte-identical rebuilds.
+        val describe = git("describe", "--tags", "--always") ?: commit
 
         val outputFile = outputDirectory.file("build-info.properties").get().asFile
         outputFile.parentFile.mkdirs()
@@ -135,12 +123,7 @@ abstract class GenerateBuildInfo : DefaultTask() {
                 appendLine("commit=$commit")
                 appendLine("commitFull=$commitFull")
                 appendLine("commitTimeEpochSec=$commitTimeEpochSec")
-                appendLine("branch=$branch")
                 appendLine("describe=$describe")
-                appendLine("dirty=$dirty")
-                appendLine("changedFiles=$changedFiles")
-                appendLine("buildTimeEpochMs=${now.toEpochMilli()}")
-                appendLine("buildTimeIso=$buildTimeIso")
                 appendLine("versionName=${versionName.get()}")
             },
             Charsets.UTF_8,
