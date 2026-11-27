@@ -32,22 +32,32 @@ object SourceType {
     /**
      * App-provided content packs (随 app 分发的内置内容).
      *
-     * Single policy rule for everything in this list: app-provided content stays playable,
-     * searchable, addable to playlists and eligible for quiz / rhythm pickers, but it is
-     * **hidden from the library screen** — every library tab, its counts and its drill-downs
-     * carry `source_type NOT IN (7)` (see [MusicDao]), so 音乐学习 is the only way in. It is
-     * also never written into user-data pools and never competes as a recommendation
-     * candidate — i.e. no listening stats, no recently played, no AI / NLP / smart playlist
-     * sampling, no daily mix / your mix, no scrobbles. The reasons: a bundled pack is not
-     * the user's library and would drown it in the pools, and user data must never depend on
-     * shipped content that resource updates may replace or remove.
+     * Single policy rule for everything in this list: app-provided content stays playable and
+     * stays eligible for quiz / rhythm pickers, but it is **invisible everywhere the user
+     * browses their own music** — every library tab, its counts and its drill-downs, plus
+     * song / album / artist / lyrics search, so 音乐学习 is the only way in. It is also never
+     * written into user-data pools and never competes as a recommendation candidate — i.e. no
+     * listening stats, no recently played, no AI / NLP / smart playlist sampling, no daily mix /
+     * your mix, no scrobbles. The reasons: a bundled pack is not the user's library and would
+     * drown it in the pools, and user data must never depend on shipped content that resource
+     * updates may replace or remove.
      *
-     * Future built-in packs register their source type here and everything downstream
-     * ([isAppProvided], [Song.isBuiltIn], the home-mix SQL exclusion, the stats gate in
-     * MusicService) follows automatically — except the library-tab SQL predicates, which are
-     * literal `NOT IN (7)` and must be updated alongside a new pack.
+     * Future built-in packs register their source type here, then extend
+     * [LIBRARY_HIDDEN_SQL_IDS]; everything downstream ([isAppProvided], [Song.isBuiltIn], the
+     * home-mix SQL exclusion, the stats gate in MusicService) follows automatically.
+     * LibraryScopeSqlTest fails if the two lists drift apart.
      */
     val APP_PROVIDED: List<Int> = listOf(CLASSICAL)
+
+    /**
+     * [APP_PROVIDED] as a comma-separated list, ready to embed in a Room `@Query`:
+     * `songs.source_type NOT IN ($LIBRARY_HIDDEN_SQL_IDS)`.
+     *
+     * Room needs compile-time constant SQL, so this cannot be derived from [APP_PROVIDED] at
+     * runtime; a `const val` string template referencing the ids is the closest we get. Keep it
+     * in the same order as [APP_PROVIDED] — LibraryScopeSqlTest asserts equality.
+     */
+    const val LIBRARY_HIDDEN_SQL_IDS = "$CLASSICAL"
 
     /** Whether [sourceType] is an app-provided content pack. See [APP_PROVIDED]. */
     fun isAppProvided(sourceType: Int): Boolean = sourceType in APP_PROVIDED

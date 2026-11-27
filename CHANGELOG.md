@@ -27,9 +27,12 @@ PixelPlayerOSS; versions up to and including 0.4.3 were published under the upst
 
 ### Changed
 - Library: the built-in classical MIDI pack is hidden from every library tab (songs, albums,
-  artists, years, genres, folders, liked) together with their counts and drill-downs, so the
-  library shows only your own music; 音乐学习 is the way to reach the pack. The tracks stay in
-  the database, and search, manual playlists and the quiz / rhythm pickers still see them.
+  artists, years, genres, folders, liked) together with their counts and drill-downs, and from
+  song / album / artist / lyrics search, so only your own music shows up; 音乐学习 is the way to
+  reach the pack. The tracks stay in the database and the quiz / rhythm pickers still see them.
+  The library-scope predicate now lives in one place (SourceType + MusicDao) instead of twenty
+  scattered literals, so adding another built-in pack is a one-line change; a unit test fails
+  if the id list and the SQL string ever drift apart.
 - Rhythm game: the latency sheet is one card split into calibration, manual offset and saved
   devices (the saved list collapses by hiding its rows, defaults to collapsed, and only appears
   with at least two records); the calibration screen shares one skeleton across phases, so the
