@@ -5,6 +5,13 @@ PixelPlayerOSS; versions up to and including 0.4.3 were published under the upst
 
 ## [Unreleased]
 
+## [1.0.8] - 2026-11-27
+
+### Fixed
+- Packaging: release APKs no longer carry the "Dependency metadata" signing block that the
+  Android Gradle Plugin writes by default (an encrypted list of build dependencies, unused at
+  runtime). F-Droid's scanner rejects any APK that contains it, which blocked the 1.0.7 build.
+
 ## [1.0.7] - 2026-11-27
 
 ### Changed

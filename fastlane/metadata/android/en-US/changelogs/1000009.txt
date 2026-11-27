@@ -1,0 +1,3 @@
+PiscesPlayer 1.0.8:
+
+* Packaging: release APKs no longer carry the "Dependency metadata" signing block that the Android Gradle Plugin writes by default (an encrypted list of build dependencies, unused at runtime). F-Droid's scanner rejects any APK that contains it, which blocked the 1.0.7 build.
