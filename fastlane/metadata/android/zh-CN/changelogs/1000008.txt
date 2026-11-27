@@ -1,0 +1,4 @@
+PiscesPlayer 1.0.7：
+
+* 关于页：构建信息只显示 commit 与提交日期，不再显示构建机器的时间、分支和改动状态。
+* 发布：改为单个 universal APK，覆盖 arm64-v8a、armeabi-v7a、x86 与 x86_64；也与 F-Droid 从源码重建的产物一致。

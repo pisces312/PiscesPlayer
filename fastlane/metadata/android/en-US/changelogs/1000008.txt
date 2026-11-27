@@ -1,0 +1,4 @@
+PiscesPlayer 1.0.7:
+
+* About: build info now shows only the commit and its date, not the build machine's clock, branch or dirty state.
+* Releases: one universal APK for arm64-v8a, armeabi-v7a, x86 and x86_64 — it also matches what F-Droid rebuilds from source.
