@@ -109,6 +109,7 @@ import com.pisces312.piscesplayer.presentation.components.SmartImage
 import com.pisces312.piscesplayer.presentation.navigation.Screen
 import com.pisces312.piscesplayer.presentation.navigation.navigateSafely
 import com.pisces312.piscesplayer.presentation.viewmodel.PlayerViewModel
+import com.pisces312.piscesplayer.utils.DonationLinks
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -263,6 +264,13 @@ fun AboutScreen(
     val buildInfo = rememberBuildInfo()
 
     val projectLinks = listOf(
+        ProjectLink(
+            id = "donate",
+            title = stringResource(R.string.about_link_donate_title),
+            subtitle = stringResource(R.string.about_link_donate_subtitle),
+            iconRes = R.drawable.round_favorite_24,
+            url = DonationLinks.AfDianUrl,
+        ),
         ProjectLink(
             id = "source",
             title = stringResource(R.string.about_link_source_title),

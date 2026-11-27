@@ -5,16 +5,43 @@ PixelPlayerOSS; versions up to and including 0.4.3 were published under the upst
 
 ## [Unreleased]
 
+## [1.0.6] - 2026-11-27
+
 ### Added
+- Rhythm game: latency calibration is rebuilt as a rhythm test — 4 lead-in beats, 8 measured
+  taps, and a per-tick median with blunder rejection plus a jitter (sigma) reading instead of a
+  plain mean. Taps are timestamped on the pointer-down event, because the old tap callback fired
+  on release and silently added the finger dwell to every measurement; a short or noisy run is
+  flagged as low trust rather than stored.
+- Rhythm game: latency is kept per output device instead of per route, and the offset can be
+  typed as well as measured (number field with a sign-flip button, tolerant of U+2212, full-width
+  digits and an "ms" suffix, clamped to ±500 ms). Bluetooth devices are identified by MAC,
+  falling back to name and then to the route kind; the settings sheet lists saved devices with
+  their source, jitter and age, plus a per-row reset.
 - Rhythm game: the song picker's top bar now carries the game settings button (device latency
   + game visuals) — the same shared sheet as the chart setup page, including the one-time
   Bluetooth permission ask; calibration entered from the sheet returns to it afterwards.
+- About: a "Support PiscesPlayer" entry (also reachable from the home help sheet) opens the
+  donation page. It is a plain https link — no payment SDK, no network call of its own, and
+  nothing in the app is gated behind a donation.
 
 ### Changed
+- Rhythm game: the latency sheet is one card split into calibration, manual offset and saved
+  devices (the saved list collapses by hiding its rows, defaults to collapsed, and only appears
+  with at least two records); the calibration screen shares one skeleton across phases, so the
+  primary button no longer moves between them.
 - Rhythm game: the song picker's filters are one row of dropdowns — the All/Recent scope merged
   into one dropdown showing its current value (now also surfaced on the "Without charts" tab,
   which previously filtered invisibly), the difficulty dropdown reads "Difficulty" ("Difficulty
   · Hard" when filtered) instead of "Difficulty: All", and the sort menu sits on the same row.
+- Serendipity: the generated prompt is anchored with the device time zone and the calendar
+  ("late November"), and a failed weather lookup no longer drops the city with it — an offline
+  device still contributes its regional signal.
+
+### Fixed
+- Rhythm game: opening calibration from the settings sheet left the sheet on top of the
+  measurement overlay, swallowing taps in the lower half of the test; the sheet now closes and
+  returns once the measurement is done.
 
 ## [1.0.5] - 2026-11-25
 

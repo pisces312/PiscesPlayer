@@ -65,4 +65,5 @@
     <string name="home_help_tip_daily_title">每日推荐</string>
     <string name="home_help_tip_daily_body">点歌曲胶囊直接播放；点卡片查看全部；右上角按钮随机播放。</string>
     <string name="home_help_view_changelog">查看更新日志</string>
+    <string name="home_help_support">❤ 支持 PiscesPlayer</string>
 </resources>

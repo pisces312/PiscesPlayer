@@ -35,7 +35,7 @@ import com.pisces312.piscesplayer.R
  * changelog for "what's new". Rendered inside a ModalBottomSheet by HomeScreen.
  */
 @Composable
-fun HomeHelpSheet(onViewChangelog: () -> Unit) {
+fun HomeHelpSheet(onViewChangelog: () -> Unit, onSupport: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -70,11 +70,13 @@ fun HomeHelpSheet(onViewChangelog: () -> Unit) {
             titleRes = R.string.home_help_tip_daily_title,
             bodyRes = R.string.home_help_tip_daily_body,
         )
-        TextButton(
-            onClick = onViewChangelog,
-            modifier = Modifier.align(Alignment.CenterHorizontally),
-        ) {
-            Text(stringResource(R.string.home_help_view_changelog))
+        Row(modifier = Modifier.align(Alignment.CenterHorizontally)) {
+            TextButton(onClick = onViewChangelog) {
+                Text(stringResource(R.string.home_help_view_changelog))
+            }
+            TextButton(onClick = onSupport) {
+                Text(stringResource(R.string.home_help_support))
+            }
         }
         Spacer(Modifier.height(24.dp))
     }

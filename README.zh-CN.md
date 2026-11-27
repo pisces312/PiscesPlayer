@@ -16,6 +16,9 @@
   </a>
   <img src="https://img.shields.io/badge/Android-10%2B-3DDC84?style=for-the-badge&logo=android&logoColor=white" alt="Android 10+">
   <img src="https://img.shields.io/badge/License-GPLv3-blue?style=for-the-badge" alt="GPLv3 许可证">
+  <a href="https://afdian.com/a/pisces312">
+    <img src="https://img.shields.io/badge/%E8%B5%9E%E5%8A%A9-%E7%88%B1%E5%8F%91%E7%94%B5-946CE6?style=for-the-badge" alt="爱发电赞助">
+  </a>
 </p>
 
 <p align="center">
@@ -191,7 +194,23 @@ F-Droid 上架进行中。上架后的 F-Droid 版由 F-Droid 官方密钥签名
 
 ## 支持
 
-PiscesPlayer 是独立维护的业余分支。支持方式：给仓库点 Star、反馈问题或提交 PR。本项目基于 @lostf1sh 的 [PixelPlayerOSS](https://github.com/PixelPlayerHQ/PixelPlayerOSS)，署名与来源见 [NOTICE](NOTICE) 与 [PROVENANCE.md](PROVENANCE.md)。
+PiscesPlayer 是独立维护的业余分支。给仓库点 Star、反馈问题、提交 PR，都是支持。
+
+如果愿意在经济上也支持一下，这里有**爱发电**主页：
+
+<p align="center">
+  <a href="https://afdian.com/a/pisces312">
+    <img src="https://img.shields.io/badge/Afdian-%E7%88%B1%E5%8F%91%E7%94%B5-946CE6?style=flat-square" alt="爱发电">
+  </a>
+</p>
+
+```text
+https://afdian.com/a/pisces312
+```
+
+支持可以是单次或按月。它用于支付开发时间与测试设备，并且不兑换任何东西——所有功能始终对所有人免费，许可证始终是 GPL-3.0-or-later。应用内没有支付 SDK、没有购买记录，仓库和 APK 里也不会出现个人收款码。细节见 [DONATE.md](DONATE.md)。
+
+本项目基于 @lostf1sh 的 [PixelPlayerOSS](https://github.com/PixelPlayerHQ/PixelPlayerOSS)，署名与来源见 [NOTICE](NOTICE) 与 [PROVENANCE.md](PROVENANCE.md)。
 
 ## 项目结构
 

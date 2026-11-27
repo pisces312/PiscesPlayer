@@ -1,0 +1,5 @@
+PiscesPlayer 1.0.6:
+
+* Rhythm game: calibration rebuilt as a rhythm test (accurate tap timing, median with blunder rejection, jitter flag); offsets are stored per output device and can be typed too.
+* Rhythm game: the song picker gets the settings button and one row of dropdown filters.
+* Serendipity: prompts now use the time zone and the calendar, and keep the city when weather fails.

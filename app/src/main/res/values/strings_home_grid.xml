@@ -65,4 +65,5 @@
     <string name="home_help_tip_daily_title">Daily Mix</string>
     <string name="home_help_tip_daily_body">Tap a capsule to play that song; tap the card for the full list; the corner button shuffles.</string>
     <string name="home_help_view_changelog">View changelog</string>
+    <string name="home_help_support">❤ Support PiscesPlayer</string>
 </resources>

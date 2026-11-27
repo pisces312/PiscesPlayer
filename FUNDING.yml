@@ -1,0 +1,8 @@
+# Donation links for PiscesPlayer.
+#
+# Read by GitHub (Sponsor button) and by F-Droid's metadata bot. F-Droid also accepts the
+# same URL in the fdroiddata recipe's `Donate:` field; keep the two in sync.
+#
+# Afdian (爱发电) takes both WeChat Pay and Alipay. No QR image is shipped in the app or the
+# repository: a payment QR carries the payee's real name, and this repository is public.
+custom: ["https://afdian.com/a/pisces312"]

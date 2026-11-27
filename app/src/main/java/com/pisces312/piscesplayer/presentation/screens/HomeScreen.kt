@@ -1,6 +1,8 @@
 package com.pisces312.piscesplayer.presentation.screens
 
 import android.Manifest
+import android.content.Intent
+import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -93,6 +95,7 @@ import com.pisces312.piscesplayer.presentation.viewmodel.PlayerViewModel
 import com.pisces312.piscesplayer.presentation.viewmodel.PlaylistViewModel
 import com.pisces312.piscesplayer.presentation.viewmodel.SettingsViewModel
 import com.pisces312.piscesplayer.ui.theme.RoundedSans
+import com.pisces312.piscesplayer.utils.DonationLinks
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
@@ -712,7 +715,14 @@ fun HomeScreen(
             onDismissRequest = { sheet = HomeSheet.None },
             sheetState = addSheetState,
         ) {
-            HomeHelpSheet(onViewChangelog = { sheet = HomeSheet.Changelog })
+            HomeHelpSheet(
+                onViewChangelog = { sheet = HomeSheet.Changelog },
+                onSupport = {
+                    context.startActivity(
+                        Intent(Intent.ACTION_VIEW, Uri.parse(DonationLinks.AfDianUrl)),
+                    )
+                },
+            )
         }
     } else if (sheet == HomeSheet.Changelog) {
         ModalBottomSheet(

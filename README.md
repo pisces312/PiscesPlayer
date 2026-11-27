@@ -16,6 +16,9 @@
   </a>
   <img src="https://img.shields.io/badge/Android-10%2B-3DDC84?style=for-the-badge&logo=android&logoColor=white" alt="Android 10+">
   <img src="https://img.shields.io/badge/License-GPLv3-blue?style=for-the-badge" alt="GPLv3 license">
+  <a href="https://afdian.com/a/pisces312">
+    <img src="https://img.shields.io/badge/Support%20on-Afdian%20%E7%88%B1%E5%8F%91%E7%94%B5-946CE6?style=for-the-badge" alt="Support on Afdian">
+  </a>
 </p>
 
 <p align="center">
@@ -191,7 +194,23 @@ An F-Droid listing is in progress. Once available, the F-Droid build is signed b
 
 ## Support
 
-PiscesPlayer is a hobby fork maintained independently. To support it, star the repository, report issues, or send pull requests. It is based on [PixelPlayerOSS](https://github.com/PixelPlayerHQ/PixelPlayerOSS) by @lostf1sh; attribution and provenance are recorded in [NOTICE](NOTICE) and [PROVENANCE.md](PROVENANCE.md).
+PiscesPlayer is a hobby fork maintained independently. Starring the repository, reporting issues, and sending pull requests are all support.
+
+If you would also like to support it financially, there is an **Afdian (爱发电)** page:
+
+<p align="center">
+  <a href="https://afdian.com/a/pisces312">
+    <img src="https://img.shields.io/badge/Afdian-%E7%88%B1%E5%8F%91%E7%94%B5-946CE6?style=flat-square" alt="Afdian">
+  </a>
+</p>
+
+```text
+https://afdian.com/a/pisces312
+```
+
+Donations can be one-off or monthly. They pay for the time spent on the app and for test hardware, and they unlock nothing — every feature stays available to everyone under GPL-3.0-or-later. There is no in-app payment SDK, no purchase history, and no personal payment QR code in the repository or the APK. See [DONATE.md](DONATE.md) for the details.
+
+PiscesPlayer is based on [PixelPlayerOSS](https://github.com/PixelPlayerHQ/PixelPlayerOSS) by @lostf1sh; attribution and provenance are recorded in [NOTICE](NOTICE) and [PROVENANCE.md](PROVENANCE.md).
 
 ## Project Structure
 

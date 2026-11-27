@@ -204,6 +204,8 @@
     <string name="about_link_upstream_subtitle">基于 PixelPlayerOSS · GPL-3.0-or-later</string>
     <string name="about_link_license_title">许可证与声明</string>
     <string name="about_link_license_subtitle">GPL-3.0-or-later · 详见 NOTICE</string>
+    <string name="about_link_donate_title">支持 PiscesPlayer</string>
+    <string name="about_link_donate_subtitle">纯捐赠 · 所有功能始终免费</string>
     <string name="cd_about_open_link">打开 %1$s</string>
     <string name="about_signal_open_source">开源</string>
     <string name="about_signal_community_first">社区驱动</string>
