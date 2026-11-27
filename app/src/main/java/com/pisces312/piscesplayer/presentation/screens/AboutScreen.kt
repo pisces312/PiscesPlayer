@@ -171,7 +171,6 @@ private val AboutMaintainers = listOf(
 )
 
 private const val SourceRepoUrl = "https://github.com/pisces312/PiscesPlayer"
-private const val UpstreamRepoUrl = "https://github.com/PixelPlayerHQ/PixelPlayerOSS"
 private const val LicenseNoticesUrl = "https://github.com/pisces312/PiscesPlayer/blob/main/NOTICE"
 
 private val BuildTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
@@ -277,13 +276,6 @@ fun AboutScreen(
             subtitle = stringResource(R.string.about_link_source_subtitle),
             iconRes = R.drawable.github,
             url = SourceRepoUrl,
-        ),
-        ProjectLink(
-            id = "upstream",
-            title = stringResource(R.string.about_link_upstream_title),
-            subtitle = stringResource(R.string.about_link_upstream_subtitle),
-            iconRes = R.drawable.github,
-            url = UpstreamRepoUrl,
         ),
         ProjectLink(
             id = "license",
